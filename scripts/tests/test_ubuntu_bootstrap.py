@@ -135,6 +135,8 @@ def guestize(script, root):
 
 APT_STUB = """#!/bin/sh
 root="$MINIS_TEST_ROOT"
+# Version probes are not package-manager jobs and do not consume stdin.
+case " $* " in *" --version "*) printf 'apt synthetic-test-version\\n'; exit 0;; esac
 printf '%s\\n' "$*" >> "$root/apt_calls"
 readlink /proc/self/fd/0 >> "$root/apt_stdin"
 printf '%s\\n' "${DEBIAN_FRONTEND-}" >> "$root/apt_frontend"
@@ -374,14 +376,12 @@ class BootstrapBehaviour(unittest.TestCase):
         for call in jobs:
             self.assertIn("-o DPkg::Use-Pty=false", call)
         self.assertTrue(any(" install " in c and "--no-install-recommends" in c for c in jobs))
-        # One stdin record per apt-get call (including the `--version` diag line).
-        self.assertEqual(len(guest.stdin_targets()), len(guest.calls()))
+        # Only the update/install jobs consume stdin; --version is diagnostic.
+        self.assertEqual(len(guest.stdin_targets()), len(jobs))
         self.assertEqual({t.strip() for t in guest.stdin_targets()}, {"/dev/null"})
         frontend = guest.file("apt_frontend").read_text(encoding="utf-8").splitlines()
-        # The `--version` diag call runs before the export; the apt jobs must
-        # all see the non-interactive frontend.
-        self.assertEqual({f for f in frontend if f}, {"noninteractive"})
-        self.assertEqual(len(frontend), 3)
+        self.assertEqual(set(frontend), {"noninteractive"})
+        self.assertEqual(len(frontend), len(jobs))
         self.assertIn("packages verified installed and configured", log)
 
     def test_apt_success_with_a_missing_package_is_a_failure(self):
