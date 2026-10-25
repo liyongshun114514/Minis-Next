@@ -58,11 +58,11 @@ class OffloadPermissionWaitBoundTest {
         val second = async { OffloadPermissionManager.checkPermission("photos", "Photos", session) }
         runCurrent()
         assertEquals("contacts", OffloadPermissionManager.pendingRequest.value?.toolName)
-        OffloadPermissionManager.respondToRequest(Response.ALLOW_ONCE)
+        OffloadPermissionManager.respondToRequest(OffloadPermissionManager.pendingRequest.value!!, Response.ALLOW_ONCE)
         runCurrent()
         assertTrue(first.isCompleted && first.await())
         assertEquals("the queued request shows next", "photos", OffloadPermissionManager.pendingRequest.value?.toolName)
-        OffloadPermissionManager.respondToRequest(Response.DENY_SESSION)
+        OffloadPermissionManager.respondToRequest(OffloadPermissionManager.pendingRequest.value!!, Response.DENY_SESSION)
         runCurrent()
         assertFalse(second.await())
     }
@@ -71,7 +71,7 @@ class OffloadPermissionWaitBoundTest {
         val first = async { OffloadPermissionManager.checkPermission("contacts", "Contacts", session) }
         val second = async { OffloadPermissionManager.checkPermission("contacts", "Contacts", session) }
         runCurrent()
-        OffloadPermissionManager.respondToRequest(Response.ALLOW_SESSION)
+        OffloadPermissionManager.respondToRequest(OffloadPermissionManager.pendingRequest.value!!, Response.ALLOW_SESSION)
         runCurrent()
         assertTrue(first.await())
         assertTrue(second.isCompleted && second.await())
@@ -92,7 +92,7 @@ class OffloadPermissionWaitBoundTest {
         val again = async { OffloadPermissionManager.checkPermission("contacts", "Contacts", session) }
         runCurrent()
         assertNotNull(OffloadPermissionManager.pendingRequest.value)
-        OffloadPermissionManager.respondToRequest(Response.ALLOW_ONCE)
+        OffloadPermissionManager.respondToRequest(OffloadPermissionManager.pendingRequest.value!!, Response.ALLOW_ONCE)
         runCurrent()
         assertTrue(again.await())
     }
