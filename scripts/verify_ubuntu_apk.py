@@ -14,12 +14,16 @@ def verify(apk: Path):
         names = set(z.namelist())
         required = {'AndroidManifest.xml', 'classes.dex', 'assets/ubuntu-base-arm64.tar.gz',
                     'lib/arm64-v8a/libproot.so', 'lib/arm64-v8a/libproot-loader.so',
-                    'lib/arm64-v8a/libproot-loader32.so', 'lib/arm64-v8a/libgojni.so'}
+                    'lib/arm64-v8a/libproot-loader32.so', 'lib/arm64-v8a/libgojni.so',
+                    'lib/arm64-v8a/libminis-chroot.so', 'assets/chroot/minis-offload-client'}
         assert required <= names, f'missing payload: {required - names}'
         assert 'assets/alpine-minirootfs.tar.gz' not in names, 'old Alpine payload still bundled'
         assert not any(n.startswith('lib/') and n.split('/')[1] != 'arm64-v8a' for n in names), 'unexpected ABI'
     sdk = Path(os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '')))
     tools = sdk / 'build-tools' / '35.0.0'
+    badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
+    assert "package: name='com.openminis.app.ubuntu'" in badging, 'wrong installation package id'
+    assert 'launchable-activity:' in badging, 'launcher entry missing'
     subprocess.run([str(tools / 'apksigner'), 'verify', '--verbose', str(apk)], check=True)
     subprocess.run([str(tools / 'zipalign'), '-c', '-P', '16', '4', str(apk)], check=True)
     digest = hashlib.sha256(apk.read_bytes()).hexdigest()

@@ -110,7 +110,14 @@ static int connect_abstract(const char *name) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 0) return EX_UNAVAILABLE;
+    /* Wrapper invokes: client <original tool path> <tool arguments...>.
+     * NativeOffloadServer dispatches by request argv[0], not this executable. */
+    if (argc < 2) {
+        fprintf(stderr, "usage: minis-offload-client TOOL [ARGS...]\n");
+        return EX_UNAVAILABLE;
+    }
+    argc--;
+    argv++;
     const char *sock = getenv("MINIS_NOFF_SOCKET");
     if (!sock || !*sock) {
         fprintf(stderr,
@@ -182,6 +189,8 @@ int main(int argc, char **argv) {
         unlink(path);   /* ours now; the proot path relies on an age-gated sweep */
     } else {
         fprintf(stderr, "%s: offload reply file missing (%s)\n", argv[0], path);
+        free(path);
+        return EX_UNAVAILABLE;
     }
     free(path);
     return (int)code;

@@ -180,7 +180,9 @@ object SandboxSwitchPolicy {
         authorizedThisProcess: Boolean,
         stopActive: Boolean,
     ): BackendSwitchDecision {
-        if (current == target) return BackendSwitchDecision.NoChange(current)
+        if (current == target && (target != SandboxBackend.CHROOT || availability.serverRunning)) {
+            return BackendSwitchDecision.NoChange(current)
+        }
 
         if (target == SandboxBackend.CHROOT) {
             if (!availability.launcherInstalled) {

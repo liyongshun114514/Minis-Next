@@ -483,7 +483,7 @@ private fun SandboxBackendSection() {
                 }
             },
             modifier = Modifier.fillMaxWidth().clickableListItem(
-                enabled = selected != com.openminis.app.sandbox.SandboxBackend.CHROOT,
+                enabled = selected != com.openminis.app.sandbox.SandboxBackend.CHROOT || !availability.serverRunning,
                 onClick = {
                     // Two gates, in this order: the persisted risk
                     // acknowledgement, then the root bridge's own
