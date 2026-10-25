@@ -41,6 +41,9 @@ jobs:
           go-version-file: deps/rclone-mobile/go.mod
           cache-dependency-path: deps/rclone-mobile/go.sum
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - name: SDK and Linux build prerequisites
         run: |
