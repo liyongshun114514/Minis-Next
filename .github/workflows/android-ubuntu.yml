@@ -1,0 +1,125 @@
+name: Android Ubuntu APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: APK build type (test signing only)
+        type: choice
+        options: [release, debug]
+        default: release
+  push:
+    branches: [ubuntu-chroot]
+    paths: ["src/android/**", "src/shared/**", "deps/**", "scripts/**", ".github/workflows/android-ubuntu.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ubuntu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      ANDROID_NDK_VERSION: 28.2.13676358
+      GRADLE_OPTS: -Dorg.gradle.daemon=false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Initialize Android PRoot source only
+        run: git submodule update --init --depth 1 deps/proot
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: deps/rclone-mobile/go.mod
+          cache-dependency-path: deps/rclone-mobile/go.sum
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: SDK and Linux build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make curl unzip xz-utils pkg-config libarchive-tools ripgrep gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: Restore test signing identity
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: ubuntu-apk-test-signing-v1-${{ github.repository_id }}
+      - name: Native dependency cache
+        id: native-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps/build/rclone
+            src/android/app/libs/rclone.aar
+            src/android/app/src/main/assets/proot-aarch64
+            src/android/app/src/main/jniLibs/arm64-v8a/libproot.so
+          key: android-native-${{ runner.os }}-ndk28.2-${{ hashFiles('.gitmodules', 'deps/proot', 'deps/build_proot.sh', 'deps/build_rclone_android.sh', 'deps/rclone-mobile/**') }}
+      - name: Build Android dependencies
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash deps/build_proot.sh
+          cd deps/rclone-mobile
+          MOBILE=$(go list -m -f '{{.Version}}' golang.org/x/mobile)
+          go install "golang.org/x/mobile/cmd/gomobile@${MOBILE}"
+          go install "golang.org/x/mobile/cmd/gobind@${MOBILE}"
+          gomobile init
+          cd ../..
+          bash deps/build_rclone_android.sh
+          mkdir -p src/android/app/libs
+          cp deps/build/rclone/rclone.aar src/android/app/libs/rclone.aar
+      - name: Build Chroot launcher and guest offload client
+        run: bash scripts/build_chroot_helpers.sh
+      - name: Cache official Ubuntu Base archive
+        uses: actions/cache@v4
+        with:
+          path: deps/build/ubuntu-base
+          key: ubuntu-base-24.04.5-arm64-v1
+      - name: Prepare verified Ubuntu guest
+        run: bash scripts/prepare_android_sandbox.sh
+      - name: Build APK
+        working-directory: src/android
+        shell: bash
+        env:
+          REQUESTED_VARIANT: ${{ inputs.variant || 'release' }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          cp -n app/provider-customization.properties.example app/provider-customization.properties || true
+          if [ "$REQUESTED_VARIANT" = debug ]; then TASK=assembleGithubDebug; else TASK=assembleGithubRelease; fi
+          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
+            :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*UbuntuNormalCompatibilityTest' \
+            :app:"$TASK"
+      - name: Verify APK structure, signatures and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_ubuntu_apk.py src/android/app/build/outputs/apk/github
+      - name: Upload APK and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minis-Ubuntu-arm64-${{ github.run_number }}
+          path: |
+            src/android/app/build/outputs/apk/github/**/*.apk
+            src/android/app/build/outputs/apk/github/**/*.sha256
+            src/android/app/build/outputs/mapping/githubRelease/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-test-results-${{ github.run_number }}
+          path: src/android/app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

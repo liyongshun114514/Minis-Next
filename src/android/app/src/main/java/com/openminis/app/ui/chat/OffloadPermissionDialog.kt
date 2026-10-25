@@ -46,7 +46,7 @@ fun OffloadPermissionDialog() {
 
     AlertDialog(
         onDismissRequest = {
-            OffloadPermissionManager.respondToRequest(OffloadPermissionManager.Response.DENY_SESSION)
+            OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION)
         },
         title = {
             Text(
@@ -87,23 +87,23 @@ fun OffloadPermissionDialog() {
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Allow in this session — happy path goes first.
-                MinisButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(OffloadPermissionManager.Response.ALLOW_SESSION) },
+                // Root requests display an exact command and cannot grant a whole session.
+                if (!req.singleUse) MinisButton(
+                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_SESSION) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.offload_perm_allow_session))
                 }
                 // Allow once — no caching; next call re-prompts.
                 MinisOutlinedButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(OffloadPermissionManager.Response.ALLOW_ONCE) },
+                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_ONCE) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.offload_perm_allow_once))
                 }
                 // Deny in this session — refuse + remember.
                 MinisTextButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(OffloadPermissionManager.Response.DENY_SESSION) },
+                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,

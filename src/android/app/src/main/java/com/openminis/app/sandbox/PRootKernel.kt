@@ -246,6 +246,16 @@ object PRootKernel {
         // were known at app launch.
         applyMountedFoldersSnapshot(context)
 
+        // [FEAT-261025-CHROOT] Backend-specific stub set. When the user chose
+        // chroot, `/usr/local/bin/minis-*` must exec the guest offload client
+        // instead of being intercepted by proot, which is not in the path
+        // there. Switching back re-installs the stubs above on the next boot
+        // (and immediately, via refreshOffloadStubs()).
+        if (SandboxBackendStore.selected(context) == SandboxBackend.CHROOT) {
+            runCatching { ChrootKernel.onRootfsReady(context) }
+                .onFailure { Log.w(TAG, "chroot stub install failed: ${it.message}") }
+        }
+
         isBooted = true
         Log.i(TAG, "PRoot kernel booted " +
             "rootfs=${rootfsManager.rootfsDir.absolutePath} " +
@@ -685,7 +695,19 @@ object PRootKernel {
      *         /bin/sh -c "<command>"
      * ```
      */
-    fun buildProotCommand(shellCommand: String): List<String> {
+    fun buildProotCommand(shellCommand: String): List<String> =
+        buildProotCommand(shellCommand, bindMounts)
+
+    /**
+     * [FEAT-261025-CHROOT] Same argv, with an explicit mount table.
+     *
+     * The single-argument form above (kept byte-for-byte compatible for every
+     * existing caller) uses the process-global [bindMounts]; a session-scoped
+     * shell passes its own merged table instead. Both backends now route
+     * through here so a flag can never be added to one spawn site only — see
+     * [ProotFlagParityTest].
+     */
+    fun buildProotCommand(shellCommand: String, mounts: Map<String, String>): List<String> {
         check(isBooted) { "PRootKernel.boot() must be called before building commands" }
 
         val cmd = mutableListOf<String>()
@@ -722,7 +744,7 @@ object PRootKernel {
         cmd.add("/root")
 
         // User bind mounts
-        for ((linuxPath, hostPath) in bindMounts) {
+        for ((linuxPath, hostPath) in mounts) {
             cmd.add("-b")
             cmd.add("$hostPath:$linuxPath")
             // Log external-folder binds specifically — these are the ones that
@@ -781,6 +803,56 @@ object PRootKernel {
 
     /** Subdirs that live under `minis-sessions/<sessionId>/` rather than the global pool. */
     private val perSessionSubdirs = SessionMounts.SESSION_SUBDIRS.toSet()
+
+    /**
+     * [FEAT-261025-CHROOT] The long-lived-shell argv (`/bin/sh` with no `-c`),
+     * used by [PersistentShell] and by the Terminal screen.
+     *
+     * Same flags as [buildProotCommand] — including `--fake-netlink`, whose
+     * absence from one builder was already a bug (see [ProotFlagParityTest]) —
+     * so choosing a backend or a screen cannot change what the sandbox
+     * exposes. [shellArgs] carries `-l`, `-i` for the login shell.
+     */
+    fun buildProotInteractiveCommand(
+        shellArgs: List<String>,
+        mounts: Map<String, String>,
+    ): List<String> {
+        check(isBooted) { "PRootKernel.boot() must be called before building commands" }
+        val cmd = mutableListOf<String>()
+        cmd.add(rootfsManager.prootBinary.absolutePath)
+        cmd.add("-0")
+        cmd.add("--link2symlink")
+        cmd.add("-r"); cmd.add(rootfsManager.rootfsDir.absolutePath)
+        cmd.add("-b"); cmd.add("/dev")
+        cmd.add("-b"); cmd.add("/proc")
+        cmd.add("-b"); cmd.add("/sys")
+        cmd.add("-w"); cmd.add("/root")
+        for ((linuxPath, hostPath) in mounts) {
+            cmd.add("-b"); cmd.add("$hostPath:$linuxPath")
+        }
+        val handlers = NativeOffloadServer.registeredHandlers
+        if (handlers.isNotEmpty() && NativeOffloadServer.awaitListening()) {
+            cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
+        }
+        cmd.add("--fake-netlink")
+        cmd.addAll(com.openminis.app.network.ShellTransparentNet.prootArgs(rootfsManager.prootBinary))
+        cmd.addAll(shellArgs)
+        return cmd
+    }
+
+    /**
+     * [FEAT-261025-CHROOT] Re-install the proot/offload stub set in the rootfs.
+     *
+     * Called when switching BACK to PRoot: the chroot backend replaces
+     * `/usr/local/bin/minis-*` with wrappers for its guest offload client, and
+     * those would otherwise keep running (and failing) under PRoot. Only our
+     * own generated files are touched; a user-replaced binary is left alone by
+     * [installHandlerStubs].
+     */
+    fun refreshOffloadStubs() {
+        if (!::rootfsManager.isInitialized) return
+        installHandlerStubs(rootfsManager.rootfsDir)
+    }
 
     /**
      * Resolve a `/var/minis/...` Linux path directly against a specific session's

@@ -46,6 +46,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SettingsRowDivider
 import com.openminis.app.ui.components.SettingsSection
 
@@ -176,6 +178,12 @@ fun RootfsManagementScreen(
                     MirrorsSectionView(onNavigate = onMirrorCategoryClick)
                 }
             }
+
+            // --- Sandbox backend section (FEAT-261025-CHROOT) ---
+            // Placement is deliberate: it sits next to the rootfs it shares and
+            // is never shown as a "more features" promo — the row explains what
+            // is missing when chroot is unavailable instead.
+            SandboxBackendSection()
 
             // --- Container Network section ---
             // [T-container-network-dns] (OpenMinis#396) Shown before install too:
@@ -383,3 +391,198 @@ private fun Modifier.clickableListItem(
         this
     }
 }
+
+/**
+ * [FEAT-261025-CHROOT] PRoot / chroot switch.
+ *
+ * Rules this UI enforces, in order:
+ *  - PRoot is the default and is never labelled "unsafe";
+ *  - enabling chroot requires an explicit risk acknowledgement, recorded with
+ *    a timestamp, and then a runtime root grant through the Minis root bridge;
+ *  - a switch with running commands is REFUSED and lists them — the user can
+ *    confirm "stop them and switch", nothing is killed silently;
+ *  - switching back to PRoot never deletes anything: the rootfs is shared.
+ */
+@Composable
+private fun SandboxBackendSection() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var selected by remember { mutableStateOf(com.openminis.app.sandbox.SandboxBackendStore.selected(context)) }
+    var availability by remember { mutableStateOf(com.openminis.app.sandbox.ChrootKernel.availability(context)) }
+    var showRiskDialog by remember { mutableStateOf(false) }
+    var pendingTasks by remember { mutableStateOf<List<com.openminis.app.sandbox.ActiveSandboxTask>>(emptyList()) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    fun refresh() {
+        selected = com.openminis.app.sandbox.SandboxBackendStore.selected(context)
+        availability = com.openminis.app.sandbox.ChrootKernel.availability(context)
+    }
+
+    fun apply(target: com.openminis.app.sandbox.SandboxBackend, stopActive: Boolean) {
+        scope.launch {
+            when (val d = com.openminis.app.sandbox.SandboxSwitchController.requestSwitch(context, target, stopActive)) {
+                is com.openminis.app.sandbox.BackendSwitchDecision.Allowed -> {
+                    message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
+                        "已切换到 chroot。新的命令使用真实 chroot。"
+                    } else {
+                        "已切回 PRoot。数据未删除。"
+                    }
+                    pendingTasks = emptyList()
+                }
+                is com.openminis.app.sandbox.BackendSwitchDecision.RefusedActiveTasks -> {
+                    pendingTasks = d.tasks
+                    message = "有 ${d.tasks.size} 个任务在运行，未切换。"
+                }
+                else -> {
+                    message = describeRefusal(d)
+                }
+            }
+            refresh()
+        }
+    }
+
+    SettingsSection(title = "执行后端") {
+        ListItem(
+            headlineContent = { Text("当前后端") },
+            supportingContent = { Text(if (selected == com.openminis.app.sandbox.SandboxBackend.PROOT) "PRoot（默认，无需 root）" else "Chroot（真实 chroot，需运行时 root 授权）") },
+            colors = transparentListItemColors(),
+        )
+        SettingsRowDivider()
+        ListItem(
+            headlineContent = { Text("启用 Chroot 后端") },
+            supportingContent = {
+                Text(
+                    buildString {
+                        append(availability.summary())
+                        availability.lastError?.let { append("\n最近错误：").append(it) }
+                    },
+                )
+            },
+            trailingContent = {
+                if (selected == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                } else {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().clickableListItem(
+                enabled = selected != com.openminis.app.sandbox.SandboxBackend.CHROOT,
+                onClick = {
+                    // Two gates, in this order: the persisted risk
+                    // acknowledgement, then the root bridge's own
+                    // per-command confirmation inside requestSwitch().
+                    if (com.openminis.app.sandbox.SandboxBackendStore.authorizedAt(context) <= 0L) {
+                        showRiskDialog = true
+                    } else {
+                        apply(com.openminis.app.sandbox.SandboxBackend.CHROOT, stopActive = false)
+                    }
+                },
+            ),
+            colors = transparentListItemColors(),
+        )
+        SettingsRowDivider()
+        ListItem(
+            headlineContent = { Text("切回 PRoot") },
+            supportingContent = { Text("停止 chroot helper，恢复 PRoot 的 Minis 工具；rootfs 与用户数据保持不变") },
+            modifier = Modifier.fillMaxWidth().clickableListItem(
+                enabled = selected != com.openminis.app.sandbox.SandboxBackend.PROOT,
+                onClick = { apply(com.openminis.app.sandbox.SandboxBackend.PROOT, stopActive = false) },
+            ),
+            colors = transparentListItemColors(),
+        )
+        SettingsRowDivider()
+        ListItem(
+            headlineContent = { Text("Root Bridge 设置") },
+            supportingContent = { Text("查看 / 撤销已授权的 root 通道（逐命令确认）") },
+            trailingContent = {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            },
+            modifier = Modifier.fillMaxWidth().clickableListItem(onClick = {
+                val intent = android.content.Intent().setClassName(
+                    context.packageName,
+                    "com.openminis.app.rootbridge.RootBridgeSettingsActivity",
+                )
+                try {
+                    context.startActivity(intent)
+                } catch (e: android.content.ActivityNotFoundException) {
+                    message = "本版本尚未包含 Root Bridge 设置页"
+                }
+            }),
+            colors = transparentListItemColors(),
+        )
+        message?.let { text ->
+            ListItem(
+                headlineContent = { Text(text, style = MaterialTheme.typography.bodySmall) },
+                colors = transparentListItemColors(),
+            )
+        }
+    }
+
+    if (showRiskDialog) {
+        AlertDialog(
+            onDismissRequest = { showRiskDialog = false },
+            title = { Text("启用真实 chroot？") },
+            text = {
+                Text(
+                    "Chroot 后端会用内核 chroot(2) 共享同一个 rootfs，因此需要一次 root 授权。\n\n" +
+                        "• 每个命令在私有 mount namespace 中运行，命令本身以本应用 uid 执行\n" +
+                        "• 只绑定最小设备节点、procfs、sysfs(read-only) 与 /var/minis 中已允许的目录\n" +
+                        "• 不修改 SELinux、不重挂载任何分区、不改启动项\n" +
+                        "• root 授权仅本次应用运行有效，重启即失效；随时可切回 PRoot，数据不删除\n" +
+                        "• 若 guest offload client 未打包，Android/Minis 工具会明确报不可用\n" +
+                        "• 命令以本应用 uid 运行：apt/dpkg 等需要 root 的包管理会拒绝；装包请先切回 PRoot（rootfs 共用，装完再切回）",
+                )
+            },
+            confirmButton = {
+                MinisTextButton(onClick = {
+                    showRiskDialog = false
+                    com.openminis.app.sandbox.SandboxSwitchController.authorizeChroot(context)
+                    apply(com.openminis.app.sandbox.SandboxBackend.CHROOT, stopActive = false)
+                }) { Text("我了解风险，继续") }
+            },
+            dismissButton = {
+                MinisTextButton(onClick = { showRiskDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
+    if (pendingTasks.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingTasks = emptyList() },
+            title = { Text("有任务正在运行") },
+            text = {
+                Text(
+                    pendingTasks.joinToString("\n") { "• ${it.label}" } +
+                        "\n\n切换后端会中断这些任务。请选择先停止再切换，或取消。",
+                )
+            },
+            confirmButton = {
+                MinisTextButton(onClick = {
+                    val target = com.openminis.app.sandbox.SandboxBackendStore.selected(context).let {
+                        if (it == com.openminis.app.sandbox.SandboxBackend.PROOT) {
+                            com.openminis.app.sandbox.SandboxBackend.CHROOT
+                        } else {
+                            com.openminis.app.sandbox.SandboxBackend.PROOT
+                        }
+                    }
+                    pendingTasks = emptyList()
+                    apply(target, stopActive = true)
+                }) { Text("停止并切换", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                MinisTextButton(onClick = { pendingTasks = emptyList() }) { Text("取消") }
+            },
+        )
+    }
+}
+
+/** [FEAT-261025-CHROOT] A refusal is a sentence, never a silent no-op. */
+private fun describeRefusal(decision: com.openminis.app.sandbox.BackendSwitchDecision): String =
+    when (decision) {
+        is com.openminis.app.sandbox.BackendSwitchDecision.RefusedNotAuthorized -> decision.reason
+        is com.openminis.app.sandbox.BackendSwitchDecision.RefusedUnavailable -> decision.reason
+        is com.openminis.app.sandbox.BackendSwitchDecision.RefusedActiveTasks ->
+            "有 ${decision.tasks.size} 个任务在运行，未切换。"
+        is com.openminis.app.sandbox.BackendSwitchDecision.Allowed -> "已切换"
+        is com.openminis.app.sandbox.BackendSwitchDecision.NoChange -> "当前已是该后端"
+    }

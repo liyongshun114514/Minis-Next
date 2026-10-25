@@ -67,20 +67,40 @@ class RootfsManagerInstrumentedTest {
     }
 
     @Test
-    fun isInstalledWhenRootfsAndArchPresent() {
+    fun isInstalledWhenArchAndDistroMarkersPresent() {
+        manager.rootfsDir.mkdirs()
+        File(manager.rootfsDir, SandboxDistribution.ARCH_MARKER_FILE).writeText("aarch64")
+        File(manager.rootfsDir, SandboxDistribution.MARKER_FILE)
+            .writeText(SandboxDistribution.MARKER_VALUE)
+        assertTrue(manager.isInstalled)
+    }
+
+    /**
+     * The migration invariant: an Alpine tree with a matching `.arch` is NOT
+     * "installed" for this build, and must survive until installIfNeeded moves
+     * it aside.
+     */
+    @Test
+    fun isNotInstalledForLegacyAlpineRootfs() {
         manager.rootfsDir.mkdirs()
         File(manager.rootfsDir, ".arch").writeText("aarch64")
-        assertTrue(manager.isInstalled)
+        File(manager.rootfsDir, "etc").mkdirs()
+        File(manager.rootfsDir, "etc/alpine-release").writeText("3.21.3")
+        assertFalse(manager.isInstalled)
+
+        File(manager.rootfsDir, "etc/alpine-release").delete()
+        // Still no `.distro` marker.
+        assertFalse(manager.isInstalled)
     }
 
     // ==================== installIfNeeded ====================
 
     @Test
     fun installIfNeededExtractsRootfsFromAssets() = runBlocking {
-        // This test requires alpine-minirootfs.tar.gz in assets.
+        // This test requires the Ubuntu base tarball in assets.
         // Skip if not present (CI or pre-asset-download)
-        if (!hasAsset("alpine-minirootfs.tar.gz")) {
-            println("SKIP: alpine-minirootfs.tar.gz not in assets")
+        if (!hasAsset(SandboxDistribution.ROOTFS_ASSET)) {
+            println("SKIP: ${SandboxDistribution.ROOTFS_ASSET} not in assets")
             return@runBlocking
         }
 
@@ -89,9 +109,17 @@ class RootfsManagerInstrumentedTest {
         assertTrue("rootfsDir should exist", manager.rootfsDir.exists())
         assertTrue("Should be marked installed", manager.isInstalled)
 
-        // Verify arch marker
-        val archFile = File(manager.rootfsDir, ".arch")
+        // Verify arch + distro markers
+        val archFile = File(manager.rootfsDir, SandboxDistribution.ARCH_MARKER_FILE)
         assertEquals("aarch64", archFile.readText().trim())
+        assertEquals(
+            SandboxDistribution.MARKER_VALUE,
+            File(manager.rootfsDir, SandboxDistribution.MARKER_FILE).readText().trim(),
+        )
+        assertTrue(
+            "Ubuntu apt sources should exist",
+            File(manager.rootfsDir, SandboxDistribution.APT_SOURCES_PATH).isFile,
+        )
 
         // Verify /var/minis subdirs created
         val expectedDirs = listOf("attachments", "offloads", "workspace", "skills", "memory")
@@ -101,18 +129,21 @@ class RootfsManagerInstrumentedTest {
             assertTrue("var/minis/$subdir should be directory", dir.isDirectory)
         }
 
-        // Verify resolv.conf
+        // Verify resolv.conf is a regular file with at least one nameserver
+        // (the device's DNS is used when available, not a fixed fallback).
         val resolv = File(manager.rootfsDir, "etc/resolv.conf")
         assertTrue("resolv.conf should exist", resolv.exists())
-        val content = resolv.readText()
-        assertTrue("Should contain 8.8.8.8", content.contains("8.8.8.8"))
-        assertTrue("Should contain 8.8.4.4", content.contains("8.8.4.4"))
+        assertFalse(
+            "resolv.conf must not stay a symlink",
+            java.nio.file.Files.isSymbolicLink(resolv.toPath()),
+        )
+        assertTrue("Should contain a nameserver", resolv.readText().contains("nameserver "))
     }
 
     @Test
     fun installIfNeededIsIdempotent() = runBlocking {
-        if (!hasAsset("alpine-minirootfs.tar.gz")) {
-            println("SKIP: alpine-minirootfs.tar.gz not in assets")
+        if (!hasAsset(SandboxDistribution.ROOTFS_ASSET)) {
+            println("SKIP: ${SandboxDistribution.ROOTFS_ASSET} not in assets")
             return@runBlocking
         }
 
@@ -129,20 +160,26 @@ class RootfsManagerInstrumentedTest {
     }
 
     @Test
-    fun installIfNeededCleansPartialInstall() = runBlocking {
-        if (!hasAsset("alpine-minirootfs.tar.gz")) {
-            println("SKIP: alpine-minirootfs.tar.gz not in assets")
+    fun installIfNeededPreservesPreviousRootfs() = runBlocking {
+        if (!hasAsset(SandboxDistribution.ROOTFS_ASSET)) {
+            println("SKIP: ${SandboxDistribution.ROOTFS_ASSET} not in assets")
             return@runBlocking
         }
 
-        // Create a partial install (dir exists but no .arch)
+        // Create a partial/legacy install (dir exists but no Ubuntu markers).
         manager.rootfsDir.mkdirs()
         File(manager.rootfsDir, "stale-file.txt").writeText("stale")
 
         manager.installIfNeeded()
 
         assertTrue(manager.isInstalled)
-        assertFalse("Stale file should be cleaned", File(manager.rootfsDir, "stale-file.txt").exists())
+        assertFalse(
+            "The new guest must not inherit the stale file",
+            File(manager.rootfsDir, "stale-file.txt").exists(),
+        )
+        val backup = manager.lastLegacyBackup
+        assertTrue("Previous tree should be preserved, not deleted", backup != null)
+        assertEquals("stale", File(backup!!, "stale-file.txt").readText())
     }
 
     // ==================== installProotIfNeeded ====================
@@ -213,8 +250,8 @@ class RootfsManagerInstrumentedTest {
 
     @Test
     fun resetDeletesAndReinstalls() = runBlocking {
-        if (!hasAsset("alpine-minirootfs.tar.gz")) {
-            println("SKIP: alpine-minirootfs.tar.gz not in assets")
+        if (!hasAsset(SandboxDistribution.ROOTFS_ASSET)) {
+            println("SKIP: ${SandboxDistribution.ROOTFS_ASSET} not in assets")
             return@runBlocking
         }
 
@@ -232,8 +269,8 @@ class RootfsManagerInstrumentedTest {
 
     @Test
     fun resetKeepsUserDataWhenRequested() = runBlocking {
-        if (!hasAsset("alpine-minirootfs.tar.gz")) {
-            println("SKIP: alpine-minirootfs.tar.gz not in assets")
+        if (!hasAsset(SandboxDistribution.ROOTFS_ASSET)) {
+            println("SKIP: ${SandboxDistribution.ROOTFS_ASSET} not in assets")
             return@runBlocking
         }
 

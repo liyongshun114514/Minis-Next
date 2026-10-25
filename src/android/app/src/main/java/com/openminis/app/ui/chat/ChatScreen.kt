@@ -3059,13 +3059,21 @@ fun ChatScreen(
                                 topBarSoul.name.isNotBlank() -> topBarSoul.name
                                 else -> stringResource(R.string.app_name)
                             }
+                            // [T-native-composer-title] The ported Composer UI
+                            // gives the session title TWO centred lines (the
+                            // upstream TitleView used maxLines=2 + centre
+                            // gravity). Native Compose already owns the rename
+                            // click, so only the line budget / alignment change
+                            // here: tapping still opens the same
+                            // SessionEditSheet via loadSessionEntity().
                             Text(
                                 text = displayTitle,
                                 fontSize = 16.sp,
-                                lineHeight = 19.sp,
+                                lineHeight = 20.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = ChatColors.primaryText,
-                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 style = noFontPad,
                                 modifier = Modifier
@@ -3754,8 +3762,13 @@ fun ChatScreen(
                 // safety margin so the model name still fits at any
                 // user-configured font scale on xhdpi/xxhdpi without
                 // re-clipping (T-topbar-model-row-clip regression check).
-                // Font sizes + lineHeights stay untouched per spec.
-                expandedHeight = 68.dp,
+                // Model/subtitle font sizes and line heights stay untouched.
+                //
+                // [T-native-composer-title] 68dp -> 92dp: the title now
+                // reserves two 20sp lines instead of one 19sp line, while
+                // the native model/thinking subtitle rows below it are
+                // unchanged. 92dp keeps the same 6-10dp safety margin.
+                expandedHeight = 92.dp,
             )
             // [T-port-sched-pill-visible] The REAL session id, read when the
             // pill composes. A new chat opens as a "__new__…" draft and gets
@@ -7346,6 +7359,13 @@ fun ChatScreen(
                                 expanded = showAttachMenu,
                                 onDismissRequest = { showAttachMenu = false },
                             ) {
+                                // [T-native-composer-plus-menu] Merged "+" menu:
+                                // the three native attachment actions stay first;
+                                // every slash command (built-ins, Skills, MCP)
+                                // is appended below them by
+                                // ComposerCommandMenuRows. Dispatch still goes
+                                // through ChatViewModel.executeSlashCommand.
+                                ComposerMenuHeader("附件")
                                 // iOS parity: Take Photo / Choose Photos & Videos / Add File
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_take_photo)) },
@@ -7385,6 +7405,42 @@ fun ChatScreen(
                                         // OpenMultipleDocuments takes a mime-
                                         // type array; "*/*" stays the wildcard.
                                         filePickerLauncher.safeLaunchPicker(arrayOf("*/*"), context, "ChatScreen")
+                                    },
+                                )
+
+                                MinisMenuDivider()
+                                ComposerMenuHeader("命令")
+                                ComposerCommandMenuRows(
+                                    commands = filteredSlashCommands,
+                                    onPick = { cmd ->
+                                        showAttachMenu = false
+                                        if (cmd.id == "thinking") {
+                                            // The slider lives in the sheet; do
+                                            // not toggle thinking blindly.
+                                            showThinkingLevelSheet = true
+                                        } else {
+                                            // Same dispatcher as the native "/"
+                                            // picker. Prime the VM's
+                                            // savedInputBeforeSlash first: the
+                                            // "/" button does this when it opens
+                                            // over existing text, and without it
+                                            // a command picked here would wipe
+                                            // the draft (built-ins) or drop it
+                                            // behind a Skill prefix. The VM then
+                                            // sets the right pendingCaret.
+                                            viewModel.showSlashMenuOverInput(inputText)
+                                            viewModel.setInputText(
+                                                viewModel.executeSlashCommand(cmd, inputText),
+                                            )
+                                            if (cmd.isSkill || cmd.isMcp) {
+                                                try {
+                                                    inputFocusRequester.requestFocus()
+                                                } catch (_: IllegalStateException) {
+                                                    // FocusRequester not attached yet.
+                                                }
+                                                keyboardController?.show()
+                                            }
+                                        }
                                     },
                                 )
                             }
@@ -8299,8 +8355,10 @@ fun ChatScreen(
             currentLevel = currentThinkingLevel,
             availableLevels = viewModel.availableThinkingLevels,
             onSelect = { level ->
+                // The slider sheet stays open while the user compares levels;
+                // its OK button dismisses. Persistence/clamping still lives in
+                // ChatViewModel.setThinkingLevel.
                 viewModel.setThinkingLevel(level)
-                showThinkingLevelSheet = false
             },
             onDismiss = { showThinkingLevelSheet = false },
         )
@@ -8624,7 +8682,9 @@ private fun ThinkingLevelBadge(
  * [T-android-thinking-badge-navbar] Bottom-sheet thinking-level selector opened
  * from [ThinkingLevelBadge]. Mirrors iOS ThinkingLevelSheetView: an Off row
  * followed by every level the current model supports; the active level shows a
- * trailing check. Selecting any row calls [onSelect] (which also dismisses).
+ * trailing check. Selecting a slider position calls [onSelect] without
+ * dismissing, so several levels can be compared; the explicit OK button
+ * closes the sheet.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -8651,52 +8711,44 @@ private fun ThinkingLevelSheet(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
             HorizontalDivider(color = ChatColors.toolBorder, thickness = 0.5.dp)
-            val context = LocalContext.current
-            rows.forEach { level ->
-                // "Off selected" = the current level is disabled; otherwise an
-                // exact match.
-                val isSelected = if (level == com.openminis.app.data.model.ThinkingLevel.OFF) {
-                    !currentLevel.isEnabled
+            // [T-native-composer-slider] The upstream Composer UI replaced
+            // the discrete row list with its particle effort slider. Native
+            // Compose now hosts the same slider, with the SAME rows list
+            // (OFF + levels the model supports) and the SAME onSelect /
+            // setThinkingLevel path, so the persisted value and all clamping
+            // stay in ChatViewModel.
+            ComposerEffortSlider(
+                levels = rows,
+                current = currentLevel,
+                enabled = rows.size > 1,
+                onSelect = onSelect,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+            )
+            Text(
+                text = if (rows.size > 1) {
+                    "Drag to choose · release to apply"
                 } else {
-                    currentLevel == level
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(level) }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lightbulb,
-                        contentDescription = null,
-                        tint = ChatColors.thinking.copy(
-                            alpha = if (level == com.openminis.app.data.model.ThinkingLevel.OFF) 0.4f else 1f,
-                        ),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = level.localizedName(context),
-                        fontSize = 15.sp,
-                        color = ChatColors.primaryText,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = ChatColors.thinking,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
+                    "This model does not support reasoning levels"
+                },
+                fontSize = 11.sp,
+                color = ChatColors.secondaryText,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+            )
+            // Selecting a slider position no longer dismisses the sheet, so
+            // the user can compare levels; this explicit action closes it.
+            MinisTextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Text(stringResource(android.R.string.ok))
             }
         }
     }
 }
-
-
 
 /** [T-speed-tier] UI name of a speed tier. */
 @Composable

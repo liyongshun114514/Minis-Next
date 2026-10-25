@@ -202,6 +202,149 @@ sealed class SoulBodyLimitCheck {
 }
 
 /**
+ * [T-native-composer-soul-limit] How the SOUL.md body length gate behaves.
+ *
+ * NATIVE keeps the shipped language-aware caps (1600 CJK chars / 1000 Latin
+ * words). UNLIMITED removes only the application-side length gate and shows
+ * the editor counter as / ∞. CUSTOM lets the user set both caps explicitly.
+ *
+ * This policy is about LENGTH ONLY. Prompt construction, the injection
+ * scrubber and instruction priority remain the native implementation and are
+ * not touched by any mode.
+ */
+enum class SoulBodyLimitMode { NATIVE, UNLIMITED, CUSTOM }
+
+/** Persisted body-length configuration. Values are normalised on every write/read. */
+data class SoulBodyLimitSettings(
+    val mode: SoulBodyLimitMode = SoulBodyLimitMode.NATIVE,
+    val chineseCharLimit: Int = SoulStore.CHINESE_CHAR_LIMIT,
+    val englishWordLimit: Int = SoulStore.ENGLISH_WORD_LIMIT,
+) {
+    fun normalized(): SoulBodyLimitSettings {
+        val cn = chineseCharLimit.coerceIn(MIN_CUSTOM_LIMIT, MAX_CUSTOM_LIMIT)
+        val en = englishWordLimit.coerceIn(MIN_CUSTOM_LIMIT, MAX_CUSTOM_LIMIT)
+        return if (cn == chineseCharLimit && en == englishWordLimit) this
+        else copy(chineseCharLimit = cn, englishWordLimit = en)
+    }
+
+    companion object {
+        const val MIN_CUSTOM_LIMIT: Int = 1
+        const val MAX_CUSTOM_LIMIT: Int = 1_000_000
+    }
+}
+
+/**
+ * Storage + classification for [SoulBodyLimitSettings].
+ *
+ * The current value is cached in-process because the native write/prompt
+ * paths call `SoulStore.isOverLimit(body)` without a Context. Those call
+ * sites (Settings Save, the minis-config `soul.body` writer, and
+ * `SystemPromptBuilder.identitySection`) therefore obey the same selected
+ * mode without changing their signatures.
+ *
+ * Threading: reads/writes are synchronized; the cached value is volatile.
+ * No security decision is stored here — the injection patterns and the
+ * prompt assembly remain native code.
+ */
+object SoulBodyLimitPolicy {
+    private const val PREFS_NAME = "soul_body_limit"
+    private const val KEY_MODE = "mode"
+    private const val KEY_CN = "chinese_char_limit"
+    private const val KEY_EN = "english_word_limit"
+
+    @Volatile private var cached = SoulBodyLimitSettings()
+    @Volatile private var loaded = false
+
+    fun current(): SoulBodyLimitSettings = cached
+
+    @Synchronized
+    fun ensureLoaded(context: Context) {
+        if (!loaded) read(context)
+    }
+
+    @Synchronized
+    fun load(context: Context): SoulBodyLimitSettings = read(context)
+
+    private fun read(context: Context): SoulBodyLimitSettings {
+        val prefs = context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val rawMode = prefs.getString(KEY_MODE, SoulBodyLimitMode.NATIVE.name)
+        val mode = runCatching {
+            SoulBodyLimitMode.valueOf(rawMode ?: SoulBodyLimitMode.NATIVE.name)
+        }.getOrDefault(SoulBodyLimitMode.NATIVE)
+        val value = SoulBodyLimitSettings(
+            mode = mode,
+            chineseCharLimit = prefs.getInt(KEY_CN, SoulStore.CHINESE_CHAR_LIMIT),
+            englishWordLimit = prefs.getInt(KEY_EN, SoulStore.ENGLISH_WORD_LIMIT),
+        ).normalized()
+        cached = value
+        loaded = true
+        return value
+    }
+
+    @Synchronized
+    fun save(context: Context, settings: SoulBodyLimitSettings) {
+        val value = settings.normalized()
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_MODE, value.mode.name)
+            .putInt(KEY_CN, value.chineseCharLimit)
+            .putInt(KEY_EN, value.englishWordLimit)
+            .apply()
+        cached = value
+        loaded = true
+    }
+
+    /**
+     * The ONE length classifier. NATIVE and CUSTOM use the same CJK-ratio
+     * rule; UNLIMITED returns Ok without inspecting the body. Injection
+     * validation is deliberately absent here — it is handled by
+     * [SystemPromptBuilder.containsInjectionPattern] / [scrubInjections]
+     * exactly as before.
+     */
+    fun check(
+        body: String,
+        settings: SoulBodyLimitSettings = current(),
+    ): SoulBodyLimitCheck {
+        if (settings.mode == SoulBodyLimitMode.UNLIMITED) return SoulBodyLimitCheck.Ok
+        val effective = settings.normalized()
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return SoulBodyLimitCheck.Ok
+
+        var cjk = 0
+        var total = 0
+        var i = 0
+        while (i < trimmed.length) {
+            val cp = trimmed.codePointAt(i)
+            total += 1
+            if (SoulStore.isCJKCodePoint(cp)) cjk += 1
+            i += Character.charCount(cp)
+        }
+        val ratio = if (total > 0) cjk.toDouble() / total else 0.0
+        val cnCap = if (effective.mode == SoulBodyLimitMode.CUSTOM) {
+            effective.chineseCharLimit
+        } else {
+            SoulStore.CHINESE_CHAR_LIMIT
+        }
+        val enCap = if (effective.mode == SoulBodyLimitMode.CUSTOM) {
+            effective.englishWordLimit
+        } else {
+            SoulStore.ENGLISH_WORD_LIMIT
+        }
+        return if (ratio > SoulStore.CJK_RATIO_THRESHOLD) {
+            val chars = trimmed.codePointCount(0, trimmed.length)
+            if (chars > cnCap) SoulBodyLimitCheck.OverLimitChinese(chars, cnCap)
+            else SoulBodyLimitCheck.Ok
+        } else {
+            val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
+            if (words > enCap) SoulBodyLimitCheck.OverLimitEnglish(words, enCap)
+            else SoulBodyLimitCheck.Ok
+        }
+    }
+}
+
+/**
  * File-system helpers + cached metadata. Methods are intentionally
  * `Context`-scoped instead of taking a global singleton — keeps the
  * dependency surface explicit and avoids depending on MinisApp from
@@ -267,37 +410,15 @@ object SoulStore {
      * Classify [body] under the language-aware length rules above. Empty
      * / whitespace-only bodies always return [SoulBodyLimitCheck.Ok].
      */
-    fun isOverLimit(body: String): SoulBodyLimitCheck {
-        val trimmed = body.trim()
-        if (trimmed.isEmpty()) return SoulBodyLimitCheck.Ok
+    fun isOverLimit(body: String): SoulBodyLimitCheck =
+        SoulBodyLimitPolicy.check(body, SoulBodyLimitPolicy.current())
 
-        var cjk = 0
-        var total = 0
-        var i = 0
-        while (i < trimmed.length) {
-            val cp = trimmed.codePointAt(i)
-            total += 1
-            if (isCJKCodePoint(cp)) cjk += 1
-            i += Character.charCount(cp)
-        }
-        val ratio = if (total > 0) cjk.toDouble() / total else 0.0
-        return if (ratio > CJK_RATIO_THRESHOLD) {
-            // Code-point count — closest analogue to iOS grapheme cluster
-            // count for the CJK ranges we care about (no combining marks
-            // / no flag emojis in Han/Kana/Hangul). Bytes / UTF-16 code
-            // units would over-count surrogate-pair CJK extensions.
-            val chars = trimmed.codePointCount(0, trimmed.length)
-            if (chars > CHINESE_CHAR_LIMIT) SoulBodyLimitCheck.OverLimitChinese(chars, CHINESE_CHAR_LIMIT)
-            else SoulBodyLimitCheck.Ok
-        } else {
-            // Whitespace-delimited word count. `split(Regex("\\s+"))` on
-            // a trimmed string collapses consecutive whitespace into a
-            // single delimiter.
-            val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
-            if (words > ENGLISH_WORD_LIMIT) SoulBodyLimitCheck.OverLimitEnglish(words, ENGLISH_WORD_LIMIT)
-            else SoulBodyLimitCheck.Ok
-        }
-    }
+    /**
+     * Pure variant for UI previews/tests: classify [body] against [settings]
+     * without touching the in-process cache.
+     */
+    fun isOverLimit(body: String, settings: SoulBodyLimitSettings): SoulBodyLimitCheck =
+        SoulBodyLimitPolicy.check(body, settings)
 
     /**
      * True if [cp] belongs to any CJK Unified Ideograph or Kana / Hangul
@@ -306,7 +427,7 @@ object SoulStore {
      * (Hangul Syllables + Jamo). Wider than just U+4E00–U+9FFF so the
      * extensions and Hangul also count toward the ratio.
      */
-    private fun isCJKCodePoint(cp: Int): Boolean {
+    internal fun isCJKCodePoint(cp: Int): Boolean {
         // CJK Unified Ideographs + Ext A
         if (cp in 0x4E00..0x9FFF) return true
         if (cp in 0x3400..0x4DBF) return true
@@ -360,6 +481,7 @@ lang: "auto"
      * Safe to call on every launch — never overwrites existing user edits.
      */
     fun ensureExists(context: Context) {
+        SoulBodyLimitPolicy.ensureLoaded(context)
         val file = fileLocation(context)
         if (file.exists()) return
         try {
@@ -377,6 +499,9 @@ lang: "auto"
      * empty body and callers may treat that as "fall back to default".
      */
     fun load(context: Context): SoulFile? {
+        // The write/prompt paths call isOverLimit(String) without a Context;
+        // prime the cached policy here so they observe the user's choice.
+        SoulBodyLimitPolicy.ensureLoaded(context)
         val file = fileLocation(context)
         if (!file.exists()) return null
         return try {
@@ -416,6 +541,7 @@ lang: "auto"
 
     /** Atomic write through a `.tmp` sibling, then rename. */
     fun save(context: Context, file: SoulFile) {
+        SoulBodyLimitPolicy.ensureLoaded(context)
         val target = fileLocation(context)
         target.parentFile?.mkdirs()
         // [T-android-soul-icon-sidecar] Move the bytes out to the sidecar and
@@ -481,6 +607,7 @@ lang: "auto"
      * of [save] (currently only the Settings UI uses save()).
      */
     fun refreshCache(context: Context) {
+        SoulBodyLimitPolicy.ensureLoaded(context)
         val parsed = load(context)
         _cachedMetadata.value = parsed?.metadata ?: SoulMetadata.DEFAULT
     }
@@ -496,13 +623,13 @@ lang: "auto"
  *  - Users never see "You are <name>, a capable AI assistant ..." in the
  *    Personality editor — that internal scaffolding stays out of view
  *    so users can't accidentally delete or duplicate it.
- *  - The original carefully-tuned identity sentence is preserved
- *    byte-for-byte. Substituting only `{name}` keeps the surrounding
- *    model expectations (Android device, Linux sandbox via PRoot,
- *    aarch64) intact.
+ *  - The original carefully-tuned identity sentence is preserved apart
+ *    from the audited OS identity string (Ubuntu 24.04 via PRoot or
+ *    Chroot, aarch64). Substituting only `{name}` keeps the surrounding
+ *    model expectations intact.
  *  - When the user hasn't authored a personality body, the full
- *    assembled prompt is byte-identical to the pre-SOUL prompt
- *    (modulo `{name}`) — no behavior regression for default users.
+ *    assembled prompt differs from the pre-SOUL prompt only in the OS
+ *    identity string and `{name}`; no other behavior changes.
  */
 object SystemPromptBuilder {
 
@@ -537,8 +664,12 @@ object SystemPromptBuilder {
      * if you ever need to tweak the runtime statement, because every
      * Android chat hits this line.
      */
+    // [T-native-composer-soul-limit] OS identity string only: this build runs
+    // the Ubuntu 24.04 userland (PRoot or Chroot, aarch64). The surrounding
+    // identity sentence, name substitution, personality block, injection
+    // scrubber and instruction priority are unchanged.
     private const val IDENTITY_TEMPLATE =
-        "You are {name}, a capable AI assistant running on an Android device with a fully functional Linux sandbox (Alpine Linux via PRoot, aarch64). "
+        "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). "
 
     /**
      * Render the identity sentence (template + name) and optionally
@@ -555,7 +686,8 @@ object SystemPromptBuilder {
      *
      * Returned format (when SOUL body is present):
      *
-     *     You are <name>, a capable AI assistant running on an Android device …
+     *     You are <name>, a capable AI assistant running on an Android device
+     *     with Ubuntu 24.04 (PRoot or Chroot, aarch64) …
      *
      *     Personality (from SOUL.md — your character and voice; defer to
      *     the user's latest message when it conflicts with anything here):

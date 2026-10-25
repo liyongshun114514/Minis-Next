@@ -234,36 +234,22 @@ class PersistentShell(
         }
         lastExitCode = null
 
-        val cmd = mutableListOf<String>()
-        cmd.add(rootfsManager.prootBinary.absolutePath)
-        cmd.add("-0")
-        // T141: see PRootKernel.buildProotCommand for rationale — translates
-        // hardlinks to symlinks so apk install of binutils/gcc works.
-        cmd.add("--link2symlink")
-        cmd.add("-r")
-        cmd.add(rootfsManager.rootfsDir.absolutePath)
-        cmd.add("-b"); cmd.add("/dev")
-        cmd.add("-b"); cmd.add("/proc")
-        cmd.add("-b"); cmd.add("/sys")
-        cmd.add("-w"); cmd.add("/root")
-
-        // Apply this session's bind mounts (session-specific, not global)
-        for ((linuxPath, hostPath) in sessionBindMounts) {
-            cmd.add("-b")
-            cmd.add("$hostPath:$linuxPath")
+        // [FEAT-261025-CHROOT] Same routing as the fresh path. The warm shell
+        // is `/bin/sh` with no `-c`; under chroot that becomes the client with
+        // `--tty`/`--login` semantics, attached to this process's pipes.
+        val spawn = SandboxRouter.build(
+            context,
+            SandboxCommandSpec(
+                command = "",
+                interactive = true,
+                sessionId = sessionId,
+                sessionMounts = sessionBindMounts,
+            ),
+        )
+        if (spawn.offload == SandboxOffloadRoute.BLOCKED) {
+            Log.w(TAG, "[$sessionId] backend=${spawn.backend}: Minis tools are BLOCKED (${spawn.notes})")
         }
-
-        val handlers = NativeOffloadServer.registeredHandlers
-        // [T-native-offload-bind] Only when our server is listening: otherwise
-        // the handler stubs run and report the CLI unavailable, instead of
-        // proot connecting to a name another process holds (and hanging).
-        if (handlers.isNotEmpty() && NativeOffloadServer.awaitListening()) {
-            cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
-        }
-        // [FEAT-261021-11] Shell transparent forwarding (see PRootKernel).
-        cmd.addAll(com.openminis.app.network.ShellTransparentNet.prootArgs(rootfsManager.prootBinary))
-
-        cmd.add("/bin/sh")
+        val cmd = spawn.argv
 
         val debugOffload = com.openminis.app.BuildConfig.DEV_TOOLS
 
@@ -275,16 +261,19 @@ class PersistentShell(
         processBuilder.redirectErrorStream(!debugOffload)
 
         val env = processBuilder.environment()
-        env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-        if (PRootKernel.nativeLibDir.isNotEmpty()) {
-            env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+        if (spawn.backend == SandboxBackend.PROOT) {
+            env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+            if (PRootKernel.nativeLibDir.isNotEmpty()) {
+                env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+            }
+            if (PRootKernel.prootLoaderPath.isNotEmpty()) {
+                env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+            }
+            if (PRootKernel.prootLoader32Path.isNotEmpty()) {
+                env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+            }
         }
-        if (PRootKernel.prootLoaderPath.isNotEmpty()) {
-            env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-        }
-        if (PRootKernel.prootLoader32Path.isNotEmpty()) {
-            env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
-        }
+        env.putAll(spawn.env)
         env["TERM"] = "dumb"
         env["PS1"] = ""  // Suppress prompt to avoid polluting output
         // Timezone: customEnvironment["TZ"] is seeded at PRootKernel.boot(),
@@ -298,8 +287,10 @@ class PersistentShell(
         // are scoped per chat session, not globally.
         env["MINIS_CHAT_SESSION_ID"] = sessionId
 
-        for ((key, value) in PRootKernel.customEnvironment) {
-            env[key] = value
+        if (spawn.backend == SandboxBackend.PROOT) {
+            for ((key, value) in PRootKernel.customEnvironment) {
+                env[key] = value
+            }
         }
         // [T-net-android-phase3] Settings > Network "Shell" route: proxy
         // variables for the local entry (empty = direct, unchanged). Before
@@ -308,7 +299,7 @@ class PersistentShell(
 
         // [T-android-seccomp-selfheal / GH#186] Applied last so nothing above
         // can clobber it once this device is known to need it.
-        if (useNoSeccomp) {
+        if (useNoSeccomp && spawn.backend == SandboxBackend.PROOT) {
             env[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
         }
 
@@ -561,6 +552,27 @@ class PersistentShell(
         command: String,
         timeout: Long = 600_000L,
         lineCallback: ((String) -> Unit)? = null,
+    ): Pair<String, Int> {
+        // [FEAT-261025-CHROOT] Same registry the fresh path uses; a backend
+        // switch refuses while a warm command is in flight.
+        val activityId = SandboxActivityRegistry.begin(
+            ActiveSandboxTask(
+                id = "warm-${System.identityHashCode(this)}",
+                label = "shell_execute (warm shell ${sessionId.take(8)})",
+                stop = { stop() },
+            ),
+        )
+        try {
+            return executeCommandTracked(command, timeout, lineCallback)
+        } finally {
+            SandboxActivityRegistry.end(activityId)
+        }
+    }
+
+    private suspend fun executeCommandTracked(
+        command: String,
+        timeout: Long,
+        lineCallback: ((String) -> Unit)?,
     ): Pair<String, Int> {
         ensureStarted()
 

@@ -157,13 +157,26 @@ class TerminalSession(private val context: Context) {
 
                 // Environment in KEY=VALUE form
                 val envMap = LinkedHashMap<String, String>()
-                envMap["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-                if (PRootKernel.nativeLibDir.isNotEmpty())
-                    envMap["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
-                if (PRootKernel.prootLoaderPath.isNotEmpty())
-                    envMap["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-                if (PRootKernel.prootLoader32Path.isNotEmpty())
-                    envMap["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+                val terminalSpawn = SandboxRouter.build(
+                    context,
+                    SandboxCommandSpec(
+                        command = "",
+                        interactive = true,
+                        loginShell = true,
+                        sessionId = sessionId,
+                        sessionMounts = SessionMounts.forContext(context, sessionId).mounts,
+                    ),
+                )
+                if (terminalSpawn.backend == SandboxBackend.PROOT) {
+                    envMap["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+                    if (PRootKernel.nativeLibDir.isNotEmpty())
+                        envMap["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+                    if (PRootKernel.prootLoaderPath.isNotEmpty())
+                        envMap["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+                    if (PRootKernel.prootLoader32Path.isNotEmpty())
+                        envMap["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+                }
+                envMap.putAll(terminalSpawn.env)
                 envMap["TERM"] = "xterm-256color"
                 envMap["LANG"] = "C.UTF-8"
                 envMap["LC_ALL"] = "C.UTF-8"
@@ -195,12 +208,23 @@ class TerminalSession(private val context: Context) {
                 if (fd < 0) {
                     Log.e(TAG, "forkExec failed: errno=${-fd}")
                     _outputBytes.emit("Failed to start PTY: errno=${-fd}\r\n".toByteArray())
+                    endActivity()
                     _state.value = State.STOPPED
                     return@launch
                 }
                 masterFd = fd
                 childPid = outPid[0]
                 _state.value = State.RUNNING
+                // [FEAT-261025-CHROOT] A live interactive shell is a running
+                // task: switching backends must not leave a PTY attached to a
+                // backend that is being torn down.
+                activityId = SandboxActivityRegistry.begin(
+                    ActiveSandboxTask(
+                        id = "pty-${System.identityHashCode(this@TerminalSession)}",
+                        label = "terminal session",
+                        stop = { stop() },
+                    ),
+                )
                 liveSessions.add(WeakReference(this@TerminalSession))
                 Log.i(TAG, "PTY started: fd=$fd pid=$childPid cols=$cols rows=$rows")
 
@@ -253,6 +277,7 @@ class TerminalSession(private val context: Context) {
                     }
 
                     _outputBytes.emit("\r\n[Process exited: $status]\r\n".toByteArray())
+                    endActivity()
                     _state.value = State.STOPPED
                 }
             } catch (t: Throwable) {
@@ -355,7 +380,16 @@ class TerminalSession(private val context: Context) {
         }
     }
 
+    /** [FEAT-261025-CHROOT] Registry id while this PTY is alive. */
+    @Volatile private var activityId: String? = null
+
+    private fun endActivity() {
+        activityId?.let { SandboxActivityRegistry.end(it) }
+        activityId = null
+    }
+
     fun stop() {
+        endActivity()
         readerJob?.cancel()
         readerJob = null
         val fd = masterFd
@@ -441,62 +475,29 @@ class TerminalSession(private val context: Context) {
         }
 
     private fun buildInteractiveCommand(sessionId: String?): List<String> {
-        check(PRootKernel.isBooted) { "PRootKernel must be booted" }
-        val rootfsManager = RootfsManager.getInstance(context)
-        val cmd = mutableListOf<String>()
-        cmd.add(rootfsManager.prootBinary.absolutePath)
-        cmd.add("-0")
-        // T141: see PRootKernel.buildProotCommand for rationale — translates
-        // hardlinks to symlinks so apk install of binutils/gcc works.
-        cmd.add("--link2symlink")
-        cmd.add("-r"); cmd.add(rootfsManager.rootfsDir.absolutePath)
-        cmd.add("-b"); cmd.add("/dev")
-        cmd.add("-b"); cmd.add("/proc")
-        cmd.add("-b"); cmd.add("/sys")
-        cmd.add("-w"); cmd.add("/root")
-
-        // [T-android-session-private-mounts] The same mount set the agent's
-        // shell for [sessionId] gets (SessionMounts is the single builder), so
-        // a file saved here is the file the agent sees. This used to replay
-        // the global PRootKernel.bindMounts, whose per-session entries were
-        // whichever chat last built a shell — a random chat's workspace.
-        // No session (global entry): global dirs and external mounts only.
-        cmd.addAll(SessionMounts.toProotArgs(SessionMounts.forContext(context, sessionId).mounts))
-
-        val handlers = NativeOffloadServer.registeredHandlers
-        // [T-native-offload-bind] Only when our server is listening: otherwise
-        // the handler stubs run and report the CLI unavailable, instead of
-        // proot connecting to a name another process holds (and hanging).
-        if (handlers.isNotEmpty() && NativeOffloadServer.awaitListening()) {
-            cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
+        // [FEAT-261025-CHROOT] The terminal goes through the same router as
+        // the agent's shells, so a backend switch changes both or neither.
+        // Session mounts are identical to the previous proot argv (see
+        // SessionMounts), and the login flags are preserved for both backends.
+        val spawn = SandboxRouter.build(
+            context,
+            SandboxCommandSpec(
+                command = "",
+                interactive = true,
+                loginShell = true,
+                sessionId = sessionId,
+                sessionMounts = SessionMounts.forContext(context, sessionId).mounts,
+            ),
+        )
+        if (spawn.offload == SandboxOffloadRoute.BLOCKED) {
+            android.util.Log.w(
+                "TerminalSession",
+                "backend=${spawn.backend}: Minis tools are BLOCKED (${spawn.notes})",
+            )
         }
-
-        // [T-android-fake-netlink-tty-parity] Same rtnetlink emulation the
-        // agent's shell gets — see PRootKernel.buildProotCommand, which is the
-        // authoritative copy of this rationale.
-        //
-        // c9318f42f added `--fake-netlink` to that builder only, so the two
-        // ways into the sandbox disagreed: a tool run by the agent saw an
-        // (empty) interface list, while the SAME tool typed into this terminal
-        // hit the real AF_NETLINK refusal from Android's untrusted_app SELinux
-        // domain. A sandbox that behaves differently depending on which screen
-        // you launched from is a debugging trap regardless of which behaviour
-        // is the better one, so the flag is mirrored here.
-        //
-        // The ⚠️ on the original still stands, and now covers this call site
-        // too: an empty interface list is a deliberate lie that unblocks
-        // callers which only need enumeration to succeed, at the cost of
-        // moving the failure later for callers that then bind a local address.
-        // Whatever exposure decision that flag gets, both builders take it
-        // together.
-        cmd.add("--fake-netlink")
-        // [FEAT-261021-11] Shell transparent forwarding (see PRootKernel).
-        cmd.addAll(com.openminis.app.network.ShellTransparentNet.prootArgs(rootfsManager.prootBinary))
-
-        // Login + interactive so /etc/profile is sourced (readline, history, color aliases).
-        cmd.add("/bin/sh")
-        cmd.add("-l")
-        cmd.add("-i")
-        return cmd
+        // A-261025: the pre-existing proot builder lived here verbatim; it is
+        // now PRootKernel.buildProotInteractiveCommand so the flag set cannot
+        // drift between the terminal and the agent (ProotFlagParityTest).
+        return spawn.argv
     }
 }

@@ -57,6 +57,28 @@ internal class FreshProcessShell(
         timeout: Long,
         envVars: Map<String, String> = emptyMap(),
         lineCallback: ((String) -> Unit)? = null,
+    ): Pair<String, Int> {
+        // [FEAT-261025-CHROOT] Visible to a backend switch, which must refuse
+        // rather than cut this command's pipe when the user flips backends.
+        val activityId = SandboxActivityRegistry.begin(
+            ActiveSandboxTask(
+                id = "fresh-${System.identityHashCode(this)}",
+                label = "shell_execute (session ${sessionId.take(8)})",
+                stop = { stop() },
+            ),
+        )
+        try {
+            return executeTracked(command, timeout, envVars, lineCallback)
+        } finally {
+            SandboxActivityRegistry.end(activityId)
+        }
+    }
+
+    private suspend fun executeTracked(
+        command: String,
+        timeout: Long,
+        envVars: Map<String, String>,
+        lineCallback: ((String) -> Unit)?,
     ): Pair<String, Int> = withContext(Dispatchers.IO) {
         // [T-android-fresh-exit-status-file] Where the runner reports the
         // command's exit (see ForegroundCommandGroup.wrapForFreshProcess).
@@ -251,39 +273,24 @@ internal class FreshProcessShell(
 
     /** Build the argv and environment, mirroring PersistentShell.startProcess. */
     private fun spawn(command: String, envVars: Map<String, String>, statusGuestPath: String): Process {
-        val rootfsManager = RootfsManager.getInstance(context)
-        val cmd = mutableListOf<String>()
-        cmd.add(rootfsManager.prootBinary.absolutePath)
-        cmd.add("-0")
-        cmd.add("--link2symlink")
-        cmd.add("-r"); cmd.add(rootfsManager.rootfsDir.absolutePath)
-        cmd.add("-b"); cmd.add("/dev")
-        cmd.add("-b"); cmd.add("/proc")
-        cmd.add("-b"); cmd.add("/sys")
-        cmd.add("-w"); cmd.add("/root")
-        for ((linuxPath, hostPath) in sessionBindMounts) {
-            cmd.add("-b"); cmd.add("$hostPath:$linuxPath")
+        // [FEAT-261025-CHROOT] One routing point for both backends. The PRoot
+        // argv is byte-identical to before (session mount table +
+        // ForegroundCommandGroup wrapper); chroot yields the client argv and
+        // its own environment, with the same wrapper so the exit-status file,
+        // the pid file and the group kill keep working unchanged.
+        val wrapped = ForegroundCommandGroup.wrapForFreshProcess(command, statusGuestPath)
+        val spawn = SandboxRouter.build(
+            context,
+            SandboxCommandSpec(
+                command = wrapped,
+                sessionId = sessionId,
+                sessionMounts = sessionBindMounts,
+            ),
+        )
+        if (spawn.offload == SandboxOffloadRoute.BLOCKED) {
+            Log.w(TAG, "[$sessionId] backend=${spawn.backend}: Minis tools are BLOCKED (${spawn.notes})")
         }
-        val handlers = NativeOffloadServer.registeredHandlers
-        // [T-native-offload-bind] Only when our server is listening: otherwise
-        // the handler stubs run and report the CLI unavailable, instead of
-        // proot connecting to a name another process holds (and hanging).
-        if (handlers.isNotEmpty() && NativeOffloadServer.awaitListening()) {
-            cmd.add("--native-offload=${NativeOffloadServer.socketName}:${handlers.joinToString(",")}")
-        }
-        // [T-android-fake-netlink] Same rtnetlink emulation the pooled shell
-        // gets; the two paths must not disagree about whether the sandbox has
-        // network interfaces.
-        cmd.add("--fake-netlink")
-        // [FEAT-261021-11] Shell transparent forwarding (see PRootKernel).
-        cmd.addAll(com.openminis.app.network.ShellTransparentNet.prootArgs(rootfsManager.prootBinary))
-        // [T-android-shell-fresh-process] Step 4: run the command as its own
-        // process-group leader. No marker, no pgid reporting — the host does
-        // not need to LEARN the group, because on the fresh path the guest
-        // group leader is the direct child of the proot process we already
-        // hold. It only needs the group to EXIST, so that killing reaches the
-        // descendants that would otherwise keep the pipe open.
-        cmd.addAll(ForegroundCommandGroup.wrapForFreshProcess(command, statusGuestPath))
+        val cmd = spawn.argv
 
         val debugOffload = com.openminis.app.BuildConfig.DEV_TOOLS
         val pb = ProcessBuilder(cmd)
@@ -294,16 +301,23 @@ internal class FreshProcessShell(
         pb.redirectErrorStream(!SEPARATE_STDERR)
 
         val env = pb.environment()
-        env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-        if (PRootKernel.nativeLibDir.isNotEmpty()) env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
-        if (PRootKernel.prootLoaderPath.isNotEmpty()) env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-        if (PRootKernel.prootLoader32Path.isNotEmpty()) env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+        if (spawn.backend == SandboxBackend.PROOT) {
+            env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+            if (PRootKernel.nativeLibDir.isNotEmpty()) env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+            if (PRootKernel.prootLoaderPath.isNotEmpty()) env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+            if (PRootKernel.prootLoader32Path.isNotEmpty()) env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+        }
+        env.putAll(spawn.env)
         env["TERM"] = "dumb"
         env["PS1"] = ""
         env["TZ"] = PRootKernel.posixTz()
         if (debugOffload) env["MINIS_NOFF_DEBUG"] = "1"
         env["MINIS_CHAT_SESSION_ID"] = sessionId
-        for ((k, v) in PRootKernel.customEnvironment) env[k] = v
+        // Only for PRoot: its customEnvironment carries link2symlink
+        // workarounds (GIT_CONFIG_*, UV_LINK_MODE) that are wrong under chroot.
+        if (spawn.backend == SandboxBackend.PROOT) {
+            for ((k, v) in PRootKernel.customEnvironment) env[k] = v
+        }
         // [T-net-android-phase3] Settings > Network "Shell" route: proxy
         // variables for the local entry (empty = direct, unchanged). Before
         // the caller's / user's own variables, which may override them.
@@ -312,7 +326,8 @@ internal class FreshProcessShell(
         // than `export` lines written to a shared stdin — one more thing the
         // warm path had to do that this one does not.
         for ((k, v) in envVars) env[k] = v
-        if (useNoSeccomp) {
+        // [FEAT-261025-CHROOT] PROOT_NO_SECCOMP only means anything to proot.
+        if (useNoSeccomp && spawn.backend == SandboxBackend.PROOT) {
             env[SeccompFallbackPolicy.NO_SECCOMP_ENV] = SeccompFallbackPolicy.NO_SECCOMP_VALUE
         }
         // [T-shell-stall-yes-head] SIGPIPE unblocked in the child; see SpawnSignalMask.

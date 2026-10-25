@@ -216,6 +216,14 @@ fun OffloadPermissionScreen(
             onStatusRowClick = onOpenPrivilegedBackend,
         )
 
+        SettingsSection(header = "原生 Root", footer = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认。") {
+            SettingsRow(title = "android-root-cli · 权限与状态",
+                subtitle = "Root 管理器授权、能力列表与本次验证",
+                onClick = { context.startActivity(Intent(context,
+                    com.openminis.app.rootbridge.RootBridgeSettingsActivity::class.java)) },
+                showDivider = false)
+        }
+
         Spacer(Modifier.height(16.dp))
     }
 

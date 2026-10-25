@@ -32,7 +32,7 @@ object OnDemandBash {
     /** [FIX-261025-05] FreshProcessShell.CANCELLED_EXIT: the user pressed Stop. */
     private const val STOPPED_EXIT = 130
     const val STOPPED_REASON = "stopped by the user"
-    private const val APK_PROBE_URL = "https://dl-cdn.alpinelinux.org/alpine/"
+    private const val APK_PROBE_URL = "https://ports.ubuntu.com/ubuntu-ports/"
 
     private sealed class Availability {
         object Unknown : Availability()
@@ -89,7 +89,7 @@ object OnDemandBash {
         }
 
         Log.i(TAG, "installing bash (budget ${INSTALL_BUDGET_MS / 1000}s)…")
-        val rc = executor.run("apk add bash", INSTALL_BUDGET_MS)
+        val rc = executor.run("apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y bash", INSTALL_BUDGET_MS)
         if (rc == STOPPED_EXIT) {
             // [FIX-261025-05] Stopped mid-install by the user: not a failed
             // install, so no strike and no back-off; a later command may
@@ -111,7 +111,7 @@ object OnDemandBash {
         }
         recordFailure(context); markUnavailable()
         Log.e(TAG, "bash install failed (rc=$rc)")
-        return Outcome.Unavailable("apk add bash failed (rc=$rc)")
+        return Outcome.Unavailable("apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y bash failed (rc=$rc)")
     }
 
     /** Called when `bash <file>` itself returned 127 (user apk del'd) — M5. */
@@ -124,7 +124,7 @@ object OnDemandBash {
     private fun backoffReason(context: Context): String? {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val count = p.getInt(KEY_FAIL_COUNT, 0)
-        if (count >= MAX_STRIKES) return "bash install disabled after $MAX_STRIKES failures (retry manually: apk add bash)"
+        if (count >= MAX_STRIKES) return "bash install disabled after $MAX_STRIKES failures (retry manually: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y bash)"
         val last = p.getLong(KEY_LAST_FAIL, 0)
         if (last > 0 && System.currentTimeMillis() - last < BACKOFF_WINDOW_MS) return "bash install backing off (recent failure)"
         return null

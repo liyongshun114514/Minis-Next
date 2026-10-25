@@ -97,27 +97,34 @@ object ShellExecutor {
         lineCallback: ((String) -> Unit)?,
         noSeccomp: Boolean,
     ): ShellResult = withContext(Dispatchers.IO) {
-        val prootCommand = PRootKernel.buildProotCommand(command)
+        // [FEAT-261025-CHROOT] Backend routing lives in one place. PRoot's
+        // argv is unchanged (buildProotCommand, global mount table); chroot
+        // returns the unprivileged client argv instead.
+        val spawn = SandboxRouter.build(context, SandboxCommandSpec(command = command))
 
-        Log.d(TAG, "Executing: $command")
+        Log.d(TAG, "Executing: $command (backend=${spawn.backend}, offload=${spawn.offload})")
 
         val startTime = System.currentTimeMillis()
 
-        val processBuilder = ProcessBuilder(prootCommand)
+        val processBuilder = ProcessBuilder(spawn.argv)
         processBuilder.redirectErrorStream(true)
 
-        // Set required environment for PRoot
         val env = processBuilder.environment()
-        env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
-        if (PRootKernel.nativeLibDir.isNotEmpty()) {
-            env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+        if (spawn.backend == SandboxBackend.PROOT) {
+            // Set required environment for PRoot
+            env["PROOT_TMP_DIR"] = PRootKernel.getProotTmpDir(context).absolutePath
+            if (PRootKernel.nativeLibDir.isNotEmpty()) {
+                env["LD_LIBRARY_PATH"] = PRootKernel.nativeLibDir
+            }
+            if (PRootKernel.prootLoaderPath.isNotEmpty()) {
+                env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
+            }
+            if (PRootKernel.prootLoader32Path.isNotEmpty()) {
+                env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
+            }
         }
-        if (PRootKernel.prootLoaderPath.isNotEmpty()) {
-            env["PROOT_LOADER"] = PRootKernel.prootLoaderPath
-        }
-        if (PRootKernel.prootLoader32Path.isNotEmpty()) {
-            env["PROOT_LOADER_32"] = PRootKernel.prootLoader32Path
-        }
+        // Backend-owned environment (chroot: socket name, TZ, PATH, proxy).
+        env.putAll(spawn.env)
 
         // Apply custom environment from PRootKernel
         for ((key, value) in PRootKernel.customEnvironment) {

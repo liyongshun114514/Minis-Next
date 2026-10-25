@@ -30,6 +30,8 @@ object OffloadPermissionManager {
         val toolTitle: String,
         val description: String,
         val sessionId: String,
+        /** Privileged requests must never become a session-wide grant. */
+        val singleUse: Boolean = false,
     )
 
     enum class PermissionCategory(val displayName: String) {
@@ -89,6 +91,7 @@ object OffloadPermissionManager {
         // is already authorized.
         ToolPermissionInfo("a11y_cli", "android-a11y-cli", PermissionCategory.INTEGRATIONS, PermissionLevel.NOT_ALLOWED),
         ToolPermissionInfo("shizuku_cli", "android-shizuku-cli", PermissionCategory.INTEGRATIONS, PermissionLevel.NOT_ALLOWED),
+        ToolPermissionInfo("root_cli", "android-root-cli", PermissionCategory.INTEGRATIONS, PermissionLevel.NOT_ALLOWED),
     )
 
     /** Stable session-id used by NativeOffloadHandlers when calling
@@ -505,11 +508,37 @@ object OffloadPermissionManager {
         }
     }
 
+    /** Always show the exact privileged operation; do not reuse BYPASS/session grants. */
+    suspend fun confirmPrivilegedOperation(toolName: String, title: String, description: String): Boolean {
+        if (!lockWithin(permissionDialogTurn)) return false
+        try {
+            val answer = withTimeoutOrNull(120_000L) {
+                suspendCancellableCoroutine<Response> { cont ->
+                    pendingContinuation = cont
+                    _pendingRequest.value = PermissionRequest(
+                        toolName, title, description, OFFLOAD_GLOBAL_SESSION_ID, singleUse = true,
+                    )
+                    cont.invokeOnCancellation {
+                        _pendingRequest.value = null
+                        pendingContinuation = null
+                    }
+                }
+            }
+            return answer == Response.ALLOW_ONCE
+        } finally {
+            permissionDialogTurn.unlock()
+        }
+    }
+
     /** Called from UI when user responds to the permission dialog. */
-    fun respondToRequest(response: Response) {
+    @Synchronized
+    fun respondToRequest(request: PermissionRequest, response: Response) {
+        // A stale dialog must not approve a different queued Root command.
+        if (_pendingRequest.value !== request) return
+        val continuation = pendingContinuation
         _pendingRequest.value = null
-        pendingContinuation?.resume(response)
         pendingContinuation = null
+        continuation?.resume(response)
     }
 
     /** Clear session grants AND denials (call when a session ends). */

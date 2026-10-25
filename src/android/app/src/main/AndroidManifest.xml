@@ -189,11 +189,14 @@
         android:usesCleartextTraffic="true"
         android:extractNativeLibs="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/fork_app_name"
         android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Minis">
+
+        <activity android:name=".rootbridge.RootBridgeSettingsActivity"
+            android:exported="false" android:theme="@style/Theme.Minis" />
 
         <!-- [T-android-tablet-split] MainActivity resize/rotation handling.
 
@@ -254,7 +257,7 @@
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
-            android:label="@string/app_name">
+            android:label="@string/fork_app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -276,7 +279,7 @@
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_classic_light"
-            android:label="@string/app_name">
+            android:label="@string/fork_app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -292,7 +295,7 @@
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_classic_dark"
-            android:label="@string/app_name">
+            android:label="@string/fork_app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -554,7 +557,7 @@
         <service
             android:name=".offload.MinisNotificationListenerService"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="@string/fork_app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />

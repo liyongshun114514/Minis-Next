@@ -799,6 +799,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         // can register unconditionally; ShizukuManager.init below wires
         // up the binder lifecycle listeners + StateFlow.
         NativeOffloadServer.register("android-shizuku-cli", ShizukuOffloadHandler(this))
+        NativeOffloadServer.register("android-root-cli", ShizukuOffloadHandler(this, nativeRoot = true))
         com.openminis.app.offload.ShizukuManager.init(this)
 
         // T-android-minis-debug-cli: shell-side CLI wrapper around the in-app
@@ -1016,6 +1017,7 @@ class MinisApp : Application(), ImageLoaderFactory {
 
         // Initialize offload permission manager
         OffloadPermissionManager.init(this)
+        com.openminis.app.offload.RootManager.init(this)
 
         // Initialize speech-recognition adapter layer (system + provider engines).
         com.openminis.app.speech.SpeechRecognitionManager.init(this)

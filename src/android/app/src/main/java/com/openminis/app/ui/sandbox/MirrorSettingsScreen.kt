@@ -1,7 +1,8 @@
 package com.openminis.app.ui.sandbox
 
-import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.R
+import com.openminis.app.sandbox.SandboxDistribution
+import com.openminis.app.ui.settings.SettingsSwitch
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -84,20 +85,21 @@ enum class MirrorCategory(
     val displayName: String,
     val configPath: String,
 ) {
-    ALPINE("alpine", "Alpine APK", "etc/apk/repositories"),
+    /** Ubuntu arm64 apt (deb822). Was `Alpine APK` / etc/apk/repositories before the migration. */
+    UBUNTU("ubuntu", "Ubuntu APT", "etc/apt/sources.list.d/ubuntu.sources"),
     PIP("pip", "Python pip", "etc/pip/pip.conf"),
     NPM("npm", "Node.js npm", "root/.npmrc");
 
     val icon: ImageVector
         get() = when (this) {
-            ALPINE -> Icons.Filled.Terrain
+            UBUNTU -> Icons.Filled.Terrain
             PIP -> Icons.Filled.Inventory2
             NPM -> Icons.Outlined.Javascript
         }
 
     val iconColor: Color
         get() = when (this) {
-            ALPINE -> Color(0xFF007AFF)
+            UBUNTU -> Color(0xFF007AFF)
             PIP -> Color(0xFF34C759)
             NPM -> Color(0xFFFF3B30)
         }
@@ -124,10 +126,15 @@ data class MirrorTestResult(
 // ─── Mirror Definitions ──────────────────────────────────────────────────────
 
 object MirrorCatalog {
-    private const val ALPINE_PROBE = "v3.21/main/aarch64/APKINDEX.tar.gz"
+    /**
+     * Probe for an Ubuntu **ports** mirror: the per-suite Release file is small
+     * (~300 KB), arm64-only mirrors all serve it, and it is what apt reads
+     * first. Alpine's APKINDEX probe is gone with the Alpine guest.
+     */
+    private const val UBUNTU_PROBE = "dists/${SandboxDistribution.CODENAME}/Release"
 
-    private fun alpine(id: String, name: String, url: String, region: String, official: Boolean = false) =
-        MirrorEntry("alpine.$id", name, url, url + ALPINE_PROBE, MirrorCategory.ALPINE, region, official)
+    private fun ubuntu(id: String, name: String, url: String, region: String, official: Boolean = false) =
+        MirrorEntry("ubuntu.$id", name, url, url + UBUNTU_PROBE, MirrorCategory.UBUNTU, region, official)
 
     private fun pip(id: String, name: String, url: String, region: String, official: Boolean = false) =
         MirrorEntry("pip.$id", name, url, url, MirrorCategory.PIP, region, official)
@@ -135,17 +142,24 @@ object MirrorCatalog {
     private fun npm(id: String, name: String, url: String, region: String, official: Boolean = false) =
         MirrorEntry("npm.$id", name, url, url, MirrorCategory.NPM, region, official)
 
-    val alpineMirrors = listOf(
-        alpine("official", "Official CDN", "https://dl-cdn.alpinelinux.org/alpine/", "Global", official = true),
-        alpine("tuna", "Tsinghua TUNA", "https://mirrors.tuna.tsinghua.edu.cn/alpine/", "China"),
-        alpine("aliyun", "Alibaba", "https://mirrors.aliyun.com/alpine/", "China"),
-        alpine("ustc", "USTC", "https://mirrors.ustc.edu.cn/alpine/", "China"),
-        alpine("huawei", "Huawei", "https://repo.huaweicloud.com/alpine/", "China"),
-        alpine("tencent", "Tencent", "https://mirrors.cloud.tencent.com/alpine/", "China"),
-        alpine("leaseweb", "LEASEWEB UK", "https://mirror.leaseweb.com/alpine/", "Europe"),
-        alpine("rwth", "RWTH Germany", "https://ftp.halifax.rwth-aachen.de/alpine/", "Europe"),
-        alpine("jaist", "JAIST Japan", "https://ftp.jaist.ac.jp/pub/Linux/alpine/", "Asia"),
-        alpine("kakao", "Kakao Korea", "https://mirror.kakao.com/alpine/", "Asia"),
+    /**
+     * Ubuntu 24.04 **arm64** lives on `ubuntu-ports`, not `archive.ubuntu.com`,
+     * so every entry here is a ports mirror. All URLs below were probed for
+     * `dists/noble/Release` and `dists/noble-security/Release` (HTTP 200) when
+     * this list was written; `rwth`/`jaist`/`kakao` are intentionally absent —
+     * they mirror `ubuntu` only and 404 on `ubuntu-ports`.
+     */
+    val ubuntuMirrors = listOf(
+        ubuntu("official", "Official (ports.ubuntu.com)", "https://ports.ubuntu.com/ubuntu-ports/", "Global", official = true),
+        ubuntu("tuna", "Tsinghua TUNA", "https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports/", "China"),
+        ubuntu("aliyun", "Alibaba", "https://mirrors.aliyun.com/ubuntu-ports/", "China"),
+        ubuntu("ustc", "USTC", "https://mirrors.ustc.edu.cn/ubuntu-ports/", "China"),
+        ubuntu("huawei", "Huawei", "https://repo.huaweicloud.com/ubuntu-ports/", "China"),
+        ubuntu("tencent", "Tencent", "https://mirrors.cloud.tencent.com/ubuntu-ports/", "China"),
+        ubuntu("bfsu", "BFSU", "https://mirrors.bfsu.edu.cn/ubuntu-ports/", "China"),
+        ubuntu("nju", "Nanjing University", "https://mirror.nju.edu.cn/ubuntu-ports/", "China"),
+        ubuntu("leaseweb", "LEASEWEB UK", "https://mirror.leaseweb.com/ubuntu-ports/", "Europe"),
+        ubuntu("udx", "UDX Japan", "https://ftp.udx.icscoe.jp/Linux/ubuntu-ports/", "Asia"),
     )
 
     val pipMirrors = listOf(
@@ -164,10 +178,10 @@ object MirrorCatalog {
         npm("tencent", "Tencent", "https://mirrors.cloud.tencent.com/npm/", "China"),
     )
 
-    val allMirrors: List<MirrorEntry> = alpineMirrors + pipMirrors + npmMirrors
+    val allMirrors: List<MirrorEntry> = ubuntuMirrors + pipMirrors + npmMirrors
 
     fun mirrors(category: MirrorCategory): List<MirrorEntry> = when (category) {
-        MirrorCategory.ALPINE -> alpineMirrors
+        MirrorCategory.UBUNTU -> ubuntuMirrors
         MirrorCategory.PIP -> pipMirrors
         MirrorCategory.NPM -> npmMirrors
     }
@@ -424,8 +438,13 @@ object MirrorSpeedTestViewModel {
     fun isActive(category: MirrorCategory): Boolean =
         useCustomMirror[category] == true && selectedMirrorId[category] != null
 
+    /**
+     * Rootfs root. The directory name is historical (see
+     * SandboxDistribution.ROOTFS_DIR_NAME); every unmodified reader still uses
+     * it, so this object must not hardcode a different one.
+     */
     private fun rootfsDataDir(context: Context): File =
-        File(context.applicationContext.filesDir, "alpine-rootfs")
+        File(context.applicationContext.filesDir, SandboxDistribution.ROOTFS_DIR_NAME)
 
     private fun applyMirror(context: Context, category: MirrorCategory) {
         val mirror = selectedMirror(category) ?: return
@@ -443,8 +462,10 @@ object MirrorSpeedTestViewModel {
         }
 
         val content = when (category) {
-            MirrorCategory.ALPINE ->
-                "${mirror.baseURL}v3.21/main\n${mirror.baseURL}v3.21/community\n"
+            // deb822 (ubuntu.sources). Built from one place so the catalog, the
+            // installer and the restore path cannot drift apart.
+            MirrorCategory.UBUNTU ->
+                SandboxDistribution.aptSources(mirror.baseURL)
             MirrorCategory.PIP -> {
                 val host = try { URI(mirror.baseURL).host ?: "" } catch (_: Exception) { "" }
                 """
@@ -473,6 +494,20 @@ object MirrorSpeedTestViewModel {
         val bakFile = File(dataDir, category.configPath + ".bak")
 
         if (!bakFile.exists()) {
+            // On a fresh Ubuntu rootfs there is no .bak (the shipped file was
+            // already official), and after a fresh extract the stock file is
+            // trustworthy. Write the official deb822 file explicitly so
+            // "Use Mirror = off" always means ports.ubuntu.com.
+            if (category == MirrorCategory.UBUNTU) {
+                runCatching {
+                    configFile.parentFile?.mkdirs()
+                    configFile.writeText(
+                        SandboxDistribution.aptSources(SandboxDistribution.OFFICIAL_UBUNTU_PORTS)
+                    )
+                    Log.i(TAG, "Restored official Ubuntu sources for ${category.configPath}")
+                }.onFailure { Log.w(TAG, "Failed to restore official sources: ${it.message}") }
+                return
+            }
             Log.i(TAG, "No .bak for ${category.configPath}, skipping restore")
             return
         }

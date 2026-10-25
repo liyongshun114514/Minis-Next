@@ -5,7 +5,8 @@ import android.content.SharedPreferences
 
 /**
  * [T-container-network-dns] (OpenMinis#396) Which DNS servers the sandbox's
- * `/etc/resolv.conf` lists.
+ * `/etc/resolv.conf` lists. The Android guest is Ubuntu 24.04 (glibc); the
+ * file must be a regular file, which [RootfsManager] guarantees.
  *
  * By default the sandbox follows the system: [RootfsManager.refreshDns]
  * copies the active network's nameservers on install, on every boot and on
@@ -14,7 +15,7 @@ import android.content.SharedPreferences
  * sing-box): public resolvers there leak queries and hand back real IPs that
  * bypass the proxy. But some networks (a LAN, Tailscale, a private VPN)
  * advertise resolvers that cannot resolve public names, and then every
- * `apk add` / `pip install` / `git clone` in the sandbox times out.
+ * `apt-get install` / `pip install` / `git clone` in the sandbox times out.
  *
  * So the choice is the user's: [DnsMode.AUTO] (default, unchanged
  * behaviour) or [DnsMode.CUSTOM], where resolv.conf lists exactly the servers
@@ -43,9 +44,10 @@ object ContainerDns {
     }
 
     /**
-     * musl (Alpine) reads at most this many `nameserver` lines (MAXNS); the
-     * rest are ignored. Extra entries are still written — they do no harm —
-     * but the editor says so.
+     * glibc (the Ubuntu guest) and musl (the old Alpine guest) both cap the
+     * `nameserver` lines they consult at MAXNS = 3; extras are ignored.
+     * Entries beyond this are still written — they do no harm — but the editor
+     * says so.
      */
     const val RESOLVER_MAX_SERVERS = 3
 

@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FilterInputStream
+import java.io.IOException
 import java.io.InputStream
-import java.nio.charset.Charset
 import java.util.zip.GZIPInputStream
 
 /**
@@ -34,19 +34,50 @@ sealed class RootfsInstallState {
 }
 
 /**
- * Manages Alpine Linux rootfs installation and PRoot binary extraction.
- * Corresponds to iOS RootfsManager.swift.
+ * Manages the **Ubuntu 24.04 LTS arm64** rootfs installation and PRoot binary
+ * extraction on Android (iOS keeps its Alpine/iSH guest).
+ *
+ * Distribution-specific constants, apt sources and the guest defaults live in
+ * [SandboxDistribution]. Two properties of this class are load-bearing:
+ *
+ * 1. The directory is still named `alpine-rootfs` (see
+ *    [SandboxDistribution.ROOTFS_DIR_NAME]) because unmodified readers hardcode
+ *    that path. The `.distro` marker, not the name, identifies the guest.
+ * 2. An existing rootfs is **never deleted or overwritten in place**. A
+ *    complete tree is extracted into [SandboxDistribution.STAGING_DIR_NAME]
+ *    first; only then is the old tree renamed to an
+ *    `alpine-rootfs.pre-ubuntu-<timestamp>` sibling (data preserved) and the
+ *    staging directory renamed into place. A failed extract leaves the previous
+ *    guest untouched.
+ *
+ * Corresponds to iOS RootfsManager.swift, which is unchanged.
  */
 class RootfsManager private constructor(private val context: Context) {
 
-    val rootfsDir: File = File(context.filesDir, "alpine-rootfs")
+    /** See [SandboxDistribution.ROOTFS_DIR_NAME] — legacy path, not the distro. */
+    val rootfsDir: File = File(context.filesDir, SandboxDistribution.ROOTFS_DIR_NAME)
     val prootBinary: File = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
-    private val archFile: File get() = File(rootfsDir, ".arch")
-
     val isInstalled: Boolean
-        get() = rootfsDir.exists() && archFile.exists() &&
-                archFile.readText().trim() == ARCH
+        get() = SandboxDistribution.isUbuntuRootfs(rootfsDir)
+
+    /**
+     * Directory that received the previous (Alpine/broken) rootfs during the
+     * most recent install, or null. Set once per install, kept for the UI and
+     * for logs — the backup itself is never removed automatically.
+     */
+    @Volatile
+    var lastLegacyBackup: File? = null
+        private set
+
+    /** Every preserved pre-Ubuntu rootfs, newest last. Never deleted automatically. */
+    val legacyBackupDirs: List<File>
+        get() = context.filesDir.listFiles()
+            ?.filter {
+                it.isDirectory && it.name.startsWith(SandboxDistribution.LEGACY_BACKUP_PREFIX)
+            }
+            ?.sortedBy { it.name }
+            ?: emptyList()
 
     /**
      * Observable install progress. UI layers (OnboardingScreen,
@@ -60,10 +91,15 @@ class RootfsManager private constructor(private val context: Context) {
     val installState: StateFlow<RootfsInstallState> = _installState.asStateFlow()
 
     /**
-     * Install Alpine rootfs from assets if not already present.
-     * Extracts alpine-minirootfs.tar.gz using manual POSIX tar parsing.
-     * Progress is published to [installState] (Preparing → Extracting(f) →
-     * Finalizing → Installed / Failed).
+     * Install the Ubuntu 24.04 rootfs from assets if not already present.
+     *
+     * Flow: extract the whole archive into a staging directory (hardened
+     * POSIX/GNU/PAX tar parser — see [extractTar]), write the distro/arch
+     * markers and the apt/DNS/hosts/profile defaults, then swap it in. The
+     * previous tree is renamed to an `alpine-rootfs.pre-ubuntu-*` sibling, so
+     * migrating from Alpine preserves every byte of user data; nothing is
+     * deleted. Progress is published to [installState] (Preparing →
+     * Extracting(f) → Finalizing → Installed / Failed).
      */
     suspend fun installIfNeeded() = withContext(Dispatchers.IO) {
         if (isInstalled) {
@@ -72,15 +108,17 @@ class RootfsManager private constructor(private val context: Context) {
             return@withContext
         }
 
+        val staging = File(context.filesDir, SandboxDistribution.STAGING_DIR_NAME)
         try {
             _installState.value = RootfsInstallState.Preparing
-            Log.i(TAG, "Installing Alpine rootfs...")
+            Log.i(TAG, "Installing ${SandboxDistribution.DISPLAY_NAME} rootfs...")
 
-            // Clean up any partial install
-            if (rootfsDir.exists()) {
-                rootfsDir.deleteRecursively()
+            // Staging only. The live rootfsDir is not touched until the extract
+            // has fully succeeded, so a crash leaves the old guest usable.
+            if (staging.exists()) staging.deleteRecursively()
+            if (!staging.mkdirs() && !staging.isDirectory) {
+                error("Cannot create staging directory at $staging")
             }
-            rootfsDir.mkdirs()
 
             // Extract rootfs from assets.
             // AAPT may decompress .tar.gz → .tar automatically, so try both names.
@@ -88,7 +126,15 @@ class RootfsManager private constructor(private val context: Context) {
                 context.assets.open(ROOTFS_ASSET).close()
                 ROOTFS_ASSET
             } catch (_: java.io.FileNotFoundException) {
-                ROOTFS_ASSET_TAR
+                try {
+                    context.assets.open(ROOTFS_ASSET_TAR).close()
+                    ROOTFS_ASSET_TAR
+                } catch (_: java.io.FileNotFoundException) {
+                    throw IllegalStateException(
+                        "Rootfs asset ${SandboxDistribution.ROOTFS_ASSET} is missing from the APK. " +
+                            "Run scripts/prepare_android_ubuntu.sh before building."
+                    )
+                }
             }
 
             // Asset size for progress calculation — compressed length (for .gz)
@@ -110,17 +156,30 @@ class RootfsManager private constructor(private val context: Context) {
                 }
                 if (assetName.endsWith(".gz")) {
                     GZIPInputStream(progressStream).use { gzipStream ->
-                        extractTar(gzipStream, rootfsDir)
+                        extractTar(gzipStream, staging)
                     }
                 } else {
-                    extractTar(progressStream, rootfsDir)
+                    extractTar(progressStream, staging)
                 }
             }
 
             _installState.value = RootfsInstallState.Finalizing
 
-            // Write arch marker
-            archFile.writeText(ARCH)
+            // Sanity check before the swap: a truncated/foreign archive must not
+            // be promoted to a "successful" install.
+            val shell = File(staging, "bin/sh")
+            val loader = File(staging, "lib/ld-linux-aarch64.so.1")
+            if (!shell.exists() || !loader.exists()) {
+                throw IOException(
+                    "Extracted rootfs is incomplete: missing /bin/sh or the glibc loader " +
+                        "(${loader.name}). Refusing to install."
+                )
+            }
+
+            // Markers. `.arch` keeps the old contract; `.distro` is what makes
+            // isInstalled reject a pre-existing Alpine tree.
+            File(staging, SandboxDistribution.ARCH_MARKER_FILE).writeText(ARCH)
+            File(staging, SandboxDistribution.MARKER_FILE).writeText(SandboxDistribution.MARKER_VALUE)
 
             // Pre-create /var/minis directories. Mirrors iOS
             // RootfsManager.swift:76-80 (attachments/offloads/workspace/skills/
@@ -130,14 +189,34 @@ class RootfsManager private constructor(private val context: Context) {
             // skips bind mounts whose target path doesn't exist.
             val minisSubdirs = listOf("attachments", "offloads", "workspace", "skills", "memory", "shared", "mounts")
             for (subdir in minisSubdirs) {
-                File(rootfsDir, "var/minis/$subdir").mkdirs()
+                File(staging, "var/minis/$subdir").mkdirs()
             }
 
             // Pre-create /opt/bin — appears in PATH so users can drop third-party
             // binaries here without first `mkdir -p`. Matches iOS PATH layout.
-            File(rootfsDir, "opt/bin").mkdirs()
+            File(staging, "opt/bin").mkdirs()
 
-            // Write resolv.conf from system DNS (fallback to 8.8.8.8)
+            // Ubuntu guest defaults: apt (deb822) sources, PRoot apt switches,
+            // /etc/hosts (empty in ubuntu-base), hostname, profile.d, bootstrap.
+            configureUbuntuRootfs(staging)
+
+            // Swap in. Legacy data is preserved, never deleted.
+            val preserved = preserveExistingRootfs()
+            if (!staging.renameTo(rootfsDir)) {
+                // Put the old guest back so the device is not left with nothing.
+                if (preserved != null) preserved.renameTo(rootfsDir)
+                throw IOException("Could not move the new rootfs into place at $rootfsDir")
+            }
+            lastLegacyBackup = preserved
+            if (preserved != null) {
+                Log.w(
+                    TAG,
+                    "Previous rootfs preserved at ${preserved.absolutePath} " +
+                        "(not deleted; remove it manually after verifying Ubuntu works)"
+                )
+            }
+
+            // resolv.conf now that the tree is live (needs the active network).
             refreshDns()
 
             // Flag a fresh install so MirrorSpeedTestViewModel.autoDetectOnceIfNeeded()
@@ -147,9 +226,12 @@ class RootfsManager private constructor(private val context: Context) {
                 .putBoolean("rootfs.freshInstall", true)
                 .apply()
 
-            Log.i(TAG, "Rootfs installation complete")
+            Log.i(TAG, "Rootfs installation complete (${SandboxDistribution.MARKER_VALUE})")
             _installState.value = RootfsInstallState.Installed
         } catch (t: Throwable) {
+            // Only the staging tree is discarded. rootfsDir (old Alpine or a
+            // previous Ubuntu install) is intentionally left untouched.
+            runCatching { staging.deleteRecursively() }
             Log.e(TAG, "Rootfs installation failed", t)
             _installState.value = RootfsInstallState.Failed(t.message ?: t.javaClass.simpleName)
             throw t
@@ -158,6 +240,148 @@ class RootfsManager private constructor(private val context: Context) {
 
     /** Directory containing extracted native libraries (read-only, executable). */
     val nativeLibDir: File = File(context.applicationInfo.nativeLibraryDir)
+
+    // ── Ubuntu guest configuration ───────────────────────────────────────────
+
+    /**
+     * Write the Ubuntu-specific defaults into [target] (staging or live).
+     *
+     * `writeIfMissing` for everything the ubuntu-base tarball already ships in
+     * a usable form: a user who edited `/etc/hosts` or pinned their own apt
+     * suite keeps that edit across re-installs and reboots. The bootstrap
+     * script is always (re)written — it is app-managed code, not user config.
+     */
+    private fun configureUbuntuRootfs(target: File) {
+        // deb822 sources (Ubuntu 24.04 moved off /etc/apt/sources.list).
+        writeIfMissing(
+            File(target, SandboxDistribution.APT_SOURCES_PATH),
+            SandboxDistribution.aptSources(SandboxDistribution.OFFICIAL_UBUNTU_PORTS),
+        )
+        // PRoot switches — written unconditionally: a wrong value breaks apt
+        // entirely and there is no user-facing way to set it in the app.
+        writeText(File(target, SandboxDistribution.APT_PROOT_CONF_PATH), SandboxDistribution.aptProotConf())
+
+        writeIfMissing(File(target, "etc/hosts"), SandboxDistribution.hostsFile())
+        writeIfMissing(File(target, "etc/hostname"), SandboxDistribution.hostnameFile())
+        writeIfMissing(File(target, SandboxDistribution.PROFILE_PATH), SandboxDistribution.profileScript())
+        writeIfMissing(
+            File(target, SandboxDistribution.BOOTSTRAP_PACKAGES_PATH),
+            SandboxDistribution.bootstrapPackageList(),
+        )
+
+        val bootstrap = File(target, SandboxDistribution.BOOTSTRAP_SCRIPT_PATH)
+        writeText(bootstrap, SandboxDistribution.bootstrapScript())
+        bootstrap.setExecutable(true, false)
+        // Interactive shells run it once and print progress/failure; agent
+        // shells are not guaranteed to be interactive (see bootstrapCommand()).
+        writeText(
+            File(target, SandboxDistribution.BOOTSTRAP_PROFILE_PATH),
+            SandboxDistribution.bootstrapProfileScript(),
+        )
+
+        // apt needs both partial dirs; dpkg creates them lazily but a read-only
+        // parent would surface as a confusing "Could not open lock file".
+        File(target, "var/lib/apt/lists/partial").mkdirs()
+        File(target, "var/cache/apt/archives/partial").mkdirs()
+
+        // /etc/resolv.conf must be a REGULAR file in this guest: resolvconf and
+        // systemd-resolved are not running under PRoot, and some Ubuntu base
+        // builds ship it as a symlink into /run (writing through it fails with
+        // ENOENT on a fresh extract). refreshDns() replaces it with the real
+        // system DNS right after the swap; this is only the offline fallback.
+        writeResolvConfTo(
+            target,
+            "nameserver 8.8.8.8\nnameserver 8.8.4.4\n",
+        )
+    }
+
+    /**
+     * Idempotent top-up of app-managed guest files, run on every boot after
+     * the default_mount overlay. Only fills files that are missing, so it can
+     * never revert a user's mirror selection or apt sources. No-op when the
+     * installed tree is not Ubuntu (e.g. an untouched legacy Alpine rootfs).
+     */
+    fun ensureUbuntuGuestConfig() {
+        if (!isInstalled) return
+        try {
+            configureUbuntuRootfs(rootfsDir)
+        } catch (t: Throwable) {
+            Log.w(TAG, "[UbuntuConfig] failed: ${t.message}", t)
+        }
+    }
+
+    /** True once the default toolset (python3, git, curl, …) is installed. */
+    val isBootstrapComplete: Boolean
+        get() = File(rootfsDir, SandboxDistribution.BOOTSTRAP_DONE_MARKER).isFile
+
+    /** True when a previous toolset install failed (marker written by the guest). */
+    val isBootstrapFailed: Boolean
+        get() = File(rootfsDir, SandboxDistribution.BOOTSTRAP_FAILED_MARKER).isFile
+
+    /**
+     * Command a shell executor should run once when [isBootstrapComplete] is
+     * false. Kept here (rather than executed during install) because apt needs
+     * the network and the guest, and a failure must surface in the shell, not
+     * abort the rootfs install. See docs/android-ubuntu.md §7/§9.
+     */
+    fun bootstrapCommand(): String = "minis-bootstrap"
+
+    /**
+     * Move the current [rootfsDir] aside without deleting anything.
+     *
+     * Returns the backup directory, or null when there was nothing to preserve
+     * (absent or an empty directory). Throws when the rename fails: the caller
+     * must abort the install rather than fall back to `deleteRecursively` —
+     * silently destroying the user's previous guest is exactly what this
+     * migration must not do.
+     */
+    internal fun preserveExistingRootfs(): File? {
+        if (!rootfsDir.exists()) return null
+        if (rootfsDir.isDirectory && rootfsDir.list()?.isEmpty() == true) {
+            // Nothing but an empty dir (a failed mkdir from an old build).
+            if (rootfsDir.delete()) return null
+        }
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+            .format(java.util.Date())
+        var backup = File(context.filesDir, SandboxDistribution.LEGACY_BACKUP_PREFIX + stamp)
+        var suffix = 1
+        while (backup.exists()) {
+            backup = File(context.filesDir, SandboxDistribution.LEGACY_BACKUP_PREFIX + "$stamp-$suffix")
+            suffix++
+        }
+        val legacy = SandboxDistribution.isLegacyNonUbuntuRootfs(rootfsDir)
+        if (!rootfsDir.renameTo(backup)) {
+            throw IOException(
+                "Could not preserve the existing rootfs at ${rootfsDir.absolutePath}. " +
+                    "Nothing was deleted; free up space and retry."
+            )
+        }
+        Log.w(
+            TAG,
+            "[Migration] ${if (legacy) "legacy Alpine" else "previous"} rootfs moved to " +
+                "${backup.name} (preserved, not deleted)"
+        )
+        context.getSharedPreferences(PREFS_MIRROR_SETTINGS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LEGACY_BACKUP, backup.absolutePath)
+            .apply()
+        return backup
+    }
+
+    private fun writeIfMissing(file: File, content: String) {
+        if (file.isFile && file.length() > 0L) return
+        writeText(file, content)
+    }
+
+    private fun writeText(file: File, content: String) {
+        file.parentFile?.mkdirs()
+        // Never write *through* a symlink: a rootfs that ships
+        // etc/apt/sources.list.d → /somewhere would otherwise leak the write
+        // outside the tree. Replace the link with a regular file instead.
+        if (java.nio.file.Files.isSymbolicLink(file.toPath())) file.delete()
+        file.writeText(content)
+    }
+
 
     /**
      * Verify PRoot binary is available in the native library directory.
@@ -262,9 +486,14 @@ class RootfsManager private constructor(private val context: Context) {
 
     /**
      * Read system DNS servers and search domains from ConnectivityManager,
-     * then write resolv.conf into the Alpine rootfs.
+     * then write resolv.conf into the guest rootfs.
      * Mirrors iOS ISHKernel.configureDns / refreshDns.
      * Falls back to 8.8.8.8 / 8.8.4.4 if no system DNS available.
+     *
+     * Ubuntu note: glibc (this guest) reads resolv.conf exactly like musl did,
+     * but it is NOT a symlink here — [writeResolvConfTo] replaces any
+     * systemd-resolved/resolvconf link with a regular file, because neither
+     * daemon runs inside PRoot and writing through the link would fail.
      */
     fun refreshDns() {
         if (!rootfsDir.exists()) return
@@ -321,12 +550,26 @@ class RootfsManager private constructor(private val context: Context) {
         writeResolvConf(resolvConf.toString())
     }
 
-    private fun writeResolvConf(content: String) {
+    private fun writeResolvConf(content: String) = writeResolvConfTo(rootfsDir, content)
+
+    /**
+     * Symlink-safe resolv.conf writer. Ubuntu base images differ on this one
+     * file: 24.04.5 ships an empty regular file, older/media builds symlink it
+     * to `../run/systemd/resolve/stub-resolv.conf` — and `/run` is recreated
+     * empty on every PRoot boot, so writing through that link either fails or
+     * lands somewhere the resolver never reads. Delete the link, write a file.
+     */
+    private fun writeResolvConfTo(target: File, content: String) {
         try {
-            val file = File(rootfsDir, "etc/resolv.conf")
+            val file = File(target, "etc/resolv.conf")
             file.parentFile?.mkdirs()
+            if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
+                Log.i(TAG, "[DNS] replacing resolv.conf symlink with a regular file")
+                file.delete()
+            }
+            if (file.exists() && !file.isFile) file.delete()
             file.writeText(content)
-            Log.i(TAG, "[DNS] resolv.conf updated:\n$content")
+            Log.i(TAG, "[DNS] resolv.conf updated (${target.name}):\n$content")
         } catch (e: Exception) {
             Log.e(TAG, "[DNS] Failed to write resolv.conf: ${e.message}")
         }
@@ -349,6 +592,11 @@ class RootfsManager private constructor(private val context: Context) {
             Log.d(TAG, "[DefaultMount] rootfs missing, skipping overlay")
             return@withContext
         }
+
+        // Ubuntu defaults (apt sources, /etc/hosts, profile.d, bootstrap script)
+        // first, so they exist even if the overlay asset is absent. Only missing
+        // files are created — user edits and mirror selections survive.
+        ensureUbuntuGuestConfig()
 
         // [T-git-createobject-rename] #409: before any shell can run git,
         // repair the invalid core.createObject an older minis.sh wrote.
@@ -495,133 +743,27 @@ class RootfsManager private constructor(private val context: Context) {
         return BIN_DIR_PREFIXES.any { normalized.startsWith(it) }
     }
 
-    // --- POSIX tar extraction ---
+    // --- POSIX/GNU/PAX tar extraction ---
 
     /**
-     * Extract a POSIX tar stream into the target directory.
-     * Handles regular files, directories, and symlinks.
-     * Does not depend on any external library.
+     * Extract a tar stream into [targetDir]. Delegates to [TarExtractor], which
+     * is pure Kotlin (no Android imports) so the JVM tests can run the real
+     * hardening logic against synthetic archives and the shipped Ubuntu base
+     * image. See [TarExtractor] for the safety properties: path sanitising,
+     * no writes through symlinked parents, header checksums, GNU/PAX long
+     * names, hard-link handling.
      */
-    internal fun extractTar(input: InputStream, targetDir: File) {
-        val header = ByteArray(512)
+    internal fun extractTar(input: InputStream, targetDir: File) =
+        TarExtractor.extract(input, targetDir) { message -> Log.w(TAG, message) }
 
-        while (true) {
-            val bytesRead = readFully(input, header)
-            if (bytesRead < 512) break
+    internal fun extractString(header: ByteArray, offset: Int, length: Int): String =
+        TarExtractor.extractString(header, offset, length)
 
-            // Check for end-of-archive (two consecutive zero blocks)
-            if (header.all { it == 0.toByte() }) break
+    internal fun readFully(input: InputStream, buf: ByteArray): Int =
+        TarExtractor.readFully(input, buf)
 
-            val name = extractString(header, 0, 100)
-            val modeOctal = extractString(header, 100, 8)
-            val sizeOctal = extractString(header, 124, 12)
-            val typeFlag = header[156].toInt().toChar()
-            val linkName = extractString(header, 157, 100)
-            val mode = modeOctal.trim().toIntOrNull(8) ?: 0
-
-            // Handle GNU/POSIX long names via prefix field (bytes 345-500)
-            val prefix = extractString(header, 345, 155)
-            val fullName = if (prefix.isNotEmpty()) "$prefix/$name" else name
-
-            if (fullName.isEmpty()) break
-
-            val size = sizeOctal.trim().toLongOrNull(8) ?: 0L
-            val outFile = File(targetDir, fullName)
-
-            when (typeFlag) {
-                '5', 'D' -> {
-                    // Directory
-                    outFile.mkdirs()
-                }
-                '2' -> {
-                    // Symbolic link
-                    outFile.parentFile?.mkdirs()
-                    try {
-                        java.nio.file.Files.createSymbolicLink(
-                            outFile.toPath(),
-                            java.nio.file.Paths.get(linkName)
-                        )
-                    } catch (_: Exception) {
-                        // Symlinks may fail on some Android versions; skip
-                        Log.w(TAG, "Failed to create symlink: $fullName -> $linkName")
-                    }
-                }
-                '0', '\u0000' -> {
-                    // Regular file (type '0' or null/legacy)
-                    outFile.parentFile?.mkdirs()
-                    outFile.outputStream().use { output ->
-                        var remaining = size
-                        val buf = ByteArray(8192)
-                        while (remaining > 0) {
-                            val toRead = minOf(buf.size.toLong(), remaining).toInt()
-                            val n = input.read(buf, 0, toRead)
-                            if (n < 0) break
-                            output.write(buf, 0, n)
-                            remaining -= n
-                        }
-                    }
-                    // Preserve executable permission from tar header
-                    if (mode and 0b001_001_001 != 0) {
-                        outFile.setExecutable(true, false)
-                    }
-                    // Skip padding to next 512-byte boundary
-                    val remainder = (size % 512).toInt()
-                    if (remainder != 0) {
-                        skipFully(input, (512 - remainder).toLong())
-                    }
-                    continue // Already consumed data + padding
-                }
-                '1' -> {
-                    // Hard link — create a copy
-                    outFile.parentFile?.mkdirs()
-                    val linkTarget = File(targetDir, linkName)
-                    if (linkTarget.exists()) {
-                        linkTarget.copyTo(outFile, overwrite = true)
-                    }
-                }
-                else -> {
-                    // Unknown type, skip data
-                }
-            }
-
-            // Skip data blocks for non-file entries that we didn't consume above
-            if (typeFlag != '0' && typeFlag != '\u0000' && size > 0) {
-                val blocks = (size + 511) / 512 * 512
-                skipFully(input, blocks)
-            }
-        }
-    }
-
-    internal fun extractString(header: ByteArray, offset: Int, length: Int): String {
-        val end = minOf(offset + length, header.size)
-        var actualEnd = offset
-        for (i in offset until end) {
-            if (header[i] == 0.toByte()) break
-            actualEnd = i + 1
-        }
-        return String(header, offset, actualEnd - offset, Charset.forName("UTF-8"))
-    }
-
-    internal fun readFully(input: InputStream, buf: ByteArray): Int {
-        var offset = 0
-        while (offset < buf.size) {
-            val n = input.read(buf, offset, buf.size - offset)
-            if (n < 0) return offset
-            offset += n
-        }
-        return offset
-    }
-
-    internal fun skipFully(input: InputStream, count: Long) {
-        var remaining = count
-        val buf = ByteArray(8192)
-        while (remaining > 0) {
-            val toRead = minOf(buf.size.toLong(), remaining).toInt()
-            val n = input.read(buf, 0, toRead)
-            if (n < 0) break
-            remaining -= n
-        }
-    }
+    internal fun skipFully(input: InputStream, count: Long) =
+        TarExtractor.skipFully(input, count)
 
     /**
      * InputStream wrapper that reports cumulative bytes read as a 0..1 fraction.
@@ -748,11 +890,18 @@ class RootfsManager private constructor(private val context: Context) {
             }
             return sb.toString().trim()
         }
-        private const val ARCH = "aarch64"
-        private const val ROOTFS_ASSET = "alpine-minirootfs.tar.gz"
-        private const val ROOTFS_ASSET_TAR = "alpine-minirootfs.tar"
+        private const val ARCH = SandboxDistribution.ARCH
+        private const val ROOTFS_ASSET = SandboxDistribution.ROOTFS_ASSET
+        private const val ROOTFS_ASSET_TAR = SandboxDistribution.ROOTFS_ASSET_TAR
         private const val PROOT_ASSET = "proot-aarch64"
         private const val DEFAULT_MOUNT_ASSET = "default_mount"
+
+        /** Same prefs file MirrorSettingsScreen uses for "auto-detect once". */
+        private const val PREFS_MIRROR_SETTINGS = "mirror_settings"
+
+        /** Last preserved pre-Ubuntu rootfs, for a future UI surface. */
+        const val KEY_LEGACY_BACKUP = "rootfs.legacyBackupPath"
+
 
         /**
          * Rootfs paths whose contents must be executable. Matches iOS

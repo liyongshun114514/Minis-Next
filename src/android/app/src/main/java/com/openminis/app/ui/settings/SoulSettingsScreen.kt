@@ -67,6 +67,9 @@ import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.agent.SoulBodyLimitCheck
+import com.openminis.app.agent.SoulBodyLimitMode
+import com.openminis.app.agent.SoulBodyLimitPolicy
+import com.openminis.app.agent.SoulBodyLimitSettings
 import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulFile
 import com.openminis.app.agent.SoulMDParser
@@ -101,6 +104,9 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     var style by remember { mutableStateOf(SoulMetadata.DEFAULT.style) }
     var lang by remember { mutableStateOf(SoulMetadata.DEFAULT.lang) }
     var body by remember { mutableStateOf("") }
+    // [T-native-composer-soul-limit] Length policy, persisted independently
+    // of the SOUL.md Save button so changing a cap does not mark the text dirty.
+    var limitSettings by remember { mutableStateOf(SoulBodyLimitSettings()) }
     var loaded by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -163,6 +169,7 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // already seeded on first run, but loading from a freshly cleared app
     // shouldn't crash.
     LaunchedEffect(Unit) {
+        limitSettings = withContext(Dispatchers.IO) { SoulBodyLimitPolicy.load(context) }
         val parsed = withContext(Dispatchers.IO) {
             SoulStore.ensureExists(context)
             SoulStore.load(context) ?: SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)
@@ -196,7 +203,9 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
 
     // Language-aware length check used by both the editor counter and the
     // Save button's enabled state. See [SoulStore.isOverLimit] for the rule.
-    val bodyLimitCheck by remember(body) { derivedStateOf { SoulStore.isOverLimit(body) } }
+    val bodyLimitCheck by remember(body, limitSettings) {
+        derivedStateOf { SoulStore.isOverLimit(body, limitSettings) }
+    }
 
     val currentFile = SoulFile(
         metadata = SoulMetadata(
@@ -351,6 +360,19 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             }
         }
 
+        // [T-native-composer-soul-limit] Length mode + explicit custom caps.
+        // Sits above the editor so the counter below the field has a visible
+        // explanation for "N / ∞".
+        SettingsSection(header = "Soul body length") {
+            SoulBodyLimitControls(
+                settings = limitSettings,
+                onChange = { next ->
+                    limitSettings = next
+                    SoulBodyLimitPolicy.save(context, next)
+                },
+            )
+        }
+
         SettingsSection(
             header = stringResource(R.string.soul_section_personality),
             footer = stringResource(R.string.soul_personality_footer),
@@ -382,13 +404,13 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                         // Show the unit that matches whichever rule the
                         // current body is being measured against — mirrors
                         // iOS soulBodyCountText.
-                        soulBodyCountTextAndroid(body)
+                        soulBodyCountTextAndroid(body, limitSettings)
                     }
                     is SoulBodyLimitCheck.OverLimitChinese -> stringResource(
-                        R.string.soul_over_limit_chinese, c.chars, c.cap, SoulStore.ENGLISH_WORD_LIMIT,
+                        R.string.soul_over_limit_chinese, c.chars, c.cap, limitSettings.englishWordLimit,
                     )
                     is SoulBodyLimitCheck.OverLimitEnglish -> stringResource(
-                        R.string.soul_over_limit_english, c.words, c.cap, SoulStore.CHINESE_CHAR_LIMIT,
+                        R.string.soul_over_limit_english, c.words, c.cap, limitSettings.chineseCharLimit,
                     )
                 }
                 Text(
@@ -687,35 +709,56 @@ private fun SoulEmojiPickerSheet(
     }
 }
 
-/// Render the within-budget counter — picks the CJK character unit vs "words" depending on
-/// the same CJK ratio rule that decides which cap applies. Standalone
-/// helper so it stays out of the Composable hot-path's expression budget.
+/// Render the within-budget counter — picks the CJK character unit vs "words"
+/// depending on the same CJK ratio rule that decides which cap applies.
+/// Standalone helper so it stays out of the Composable hot-path's expression
+/// budget.
+///
+/// [T-native-composer-soul-limit] In UNLIMITED mode the right-hand side is
+/// ∞; NATIVE keeps the shipped localized strings, CUSTOM substitutes the
+/// user's caps.
 @Composable
-private fun soulBodyCountTextAndroid(body: String): String {
+private fun soulBodyCountTextAndroid(
+    body: String,
+    settings: SoulBodyLimitSettings,
+): String {
     val trimmed = body.trim()
-    if (trimmed.isEmpty()) return stringResource(R.string.soul_count_zero)
+    if (trimmed.isEmpty()) {
+        return when (settings.mode) {
+            SoulBodyLimitMode.UNLIMITED -> "0 / ∞ chars"
+            SoulBodyLimitMode.CUSTOM ->
+                stringResource(R.string.soul_count_chars, 0, settings.chineseCharLimit)
+            SoulBodyLimitMode.NATIVE -> stringResource(R.string.soul_count_zero)
+        }
+    }
     var cjk = 0
     var total = 0
     var i = 0
     while (i < trimmed.length) {
         val cp = trimmed.codePointAt(i)
         total += 1
-        val isCJK =
-            cp in 0x4E00..0x9FFF ||
-                cp in 0x3400..0x4DBF ||
-                cp in 0x3040..0x309F ||
-                cp in 0x30A0..0x30FF ||
-                cp in 0xAC00..0xD7AF
-        if (isCJK) cjk += 1
+        if (SoulStore.isCJKCodePoint(cp)) cjk += 1
         i += Character.charCount(cp)
     }
     val ratio = if (total > 0) cjk.toDouble() / total else 0.0
-    return if (ratio > SoulStore.CJK_RATIO_THRESHOLD) {
-        val chars = trimmed.codePointCount(0, trimmed.length)
-        stringResource(R.string.soul_count_chars, chars, SoulStore.CHINESE_CHAR_LIMIT)
-    } else {
-        val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
-        stringResource(R.string.soul_count_words, words, SoulStore.ENGLISH_WORD_LIMIT)
+    val cjkHeavy = ratio > SoulStore.CJK_RATIO_THRESHOLD
+    val chars = trimmed.codePointCount(0, trimmed.length)
+    val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
+    return when (settings.mode) {
+        SoulBodyLimitMode.UNLIMITED ->
+            if (cjkHeavy) "$chars / ∞ chars" else "$words / ∞ words"
+        SoulBodyLimitMode.CUSTOM ->
+            if (cjkHeavy) {
+                stringResource(R.string.soul_count_chars, chars, settings.chineseCharLimit)
+            } else {
+                stringResource(R.string.soul_count_words, words, settings.englishWordLimit)
+            }
+        SoulBodyLimitMode.NATIVE ->
+            if (cjkHeavy) {
+                stringResource(R.string.soul_count_chars, chars, SoulStore.CHINESE_CHAR_LIMIT)
+            } else {
+                stringResource(R.string.soul_count_words, words, SoulStore.ENGLISH_WORD_LIMIT)
+            }
     }
 }
 

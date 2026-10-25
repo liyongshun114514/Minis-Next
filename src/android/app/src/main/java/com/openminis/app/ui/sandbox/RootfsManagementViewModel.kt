@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.openminis.app.sandbox.RootfsInstallState
 import com.openminis.app.sandbox.RootfsManager
+import com.openminis.app.sandbox.SandboxDistribution
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,13 @@ data class RootfsManagementUiState(
     val hasBackup: Boolean = false,
     /** Current install phase + 0..1 progress (null when not installing). */
     val installProgress: Float? = null,
+    /** Guest distribution label, for screens that surface it. */
+    val distributionName: String = SandboxDistribution.DISPLAY_NAME,
+    /**
+     * Where the previous (Alpine or broken) rootfs was preserved during the
+     * most recent migration, or null. Never deleted automatically.
+     */
+    val legacyBackupPath: String? = null,
 )
 
 class RootfsManagementViewModel : ViewModel() {
@@ -46,7 +54,7 @@ class RootfsManagementViewModel : ViewModel() {
                     is RootfsInstallState.Idle -> Unit
                     is RootfsInstallState.Preparing ->
                         _uiState.value = _uiState.value.copy(
-                            statusMessage = "Preparing rootfs…",
+                            statusMessage = "Preparing ${SandboxDistribution.DISPLAY_NAME} rootfs…",
                             installProgress = 0f,
                         )
                     is RootfsInstallState.Extracting ->
@@ -75,6 +83,9 @@ class RootfsManagementViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             isInstalled = manager.isInstalled,
             rootfsPath = manager.rootfsDir.absolutePath,
+            distributionName = SandboxDistribution.DISPLAY_NAME,
+            legacyBackupPath = manager.lastLegacyBackup?.absolutePath
+                ?: manager.legacyBackupDirs.lastOrNull()?.absolutePath,
         )
 
         if (manager.isInstalled) {
@@ -90,7 +101,7 @@ class RootfsManagementViewModel : ViewModel() {
     fun install(context: Context) {
         _uiState.value = _uiState.value.copy(
             isProcessing = true,
-            statusMessage = "Installing rootfs...",
+            statusMessage = "Installing ${SandboxDistribution.DISPLAY_NAME} rootfs…",
             resultMessage = null,
             installProgress = 0f,
         )
@@ -100,10 +111,20 @@ class RootfsManagementViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 manager.installIfNeeded()
+                val preserved = manager.lastLegacyBackup
                 _uiState.value = _uiState.value.copy(
                     isProcessing = false,
                     lastOperationSuccess = true,
-                    resultMessage = "Rootfs installed successfully",
+                    resultMessage = (if (preserved != null) {
+                        "${SandboxDistribution.DISPLAY_NAME} installed. Previous rootfs " +
+                            "preserved at ${preserved.name} (not deleted)."
+                    } else {
+                        "${SandboxDistribution.DISPLAY_NAME} rootfs installed successfully"
+                    }) + if (!manager.isBootstrapComplete) {
+                        " Default tools (python3, git, curl, …) install on the first shell."
+                    } else {
+                        ""
+                    },
                     installProgress = null,
                 )
                 refresh(context)
