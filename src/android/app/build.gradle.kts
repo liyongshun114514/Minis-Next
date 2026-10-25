@@ -38,8 +38,8 @@ android {
         applicationId = "com.openminis.app.ubuntu"
         minSdk = 26
         targetSdk = 35
-        versionCode = 37
-        versionName = "1.15-ubuntu.2"
+        versionCode = 38
+        versionName = "1.15-ubuntu.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -268,6 +268,21 @@ afterEvaluate {
         jvmArgs(githubUnitTests.get().jvmArgs ?: emptyList<String>())
         systemProperties(githubUnitTests.get().systemProperties)
         maxHeapSize = githubUnitTests.get().maxHeapSize
+    }
+}
+
+// Final-APK acceptance uses the production extractor, not Python's tar reader.
+// Explicitly forward invocation-scoped inputs to the forked test JVM; never
+// reuse an earlier unit-test result when acceptance of a new APK is requested.
+val bundledAcceptanceApk = providers.environmentVariable("MINIS_BUNDLED_APK").orElse("")
+val bundledAcceptanceRequired = providers.environmentVariable("MINIS_BUNDLED_APK_REQUIRED").orElse("0")
+tasks.withType<Test>().configureEach {
+    if (bundledAcceptanceRequired.get() == "1" || bundledAcceptanceApk.get().isNotBlank()) {
+        environment("MINIS_BUNDLED_APK", bundledAcceptanceApk.get())
+        environment("MINIS_BUNDLED_APK_REQUIRED", bundledAcceptanceRequired.get())
+        inputs.property("bundledAcceptanceApk", bundledAcceptanceApk.get())
+        inputs.property("bundledAcceptanceRequired", bundledAcceptanceRequired.get())
+        outputs.upToDateWhen { false }
     }
 }
 

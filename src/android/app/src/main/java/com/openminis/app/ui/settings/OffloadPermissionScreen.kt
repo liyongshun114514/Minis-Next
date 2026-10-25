@@ -35,6 +35,7 @@ import com.openminis.app.accessibility.RestrictedSettingsManager
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.RootManager
+import com.openminis.app.offload.ROOT_ENABLE_MESSAGE
 import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisTextButton
@@ -242,7 +243,7 @@ fun OffloadPermissionScreen(
             sectionHeaderRes = 0,
             sectionFooterRes = 0,
             sectionHeaderText = "原生 Root",
-            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认。",
+            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认；su 授权由你的 Root 管理器决定，可随时关闭。",
             toolName = "root_cli",
             descriptionRes = 0,
             titleText = "android-root-cli",
@@ -258,7 +259,7 @@ fun OffloadPermissionScreen(
             policyContent = { divider ->
                 SettingsSwitchRow(
                     title = "允许请求原生 Root",
-                    subtitle = "默认关闭；开启后仅开放请求入口，每条命令仍需单独确认，不产生会话级授权。",
+                    subtitle = "默认关闭；开启后每条命令仍需单独确认。",
                     checked = rootEnabled,
                     onCheckedChange = { on ->
                         if (on) {
@@ -284,9 +285,7 @@ fun OffloadPermissionScreen(
             title = { Text("启用原生 Root 请求？") },
             text = {
                 Text(
-                    "Root 命令能控制完整设备，误操作可能丢失数据或导致系统无法启动。" +
-                        "此开关仅开放请求入口，不运行 su；逐次确认之后仍由你的 Root 管理器决定授权。" +
-                        "无需 Xposed 或 Shizuku 服务。"
+                    ROOT_ENABLE_MESSAGE
                 )
             },
             confirmButton = {
@@ -294,7 +293,7 @@ fun OffloadPermissionScreen(
                     RootManager.setEnabled(true)
                     rootEnabled = true
                     showRootEnable = false
-                }) { Text("启用请求入口") }
+                }) { Text("开启") }
             },
             dismissButton = {
                 MinisTextButton(onClick = { showRootEnable = false }) {

@@ -109,15 +109,81 @@ def main() -> int:
     soul_screen = text(SOUL_SCREEN)
     math = text(MATH)
 
-    # --- Composer: title -------------------------------------------------
+    # --- Composer: title + subtitle --------------------------------------
     ok("textAlign = TextAlign.Center" in chat, "title is not centre-aligned")
     title_block = re.search(
         r"Text\(\s*text = displayTitle,.*?maxLines = 2", chat, re.S
     )
     ok(title_block is not None, "title does not reserve two lines")
-    ok("expandedHeight = 92.dp" in chat, "top bar height not raised for two lines")
+    ok("expandedHeight = 80.dp" in chat, "top bar height does not match the two-row title card")
     ok("editingSession = viewModel.loadSessionEntity()" in chat,
        "native rename click lost")
+    ok("val subtitleText = buildString" in chat and "topBarSoul.name" in chat,
+       "top-bar subtitle is not the Soul/category line")
+    ok('"$providerName · $modelName"' not in chat,
+       "model is still rendered in the top bar (duplicate with the bottom bar)")
+    ok("ThinkingLevelBadge(" not in chat.replace("private fun ThinkingLevelBadge(", ""),
+       "thinking badge is still called from the top bar (duplicate with the bottom bar)")
+
+    # --- Composer: bottom model + thinking toolbar ------------------------
+    # Definition first...
+    ok("internal fun ComposerModelThinkingBar(" in extras,
+       "bottom model/thinking toolbar is not defined")
+    # ...then REAL invocation evidence: exactly one call, inside the composer,
+    # between the input area and the native +/mic/send row. A definition alone
+    # must never satisfy this contract again.
+    ok(chat.count("ComposerModelThinkingBar(") == 1,
+       "bottom model/thinking toolbar is not called exactly once in ChatScreen")
+    if "ComposerModelThinkingBar(" in chat:
+        call_at = chat.index("ComposerModelThinkingBar(")
+        ok(chat.index("// ─── Input area") < call_at,
+           "toolbar call is outside the composer input area")
+        ok(call_at < chat.index("// Button row below text field"),
+           "toolbar call is not in the composer's bottom region")
+        ok("viewModel.thinkingLevel.collectAsState()" in chat[call_at - 1600:call_at],
+           "toolbar does not observe the live thinking level")
+        ok("viewModel.availableThinkingLevels" in chat[call_at:call_at + 900],
+           "toolbar does not read the live supported levels")
+        ok("viewModel.currentModelSupportsReasoning" in chat[call_at:call_at + 900],
+           "toolbar does not read the live reasoning capability")
+        ok("onModelClick = { showModelPicker = true }" in chat[call_at:call_at + 900],
+           "toolbar model chip does not open the native model picker")
+        ok("onLevelClick = { showThinkingLevelSheet = true }" in chat[call_at:call_at + 900],
+           "toolbar level chip does not open the native thinking sheet")
+        ok("modelInteractionSource = modelPickerInteraction" in chat[call_at:call_at + 1500],
+           "toolbar lost the native model-picker interaction source")
+        ok("groupLabel = bottomGroupLabel?.takeIf" in chat[call_at:call_at + 1800],
+           "group binding is not passed to the bottom toolbar")
+        ok("selectedGroupName.ifEmpty" in chat[call_at - 1200:call_at]
+           and "selectedGroupId != null" in chat[call_at - 1200:call_at],
+           "group binding fallback/resolve visibility was dropped")
+    ok("groupLabel: String? = null" in extras,
+       "bottom toolbar cannot show the bound group")
+    ok("Icons.Default.Layers" in extras and "contentDescription = \"当前分组 $groupLabel\"" in extras,
+       "group label is not drawn with the native Layers icon / a11y label")
+    ok("widthIn(max = 56.dp)" in extras,
+       "group label is not capped for narrow screens")
+    # Role status that used to live on the top bar must survive the move.
+    ok("SpeedTierNavBadge(" in chat[chat.index("ComposerModelThinkingBar("):]
+       if "ComposerModelThinkingBar(" in chat else False,
+       "speed-tier badge was dropped instead of moving to the bottom bar")
+    ok("com.openminis.app.ui.quota.ModelQuotaStatusDot(" in chat[
+        chat.index("ComposerModelThinkingBar("):] if "ComposerModelThinkingBar(" in chat else False,
+       "quota dot was dropped instead of moving to the bottom bar")
+
+    # Layout contract that keeps the bar usable on narrow phones.
+    for token in (
+        "weight(1f, fill = false)",
+        "widthIn(min = 64.dp)",
+        "TextOverflow.Ellipsis",
+        "enabled = levelEnabled",
+        "alpha(if (levelEnabled) 1f else 0.45f)",
+        "rows.indexOf(level)",
+        "ComposerPortMath.levelColorArgb(",
+    ):
+        ok(token in extras, f"bottom toolbar layout/state contract missing: {token}")
+    ok("localizedName(context)" in extras,
+       "toolbar level chip is not localized")
 
     # --- Composer: merged + menu ----------------------------------------
     ok("ComposerCommandMenuRows(" in chat, "merged + menu does not render commands")
@@ -142,6 +208,13 @@ def main() -> int:
     ok("viewModel.setThinkingLevel(level)" in chat,
        "slider no longer persists through the native setter")
     ok("ComposerSendButton(" in chat, "native send button missing")
+    # Send-area state machine must stay native: streaming + text = Send into
+    # queue, streaming + no content = Stop, idle = Send, attachments-only =
+    # Send. The bottom bar must not have replaced or gated any of it.
+    ok("val showStop = sessionBusy && !hasContent" in chat,
+       "native send/stop state selection changed")
+    ok("ComposerStopButton(" in chat, "native stop button missing")
+    ok("canActivate = canActivate" in chat, "native send activation changed")
     ok("viewModel.thinkingLevel.collectAsState()" in chat,
        "thinking-level state is not observed")
     ok("viewModel.modelName.collectAsState()" in chat,

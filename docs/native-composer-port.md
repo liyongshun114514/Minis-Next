@@ -1,57 +1,109 @@
 # Native Composer UI + Soul length port
 
-Status: **source implementation + runnable pure tests complete; not compiled as an APK and not visually verified on a device.**
+Status: **source implementation complete (bottom model/thinking bar included); static
+contract 111/111 PASS; full Gradle compile attempted but blocked by an unrelated
+pre-existing network/Tailscale error; no APK and no device run in this task.**
 
-This document records what was actually ported from the uploaded
-`MinisAllInOne` 1.0.2-test module into the OpenMinis Android app, what was
-deliberately **not** ported, how the native bindings work, and what remains for
-another owner.
+This document records the native port of the `MinisAllInOne` Composer UI into the
+OpenMinis Android app, including the reason the old Xposed module stopped working
+after a host update, the exact feature matrix, and what is still unverified.
 
 ## 1. Scope and provenance
 
 | Item | Value |
 |---|---|
-| Input module | `MinisAllInOne` 1.0.2-test, unpacked at `/var/minis/workspace/tmp/openminis-port/MinisAllInOne` (94 files) |
-| Target | `/var/minis/shared/openminis-ubuntu` (Android app, `com.openminis.app`) |
-| License | GPL-3.0. `LICENSE` in the input and in this repository are byte-identical: MD5 `1ebbd3e34237af26da5dc08a4e440464` |
-| Ported surfaces | Composer UI: merged `+` menu, two-line centred title, particle thinking slider. Soul: configurable application-side body-length gate + `∞` counter |
-| Explicitly out of scope | Root Bridge, Ubuntu/execution backend, `RootfsManager` / `PRootKernel` / `RootfsManagementScreen`, Gradle/CMake, Actions, `strings.xml`, `OffloadPermissionDialog.kt` |
+| Input module | `MinisAllInOne` 1.0.2-test (`/var/minis/attachments/uploads/MinisAllInOne-1.0.2-source.zip`, unpacked reference at `/var/minis/shared/MinisAllInOne`) |
+| Target | `/var/minis/shared/openminis-ubuntu`, branch `ubuntu-chroot`, base HEAD `289221d` |
+| License | GPL-3.0; the uploaded `LICENSE` and the repository `LICENSE` are byte-identical (MD5 `1ebbd3e34237af26da5dc08a4e440464`) |
+| Ported surfaces | merged `+` menu, bottom model + thinking toolbar, particle effort slider, two-line centred title with the native rename callback, send-area states left native |
+| Explicitly out of scope | Soul security / injection / instruction priority, Root Bridge, Rootfs/PRoot/Chroot, Gradle/CI/workflow/version, Xposed hooks, `title.dex` |
 
-The uploaded ZIP was treated as **unverified input**. Nothing in its README,
-scripts or Java code was executed. Its Xposed hooks, reflection maps, DEX
-scanner and `assets/title.dex` were **not** copied. Only observable UI
-behaviour and visual constants informed this native Compose implementation.
+The uploaded module was treated as **unverified input**. Nothing from its README,
+scripts, DEX files or Java code was executed. Only observable UI behaviour and
+layout constants informed this Compose implementation.
 
-## 2. Feature mapping
+## 2. Why the old version worked and the update broke it (evidence)
 
-| Upstream module | Native file / symbol | State |
+The 1.0.2 module installs its UI only when the **exact host `classes.dex` SHA-256**
+is one of two allowlisted values. In
+`MinisAllInOne/app/src/main/java/com/minis/composer/ComposerModule.java`:
+
+* `verifyHostDex(source)` reads `classes.dex`, computes SHA-256 and accepts only
+  `BUILD34` (`95ffca9a…bb486`) or `BUILD35` (`70c62d45…2d94`).
+* Any other hash returns `"unsupported host DEX " + hash + ", native UI kept"`.
+* `install()` then calls `fail(problem)`, which only logs/toasts
+  `"Minis Composer UI 未生效：…"`; **no hook is installed at all**.
+* Even for an accepted hash, every surface is located through an obfuscated
+  symbol table (`Reflect.stat("b4.v9","I")`, `Reflect.method("b4.Y1","j",…)`,
+  `Reflect.method("U.b","f",…)`, …). A host rebuild changes those names, so the
+  table is build-specific by construction.
+* The two-line title additionally depended on `assets/title.dex` and a
+  `TextAlign.Center` value-class lookup (`HostUi.textAlignCenter()`); the
+  upstream comment records that a failed lookup left the second title line
+  start-aligned.
+
+Consequences:
+
+1. Before the host update the DEX hash and the obfuscated names matched the
+   module's table, so the injected views appeared.
+2. After the host update the hash no longer matched (or a required signature
+   failed), `fail()` ran, and the module deliberately kept the native UI —
+   exactly the reported "旧版本有效，更新后无效". This is a version gate, not a
+   rendering regression.
+3. The previous native port in this repository ported the merged `+` menu, the
+   slider and the two-line title, but **did not implement the bottom toolbar**.
+   Its own doc said: "Native top-bar model/thinking subtitle already exists and
+   is reused; no duplicate bar added". That left the Composer UI visibly
+   incomplete after the module was disabled, and it also duplicated model /
+   thinking in the top bar instead of matching the module's title-card layout.
+
+The port below removes both failure modes: it is compiled into the app (no DEX
+hash, no reflection, no obfuscated symbol lookup) and binds to state and
+callbacks the host exposes as Kotlin APIs. DEX-hash gates and symbol renames no
+longer apply. This is not an absolute guarantee against host API change: a
+renamed or re-signatured API is a compile error or a failed static contract,
+which is exactly the detection the old module lacked — it would fail at runtime
+only after shipping.
+
+## 3. Feature matrix
+
+| Upstream module | Native implementation | State |
 |---|---|---|
-| `PlusMenu` merged `+` menu (camera / photos / files + all slash commands) | `ui/chat/ChatScreen.kt` → `showAttachMenu` menu, plus `ComposerMenuHeader` / `ComposerCommandMenuRows` in `ui/chat/NativeComposerExtras.kt` | Ported |
-| `ComposerViews.Toolbar` bottom model + thinking row | Native top-bar model/thinking subtitle already exists and is reused (`showModelPicker`, `ThinkingLevelBadge`); no duplicate bar added | Reused, not duplicated |
-| `EffortSlider` custom Android View (22 stars, golden-ratio phases, nebula, sweep, discrete snap) | `ComposerEffortSlider` (`Canvas` + `pointerInput`) and `ComposerPortMath` in `ui/chat/` | Ported |
-| Slider inside the host thinking sheet | `ThinkingLevelSheet` now hosts `ComposerEffortSlider` with the same `rows` (`OFF` + supported levels) and `viewModel.setThinkingLevel` | Ported |
-| `TitleView` two lines, centred | Native title `Text` now `maxLines = 2`, `textAlign = TextAlign.Center`; top-bar height 68 → 92dp | Ported |
-| Title click → native rename | Existing `editingSession = viewModel.loadSessionEntity()` retained on the same `Text` | Reused |
-| Native attachments (camera, photo/video picker, document picker) | Unchanged `launchCamera()`, `mediaPickerLauncher`, `filePickerLauncher` inside the merged menu | Reused |
-| Native slash commands / Skills / MCP dispatch | `ChatViewModel.executeSlashCommand(cmd, inputText)` from the merged menu; thinking row opens the slider sheet instead of blind toggle | Reused |
-| Native send button, mic, voice, edit-mode pill, stop button | Untouched | Reused |
-| Soul length gate removal / `∞` counter | `SoulBodyLimitMode`, `SoulBodyLimitSettings`, `SoulBodyLimitPolicy` in `agent/SoulStore.kt`; controls in `ui/settings/SoulLimitUi.kt`; wiring in `SoulSettingsScreen.kt` | Ported |
-| Xposed component lifecycle, DEX hash gate, `HostProfile`, `Reflect`, `title.dex`, Root Bridge | — | **Not ported (by design)** |
+| `PlusMenu` merged `+` menu (camera / photos / files + every slash command) | `ChatScreen.kt` `showAttachMenu` menu + `ComposerMenuHeader` / `ComposerCommandMenuRows` in `NativeComposerExtras.kt`; dispatch still `ChatViewModel.executeSlashCommand` | Ported |
+| `ComposerViews.Toolbar` bottom row: model name, then thinking-level chip, then flexible space | `ComposerModelThinkingBar` (`NativeComposerExtras.kt:143`), called once in the composer (`ChatScreen.kt:7177`) | **Ported (was missing)** |
+| Group binding visible (top bar's Layers icon + group name) | short auxiliary label at the start of the bottom bar (`groupLabel`), only while a group is actually bound | **Preserved (relocated)** |
+| Toolbar model click opens model picker | `onModelClick = { showModelPicker = true }` (native sheet) | Ported |
+| Toolbar thinking chip opens level selector | `onLevelClick = { showThinkingLevelSheet = true }` (native sheet hosting the slider) | Ported |
+| Live model name / level chip / disabled state | `viewModel.modelName`, `viewModel.thinkingLevel`, `viewModel.availableThinkingLevels`, `viewModel.currentModelSupportsReasoning` | Ported |
+| Chip colour blue → violet with 13% alpha, Off grey, 45% disabled | `ComposerPortMath.levelColorArgb` + chip styling in `ComposerModelThinkingBar` | Ported |
+| `EffortSlider` (22 stars, golden-ratio phases, nebula, sweep, discrete snap) | `ComposerEffortSlider` + `ComposerPortMath` | Ported |
+| Slider inside the host thinking sheet | `ThinkingLevelSheet` hosts `ComposerEffortSlider` with `OFF + availableLevels` and `setThinkingLevel` | Ported |
+| `TitleView` two lines, centred | `ChatScreen.kt:3069` title `maxLines = 2`, `TextAlign.Center`; top-bar height 80dp | Ported |
+| Title click → native rename | unchanged `editingSession = viewModel.loadSessionEntity()` on the title | Reused |
+| Top-bar subtitle in the module layout (time / Soul, not model) | new one-line subtitle: Soul name + session category (falls back to app name) | **Changed to match** |
+| Native attachments (camera, photo/video, document) | unchanged launchers inside the merged menu | Reused |
+| Native `/` button, mic, voice panel, edit-mode pill, Send/Enqueue/Stop button, queue states | untouched | Reused |
+| Xposed lifecycle, `HostProfile`, `Reflect`, `title.dex`, Root Bridge | — | **Not ported (by design)** |
 
-### Exact native touch points
+### Layout decision
 
-* `ChatScreen.kt:3070` — two-line centred title, native rename click retained.
-* `ChatScreen.kt:3771` — `expandedHeight = 92.dp` for the taller title.
-* `ChatScreen.kt:7362` — merged `+` menu: attachment header + three native actions, then `ComposerCommandMenuRows`.
-* `ChatScreen.kt:8720` — thinking sheet body replaced by `ComposerEffortSlider`.
-* `NativeComposerExtras.kt:79/101/162` — menu header, command rows, slider.
-* `SoulStore.kt:215/218/249` — length mode, persisted settings, classifier.
-* `SoulStore.kt:413` — legacy `isOverLimit(String)` now consults the cached policy.
-* `SoulStore.kt:671` — OS identity string updated to Ubuntu 24.04 / PRoot or Chroot.
-* `SoulSettingsScreen.kt:363` — mode selector + custom caps.
-* `SoulSettingsScreen.kt:721` — counter renders `/ ∞` in unlimited mode.
+The module put the toolbar inside the `+ / … / mic / send` button row and hid
+the host's mic (`stage("mic", … intercept(chain -> null))`). This port keeps
+every native control, including the mic and the Send/Stop state machine, so the
+bar occupies its own 30dp row directly under the text field and above that
+button row. The order is: optional group label (10sp + Layers glyph, 56dp cap),
+optional speed/quota status, model name, level chip, flexible space. That is
+the same hierarchy as upstream without deleting a native control or
+overloading a 360dp row. Native status that used to sit on the top bar — the
+group name, speed-tier bolt and quota dot — moved into the bar instead of
+disappearing. The group label is omitted for a direct model pick, where no
+group is bound and the old top bar also showed the model name alone.
 
-## 3. Slider implementation notes
+The top bar no longer renders `provider · model` or the thinking badge. Its
+second line is a quiet Soul/category subtitle, so model and thinking are shown
+exactly once, in the composer.
+
+## 4. Slider implementation notes
 
 The Canvas port keeps the upstream visual constants:
 
@@ -62,126 +114,104 @@ The Canvas port keeps the upstream visual constants:
 * Labels are drawn with the same `pct()` that positions the ticks, so each label is centred on its own tick.
 * `Settings.Global.ANIMATOR_DURATION_SCALE == 0` disables the sweep and slows star travel.
 
-`ComposerPortMath` is pure Kotlin (no Compose/Android imports), so it is
-covered by a normal JVM JUnit test.
+`ComposerPortMath` is pure Kotlin (no Compose/Android imports), covered by
+`ComposerPortMathTest` (the CI owner adds that class; this task did not create a
+new test class).
 
-## 4. Soul length policy
+## 5. Soul length policy
 
-Three modes, persisted in the app's `soul_body_limit` SharedPreferences file:
+Unchanged by this task's UI work. Three modes persisted in `soul_body_limit`:
+`NATIVE` (1600 CJK code points / 1000 Latin words), `UNLIMITED` (no
+application-side length rejection, `N / ∞` counter), `CUSTOM` (explicit caps).
+`INJECTION_PATTERNS`, `containsInjectionPattern`, `scrubInjections`, the
+personality block and instruction priority are byte-identical to HEAD. The gate
+is length only; `UNLIMITED` does not bypass injection checks. See the previous
+revision of this document for the full policy table; no Soul file was edited in
+this task.
 
-| Mode | Effect |
-|---|---|
-| `NATIVE` (default) | 1600 CJK code points / 1000 Latin words, chosen by the existing 30% CJK-ratio rule |
-| `UNLIMITED` | `SoulStore.isOverLimit` always returns `Ok`; the editor counter shows `N / ∞`; no application-side rejection |
-| `CUSTOM` | Explicit Chinese-char and English-word caps (1…1,000,000), same ratio rule |
+## 6. Verification actually run
 
-The policy is cached in-process and primed from `SoulStore.ensureExists`,
-`load`, `save` and `refreshCache`, so the existing **context-free**
-`SoulStore.isOverLimit(body)` callers obey it without signature changes:
-
-* Settings Save button.
-* `minis-config`'s `soul.body` writer (`ConfigBuiltins.kt`, not edited).
-* `SystemPromptBuilder.identitySection` over-limit fallback.
-
-### Safety boundary (unchanged)
-
-* `INJECTION_PATTERNS` and `containsInjectionPattern` are byte-identical to HEAD.
-* `scrubInjections` is byte-identical to HEAD.
-* Personality block text, instruction-priority wording, and prompt assembly
-  order are untouched.
-* The gate is **length only**; `UNLIMITED` does not bypass injection checks.
-* The OS identity sentence is the one additional allowed change:
-  `Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64)`.
-
-## 5. Verification actually run
-
-### 5.1 Static contract test
+### 6.1 Static contract (post-change)
 
 ```sh
 python3 scripts/tests/test_native_composer_port.py
-# Native composer/Soul static checks: 81/81 PASS
+# Native composer/Soul static checks: 111/111 PASS
+# exit=0
 ```
 
-Covers: file presence, delimiter balance, two-line title/centre/92dp, native
-rename, merged menu + native attachment strings + command dispatcher and
-draft preservation, slider
-presence and setter, send button and observed state, no Xposed/reflection/DEX
-tokens in new UI code, no `title.dex` asset, Soul modes/∞/custom fields, native
-injection patterns and scrubber byte-identical to HEAD, GPL-3.0 licence match.
+New checks that would have caught the previous gap:
 
-### 5.2 Kotlin compilation of the new Compose UI
+* exactly one `ComposerModelThinkingBar(` call in `ChatScreen.kt`, located after
+  the composer's input area and before the native `+ / mic / send` row;
+* the call passes live `thinkingLevel` / `availableThinkingLevels` /
+  `currentModelSupportsReasoning`, and the native `showModelPicker` /
+  `showThinkingLevelSheet` callbacks;
+* the removed top-bar model row (`"$providerName · $modelName"`) and the
+  `ThinkingLevelBadge` call must be absent (no duplicate model/thinking);
+* narrow-screen contract: `weight(1f, fill = false)`, `widthIn(min = 64.dp)`,
+  ellipsis, disabled alpha;
+* group binding visibility: `groupLabel` is passed from a `bottomGroupLabel`
+  fallback chain (`selectedGroupName` → default primary group → localized
+  "Default") that only runs while `selectedGroupId != null`, drawn with
+  `Icons.Default.Layers` and capped at `widthIn(max = 56.dp)`;
+* speed badge and quota dot still exist after the move;
+* send-area state machine untouched: `showStop = sessionBusy && !hasContent`,
+  `ComposerStopButton`, `ComposerSendButton(canActivate = …)`.
 
-`NativeComposerExtras.kt` + `ComposerPortMath.kt` were compiled with Kotlin
-2.2.21 + the Compose compiler plugin against the project's Compose 1.9.1 /
-Material3 1.4.0 AARs and `android-36/android.jar`, with small stubs for
-`ThinkingLevel`, `localizedName`, `SlashCommand` and `ChatColors`.
+Delimiter balance is checked on `ChatScreen.kt`, `NativeComposerExtras.kt`,
+`ComposerPortMath.kt` after stripping comments and string literals.
 
-```
-K2JVMCompiler ... NativeComposerExtras.kt -d out
-exit=0   (no warnings after replacing deprecated quadraticBezierTo)
-```
-
-This validates the Compose API usage (Canvas, pointer input, semantics,
-Material3 menu rows, `animate`/`spring`) without building the whole app.
-
-`SoulLimitUi.kt` + the real `SoulStore.kt` also compiled `exit=0` against the
-same Compose classpath plus Android `Context` / `SharedPreferences` /
-`AppLogger` / `SoulIcon` stubs.
-
-### 5.3 JUnit tests
-
-`ComposerPortMathTest` (9 tests):
+### 6.2 Gradle compile attempt
 
 ```sh
-java -cp out:... org.junit.runner.JUnitCore com.openminis.app.ui.chat.ComposerPortMathTest
-# OK (9 tests)
+cd src/android
+android-gradle :app:compileGithubDebugKotlin --offline
+# exit=1
 ```
 
-`SoulBodyLimitPolicyTest` (6 tests), run against the real `SoulStore.kt`
-compiled with the stubs above:
+The run fails in `network/TailscaleNode.kt` / `TailscalePathMonitor.kt` with
+unresolved `Mobile.tsStatus`, `netConfigure`, `tsSetInterfaces`, … — the
+gomobile `Mobile` class is generated by the Tailscale dependency build and is
+absent in this checkout. This is pre-existing and unrelated to the Composer UI.
+A second attempt was stopped by the device's Android process limit; per
+instruction, the full build is left to cloud CI. Therefore **the changed
+Kotlin has not been compiler-verified end-to-end in this environment**; the
+syntax/delimiter contract and the static call-chain checks above are what was
+run locally.
 
-```sh
-# OK (6 tests)
-```
+### 6.3 Not run
 
-Cases: native 1600/1000 boundaries, unlimited accepts 50k CJK / 20k words,
-custom caps per majority language, empty body in every mode, settings
-normalisation.
+`ComposerPortMathTest` was not executed here (CI adds it). No APK, no emulator,
+no device.
 
-## 6. What is NOT verified / not done
+## 7. Not verified / residual
 
-* No Gradle `assembleDebug` and no Android/emulator run in this task.
-* No visual verification: title wrapping at large font scales, slider touch
-  feel, popup position with many Skills/MCP rows, and dark/light colours are
-  **not** device-tested.
-* `ChatScreen.kt` and `SoulSettingsScreen.kt` were not compiled standalone
-  (too many app dependencies); their edits are small and are covered by the
-  static checks. The new files themselves do compile.
-* `ComposerPortMathTest` and `SoulBodyLimitPolicyTest` were executed by
-  compiling them manually with cached Kotlin/JUnit; they have not been run
-  through the project's Gradle test task.
+* No visual device check: two-line title wrapping at large font scale, 80dp top
+  bar fit, slider drag feel inside the sheet, bottom bar truncation on a 360dp
+  phone, TalkBack order of the new chips.
+* `ChatScreen.kt` cannot be compiled standalone (many app dependencies); its
+  edit rests on the delimiter check plus static call-chain assertions until CI
+  compiles the full app.
+* The `provider · model` line, quota dot, group chevron and thinking badge no
+  longer render in the top bar. Model choice is one tap away on the bottom model
+  chip; group/quota context is preserved via the short group label, the speed
+  badge and the quota dot. Any user who relied on the top-bar line as a
+  permanent status readout will notice the relocation. The auxiliary group label
+  is truncated to 56dp, so a very long group name is only partly visible.
+* `ThinkingLevelBadge` remains defined in `ChatScreen.kt` but is no longer
+  called; it can be deleted in a follow-up that also removes its now-unused
+  constants. Keeping it avoids touching unrelated code in this task.
+* Strings for the bottom bar ("选择模型", "思考等级" content descriptions) are
+  inline, like the existing merged-menu headers; `strings.xml` was outside this
+  task's boundary.
+* Soul follow-ups from the previous revision (stale `soul_personality_footer`,
+  `ConfigBuiltins` help text) are unchanged.
 
-## 7. External follow-ups (other owners)
+## 8. Boundaries and cleanup
 
-1. `res/values/strings.xml`: move the four inline English labels from
-   `SoulLimitUi.kt` ("Native caps", "Unlimited ∞", "Custom", field labels) and
-   the sheet hint ("Drag to choose…") into resources. The file was outside this
-   port's boundary.
-2. `soul_personality_footer` still says over-limit bodies are rejected. It is
-   accurate for NATIVE/CUSTOM but stale for UNLIMITED; update when strings.xml
-   is next edited.
-3. `ConfigBuiltins.kt`'s `soul.body` description still quotes the native caps.
-   Behaviour is correct (it calls `isOverLimit`), only the help text is stale.
-4. `ChatViewModel.buildSystemPrompt` / `AgentTools` / `HelperRunner` /
-   `OnDemandBash` environment wording is owned by the main agent; this port
-   does not touch it.
-5. Device check: title two-line truncation, slider drag/snap, sheet height,
-   merged menu scrolling, and the `∞` counter in all three modes.
-
-## 8. Cleanup
-
-All compilation fixtures and extracted AARs were kept under `/tmp` only and
-removed after the runs. No host APK/DEX was installed, executed or scanned; no
-Git commit/push was made; no Root/Shizuku call was made. The only repository
-additions from this task are the files listed in §2, the two JVM tests, the
-static test script and this document.
+Allowed files only: `ui/chat/ChatScreen.kt`, `ui/chat/NativeComposerExtras.kt`,
+`ui/chat/ComposerPortMath.kt`, `scripts/tests/test_native_composer_port.py`,
+this document. No rootfs/Root/workflow/version change; no APK installed; no
+Root/Shizuku call; no shared config changed; no dependency installed; no
+commit/push. Temporary helper script lived only under
+`/var/minis/workspace/tmp/ubuntu3-composer-agent` and was removed at the end.

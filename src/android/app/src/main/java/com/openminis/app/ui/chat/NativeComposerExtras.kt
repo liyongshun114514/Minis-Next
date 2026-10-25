@@ -4,19 +4,29 @@ import android.provider.Settings
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +38,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -86,6 +97,181 @@ internal fun ComposerMenuHeader(text: String) {
         maxLines = 1,
         modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp),
     )
+}
+
+/**
+ * [T-native-composer-bottom-bar] Bottom model + thinking-level toolbar.
+ *
+ * Upstream `ComposerViews.Toolbar` put two live items on the composer's
+ * bottom row, right after "+": the active model name (tap = model picker)
+ * and a compact chip for the current thinking level (tap = level sheet),
+ * followed by flexible space. That row is what the old module's DEX-bound
+ * build supplied; the previous native port only reused the top-bar subtitle
+ * and therefore showed no bottom bar at all.
+ *
+ * This is the native replacement. It reads the SAME live state the host
+ * already owns — `ChatViewModel.modelName`, `thinkingLevel`,
+ * `availableThinkingLevels`, `currentModelSupportsReasoning` — and calls the
+ * SAME native callbacks (`showModelPicker`, `showThinkingLevelSheet`). There is
+ * no reflection, no DEX table and no host-symbol hash, so a host rebuild cannot
+ * silently drop this bar the way the old module's hash gate did. A renamed or
+ * re-signatured host API is still a code change: it shows up at compile time
+ * or as a failed static contract, never as a quietly missing toolbar.
+ *
+ * Persistence and clamping stay in `ChatViewModel`.
+ *
+ * [groupLabel] keeps the group binding visible as a short auxiliary label. The
+ * upstream bottom bar showed only the model, but removing the top-bar group row
+ * without a replacement would read as "routing was lost"; the label is omitted
+ * when no group is bound (a direct model pick), which is exactly when there is
+ * nothing to show.
+ *
+ * Layout contract (mirrors upstream and survives narrow screens):
+ *  - 30dp row, model name 13sp with 8dp side padding, one line, ellipsis;
+ *  - the model label yields width first (`weight(1f, fill = false)`), so the
+ *    level chip keeps its intrinsic width and never clips;
+ *  - level chip 13sp bold, 64dp minimum width, 10dp side padding, 15dp
+ *    corner radius, 13% alpha of the blue→violet level colour;
+ *  - non-reasoning model (or fewer than two levels): chip is dimmed to 45%,
+ *    grey, and not clickable — same disabled look as upstream.
+ *
+ * [leading] carries native-only status the host already had on the top bar
+ * (speed tier and quota dot) so moving model+thinking down does not silently
+ * delete them.
+ */
+@Composable
+internal fun ComposerModelThinkingBar(
+    modelName: String,
+    providerName: String,
+    level: ThinkingLevel,
+    availableLevels: List<ThinkingLevel>,
+    reasoningSupported: Boolean,
+    onModelClick: () -> Unit,
+    onLevelClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    modelInteractionSource: MutableInteractionSource? = null,
+    groupLabel: String? = null,
+    leading: @Composable () -> Unit = {},
+) {
+    val context = LocalContext.current
+    // OFF is always offered (it switches thinking off); availableLevels never
+    // contains OFF. De-duplicate defensively so a future caller cannot make
+    // the slider / chip count disagree with the sheet.
+    val rows = remember(availableLevels) {
+        listOf(ThinkingLevel.OFF) + availableLevels.filter { it != ThinkingLevel.OFF }
+    }
+    val selectedIndex = remember(rows, level) {
+        rows.indexOf(level).coerceAtLeast(0)
+    }
+    val levelEnabled = reasoningSupported && rows.size > 1
+    val levelColor = if (levelEnabled) {
+        Color(ComposerPortMath.levelColorArgb(selectedIndex, rows.size))
+    } else {
+        ChatColors.secondaryText
+    }
+    val levelLabel = level.localizedName(context)
+    val modelLabel = modelName.ifBlank { providerName }.ifBlank { "选择模型" }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(30.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Group binding, as a short auxiliary label: Layers glyph + the bound
+        // group's name, truncated hard (56dp) so it cannot crowd out the model
+        // name or the level chip on a narrow phone. Omitted for a direct model
+        // pick, where no group is bound.
+        if (!groupLabel.isNullOrBlank()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.semantics {
+                    contentDescription = "当前分组 $groupLabel"
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = null,
+                    tint = ChatColors.tertiaryText,
+                    modifier = Modifier.size(10.dp),
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = groupLabel,
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                    color = ChatColors.tertiaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 56.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
+        leading()
+
+        Text(
+            text = modelLabel,
+            fontSize = 13.sp,
+            lineHeight = 15.sp,
+            color = ChatColors.primaryText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                // fill=false: the label takes at most its share of the row and
+                // truncates instead of pushing the level chip off screen.
+                .weight(1f, fill = false)
+                .clip(RoundedCornerShape(8.dp))
+                .then(
+                    if (modelInteractionSource != null) {
+                        Modifier.clickable(
+                            interactionSource = modelInteractionSource,
+                            indication = ripple(),
+                            onClick = onModelClick,
+                        )
+                    } else {
+                        Modifier.clickable(onClick = onModelClick)
+                    },
+                )
+                .padding(horizontal = 8.dp)
+                .semantics {
+                    contentDescription = "选择模型，当前 $modelLabel"
+                },
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Box(
+            modifier = Modifier
+                .height(30.dp)
+                .widthIn(min = 64.dp)
+                .alpha(if (levelEnabled) 1f else 0.45f)
+                .clip(RoundedCornerShape(15.dp))
+                .background(levelColor.copy(alpha = 0.13f))
+                .clickable(enabled = levelEnabled, onClick = onLevelClick)
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = levelLabel,
+                fontSize = 13.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = levelColor,
+                maxLines = 1,
+                modifier = Modifier.semantics {
+                    contentDescription = if (levelEnabled) {
+                        "当前思考等级 $levelLabel，点击选择"
+                    } else {
+                        "当前模型不支持推理等级"
+                    }
+                },
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+    }
 }
 
 /**

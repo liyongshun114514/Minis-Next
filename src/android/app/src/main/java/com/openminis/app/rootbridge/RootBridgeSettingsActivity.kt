@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.openminis.app.offload.RootManager
+import com.openminis.app.offload.ROOT_ENABLE_MESSAGE
 import com.openminis.app.ui.chat.OffloadPermissionDialog
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
@@ -44,7 +45,7 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     var enabled by remember { mutableStateOf(RootManager.isEnabled()) }
     LaunchedEffect(Unit) { RootManager.refresh(); enabled = RootManager.isEnabled() }
     SettingsScaffold(title = "原生 Root", onBack = onBack) {
-        SettingsSection(header = "Root 状态", footer = "与 Shizuku 独立，使用设备 su。启用不会执行命令；所有 Root 调用仍须逐次确认。") {
+        SettingsSection(header = "Root 状态", footer = "与 Shizuku 独立，使用设备 su；su 授权由你的 Root 管理器决定。启用不会执行命令，所有 Root 调用仍须逐次确认。") {
             SettingsSwitchRow(title = "允许请求原生 Root", checked = enabled,
                 onCheckedChange = {
                     if (it) {
@@ -78,11 +79,11 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     }
     if (showEnable) AlertDialog(onDismissRequest = { showEnable = false },
         title = { Text("启用原生 Root 请求？") },
-        text = { Text("Root 命令能控制完整设备，误操作可能丢失数据或导致系统无法启动。此开关仅开放请求入口，不运行 su；逐次确认之后仍由你的 Root 管理器决定授权。无需 Xposed 或 Shizuku 服务。") },
+        text = { Text(ROOT_ENABLE_MESSAGE) },
         confirmButton = { TextButton(onClick = {
             RootManager.setEnabled(true)
             enabled = true
             showEnable = false
-        }) { Text("启用请求入口") } },
+        }) { Text("开启") } },
         dismissButton = { TextButton(onClick = { showEnable = false }) { Text("取消") } })
 }

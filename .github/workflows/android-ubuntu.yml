@@ -138,6 +138,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_verify_android_launcher.py -v
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_bootstrap.py -v
           python3 -m unittest discover -s scripts/tests -p test_build_ubuntu_toolset.py -v
+          python3 scripts/tests/test_native_composer_port.py
       - name: Build APK
         id: build-apk
         working-directory: src/android
@@ -150,7 +151,10 @@ jobs:
           cp -n app/provider-customization.properties.example app/provider-customization.properties || true
           if [ "$REQUESTED_VARIANT" = debug ]; then TASK=assembleGithubDebug; else TASK=assembleGithubRelease; fi
           ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
-            :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
+            :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
+            --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
+            --tests '*TarExtractorRootEntryTest' \
+            --tests '*ComposerPortMathTest' \
             :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
         id: verify-apk
@@ -160,6 +164,18 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/verify_ubuntu_apk.py src/android/app/build/outputs/apk/github
+      - name: Extract final APK guest with production Kotlin installer
+        id: verify-bundled-extraction
+        working-directory: src/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          export MINIS_BUNDLED_APK
+          MINIS_BUNDLED_APK=$(python3 -c 'from pathlib import Path; a=list(Path("app/build/outputs/apk/github").glob("**/*.apk")); assert len(a)==1, f"Expected one final APK, got {a}"; print(a[0].resolve())')
+          export MINIS_BUNDLED_APK_REQUIRED=1
+          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
+            :app:testGithubDebugUnitTest --tests '*UbuntuBundledImageCompatibilityTest'
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; p=Path("app/build/test-results/testGithubDebugUnitTest/TEST-com.openminis.app.sandbox.UbuntuBundledImageCompatibilityTest.xml"); r=E.parse(p).getroot(); assert int(r.get("tests",0)) > 0 and all(int(r.get(k,0)) == 0 for k in ("skipped","failures","errors")), E.tostring(r).decode(); print("PASS: final APK extracted by production Kotlin installer; no skipped acceptance tests")'
       - name: Upload APK and checksums
         uses: actions/upload-artifact@v4
         with:
@@ -173,7 +189,7 @@ jobs:
       # Diagnostic only: never treat this artifact as an accepted delivery.
       # Retain built bytes if verification fails so diagnosis need not rebuild.
       - name: Retain unverified APK only after a verification failure
-        if: failure() && steps.build-apk.outcome == 'success' && steps.verify-apk.outcome == 'failure'
+        if: failure() && steps.build-apk.outcome == 'success' && (steps.verify-apk.outcome == 'failure' || steps.verify-bundled-extraction.outcome == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: UNVERIFIED-diagnostic-APK-${{ github.run_number }}

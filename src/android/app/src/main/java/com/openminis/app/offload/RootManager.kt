@@ -91,13 +91,12 @@ object RootManager {
         }
         val executor = RootExecutor(config(timeoutMs), timeoutSec, RootExecutor.Authorizer { exact ->
             if (!isEnabled()) false else runBlocking {
+                // The command is the request title so the dialog can render it
+                // verbatim (collapsed with an explicit expand action); the
+                // description carries only the risk line and execution context.
+                val command = ShellCommand.joinQuoted(exact.argv)
                 OffloadPermissionManager.confirmPrivilegedOperation(
-                    "root_cli", "Root · ${ShellCommand.joinQuoted(exact.argv)}",
-                    "Execute this exact Android command via su with full device privileges?\n\n" +
-                        ShellCommand.joinQuoted(exact.argv) + "\nWorking directory: ${exact.cwd.ifEmpty { "Android default" }}\n" +
-                        "Timeout: ${timeoutSec}s. Captured output is capped at 2 MiB per stream (excess is " +
-                        "truncated, the command is not killed). Commands may modify or delete system/user data. " +
-                        "This approval covers only this invocation, not later commands. Reject if the target or recovery plan is unclear.",
+                    "root_cli", command, rootConfirmRisk(exact.cwd, timeoutSec),
                 ) && isEnabled()
             }
         })

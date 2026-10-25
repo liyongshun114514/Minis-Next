@@ -3085,232 +3085,41 @@ fun ChatScreen(
                                     }
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
                             )
-                            // Model picker subtitle: green dot + group +
-                            // provider/model. Tap opens the model picker —
-                            // separated from the title above so tapping the
-                            // title rows opens the rename sheet instead.
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    // [T-android-modelpicker-stuck-ripple] Own the
-                                    // interaction source so the press can be
-                                    // released explicitly. Opening the picker
-                                    // sheet puts a modal window over this row, so
-                                    // the pointer's UP never reaches the clickable:
-                                    // Compose emits PressInteraction.Press with no
-                                    // matching Release and the ripple stays lit
-                                    // behind the sheet — still there after the
-                                    // sheet closes, reading as a permanent grey
-                                    // highlight on the title bar.
-                                    .clickable(
-                                        interactionSource = modelPickerInteraction,
-                                        indication = ripple(),
-                                    ) { showModelPicker = true }
-                                    .padding(horizontal = 4.dp, vertical = 1.dp),
-                            ) {
-                                // Line 1: green dot + the active group OR
-                                // model name + dropdown arrow
-                                // (iOS: "● Default ⌄" / "● GPT-6 Astra ⌄")
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                ) {
-                                    // [T-quota-low-dot] green / yellow (the current
-                                    // model's quota or balance is low) / orange
-                                    // (signed out).
-                                    com.openminis.app.ui.quota.ModelQuotaStatusDot(
-                                        isAuthed = modelName.isNotEmpty(),
-                                        activeEntryId = viewModel.activeEntryId,
-                                        providerRepository = providerRepository,
-                                    )
-                                    // T-android-topbar-group-name-fallback:
-                                    // _selectedGroupName is empty during the
-                                    // brief window before loadSession's group
-                                    // resolve runs, or whenever a binding
-                                    // resolve fails. Falling straight to the
-                                    // "Default" badge string masks the
-                                    // active group's real name (e.g. the
-                                    // onboarding-created "Default Models" or
-                                    // any user-renamed group). Insert a real
-                                    // fallback chain: collected VM value →
-                                    // active/default group name from the live
-                                    // config → terminal badge string. Mirrors
-                                    // the #476 TopBar title fallback pattern
-                                    // (commit b4c88775).
-                                    //
-                                    // [T-android-group-resolve-skip-uncredentialed]
-                                    // ...but only while a group is ACTUALLY
-                                    // bound. This chain used to run
-                                    // unconditionally, so a session that failed
-                                    // to resolve its group — and was therefore
-                                    // running on a model from the new-chat
-                                    // default chain, unrelated to any group —
-                                    // still displayed the default group's name.
-                                    // The header then contradicted the model
-                                    // line right below it and made a real
-                                    // routing failure read as normal operation,
-                                    // which is what made that bug hard to spot.
-                                    // Mirrors iOS, which keys the group glyph
-                                    // off the binding (`isGroupBound`) rather
-                                    // than off a name lookup.
-                                    //
-                                    // [T-android-topbar-manual-entry-name] What
-                                    // this row shows when NO group is bound.
-                                    // Returning "" there dropped the label and
-                                    // the chevron both, so picking a model by
-                                    // hand (which is exactly what unbinds the
-                                    // group) left a bare green dot with no text
-                                    // beside it — the row went blank precisely
-                                    // when the user had just made an explicit
-                                    // choice, and the only way back to the
-                                    // picker was tapping an unlabelled dot.
-                                    //
-                                    // iOS renders one always-populated label
-                                    // here: the group's name when bound, the
-                                    // MODEL's name on a direct-entry pick, and
-                                    // "No model selected" when nothing resolves
-                                    // (SessionModelPicker.displayName(for:)),
-                                    // marking the group case with an extra
-                                    // stack glyph rather than by swapping the
-                                    // text out. Match that chain so the row
-                                    // always names something.
-                                    val groupNameDisplay = selectedGroupName.ifEmpty {
-                                        if (selectedGroupId == null) {
-                                            // Direct-entry pick: name the model
-                                            // that is actually in effect.
-                                            modelName
-                                        } else {
-                                            val defaultGroupId = providerRepository.defaultPrimaryGroupId
-                                            // The full word, not the picker's
-                                            // model_picker_default_badge: that
-                                            // one is abbreviated in some locales
-                                            // to fit its capsule ("Predet.").
-                                            availableGroups.firstOrNull { it.id == defaultGroupId }?.name
-                                                ?: stringResource(R.string.common_default)
-                                        }
-                                    }.ifEmpty {
-                                        // Nothing bound and no model resolved
-                                        // yet. Still name the state instead of
-                                        // collapsing to a dot, so the picker
-                                        // keeps a visible, tappable label.
-                                        stringResource(R.string.model_picker_no_model_selected)
-                                    }
-                                    if (groupNameDisplay.isNotEmpty()) {
-                                        // [T-android-topbar-manual-entry-name]
-                                        // Row 1 now names a model as readily as
-                                        // a group, so the two cases would read
-                                        // identically without this. iOS marks
-                                        // the group case with a stack glyph
-                                        // ahead of the label; Layers is the
-                                        // same stand-in the model pickers here
-                                        // already use for `square.stack.3d.up`.
-                                        if (selectedGroupId != null) {
-                                            Icon(
-                                                Icons.Default.Layers,
-                                                contentDescription = null,
-                                                tint = ChatColors.tertiaryText,
-                                                modifier = Modifier.size(10.dp),
-                                            )
-                                        }
-                                        Text(
-                                            text = groupNameDisplay,
-                                            fontSize = 12.sp,
-                                            lineHeight = 14.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = ChatColors.secondaryText,
-                                            maxLines = 1,
-                                            style = noFontPad,
-                                        )
-                                        Icon(
-                                            Icons.Default.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            tint = ChatColors.tertiaryText,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
+                            // [T-native-composer-topbar-subtitle] The ported
+                            // Composer UI keeps model + thinking level in the
+                            // composer's bottom bar (ComposerModelThinkingBar).
+                            // The title block therefore carries only the
+                            // two-line centred title and one quiet subtitle,
+                            // so the same model/level is not rendered twice.
+                            //
+                            // Subtitle mirrors the upstream title card: Soul
+                            // name (and the session category when set), never
+                            // the model. Tapping it no longer opens the model
+                            // picker — that moved to the bottom bar's model
+                            // chip, which owns the stuck-ripple interaction
+                            // source handed to it below.
+                            val appName = stringResource(R.string.app_name)
+                            val subtitleText = buildString {
+                                val soul = topBarSoul.name.trim()
+                                if (soul.isNotEmpty() && soul != displayTitle) append(soul)
+                                val category = sessionCategory?.trim().orEmpty()
+                                if (category.isNotEmpty()) {
+                                    if (isNotEmpty()) append(" · ")
+                                    append(category)
                                 }
-                                // Line 2: "provider · model" (iOS: "MiniMax ·
-                                // MiniMax-M2.7") + the thinking-level badge laid
-                                // out as a Row of two SEPARATE tappable siblings
-                                // (mirrors iOS AIChatView row-2 HStack).
-                                //
-                                // [T-android-thinking-badge-navbar] Gesture
-                                // separation: the whole subtitle Column above owns
-                                // `clickable { showModelPicker = true }`, so a tap
-                                // on the model text still opens the model picker.
-                                // The badge declares its OWN `clickable` (see
-                                // ThinkingLevelBadge), and in Compose the innermost
-                                // clickable consumes the down/up events — so a tap
-                                // that lands on the badge opens the thinking sheet
-                                // and never bubbles up to the Column's model-picker
-                                // handler. Two hit targets, zero gesture conflict,
-                                // no pointerInput plumbing needed.
-                                //
-                                // Sizing: the model text takes `weight(1f, fill =
-                                // false)` so it truncates first (Ellipsis) when the
-                                // navbar is narrow; the badge has no weight, so it
-                                // keeps its intrinsic width and always renders in
-                                // full — the level label never gets clipped.
-                                if (providerName.isNotEmpty() || modelName.isNotEmpty()) {
-                                    val thinkingLevelBadgeState by viewModel.thinkingLevel.collectAsState()
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        // [T-codex-fast-mode] Speed badge ahead of the
-                                        // resolved model name, shown only while a
-                                        // faster tier is on AND the active model is
-                                        // eligible (iOS 9e3c76ef row-3 placement).
-                                        // [T-speed-tier-icons] Outline bolt for
-                                        // Fast, solid bolt for Ultrafast.
-                                        // displayedSpeedTier is already STANDARD for
-                                        // an ineligible model, and FAST where
-                                        // Ultrafast falls back.
-                                        val navSpeedTier by viewModel.displayedSpeedTier.collectAsState()
-                                        SpeedTierNavBadge(navSpeedTier)
-                                        Text(
-                                            text = if (providerName.isNotEmpty() && modelName.isNotEmpty()) {
-                                                "$providerName · $modelName"
-                                            } else {
-                                                modelName.ifEmpty { providerName }
-                                            },
-                                            fontSize = 11.sp,
-                                            lineHeight = 13.sp,
-                                            color = ChatColors.tertiaryText,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = noFontPad,
-                                            // Yield first when space is tight; the
-                                            // badge to the right stays intrinsic.
-                                            modifier = Modifier.weight(1f, fill = false),
-                                        )
-                                        // Show the badge whenever thinking is on,
-                                        // and ALSO when it's Off but the active
-                                        // model supports deep thinking (iOS
-                                        // parity, e6bd75efc): the icon + "Off"
-                                        // pill is then a discoverable tap target
-                                        // for enabling thinking via the level
-                                        // sheet. The Off pill is gated on
-                                        // currentModelSupportsReasoning so
-                                        // non-reasoning models don't grow a dead
-                                        // toggle; an enabled level still shows
-                                        // unconditionally (user may have opted in
-                                        // on an unknown-capability model).
-                                        if (viewModel.availableThinkingLevels.isNotEmpty() &&
-                                            (
-                                                thinkingLevelBadgeState.isEnabled ||
-                                                    viewModel.currentModelSupportsReasoning
-                                            )
-                                        ) {
-                                            ThinkingLevelBadge(
-                                                level = thinkingLevelBadgeState,
-                                                onClick = { showThinkingLevelSheet = true },
-                                            )
-                                        }
-                                    }
-                                }
+                                if (isEmpty()) append(appName)
                             }
+                            Text(
+                                text = subtitleText,
+                                fontSize = 12.sp,
+                                lineHeight = 14.sp,
+                                color = ChatColors.tertiaryText,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = noFontPad,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
                         }
                     }
                 },
@@ -3764,11 +3573,13 @@ fun ChatScreen(
                 // re-clipping (T-topbar-model-row-clip regression check).
                 // Model/subtitle font sizes and line heights stay untouched.
                 //
-                // [T-native-composer-title] 68dp -> 92dp: the title now
-                // reserves two 20sp lines instead of one 19sp line, while
-                // the native model/thinking subtitle rows below it are
-                // unchanged. 92dp keeps the same 6-10dp safety margin.
-                expandedHeight = 92.dp,
+                // [T-native-composer-title] 68dp -> 80dp: the title now
+                // reserves two 20sp lines instead of one 19sp line, and the
+                // model/thinking rows that used to sit under it moved to the
+                // composer's bottom bar. What remains is 2x20sp + one 14sp
+                // subtitle line + 4dp outer padding ≈ 58dp, leaving the same
+                // 6-10dp safety margin as before at the default font scale.
+                expandedHeight = 80.dp,
             )
             // [T-port-sched-pill-visible] The REAL session id, read when the
             // pill composes. A new chat opens as a "__new__…" draft and gets
@@ -7332,6 +7143,70 @@ fun ChatScreen(
                             },
                         )
                     }
+
+                    // [T-native-composer-bottom-bar] Model + thinking toolbar.
+                    // This is the row upstream `ComposerViews.Toolbar` injected
+                    // after "+": model name first, then the current thinking
+                    // level chip. It is wired to the LIVE ViewModel state and
+                    // the two native callbacks. There is no DEX hash and no
+                    // obfuscated symbol table, so a host rebuild cannot gate
+                    // the bar off the way the Xposed module was gated. A host
+                    // API rename would still surface at compile time / in the
+                    // static contract instead of silently removing the UI.
+                    //
+                    // It sits on its own 30dp row directly under the text
+                    // field instead of inside the +/mic/send row: the native
+                    // host keeps its mic / stop / queue buttons, and sharing
+                    // that row on a 360dp phone would truncate the model name
+                    // to a few glyphs. Empty drafts and existing sessions both
+                    // render this same composer, so the bar is present in
+                    // every branch (narrow two-pane included).
+                    val thinkingBarLevel by viewModel.thinkingLevel.collectAsState()
+                    // Same fallback chain the removed top-bar group row used,
+                    // so a bound group stays visible while the VM's name is
+                    // still empty (group resolve) instead of flashing away.
+                    val defaultGroupName = stringResource(R.string.common_default)
+                    val bottomGroupLabel = if (selectedGroupId != null) {
+                        selectedGroupName.ifEmpty {
+                            val defaultGroupId = providerRepository.defaultPrimaryGroupId
+                            availableGroups.firstOrNull { it.id == defaultGroupId }?.name
+                                ?: defaultGroupName
+                        }
+                    } else {
+                        null
+                    }
+                    ComposerModelThinkingBar(
+                        modelName = modelName,
+                        providerName = providerName,
+                        level = thinkingBarLevel,
+                        availableLevels = viewModel.availableThinkingLevels,
+                        reasoningSupported = viewModel.currentModelSupportsReasoning,
+                        onModelClick = { showModelPicker = true },
+                        onLevelClick = { showThinkingLevelSheet = true },
+                        // Same interaction source the removed top-bar subtitle
+                        // owned, so opening the modal picker still drains the
+                        // press and cannot leave a stuck ripple.
+                        modelInteractionSource = modelPickerInteraction,
+                        // A bound group stays visible as a short auxiliary
+                        // label; a direct model pick (no group) shows none.
+                        groupLabel = bottomGroupLabel?.takeIf { it.isNotBlank() },
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 2.dp),
+                        leading = {
+                            // Native status that used to live on the top bar:
+                            // speed tier + quota dot. Kept so moving model /
+                            // thinking down does not delete them.
+                            val bottomSpeedTier by viewModel.displayedSpeedTier.collectAsState()
+                            SpeedTierNavBadge(bottomSpeedTier)
+                            if (modelName.isNotEmpty() || providerName.isNotEmpty()) {
+                                com.openminis.app.ui.quota.ModelQuotaStatusDot(
+                                    isAuthed = modelName.isNotEmpty(),
+                                    activeEntryId = viewModel.activeEntryId,
+                                    providerRepository = providerRepository,
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                        },
+                    )
 
                     // Button row below text field (iOS layout: + / ... mic send)
                     Row(

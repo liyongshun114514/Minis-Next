@@ -14,7 +14,10 @@ import java.io.InputStream
  *
  * Safety properties (see docs/android-ubuntu.md):
  *  - entry names are reduced by [SandboxDistribution.sanitizeArchivePath];
- *    absolute names and any `..` segment throw instead of being extracted
+ *    absolute names and any `..` segment throw instead of being extracted.
+ *    The archive-root member (`.`/`./`, directory type only) is the single
+ *    exception: it names the extraction root and is applied to it, never
+ *    written as a file
  *  - parent directories are created only when they are real directories; a
  *    symlinked parent aborts the entry, so a crafted member cannot redirect a
  *    later write outside the rootfs (tar-slip)
@@ -105,15 +108,29 @@ object TarExtractor {
             gnuLongName = null
             gnuLongLink = null
 
-            val rel = SandboxDistribution.sanitizeArchivePath(rawName)
-                ?: throw IOException("tar: refusing unsafe entry path '${rawName.take(200)}'")
+            val isArchiveRoot = isArchiveRootDirectory(typeFlag, rawName)
+            val rel = if (isArchiveRoot) {
+                ""
+            } else {
+                SandboxDistribution.sanitizeArchivePath(rawName)
+                    ?: throw IOException("tar: refusing unsafe entry path '${rawName.take(200)}'")
+            }
 
             when (typeFlag) {
                 '5', 'D' -> {
-                    ensureDirectory(root, rel)
-                    // Applied after the whole extract: a read-only directory
-                    // mode would block writing its children.
-                    if (mode and 0x1FF != 0) directoryModes += rel to mode
+                    if (rel.isEmpty()) {
+                        // GNU tar emits the archive root as "." (Ubuntu base
+                        // and any `tar -cf x .` archive). It only ever means
+                        // "the extraction root": no path is created and the
+                        // mode is applied to the root directory itself.
+                        if (!root.isDirectory) throw IOException("tar: root '$root' is not a directory")
+                        if (mode and 0x1FF != 0) directoryModes += rel to mode
+                    } else {
+                        ensureDirectory(root, rel)
+                        // Applied after the whole extract: a read-only directory
+                        // mode would block writing its children.
+                        if (mode and 0x1FF != 0) directoryModes += rel to mode
+                    }
                 }
                 '2' -> createSymlink(root, rel, rawLink)
                 '0', '\u0000', '7' -> {
@@ -161,6 +178,24 @@ object TarExtractor {
     }
 
     // ── member handling ──────────────────────────────────────────────────────
+
+    /**
+     * True only for a directory member named like the archive root
+     * (`.`, `./`, `././`). GNU tar writes the root of ubuntu-base this way.
+     *
+     * The check lives here and not in
+     * [SandboxDistribution.sanitizeArchivePath] so that function keeps its
+     * contract (root → `null`, i.e. rejected) for every other caller. A file,
+     * symlink or hard link claiming to be the root still hits that `null` and
+     * aborts the extract, exactly as before.
+     */
+    private fun isArchiveRootDirectory(typeFlag: Char, name: String): Boolean {
+        if (typeFlag != '5' && typeFlag != 'D') return false
+        if (name.isEmpty()) return false
+        var path = name
+        while (path.startsWith("./")) path = path.substring(2)
+        return path.isEmpty() || path == "."
+    }
 
     private fun joinName(name: String, prefix: String): String =
         if (prefix.isEmpty()) name else "$prefix/$name"
