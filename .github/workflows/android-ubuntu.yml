@@ -138,6 +138,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_verify_android_launcher.py -v
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_bootstrap.py -v
           python3 -m unittest discover -s scripts/tests -p test_build_ubuntu_toolset.py -v
+          python3 -m unittest discover -s scripts/tests -p test_ubuntu_workflow_resources.py -v
           python3 scripts/tests/test_native_composer_port.py
       - name: Build APK
         id: build-apk
@@ -150,12 +151,21 @@ jobs:
           chmod +x gradlew
           cp -n app/provider-customization.properties.example app/provider-customization.properties || true
           if [ "$REQUESTED_VARIANT" = debug ]; then TASK=assembleGithubDebug; else TASK=assembleGithubRelease; fi
-          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
+          # A single invocation previously compiled Debug + Release together,
+          # exhausting the Kotlin daemon during IR lowering. Run each variant
+          # sequentially in one bounded JVM, without a separate Kotlin daemon.
+          free -m
+          HEAP_MB=$(python3 -c 'import os; mb=os.sysconf("SC_PAGE_SIZE")*os.sysconf("SC_PHYS_PAGES")//(1024*1024); assert mb>=4096, f"CI runner memory too small: {mb} MiB"; print(min(6144, mb-2048))')
+          echo "CI_GRADLE_HEAP_MB=$HEAP_MB" >> "$GITHUB_ENV"
+          echo "Gradle/Kotlin shared heap: ${HEAP_MB} MiB; one worker; sequential variants"
+          GRADLE_ARGS=(--no-daemon --max-workers=1 --no-parallel
+            "-Dorg.gradle.jvmargs=-Xmx${HEAP_MB}m -XX:+UseG1GC -Dfile.encoding=UTF-8"
+            -Pkotlin.compiler.execution.strategy=in-process)
+          ./gradlew "${GRADLE_ARGS[@]}" \
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
             --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
-            --tests '*TarExtractorRootEntryTest' \
-            --tests '*ComposerPortMathTest' \
-            :app:"$TASK"
+            --tests '*TarExtractorRootEntryTest' --tests '*ComposerPortMathTest'
+          ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
         id: verify-apk
         shell: bash
@@ -173,7 +183,9 @@ jobs:
           export MINIS_BUNDLED_APK
           MINIS_BUNDLED_APK=$(python3 -c 'from pathlib import Path; a=list(Path("app/build/outputs/apk/github").glob("**/*.apk")); assert len(a)==1, f"Expected one final APK, got {a}"; print(a[0].resolve())')
           export MINIS_BUNDLED_APK_REQUIRED=1
-          ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
+          ./gradlew --no-daemon --max-workers=1 --no-parallel \
+            "-Dorg.gradle.jvmargs=-Xmx${CI_GRADLE_HEAP_MB}m -XX:+UseG1GC -Dfile.encoding=UTF-8" \
+            -Pkotlin.compiler.execution.strategy=in-process \
             :app:testGithubDebugUnitTest --tests '*UbuntuBundledImageCompatibilityTest'
           python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; p=Path("app/build/test-results/testGithubDebugUnitTest/TEST-com.openminis.app.sandbox.UbuntuBundledImageCompatibilityTest.xml"); r=E.parse(p).getroot(); assert int(r.get("tests",0)) > 0 and all(int(r.get(k,0)) == 0 for k in ("skipped","failures","errors")), E.tostring(r).decode(); print("PASS: final APK extracted by production Kotlin installer; no skipped acceptance tests")'
       - name: Upload APK and checksums

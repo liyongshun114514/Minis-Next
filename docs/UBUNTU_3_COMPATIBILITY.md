@@ -20,6 +20,10 @@ The enable dialog is two sentences. Per-command confirmation shows the exact quo
 
 Package ID and test-signing identity remain unchanged; versionCode increases to 38. Install over the previous Ubuntu APK rather than clearing data. Opening the terminal retries missing rootfs installation. Installation extracts into staging; the previous guest is preserved until extraction and readiness checks succeed. Do not clear app storage or automatically delete a previous rootfs/backup to work around this error.
 
+## CI compiler memory
+
+Run `40240713472` reached Kotlin IR lowering but failed with `OutOfMemoryError: GC overhead limit exceeded` in `compileGithubDebugKotlin`; the log also shows `compileGithubReleaseKotlin` active in the same invocation. Increasing only the Gradle heap did not ensure the separate Kotlin compiler had sufficient memory. The workflow now runs normal Debug JVM tests and the selected APK assembly as separate sequential Gradle invocations, with one worker, `--no-parallel` and `kotlin.compiler.execution.strategy=in-process`. The single shared heap is bounded to the lower of 6144 MiB and physical memory minus 2048 MiB; the runner memory and selected cap are logged. Final-APK extraction uses the same strategy. No app feature, dependency version, security check or acceptance criterion is removed to make compilation pass.
+
 ## Evidence to record at delivery
 
 - Source commit and CI run/conclusion.
