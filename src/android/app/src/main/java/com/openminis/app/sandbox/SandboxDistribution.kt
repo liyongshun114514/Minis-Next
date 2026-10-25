@@ -91,12 +91,19 @@ object SandboxDistribution {
     const val BOOTSTRAP_PACKAGES_PATH = "etc/minis/bootstrap-packages"
     const val BOOTSTRAP_SCRIPT_PATH = "usr/local/sbin/minis-bootstrap"
 
-    /** Sourced by interactive shells: runs the one-time toolset install and says so. */
+    /** Sourced by interactive shells: reports toolset status; never installs. */
     const val BOOTSTRAP_PROFILE_PATH = "etc/profile.d/99-minis-bootstrap.sh"
 
     /** Guest paths used by [bootstrapScript]. */
     const val BOOTSTRAP_DONE_MARKER = "var/lib/minis/bootstrap.done"
     const val BOOTSTRAP_FAILED_MARKER = "var/lib/minis/bootstrap.failed"
+
+    /**
+     * Written when [bootstrapScript] declines to install because the guest is
+     * not root (e.g. the chroot backend). Deliberately distinct from
+     * [BOOTSTRAP_FAILED_MARKER]: nothing was attempted, so nothing failed.
+     */
+    const val BOOTSTRAP_SKIPPED_MARKER = "var/lib/minis/bootstrap.skipped"
     const val BOOTSTRAP_LOG = "var/log/minis-bootstrap.log"
     const val BOOTSTRAP_LOCK_DIR = "var/lib/minis/bootstrap.lock"
 
@@ -104,9 +111,9 @@ object SandboxDistribution {
      * Default guest toolset. ubuntu-base ships bash/apt/dpkg/perl/ps/gzip/tar
      * but **no** python3, curl, wget, git, ssh, less, ip, unzip, jq or rg —
      * which the agent prompt and the bundled `minis-mcp-cli` (python3) assume.
-     * Installed on demand by [bootstrapScript] after the rootfs is in place,
-     * never during extraction (network + minutes; the install must stay
-     * deterministic and offline-capable).
+     * The build preinstalls exactly this list into the shipped rootfs; nothing
+     * installs it at first run. [bootstrapScript] is only the explicit repair
+     * entry point for a changed rootfs.
      */
     val BOOTSTRAP_PACKAGES: List<String> = listOf(
         "bash",
@@ -231,6 +238,10 @@ object SandboxDistribution {
         append("APT::Sandbox::Seccomp \"false\";\n")
         append("Acquire::Languages \"none\";\n")
         append("DPkg::Options { \"--force-confdef\"; \"--force-confold\"; };\n")
+        append("# Never give dpkg a pty. Without this, apt's terminal restore fails at\n")
+        append("# exit in a guest with no usable stdin tty (TCSAFLUSH / tcsetattr EIO)\n")
+        append("# after all packages were configured, so a successful run exits 100.\n")
+        append("DPkg::Use-Pty \"false\";\n")
     }
 
     // ── guest files ─────────────────────────────────────────────────────────
@@ -269,80 +280,187 @@ object SandboxDistribution {
     fun bootstrapPackageList(): String = BOOTSTRAP_PACKAGES.joinToString("\n", postfix = "\n")
 
     /**
-     * Idempotent package install for the default toolset.
+     * Explicit install/repair entry point for the default toolset
+     * (`/usr/local/sbin/minis-bootstrap`).
      *
-     * Run once per rootfs, never during extraction: extraction must stay
-     * offline and deterministic, while apt needs the network and minutes.
-     * Because the toolset is what users expect to exist immediately, the
-     * failure mode is explicit rather than silent: progress and apt output go
-     * to [BOOTSTRAP_LOG], a failed run writes [BOOTSTRAP_FAILED_MARKER], and
-     * the profile hook prints the log path and the retry command.
+     * The shipped rootfs already contains [BOOTSTRAP_PACKAGES] (CI preinstalls
+     * them before packaging), so nothing runs this automatically: not
+     * extraction, not the app, and not [bootstrapProfileScript]. It exists for
+     * a deliberate repair (`minis-bootstrap --force`) of a changed rootfs.
+     *
+     * Contract:
+     *  * **Verified completion.** [BOOTSTRAP_DONE_MARKER] is written only
+     *    after `dpkg-query` reports every requested package as
+     *    `install ok installed`; an existing marker is re-verified instead of
+     *    trusted, and a stale one is removed before a repair.
+     *  * **Unattended apt.** `DPkg::Use-Pty=false` plus stdin from `/dev/null`.
+     *    With apt's own pty, the terminal restore at exit fails on a guest
+     *    without a usable stdin tty
+     *    (`E: Setting in Stop via TCSAFLUSH for stdin failed! - tcsetattr
+     *    (5: Input/output error)`) *after* every package was configured, and a
+     *    successful install becomes exit 100. The switches are also written to
+     *    [APT_PROOT_CONF_PATH].
+     *  * **Real failures stay failures.** apt's exit status is returned, the
+     *    reason is logged, and the tail of [BOOTSTRAP_LOG] is printed to the
+     *    caller's stderr so the terminal is not just a generic "FAILED".
+     *  * **Root guard on `id -u`.** apt/dpkg need real uid 0. The guard does
+     *    not trust `MINIS_SANDBOX_BACKEND` for this decision (a chroot runs
+     *    unprivileged regardless of its environment): a non-root run writes
+     *    [BOOTSTRAP_SKIPPED_MARKER] and exits 3 without touching apt and
+     *    without a misleading [BOOTSTRAP_FAILED_MARKER].
      */
     fun bootstrapScript(): String = buildString {
         append("#!/bin/sh\n")
-        append("# Managed by Minis. Install the default Ubuntu guest toolset once.\n")
+        append("# Managed by Minis. Explicit install/repair of the Ubuntu guest toolset.\n")
+        append("# The shipped rootfs already has these packages; no profile hook runs this.\n")
         append("set -u\n")
         append("list=/").append(BOOTSTRAP_PACKAGES_PATH).append('\n')
         append("done_marker=/").append(BOOTSTRAP_DONE_MARKER).append('\n')
         append("failed_marker=/").append(BOOTSTRAP_FAILED_MARKER).append('\n')
+        append("skipped_marker=/").append(BOOTSTRAP_SKIPPED_MARKER).append('\n')
         append("log=/").append(BOOTSTRAP_LOG).append('\n')
         append("lock=/").append(BOOTSTRAP_LOCK_DIR).append('\n')
         append("[ -f \"\$list\" ] || { echo 'minis-bootstrap: missing '\"\$list\" >&2; exit 1; }\n")
-        append("if [ -f \"\$done_marker\" ] && [ \"\${1:-}\" != \"--force\" ]; then\n")
-        append("    echo 'minis-bootstrap: already installed (use --force to rerun)'\n")
+        append("mkdir -p /var/lib/minis /var/log\n")
+        append("# Keep the caller's stderr (terminal or agent capture): stdout/stderr go to\n")
+        append("# the log below, but a failure must still show the real end of that log.\n")
+        append("exec 9>&2\n")
+        append("force=0\n")
+        append("[ \"\${1:-}\" = \"--force\" ] && force=1\n")
+        append("# One package per line -> positional params, so no word splitting of a\n")
+        append("# command substitution is needed anywhere below.\n")
+        append("set --\n")
+        append("while IFS= read -r pkg; do\n")
+        append("    [ -n \"\$pkg\" ] || continue\n")
+        append("    set -- \"\$@\" \"\$pkg\"\n")
+        append("done < \"\$list\"\n")
+        append("[ \"\$#\" -gt 0 ] || { echo 'minis-bootstrap: empty package list' >&2; exit 1; }\n")
+        append("# dpkg's own database is the only trustworthy 'installed' check; the done\n")
+        append("# marker is a hint that is re-verified on every run.\n")
+        append("missing_packages() {\n")
+        append("    while IFS= read -r pkg; do\n")
+        append("        [ -n \"\$pkg\" ] || continue\n")
+        append("        status=\$(dpkg-query -W -f='\${Status}' \"\$pkg\" 2>/dev/null) || status=''\n")
+        append("        [ \"\$status\" = 'install ok installed' ] || printf '%s\\n' \"\$pkg\"\n")
+        append("    done < \"\$list\"\n")
+        append("}\n")
+        append("missing=\$(missing_packages)\n")
+        append("if [ -z \"\$missing\" ] && [ \"\$force\" = 0 ]; then\n")
+        append("    echo 'minis-bootstrap: toolset already installed and verified (--force to reinstall)' >&2\n")
         append("    exit 0\n")
         append("fi\n")
-        append("mkdir -p /var/lib/minis /var/log\n")
+        append("guest_uid=\$(id -u)\n")
+        append("backend=\${MINIS_SANDBOX_BACKEND:-unset}\n")
+        append("if [ \"\$guest_uid\" != 0 ]; then\n")
+        append("    {\n")
+        append("        echo \"minis-bootstrap: SKIPPED: guest uid \$guest_uid (backend=\$backend) is not root.\"\n")
+        append("        echo 'minis-bootstrap: apt/dpkg cannot install packages without real uid 0.'\n")
+        append("        echo 'minis-bootstrap: the chroot backend runs unprivileged - switch to the PRoot'\n")
+        append("        echo 'minis-bootstrap: backend in Settings > Sandbox, then run: minis-bootstrap --force'\n")
+        append("    } >&2\n")
+        append("    printf 'uid=%s backend=%s reason=not-root\\n' \"\$guest_uid\" \"\$backend\" > \"\$skipped_marker\"\n")
+        append("    printf '%s minis-bootstrap: skipped: uid=%s backend=%s\\n' \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \"\$guest_uid\" \"\$backend\" >> \"\$log\"\n")
+        append("    exit 3\n")
+        append("fi\n")
+        append("rm -f \"\$skipped_marker\"\n")
         append("if ! mkdir \"\$lock\" 2>/dev/null; then\n")
-        append("    echo 'minis-bootstrap: another install is already running'\n")
+        append("    echo 'minis-bootstrap: another install is already running' >&2\n")
         append("    exit 0\n")
         append("fi\n")
         append("trap 'rmdir \"\$lock\" 2>/dev/null' EXIT INT TERM\n")
         append("exec >>\"\$log\" 2>&1\n")
-        append("echo \"== minis-bootstrap \$(date -u +%Y-%m-%dT%H:%M:%SZ) ==\"\n")
-        append("fail() {\n")
-        append("    echo \"minis-bootstrap: FAILED: \$*\" >&2\n")
-        append("    date -u +%Y-%m-%dT%H:%M:%SZ > \"\$failed_marker\"\n")
-        append("    exit 1\n")
+        append("show_log_tail() {\n")
+        append("    {\n")
+        append("        echo \"minis-bootstrap: last lines of \$log:\"\n")
+        append("        tail -n 20 \"\$log\" 2>/dev/null\n")
+        append("    } >&9 2>/dev/null || true\n")
         append("}\n")
+        append("fail() {\n")
+        append("    rc=\$1\n")
+        append("    shift\n")
+        append("    echo \"minis-bootstrap: FAILED (exit \$rc): \$*\"\n")
+        append("    date -u +%Y-%m-%dT%H:%M:%SZ > \"\$failed_marker\"\n")
+        append("    show_log_tail\n")
+        append("    exit \"\$rc\"\n")
+        append("}\n")
+        append("echo \"== minis-bootstrap \$(date -u +%Y-%m-%dT%H:%M:%SZ) ==\"\n")
+        append("echo \"diag: backend=\$backend uid=\$guest_uid force=\$force packages=\$#\"\n")
+        append("echo \"diag: apt=\$(apt-get --version 2>/dev/null | head -n 1)\"\n")
+        append("if [ -f \"\$done_marker\" ]; then\n")
+        append("    echo \"minis-bootstrap: re-verifying, done marker not trusted; missing:\$(printf '%s' \"\$missing\" | tr '\\n' ' ')\"\n")
+        append("    rm -f \"\$done_marker\"\n")
+        append("fi\n")
+        append("if [ -n \"\$missing\" ]; then\n")
+        append("    echo \"minis-bootstrap: installing missing:\$(printf '%s' \"\$missing\" | tr '\\n' ' ')\"\n")
+        append("fi\n")
+        append("# Unattended, non-interactive apt:\n")
+        append("#  * DEBIAN_FRONTEND=noninteractive -> no debconf questions.\n")
+        append("#  * DPkg::Use-Pty=false -> apt must not hand dpkg a pty; with a pty its\n")
+        append("#    terminal restore at exit fails on a guest without a usable stdin tty\n")
+        append("#    (TCSAFLUSH ... tcsetattr (5: Input/output error)) after all packages\n")
+        append("#    were configured, turning success into exit 100.\n")
+        append("#  * stdin from /dev/null -> nothing can prompt or read the terminal.\n")
+        append("#  * Sandbox/Seccomp also live in /etc/apt/apt.conf.d/99minis-proot.conf.\n")
         append("DEBIAN_FRONTEND=noninteractive\n")
         append("export DEBIAN_FRONTEND\n")
-        append("apt-get update || fail 'apt-get update'\n")
-        append("# Word splitting is intentional: one package name per line.\n")
-        append("# shellcheck disable=SC2046\n")
-        append("apt-get install -y --no-install-recommends \$(cat \"\$list\") || fail 'apt-get install'\n")
+        append("apt-get -o DPkg::Use-Pty=false -o APT::Sandbox::User=root -o APT::Sandbox::Seccomp=false update </dev/null || fail \$? 'apt-get update'\n")
+        append("rc=0\n")
+        append("apt-get -y -o DPkg::Use-Pty=false -o APT::Sandbox::User=root -o APT::Sandbox::Seccomp=false -o DPkg::Lock::Timeout=600 install --no-install-recommends \"\$@\" </dev/null || rc=\$?\n")
+        append("if [ \"\$rc\" != 0 ]; then\n")
+        append("    if grep -q 'TCSAFLUSH' \"\$log\" 2>/dev/null; then\n")
+        append("        echo 'minis-bootstrap: hint: apt failed to restore a terminal (TCSAFLUSH); DPkg::Use-Pty must stay false'\n")
+        append("    fi\n")
+        append("    fail \"\$rc\" 'apt-get install'\n")
+        append("fi\n")
+        append("missing=\$(missing_packages)\n")
+        append("[ -z \"\$missing\" ] || fail 1 \"package verification failed; still missing:\$(printf '%s' \"\$missing\" | tr '\\n' ' ')\"\n")
         append("rm -f \"\$failed_marker\"\n")
         append("date -u +%Y-%m-%dT%H:%M:%SZ > \"\$done_marker\"\n")
-        append("echo 'minis-bootstrap: done'\n")
+        append("echo \"minis-bootstrap: done: \$# packages verified installed and configured\"\n")
     }
 
     /**
-     * Interactive-shell hook. The app's own shells are not guaranteed to be
-     * login shells, so this is best-effort for terminals; `ShellExecutor` /
-     * `OnDemandBash` should also run [bootstrapScript] once (see
-     * docs/android-ubuntu.md §9). It never fails silently: failures print the
-     * log path and the retry command.
+     * Interactive-shell hook. **Reports status; installs nothing.**
+     *
+     * The shipped rootfs is built with [BOOTSTRAP_PACKAGES] already installed
+     * (CI preinstalls them before packaging) and writes
+     * [BOOTSTRAP_DONE_MARKER] only after verifying them, so there is no
+     * first-login install any more: neither the interactive nor the
+     * non-interactive path may run apt or [bootstrapScript]. The hook only:
+     *  * stays completely silent when every package is verified installed
+     *    (a preinstalled done marker plus intact packages is success, also on
+     *    the unprivileged chroot backend),
+     *  * names the missing packages, verified with `dpkg-query` so a stale
+     *    marker cannot hide a broken rootfs,
+     *  * points at the explicit repair command, which itself refuses to run
+     *    without real uid 0.
      */
     fun bootstrapProfileScript(): String = buildString {
-        append("# Managed by Minis. First-login toolset install (python3, git, curl, …).\n")
-        append("if [ -f /").append(BOOTSTRAP_DONE_MARKER).append(" ]; then\n")
-        append("    :\n")
-        append("elif [ -f /").append(BOOTSTRAP_FAILED_MARKER).append(" ]; then\n")
-        append("    echo 'minis: default toolset install FAILED — see /")
-            .append(BOOTSTRAP_LOG).append("; retry: minis-bootstrap --force' >&2\n")
-        append("else\n")
-        append("    case \"\$-\" in\n")
-        append("        *i*)\n")
-        append("            echo 'minis: installing default tools (python3, git, curl, …); one-time, needs network…'\n")
-        append("            if /usr/local/sbin/minis-bootstrap; then\n")
-        append("                echo 'minis: default tools installed'\n")
-        append("            else\n")
-        append("                echo 'minis: toolset install FAILED — see /")
-            .append(BOOTSTRAP_LOG).append("; retry: minis-bootstrap --force' >&2\n")
+        append("# Managed by Minis. Status only: the shipped rootfs includes the toolset.\n")
+        append("# Never installs anything: repair is explicit (minis-bootstrap --force).\n")
+        append("case \"\$-\" in\n")
+        append("    *i*)\n")
+        append("        if command -v dpkg-query >/dev/null 2>&1 && [ -f /")
+            .append(BOOTSTRAP_PACKAGES_PATH).append(" ]; then\n")
+        append("            minis_missing=''\n")
+        append("            while IFS= read -r minis_pkg; do\n")
+        append("                [ -n \"\$minis_pkg\" ] || continue\n")
+        append("                minis_status=\$(dpkg-query -W -f='\${Status}' \"\$minis_pkg\" 2>/dev/null) || minis_status=''\n")
+        append("                [ \"\$minis_status\" = 'install ok installed' ] || minis_missing=\"\$minis_missing \$minis_pkg\"\n")
+        append("            done < /").append(BOOTSTRAP_PACKAGES_PATH).append('\n')
+        append("            if [ -n \"\$minis_missing\" ]; then\n")
+        append("                echo \"minis: guest toolset incomplete:\$minis_missing\" >&2\n")
+        append("                echo 'minis: nothing is installed automatically; if you need it, run: minis-bootstrap --force' >&2\n")
+        append("                echo 'minis: that needs real uid 0 - the PRoot backend, not chroot' >&2\n")
+        append("            elif [ ! -f /").append(BOOTSTRAP_DONE_MARKER).append(" ] && [ -f /")
+            .append(BOOTSTRAP_FAILED_MARKER).append(" ]; then\n")
+        append("                echo 'minis: all toolset packages are verified installed, but an earlier install attempt failed' >&2\n")
+        append("                echo 'minis: details: /").append(BOOTSTRAP_LOG).append("' >&2\n")
         append("            fi\n")
-        append("            ;;\n")
-        append("    esac\n")
-        append("fi\n")
+        append("            unset minis_missing minis_pkg minis_status\n")
+        append("        fi\n")
+        append("        ;;\n")
+        append("esac\n")
     }
 
     // ── archive path safety ────────────────────────────────────────────────

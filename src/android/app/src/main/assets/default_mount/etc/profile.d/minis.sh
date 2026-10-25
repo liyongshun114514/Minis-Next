@@ -6,16 +6,19 @@
 # relying on \h, so the prompt is stable regardless of what /etc/hostname
 # happens to contain. We do the same on Android so a fresh install
 # matches without needing a rootfs rebuild.
-export PS1='\u@minis:\w\$ '
-
-# Ubuntu login shells use bash; /bin/sh is dash (no bash-specific syntax here).
+# /bin/sh is Dash; only Bash expands \\u/\\w. Keep fallback shells readable.
 export HISTSIZE=1000
 if [ -n "${BASH_VERSION:-}" ]; then
+    export PS1='\u@minis:\w\$ '
     export HISTFILE="$HOME/.bash_history"
+    # A login Bash already sources /etc/profile; do not source it twice.
+    unset ENV
 else
+    export PS1='minis$ '
     export HISTFILE="$HOME/.sh_history"
+    # Login Dash + ENV=/etc/profile previously ran profile hooks twice.
+    unset ENV
 fi
-export ENV=/etc/profile
 
 # Default pager — less is installed by the Ubuntu bootstrap; explicit for scripts
 # that probe $PAGER.

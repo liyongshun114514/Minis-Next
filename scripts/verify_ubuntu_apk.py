@@ -26,9 +26,38 @@ prepare script checksum-verified), so a wrong guest cannot pass under either
 name. When that source file is absent the byte-identity check is reported as
 skipped; the structural checks still run. A wrong, truncated, empty or
 non-Ubuntu archive still fails; a truly missing payload still fails.
+
+## Why the preinstalled toolset is mandatory
+
+Users no longer accept a first-terminal `apt-get install`. The CI job builds the
+toolset image (`scripts/build_ubuntu_toolset.sh`) and this verifier proves the
+packaged tar is that image — from evidence *inside* the tar only, never by
+extracting or running anything:
+
+  * `usr/local/share/minis/toolset-manifest.json` — schema 1, distro
+    `ubuntu24.04`, arch `arm64`, the pinned `official_base_sha256`, a
+    `packages` map of concrete dpkg versions and a `commands` map of version
+    probe output;
+  * `var/lib/minis/bootstrap.done` — written by the builder only after every
+    package was `install ok installed`, `dpkg --audit` was clean and every
+    command probe ran;
+  * `var/lib/dpkg/status` — every required package `Status: install ok
+    installed` with exactly the manifest's version;
+  * the ordinary software paths (`usr/bin/python3`, git, curl, wget, ssh, rg,
+    jq, pip, the venv module). `python3` is normally a symlink and is accepted
+    as such.
+
+The marker or the manifest alone never passes: each is cross-checked against
+dpkg status and the guest paths. The verifier cannot re-run apt/dpkg inside a
+tar, so it re-proves the recorded post-install state instead of trusting the
+marker. `validate_rootfs_archive()` keeps its
+structural-only behaviour unless `require_toolset=True`, while `verify()` — the
+production entry point — defaults to requiring the toolset (`MINIS_REQUIRE_TOOLSET`
+may force it on; a bare base archive can never pass).
 """
 import gzip
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -57,6 +86,55 @@ REQUIRED_GUEST_PATHS = {'usr/lib/os-release', 'usr/bin/apt', 'usr/bin/dpkg',
 # Minimum packaged sizes; the real payload is ~28.6 MB gzipped / ~102 MB raw.
 MIN_PAYLOAD_BYTES = {'.gz': 16 * 1024 * 1024, '.tar': 32 * 1024 * 1024}
 
+# ── Preinstalled-toolset contract ───────────────────────────────────────────
+# Paths and identity of the rootfs the CI toolset job produces
+# (scripts/build_ubuntu_toolset.sh) and this build is allowed to ship.
+TOOLSET_MANIFEST = 'usr/local/share/minis/toolset-manifest.json'
+BOOTSTRAP_DONE_MARKER = 'var/lib/minis/bootstrap.done'
+DPKG_STATUS = 'var/lib/dpkg/status'
+TOOLSET_MANIFEST_SCHEMA = 1
+TOOLSET_DISTRO = 'ubuntu24.04'
+TOOLSET_ARCH = 'arm64'
+# Pinned SHA-256 of the official ubuntu-base 24.04.5 arm64 archive, i.e. the
+# provenance of the image the toolset was installed into.
+OFFICIAL_BASE_SHA256 = 'a91d5a93010193712d346d761372b7c9db6dfcf093893161c64ca107f05914f2'
+
+REQUIRED_TOOLSET_PACKAGES = (
+    'bash', 'ca-certificates', 'curl', 'wget', 'git', 'openssh-client',
+    'less', 'procps', 'iproute2', 'unzip', 'xz-utils', 'jq', 'ripgrep',
+    'python3', 'python3-pip', 'python3-venv',
+)
+
+# Version probes recorded in the manifest. Each tuple is an alias group: the
+# builder must record at least one name with non-empty output. It records
+# bash/python3/git/curl/wget/ssh/rg/jq/pip/venv/less/ps/ip/unzip/xz and the
+# ca-certificates store check; these are the agent-facing essentials.
+REQUIRED_TOOLSET_COMMANDS = (
+    ('bash',), ('python3',), ('git',), ('curl',), ('wget',), ('ssh',),
+    ('rg',), ('jq',), ('pip', 'pip3'), ('venv',),
+)
+
+# Ordinary guest executables. Any of reg/sym/lnk counts; python3 is a symlink
+# in Ubuntu and is never followed, extracted or executed. Mirrors the archive
+# paths scripts/build_ubuntu_toolset.sh asserts and UbuntuToolsetStatus reads.
+REQUIRED_TOOLSET_PATHS = (
+    ('usr/bin/bash',), ('usr/bin/python3',), ('usr/bin/git',),
+    ('usr/bin/curl',), ('usr/bin/wget',), ('usr/bin/ssh',), ('usr/bin/rg',),
+    ('usr/bin/jq',), ('usr/bin/pip3', 'usr/bin/pip'), ('usr/bin/less',),
+    ('usr/bin/ps',), ('usr/bin/ip', 'usr/sbin/ip', 'sbin/ip'), ('usr/bin/unzip',), ('usr/bin/xz',),
+)
+# python3-venv ships the venv module under usr/lib/python3.X/venv/.
+TOOLSET_PATH_PATTERNS = (
+    re.compile(r'^usr/lib/python3(?:\.\d+)?/venv/[^/]+$'),
+)
+EXECUTABLE_TYPES = ('reg', 'sym', 'lnk')
+_TOOLSET_READ_LIMIT = 8 * 1024 * 1024
+_TOOLSET_READS = frozenset((TOOLSET_MANIFEST, DPKG_STATUS))
+_DPKG_VERSION_RE = re.compile(r'^[0-9][A-Za-z0-9.+~:-]*$')
+TOOLSET_ENV = 'MINIS_REQUIRE_TOOLSET'
+_TRUTHY = ('1', 'true', 'yes', 'on')
+_FALSY = ('0', 'false', 'no', 'off')
+
 DEFAULT_SOURCE_ROOTFS = (Path(__file__).resolve().parents[1]
                          / 'src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz')
 
@@ -81,8 +159,90 @@ def _normalize(name):
     return name
 
 
-def validate_rootfs_archive(z, name, min_bytes=None):
-    """Prove `name` inside `z` is a genuine Ubuntu 24.04 guest rootfs tar."""
+class RootfsScan:
+    """Facts gathered by one read-only pass over the packaged rootfs tar.
+
+    Only the guest identity, the toolset manifest / marker / dpkg status bytes
+    and the member table are read. Nothing is extracted to disk and no guest
+    program is executed: python3 stays a symlink and is only recorded as one.
+    """
+
+    def __init__(self, payload):
+        self.payload = payload
+        self.guest_paths = set()
+        self.os_release = b''
+        self.os_release_seen = False
+        self.types = {}       # normalized path -> dir|reg|sym|lnk|other
+        self.duplicates = set()
+        self.contents = {}    # toolset manifest / dpkg status -> bytes
+        self.toolset = None   # summary from validate_preinstalled_toolset
+
+    def kind(self, path):
+        return self.types.get(path)
+
+
+def _member_kind(member):
+    if member.isdir():
+        return 'dir'
+    if member.issym():
+        return 'sym'
+    if member.islnk():
+        return 'lnk'
+    if member.isreg():
+        return 'reg'
+    return 'other'
+
+
+def _scan_rootfs(z, name):
+    scan = RootfsScan(name)
+    gzipped = name.endswith('.gz')
+    try:
+        with z.open(name) as raw:
+            stream = gzip.GzipFile(fileobj=raw, mode='rb') if gzipped else raw
+            with tarfile.open(fileobj=stream, mode='r|') as tar:
+                for member in tar:
+                    path = _normalize(member.name)
+                    if not path:
+                        continue
+                    key = path.rstrip('/') or path
+                    kind = _member_kind(member)
+                    if key in scan.types:
+                        scan.duplicates.add(key)
+                    else:
+                        scan.types[key] = kind
+                    if path in REQUIRED_GUEST_PATHS:
+                        scan.guest_paths.add(path)
+                    if path == 'usr/lib/os-release' and kind == 'reg':
+                        if not scan.os_release_seen:
+                            scan.os_release_seen = True
+                            handle = tar.extractfile(member)
+                            if handle is not None:
+                                scan.os_release = handle.read(8192)
+                    elif key in _TOOLSET_READS and kind == 'reg':
+                        handle = tar.extractfile(member)
+                        data = handle.read(_TOOLSET_READ_LIMIT + 1) if handle is not None else b''
+                        assert len(data) <= _TOOLSET_READ_LIMIT, (
+                            f'rootfs payload {name}: {key} is larger than '
+                            f'{_TOOLSET_READ_LIMIT} bytes')
+                        scan.contents.setdefault(key, data)
+            if gzipped:
+                # Drain the gzip stream so its CRC/length trailer is checked.
+                while stream.read(1 << 20):
+                    pass
+    except (tarfile.TarError, OSError, EOFError, zlib.error) as exc:
+        raise AssertionError(
+            f'rootfs payload {name} is not a valid {"gzip/tar" if gzipped else "tar"} stream: {exc}') from exc
+    return scan
+
+
+def validate_rootfs_archive(z, name, min_bytes=None, require_toolset=False):
+    """Prove `name` inside `z` is a genuine Ubuntu 24.04 guest rootfs tar.
+
+    `require_toolset=True` additionally proves it is the *preinstalled toolset*
+    image (manifest + marker + dpkg status + guest binaries), not bare
+    ubuntu-base. The default stays structural-only so callers that check a
+    hand-made archive keep working; `verify()` passes True in production.
+    """
     assert name in ROOTFS_ASSETS, f'unexpected rootfs asset name: {name}'
     gzipped = name.endswith('.gz')
     info = z.getinfo(name)
@@ -91,33 +251,192 @@ def validate_rootfs_archive(z, name, min_bytes=None):
         f'rootfs payload {name} is truncated/suspiciously small: '
         f'{info.file_size} bytes < {minimum}')
 
-    seen = set()
-    os_release = b''
-    try:
-        with z.open(name) as raw:
-            stream = gzip.GzipFile(fileobj=raw, mode='rb') if gzipped else raw
-            with tarfile.open(fileobj=stream, mode='r|') as tar:
-                for member in tar:
-                    path = _normalize(member.name)
-                    if path in REQUIRED_GUEST_PATHS:
-                        seen.add(path)
-                    if path == 'usr/lib/os-release' and member.isreg():
-                        handle = tar.extractfile(member)
-                        if handle is not None:
-                            os_release = handle.read(8192)
-            if gzipped:
-                # Drain the gzip stream so its CRC/length trailer is checked.
-                while stream.read(1 << 20):
-                    pass
-    except (tarfile.TarError, OSError, EOFError, zlib.error) as exc:
-        raise AssertionError(
-            f'rootfs payload {name} is not a valid {"gzip/tar" if gzipped else "tar"} stream: {exc}') from exc
-
-    missing = REQUIRED_GUEST_PATHS - seen
+    scan = _scan_rootfs(z, name)
+    missing = REQUIRED_GUEST_PATHS - scan.guest_paths
     assert not missing, f'rootfs payload {name} is not an Ubuntu guest: missing {sorted(missing)}'
-    assert OS_RELEASE.search(os_release), f'rootfs payload {name}: /usr/lib/os-release is not Ubuntu'
-    assert VERSION_ID.search(os_release), (
+    assert OS_RELEASE.search(scan.os_release), f'rootfs payload {name}: /usr/lib/os-release is not Ubuntu'
+    assert VERSION_ID.search(scan.os_release), (
         f'rootfs payload {name}: /usr/lib/os-release is not Ubuntu 24.04')
+    if require_toolset:
+        scan.toolset = validate_preinstalled_toolset(scan)
+    return scan
+
+
+# ── Preinstalled-toolset proof ──────────────────────────────────────────────
+
+def _toolset_file(scan, path, why):
+    """Bytes of a critical toolset file, failing closed on absence/duplicates."""
+    kind = scan.kind(path)
+    assert kind is not None, f'toolset: {path} missing from rootfs ({why})'
+    assert kind == 'reg', f'toolset: {path} is a {kind} member, not a regular file ({why})'
+    assert path not in scan.duplicates, f'toolset: {path} appears more than once in the archive'
+    data = scan.contents.get(path)
+    assert data is not None, f'toolset: {path} could not be read from the archive'
+    return data
+
+
+def _load_toolset_manifest(scan):
+    raw = _toolset_file(
+        scan, TOOLSET_MANIFEST,
+        'a release APK must ship the preinstalled toolset image, not bare ubuntu-base')
+    try:
+        manifest = json.loads(raw.decode('utf-8'))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise AssertionError(
+            f'toolset: {TOOLSET_MANIFEST} is not valid UTF-8 JSON: {exc}') from exc
+    assert isinstance(manifest, dict), (
+        f'toolset: {TOOLSET_MANIFEST} must contain a JSON object, got {type(manifest).__name__}')
+    return manifest
+
+
+def _parse_dpkg_status(raw):
+    """Return ({package: {versions installed}}, {package: {statuses seen}})."""
+    try:
+        text = raw.decode('utf-8')
+    except UnicodeDecodeError as exc:
+        raise AssertionError(f'toolset: {DPKG_STATUS} is not valid UTF-8: {exc}') from exc
+    stanzas = []
+    current = {}
+    last_field = None
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            if current:
+                stanzas.append(current)
+                current = {}
+                last_field = None
+            continue
+        if line[0] in ' \t':
+            assert last_field is not None, (
+                f'toolset: {DPKG_STATUS} line {lineno} is a continuation without a field')
+            current[last_field] += '\n' + line.strip()
+            continue
+        field, sep, value = line.partition(':')
+        assert sep, f'toolset: {DPKG_STATUS} line {lineno} is not a "Field: value" line'
+        last_field = field.strip()
+        current[last_field] = value.strip()
+    if current:
+        stanzas.append(current)
+
+    installed = {}
+    statuses = {}
+    for stanza in stanzas:
+        package = stanza.get('Package', '').strip()
+        if not package:
+            continue
+        base = package.split(':', 1)[0]
+        status = stanza.get('Status', '').strip()
+        statuses.setdefault(base, set()).add(status)
+        if status == 'install ok installed':
+            installed.setdefault(base, set()).add(stanza.get('Version', '').strip())
+    return installed, statuses
+
+
+def _validate_toolset_manifest(manifest):
+    schema = manifest.get('schema')
+    assert type(schema) is int and schema == TOOLSET_MANIFEST_SCHEMA, (
+        f'toolset: manifest schema must be the integer {TOOLSET_MANIFEST_SCHEMA}, got {schema!r}')
+    assert manifest.get('distro') == TOOLSET_DISTRO, (
+        f"toolset: manifest distro {manifest.get('distro')!r} != {TOOLSET_DISTRO!r}")
+    assert manifest.get('arch') == TOOLSET_ARCH, (
+        f"toolset: manifest arch {manifest.get('arch')!r} != {TOOLSET_ARCH!r}")
+    base_sha = manifest.get('official_base_sha256')
+    assert isinstance(base_sha, str) and base_sha.strip().lower() == OFFICIAL_BASE_SHA256, (
+        'toolset: manifest official_base_sha256 is not the pinned ubuntu-base '
+        f'24.04.5 arm64 archive: {base_sha!r}')
+
+    packages = manifest.get('packages')
+    assert isinstance(packages, dict) and packages, (
+        'toolset: manifest packages must be a non-empty {"name": "version"} object')
+    for package, version in packages.items():
+        assert isinstance(version, str) and _DPKG_VERSION_RE.match(version), (
+            f'toolset: manifest version for {package!r} is not a concrete dpkg '
+            f'version: {version!r}')
+    missing = sorted(set(REQUIRED_TOOLSET_PACKAGES) - set(packages))
+    assert not missing, f'toolset: manifest does not list required packages {missing}'
+
+    commands = manifest.get('commands')
+    assert isinstance(commands, dict) and commands, (
+        'toolset: manifest commands must be a non-empty {"name": "version output"} object')
+    for name, output in commands.items():
+        assert isinstance(output, str) and output.strip(), (
+            f'toolset: manifest records no version output for command {name!r}')
+    missing_commands = [group[0] for group in REQUIRED_TOOLSET_COMMANDS
+                        if not any(name in commands for name in group)]
+    assert not missing_commands, (
+        f'toolset: manifest lacks command version results for {missing_commands}')
+    return packages, commands
+
+
+def validate_preinstalled_toolset(scan):
+    """Prove the tar is the CI preinstalled-toolset image, not bare ubuntu-base.
+
+    The marker and the manifest are necessary but never sufficient: every
+    required package must also be `install ok installed` in dpkg status with
+    the manifest's exact version, and its guest executable must be present.
+    """
+    manifest = _load_toolset_manifest(scan)
+    packages, commands = _validate_toolset_manifest(manifest)
+
+    marker_kind = scan.kind(BOOTSTRAP_DONE_MARKER)
+    assert marker_kind is not None, (
+        'toolset: var/lib/minis/bootstrap.done missing — the guest would install '
+        'packages on first use, which this build does not accept')
+    assert marker_kind == 'reg', (
+        f'toolset: {BOOTSTRAP_DONE_MARKER} is a {marker_kind} member, not the marker file')
+    assert BOOTSTRAP_DONE_MARKER not in scan.duplicates, (
+        f'toolset: {BOOTSTRAP_DONE_MARKER} appears more than once in the archive')
+
+    status_raw = _toolset_file(
+        scan, DPKG_STATUS, 'dpkg status is required to prove the packages are installed')
+    installed, statuses = _parse_dpkg_status(status_raw)
+    for package in REQUIRED_TOOLSET_PACKAGES:
+        versions = installed.get(package)
+        assert versions, (
+            f'toolset: {package} is not "install ok installed" in {DPKG_STATUS} '
+            f'(statuses seen: {sorted(statuses.get(package, ()))})')
+        expected = packages[package]
+        assert expected in versions, (
+            f'toolset: {package} installed version(s) {sorted(versions)} != '
+            f'manifest version {expected}')
+
+    for group in REQUIRED_TOOLSET_PATHS:
+        found = [path for path in group if scan.kind(path) in EXECUTABLE_TYPES]
+        assert found, (
+            'toolset: required guest executable missing: '
+            f'{" or ".join(group)} (python3 is normally a symlink and is accepted as one)')
+    for pattern in TOOLSET_PATH_PATTERNS:
+        assert any(pattern.match(path) and kind in EXECUTABLE_TYPES
+                   for path, kind in scan.types.items()), (
+            f'toolset: no guest member matches {pattern.pattern} — python3-venv is not installed')
+
+    return {
+        'packages': len(REQUIRED_TOOLSET_PACKAGES),
+        'commands': len(commands),
+        'official_base_sha256': OFFICIAL_BASE_SHA256,
+    }
+
+
+def require_toolset_default():
+    """Production default: the preinstalled toolset is mandatory.
+
+    CI may force it on with `MINIS_REQUIRE_TOOLSET=1`. There is deliberately no
+    off switch here: a bare ubuntu-base archive must never pass as a release
+    APK. Structural-only inspection is available explicitly through
+    `validate_rootfs_archive(..., require_toolset=False)`.
+    """
+    raw = os.environ.get(TOOLSET_ENV)
+    if raw is None or not raw.strip():
+        return True
+    value = raw.strip().lower()
+    if value in _TRUTHY:
+        return True
+    if value in _FALSY:
+        raise AssertionError(
+            f'{TOOLSET_ENV}={raw!r} would disable the preinstalled-toolset check; '
+            'a release APK must ship the toolset, not bare ubuntu-base '
+            '(use validate_rootfs_archive(require_toolset=False) for a '
+            'structural-only inspection)')
+    raise AssertionError(f'{TOOLSET_ENV}={raw!r} is not a boolean')
 
 
 def _decompressed_digest(stream):
@@ -379,7 +698,15 @@ def validate_launcher_manifest(xmltree, expected_package=None):
 verify_launcher_manifest = validate_launcher_manifest
 
 
-def verify(apk: Path, source_rootfs=None):
+def verify(apk: Path, source_rootfs=None, require_toolset=None):
+    """Verify a release APK end to end.
+
+    `require_toolset` defaults to `require_toolset_default()` (True;
+    `MINIS_REQUIRE_TOOLSET=1` can only force it on), so a bare ubuntu-base
+    archive can never pass as a production APK.
+    """
+    if require_toolset is None:
+        require_toolset = require_toolset_default()
     with zipfile.ZipFile(apk) as z:
         assert z.testzip() is None, f'corrupt ZIP: {apk}'
         names = set(z.namelist())
@@ -388,7 +715,7 @@ def verify(apk: Path, source_rootfs=None):
         rootfs = rootfs_asset(names)
         assert 'assets/alpine-minirootfs.tar.gz' not in names, 'old Alpine payload still bundled'
         assert not any(n.startswith('lib/') and n.split('/')[1] != 'arm64-v8a' for n in names), 'unexpected ABI'
-        validate_rootfs_archive(z, rootfs)
+        scan = validate_rootfs_archive(z, rootfs, require_toolset=require_toolset)
         source = (Path(source_rootfs) if source_rootfs is not None else
                   Path(os.environ.get('UBUNTU_ROOTFS_SOURCE') or DEFAULT_SOURCE_ROOTFS))
         if source.is_file():
@@ -398,6 +725,10 @@ def verify(apk: Path, source_rootfs=None):
         else:
             print(f'note: prepared source {source} absent; skipped byte-identity check',
                   file=sys.stderr)
+    toolset = scan.toolset or {}
+    toolset_note = (f"toolset={toolset['packages']} packages "
+                    f"base={toolset['official_base_sha256'][:12]}" if scan.toolset
+                    else 'toolset=NOT CHECKED (require_toolset=False)')
     sdk = Path(os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '')))
     tools = sdk / 'build-tools' / '35.0.0'
     badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
@@ -416,7 +747,7 @@ def verify(apk: Path, source_rootfs=None):
     digest = hashlib.sha256(apk.read_bytes()).hexdigest()
     apk.with_suffix('.apk.sha256').write_text(f'{digest}  {apk.name}\n')
     print(f'PASS {apk} {apk.stat().st_size} bytes SHA256={digest}; '
-          f'rootfs={rootfs}; launcher={launcher}; not installed or run')
+          f'rootfs={rootfs}; {toolset_note}; launcher={launcher}; not installed or run')
 
 
 if __name__ == '__main__':

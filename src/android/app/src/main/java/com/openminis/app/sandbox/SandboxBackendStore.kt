@@ -442,14 +442,8 @@ object SandboxRouter {
         if (spec.interactive) return spawn
         val manager = runCatching { RootfsManager.getInstance(context) }.getOrNull() ?: return spawn
         if (manager.isBootstrapComplete) return spawn
-        val command = runCatching { manager.bootstrapCommand() }.getOrDefault("minis-bootstrap")
-        val text = if (manager.isBootstrapFailed) {
-            "首次初始化（$command）上次失败：请打开终端执行 `$command` 重试；" +
-                "在此之前命令可能缺少 python/git 等工具。"
-        } else {
-            "首次初始化尚未完成：非交互命令可能缺少 python/git 等工具。" +
-                "请打开终端执行一次 `$command` 完成初始化（不会自动重复执行）。"
-        }
+        val text = "内置 Ubuntu 工具环境未通过完整性检查。此版本应离线解压预装环境，" +
+            "无需进入终端安装软件；请在环境设置中安装完整环境包。"
         Log.w(TAG, "bootstrap hint (complete=${manager.isBootstrapComplete} failed=${manager.isBootstrapFailed})")
         return spawn.copy(warning = text)
     }
@@ -469,7 +463,7 @@ object SandboxRouter {
                 } ?: listOf("/bin/sh", "-c", spec.command)
                 PRootKernel.buildProotArgv(shellArgv, mounts)
             }
-            spec.loginShell -> PRootKernel.buildProotInteractiveCommand(listOf("/bin/sh", "-l", "-i"), mounts)
+            spec.loginShell -> PRootKernel.buildProotInteractiveCommand(listOf("/bin/bash", "--login", "-i"), mounts)
             else -> PRootKernel.buildProotInteractiveCommand(listOf("/bin/sh"), mounts)
         }
         val offload = if (

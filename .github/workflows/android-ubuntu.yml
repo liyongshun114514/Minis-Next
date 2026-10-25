@@ -20,7 +20,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ubuntu-toolset:
+    # Native ARM64 build: phone installation only extracts this ready image.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Install rootfs build prerequisites on CI runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ubuntu-keyring gnupg python3
+      - name: Build preinstalled Ubuntu toolset
+        run: bash scripts/build_ubuntu_toolset.sh
+      - name: Upload preinstalled Ubuntu image for APK job
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ubuntu-preinstalled-toolset-${{ github.run_number }}
+          path: |
+            deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz
+            deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz.sha256
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 3
   apk:
+    needs: ubuntu-toolset
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
@@ -93,17 +118,26 @@ jobs:
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Build Chroot launcher and guest offload client
         run: bash scripts/build_chroot_helpers.sh
-      - name: Cache official Ubuntu Base archive
-        uses: actions/cache@v4
+      - name: Download preinstalled Ubuntu toolset
+        uses: actions/download-artifact@v4
         with:
-          path: deps/build/ubuntu-base
-          key: ubuntu-base-24.04.5-arm64-v1
-      - name: Prepare verified Ubuntu guest
-        run: bash scripts/prepare_android_sandbox.sh
+          name: Ubuntu-preinstalled-toolset-${{ github.run_number }}
+          path: deps/build/ubuntu-toolset
+      - name: Stage verified preinstalled guest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd deps/build/ubuntu-toolset
+          sha256sum -c ubuntu-base-arm64.tar.gz.sha256
+          cd ../../..
+          cp deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
+          test -s src/android/app/src/main/assets/proot-aarch64
       - name: Check APK verifier compatibility
         run: |
           python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v
           python3 -m unittest discover -s scripts/tests -p test_verify_android_launcher.py -v
+          python3 -m unittest discover -s scripts/tests -p test_ubuntu_bootstrap.py -v
+          python3 -m unittest discover -s scripts/tests -p test_build_ubuntu_toolset.py -v
       - name: Build APK
         id: build-apk
         working-directory: src/android
@@ -116,7 +150,7 @@ jobs:
           cp -n app/provider-customization.properties.example app/provider-customization.properties || true
           if [ "$REQUESTED_VARIANT" = debug ]; then TASK=assembleGithubDebug; else TASK=assembleGithubRelease; fi
           ./gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs='-Xmx5g -Dfile.encoding=UTF-8' \
-            :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*UbuntuNormalCompatibilityTest' \
+            :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
             :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
         id: verify-apk

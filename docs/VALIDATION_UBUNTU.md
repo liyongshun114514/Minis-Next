@@ -3,7 +3,26 @@
 Source branch: `ubuntu-chroot` in `liyongshun114514/OpenMinis`.
 Cloud builds verified below: source commits `7258059` and `9cd091a`; subsequent APK-verifier corrections are documented separately.
 
-## Actually verified
+## 1.15-ubuntu.2 — preinstalled environment and UI revision
+
+See [UBUNTU_PREINSTALLED.md](UBUNTU_PREINSTALLED.md). The user's real phone log
+showed apt's terminal restoration (`TCSAFLUSH`/`tcsetattr EIO`) failing after the
+tool packages were configured. The previous APK's successful build was not a
+runtime acceptance. Version .2 removes first-terminal apt: CI preinstalls all
+16 default packages in a disposable native-ARM64 guest and checks their state
+and commands before packing the image. The app validates the complete extracted
+image locally before marking Installed. Old incomplete guests are preserved as
+backups during replacement; no device Root or installation was performed here.
+
+Local main-agent checks for this revision: 26 builder-contract tests, 18 explicit
+bootstrap-maintenance tests, 52 APK-payload/toolset tests, 21 launcher tests all
+passed. Actual Kotlin compilation plus ordinary JVM tests for toolset status
+and distribution compatibility: 9 passed. Workflow YAML, job dependency ordering
+and 10 embedded shell blocks passed syntax checks. UI changes are source-level;
+whole Android compilation and native ARM64 preinstallation await this revision's
+CI run. No successful final .2 APK is claimed at this point.
+
+## Earlier source/build checks (not proof of .2 runtime behavior)
 
 - Root Java core: javac succeeds. Disabled, missing-authorizer and explicit-denial normal states return 126 without executing su.
 - Offline JUnit: `UbuntuNormalCompatibilityTest` (3) and `NativeRootPolicyTest` (4): **7/7 passed**.

@@ -19,6 +19,7 @@ import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.settings.SettingsSwitchRow
+import com.openminis.app.ui.settings.rootStateLabel
 import com.openminis.app.ui.theme.MinisTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -53,7 +54,10 @@ fun RootPermissionScreen(onBack: () -> Unit) {
                         enabled = false
                     }
                 })
-            SettingsRow(title = snap.state.name, subtitle = "${snap.suPath ?: "未发现 su"}\n${snap.message}",
+            // Same short Chinese state label the Permissions page shows in its
+            // "系统授权" trailing slot, so both screens agree word for word.
+            SettingsRow(title = rootStateLabel(snap.state),
+                subtitle = "${snap.suPath ?: "未发现 su"}\n${snap.message}",
                 showChevron = false)
             SettingsRow(title = if (probing) "正在等待确认或 Root 管理器…" else "验证 Root（id）",
                 subtitle = "只执行 /system/bin/id，不修改设备；授权属于此 APK 的独立包名。",

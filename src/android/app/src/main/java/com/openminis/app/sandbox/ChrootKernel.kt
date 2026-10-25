@@ -331,7 +331,7 @@ object ChrootKernel {
         val launcher = launcher(context).absolutePath
         val guestArgv = when {
             !spec.interactive -> listOf("/bin/sh", "-c", spec.command)
-            spec.loginShell -> listOf("/bin/sh", "-l", "-i")
+            spec.loginShell -> listOf("/bin/bash", "--login", "-i")
             else -> listOf("/bin/sh")
         }
         val (mounts, rejected) = mountsFor(context, spec.sessionMounts ?: PRootKernel.bindMounts)

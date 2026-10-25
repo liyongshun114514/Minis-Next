@@ -4,16 +4,23 @@ import com.openminis.app.R
 import com.openminis.app.ui.components.MinisTextButton
 
 import android.text.format.Formatter
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,8 +56,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -428,6 +439,8 @@ private fun SandboxBackendSection() {
     var availability by remember { mutableStateOf(com.openminis.app.sandbox.ChrootKernel.availability(context)) }
     var showRiskDialog by remember { mutableStateOf(false) }
     var pendingTasks by remember { mutableStateOf<List<com.openminis.app.sandbox.ActiveSandboxTask>>(emptyList()) }
+    var pendingTarget by remember { mutableStateOf<com.openminis.app.sandbox.SandboxBackend?>(null) }
+    var switching by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
     fun refresh() {
@@ -436,77 +449,111 @@ private fun SandboxBackendSection() {
     }
 
     fun apply(target: com.openminis.app.sandbox.SandboxBackend, stopActive: Boolean) {
+        if (switching) return
+        switching = true
+        pendingTasks = emptyList()
+        pendingTarget = null
         scope.launch {
-            when (val d = com.openminis.app.sandbox.SandboxSwitchController.requestSwitch(context, target, stopActive)) {
-                is com.openminis.app.sandbox.BackendSwitchDecision.Allowed -> {
-                    message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
-                        "已切换到 chroot。新的命令使用真实 chroot。"
-                    } else {
-                        "已切回 PRoot。数据未删除。"
+            try {
+                when (val d = com.openminis.app.sandbox.SandboxSwitchController.requestSwitch(context, target, stopActive)) {
+                    is com.openminis.app.sandbox.BackendSwitchDecision.Allowed -> {
+                        message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
+                            "已切换到 chroot。新的命令使用真实 chroot；运行时授权失效或 helper 停止后，再点一次 Chroot 即可重新授权启动。"
+                        } else {
+                            "已切回 PRoot。数据未删除。"
+                        }
                     }
-                    pendingTasks = emptyList()
+                    is com.openminis.app.sandbox.BackendSwitchDecision.RefusedActiveTasks -> {
+                        pendingTasks = d.tasks
+                        pendingTarget = target
+                        message = "有 ${d.tasks.size} 个任务在运行，未切换。"
+                    }
+                    is com.openminis.app.sandbox.BackendSwitchDecision.NoChange -> {
+                        message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
+                            "Chroot 已在运行，运行时授权有效；如需重新授权，先切回 PRoot 再切回 Chroot。"
+                        } else {
+                            "当前已是 PRoot（默认后端）。"
+                        }
+                    }
+                    else -> {
+                        message = describeRefusal(d)
+                    }
                 }
-                is com.openminis.app.sandbox.BackendSwitchDecision.RefusedActiveTasks -> {
-                    pendingTasks = d.tasks
-                    message = "有 ${d.tasks.size} 个任务在运行，未切换。"
-                }
-                else -> {
-                    message = describeRefusal(d)
-                }
+            } finally {
+                switching = false
+                refresh()
             }
-            refresh()
+        }
+    }
+
+    // The two segments are the only entry points to a backend change, so both
+    // gates live here: the persisted risk acknowledgement, then the switch
+    // controller (availability, active tasks, root bridge confirmation).
+    fun selectBackend(target: com.openminis.app.sandbox.SandboxBackend) {
+        if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT &&
+            com.openminis.app.sandbox.SandboxBackendStore.authorizedAt(context) <= 0L
+        ) {
+            showRiskDialog = true
+            return
+        }
+        if (target == com.openminis.app.sandbox.SandboxBackend.PROOT &&
+            selected == com.openminis.app.sandbox.SandboxBackend.PROOT
+        ) {
+            message = "当前已是 PRoot（默认后端）。"
+            return
+        }
+        // Chroot is requested even while already selected: requestSwitch()
+        // restarts a helper whose runtime grant/TTL lapsed, and answers
+        // NoChange (handled above) when it is genuinely still running.
+        apply(target, stopActive = false)
+    }
+
+    val chrootSelected = selected == com.openminis.app.sandbox.SandboxBackend.CHROOT
+    val statusLine = buildString {
+        if (chrootSelected) {
+            append("当前使用 Chroot：每个命令在私有 mount namespace 中以本应用 uid 运行；rootfs 与用户数据同 PRoot 共用，切回不删除。")
+        } else {
+            append("当前使用 PRoot：默认后端，无需 root；与 Chroot 共用同一个 rootfs，切换不删除数据。")
+        }
+        append("\nChroot 可用性：").append(availability.summary())
+        availability.lastError?.let { append("\n最近错误：").append(it) }
+        if (chrootSelected && !availability.serverRunning) {
+            append("\n运行时授权已失效或 helper 未运行：再点一次 Chroot 会重新授权并启动。")
         }
     }
 
     SettingsSection(title = "执行后端") {
-        ListItem(
-            headlineContent = { Text("当前后端") },
-            supportingContent = { Text(if (selected == com.openminis.app.sandbox.SandboxBackend.PROOT) "PRoot（默认，无需 root）" else "Chroot（真实 chroot，需运行时 root 授权）") },
-            colors = transparentListItemColors(),
-        )
-        SettingsRowDivider()
-        ListItem(
-            headlineContent = { Text("启用 Chroot 后端") },
-            supportingContent = {
-                Text(
-                    buildString {
-                        append(availability.summary())
-                        availability.lastError?.let { append("\n最近错误：").append(it) }
-                    },
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BackendSegmentButton(
+                    title = "PRoot",
+                    caption = "默认 · 无需 root",
+                    selected = !chrootSelected,
+                    enabled = !switching,
+                    onClick = { selectBackend(com.openminis.app.sandbox.SandboxBackend.PROOT) },
                 )
-            },
-            trailingContent = {
-                if (selected == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                } else {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().clickableListItem(
-                enabled = selected != com.openminis.app.sandbox.SandboxBackend.CHROOT || !availability.serverRunning,
-                onClick = {
-                    // Two gates, in this order: the persisted risk
-                    // acknowledgement, then the root bridge's own
-                    // per-command confirmation inside requestSwitch().
-                    if (com.openminis.app.sandbox.SandboxBackendStore.authorizedAt(context) <= 0L) {
-                        showRiskDialog = true
-                    } else {
-                        apply(com.openminis.app.sandbox.SandboxBackend.CHROOT, stopActive = false)
-                    }
-                },
-            ),
-            colors = transparentListItemColors(),
-        )
-        SettingsRowDivider()
-        ListItem(
-            headlineContent = { Text("切回 PRoot") },
-            supportingContent = { Text("停止 chroot helper，恢复 PRoot 的 Minis 工具；rootfs 与用户数据保持不变") },
-            modifier = Modifier.fillMaxWidth().clickableListItem(
-                enabled = selected != com.openminis.app.sandbox.SandboxBackend.PROOT,
-                onClick = { apply(com.openminis.app.sandbox.SandboxBackend.PROOT, stopActive = false) },
-            ),
-            colors = transparentListItemColors(),
-        )
+                BackendSegmentButton(
+                    title = "Chroot",
+                    caption = "真实 chroot · 需 root",
+                    selected = chrootSelected,
+                    enabled = !switching,
+                    onClick = { selectBackend(com.openminis.app.sandbox.SandboxBackend.CHROOT) },
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = statusLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (switching) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+        }
         SettingsRowDivider()
         ListItem(
             headlineContent = { Text("Root Bridge 设置") },
@@ -547,7 +594,8 @@ private fun SandboxBackendSection() {
                         "• 不修改 SELinux、不重挂载任何分区、不改启动项\n" +
                         "• root 授权仅本次应用运行有效，重启即失效；随时可切回 PRoot，数据不删除\n" +
                         "• 若 guest offload client 未打包，Android/Minis 工具会明确报不可用\n" +
-                        "• 命令以本应用 uid 运行：apt/dpkg 等需要 root 的包管理会拒绝；装包请先切回 PRoot（rootfs 共用，装完再切回）",
+                        "• 命令以本应用 uid 运行：apt/dpkg 等需要 root 的包管理会拒绝\n" +
+                        "• 默认镜像是预装完整环境包（工具链已随镜像内置），无需再装；确需维护包时切回 PRoot 维护同一个 rootfs，完成后再切回 Chroot",
                 )
             },
             confirmButton = {
@@ -575,21 +623,102 @@ private fun SandboxBackendSection() {
             },
             confirmButton = {
                 MinisTextButton(onClick = {
-                    val target = com.openminis.app.sandbox.SandboxBackendStore.selected(context).let {
-                        if (it == com.openminis.app.sandbox.SandboxBackend.PROOT) {
-                            com.openminis.app.sandbox.SandboxBackend.CHROOT
-                        } else {
-                            com.openminis.app.sandbox.SandboxBackend.PROOT
+                    val target = pendingTarget
+                        ?: com.openminis.app.sandbox.SandboxBackendStore.selected(context).let {
+                            if (it == com.openminis.app.sandbox.SandboxBackend.PROOT) {
+                                com.openminis.app.sandbox.SandboxBackend.CHROOT
+                            } else {
+                                com.openminis.app.sandbox.SandboxBackend.PROOT
+                            }
                         }
-                    }
                     pendingTasks = emptyList()
+                    pendingTarget = null
                     apply(target, stopActive = true)
                 }) { Text("停止并切换", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                MinisTextButton(onClick = { pendingTasks = emptyList() }) { Text("取消") }
+                MinisTextButton(onClick = { pendingTasks = emptyList(); pendingTarget = null }) { Text("取消") }
             },
         )
+    }
+}
+
+/**
+ * [FEAT-261025-CHROOT] One half of the PRoot / chroot segmented switch.
+ *
+ * Both halves are equal width ([weight] = 1f), PRoot on the left and chroot on
+ * the right. The selected half is filled with `primary` and carries a check
+ * mark, so the active backend is readable without reading the body text. This
+ * is presentation only: every tap still goes through [selectBackend] and the
+ * switch controller, which keeps the availability and active-task gates.
+ */
+@Composable
+private fun RowScope.BackendSegmentButton(
+    title: String,
+    caption: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .weight(1f)
+            .heightIn(min = 56.dp)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (selected) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = caption,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+            )
+        }
     }
 }
 

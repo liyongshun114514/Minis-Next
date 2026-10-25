@@ -5,9 +5,9 @@
 #   2. Check that the PRoot binary is present (deps/build_proot.sh builds it)
 #
 # This entry point is kept because BUILDING.md / CI call it by name; the
-# download + verification work lives in scripts/prepare_android_ubuntu.sh,
-# which verifies the Ubuntu-signed SHA256SUMS and a pinned digest and never
-# extracts or executes the downloaded guest.
+# official base download/verification lives in prepare_android_ubuntu.sh.
+# The final asset MUST be the preinstalled image from the native ARM64 CI job
+# (build_ubuntu_toolset.sh), not the bare official base.
 #
 # The old Alpine minirootfs (alpine-minirootfs.tar.gz) is no longer fetched or
 # packaged. An existing copy is left on disk, untouched, and reported — the
@@ -26,8 +26,26 @@ PROOT_FILE="$ASSETS_DIR/proot-aarch64"
 
 mkdir -p "$ASSETS_DIR"
 
-# --- Ubuntu rootfs (download + signature/checksum verification) ---
-"$SCRIPT_DIR/prepare_android_ubuntu.sh" "$@"
+# --- Ready image from the native ARM64 preinstall job; no bare-base fallback ---
+TOOLSET_SOURCE="${UBUNTU_TOOLSET_SOURCE:-$PROJECT_ROOT/deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz}"
+[ -s "$TOOLSET_SOURCE" ] || { echo "Missing preinstalled Ubuntu image: $TOOLSET_SOURCE" >&2; exit 1; }
+[ -f "$TOOLSET_SOURCE.sha256" ] || { echo "Missing toolset checksum" >&2; exit 1; }
+( cd "$(dirname "$TOOLSET_SOURCE")" && sha256sum -c "$(basename "$TOOLSET_SOURCE").sha256" )
+cp "$TOOLSET_SOURCE" "$ASSETS_DIR/ubuntu-base-arm64.tar.gz"
+python3 - "$PROJECT_ROOT" "$ASSETS_DIR/ubuntu-base-arm64.tar.gz" <<'PY'
+import importlib.util, pathlib, sys, tempfile, zipfile
+repo, asset = map(pathlib.Path, sys.argv[1:])
+spec = importlib.util.spec_from_file_location('verify_ubuntu_apk', repo / 'scripts/verify_ubuntu_apk.py')
+v = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(v)
+with tempfile.TemporaryDirectory(prefix='minis-preinstalled-check-') as directory:
+    path = pathlib.Path(directory) / 'payload.zip'
+    with zipfile.ZipFile(path, 'w') as z:
+        z.write(asset, v.ROOTFS_ASSETS[0])
+    with zipfile.ZipFile(path) as z:
+        v.validate_rootfs_archive(z, v.ROOTFS_ASSETS[0], require_toolset=True)
+print('PASS preinstalled Ubuntu toolset; no first-terminal installation needed')
+PY
 
 # --- PRoot binary ---
 if [ -f "$PROOT_FILE" ]; then

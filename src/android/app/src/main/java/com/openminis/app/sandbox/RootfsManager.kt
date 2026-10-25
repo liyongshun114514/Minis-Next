@@ -59,7 +59,7 @@ class RootfsManager private constructor(private val context: Context) {
     val prootBinary: File = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
     val isInstalled: Boolean
-        get() = SandboxDistribution.isUbuntuRootfs(rootfsDir)
+        get() = SandboxDistribution.isUbuntuRootfs(rootfsDir) && UbuntuToolsetStatus.isReady(rootfsDir)
 
     /**
      * Directory that received the previous (Alpine/broken) rootfs during the
@@ -176,8 +176,12 @@ class RootfsManager private constructor(private val context: Context) {
                 )
             }
 
-            // Markers. `.arch` keeps the old contract; `.distro` is what makes
-            // isInstalled reject a pre-existing Alpine tree.
+            UbuntuToolsetStatus.problem(staging)?.let { problem ->
+                throw IOException("Bundled Ubuntu toolset is incomplete: $problem")
+            }
+
+            // Markers are written only after the complete preinstalled image
+            // has been extracted and validated, never after a network install.
             File(staging, SandboxDistribution.ARCH_MARKER_FILE).writeText(ARCH)
             File(staging, SandboxDistribution.MARKER_FILE).writeText(SandboxDistribution.MARKER_VALUE)
 
@@ -310,13 +314,13 @@ class RootfsManager private constructor(private val context: Context) {
         }
     }
 
-    /** True once the default toolset (python3, git, curl, …) is installed. */
+    /** All default packages ship preinstalled; a marker alone never proves readiness. */
     val isBootstrapComplete: Boolean
-        get() = File(rootfsDir, SandboxDistribution.BOOTSTRAP_DONE_MARKER).isFile
+        get() = UbuntuToolsetStatus.isReady(rootfsDir)
 
-    /** True when a previous toolset install failed (marker written by the guest). */
+    /** Historical failures do not override a complete, verified preinstalled image. */
     val isBootstrapFailed: Boolean
-        get() = File(rootfsDir, SandboxDistribution.BOOTSTRAP_FAILED_MARKER).isFile
+        get() = !isBootstrapComplete && File(rootfsDir, SandboxDistribution.BOOTSTRAP_FAILED_MARKER).isFile
 
     /**
      * Command a shell executor should run once when [isBootstrapComplete] is

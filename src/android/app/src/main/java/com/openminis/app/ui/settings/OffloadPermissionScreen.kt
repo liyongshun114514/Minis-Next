@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import com.openminis.app.accessibility.MinisAccessibilityService
 import com.openminis.app.accessibility.RestrictedSettingsManager
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.offload.OffloadPermissionManager
+import com.openminis.app.offload.RootManager
 import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisTextButton
@@ -69,6 +71,13 @@ fun OffloadPermissionScreen(
     var unrestricting by remember { mutableStateOf(false) }
     var unrestrictFailed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    // [T-android-root-cli-parity] Native Root card mirrors the Shizuku CLI card
+    // above it. Both mirrors are pure state reads: the su lookup and the
+    // per-command confirmation stay in RootManager / the walkthrough page, so
+    // rendering this page never executes a root command.
+    val rootSnap by RootManager.snapshot.collectAsState()
+    var rootEnabled by remember { mutableStateOf(RootManager.isEnabled()) }
+    var showRootEnable by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         // Re-poll once a second so coming back from system Accessibility
         // settings flips the row without a manual refresh.
@@ -77,6 +86,9 @@ fun OffloadPermissionScreen(
             // Re-probed each tick so the section disappears by itself once the
             // user allows restricted settings and returns.
             a11yRestricted = !a11yEnabled && RestrictedSettingsManager.isRestricted(context)
+            // Same reason for the Root card: the switch may have been flipped on
+            // the walkthrough page, and back-navigation does not recreate us.
+            rootEnabled = RootManager.isEnabled()
             delay(1000)
         }
     }
@@ -216,15 +228,80 @@ fun OffloadPermissionScreen(
             onStatusRowClick = onOpenPrivilegedBackend,
         )
 
-        SettingsSection(header = "原生 Root", footer = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认。") {
-            SettingsRow(title = "android-root-cli · 权限与状态",
-                subtitle = "Root 管理器授权、能力列表与本次验证",
-                onClick = { context.startActivity(Intent(context,
-                    com.openminis.app.rootbridge.RootBridgeSettingsActivity::class.java)) },
-                showDivider = false)
-        }
+        // [T-android-root-cli-parity] Native Root uses the SAME card anatomy as
+        // the android-shizuku-cli card right above: colored leading icon + CLI
+        // title + one-line description, then the agent-gate row(s), then the
+        // chevron "System authorization" row that opens the walkthrough page.
+        // Only the gate differs, deliberately: Root's model is fixed (default
+        // off, explicit opt-in, one confirmation per command, no session /
+        // always-allow grant), so it gets a switch (whose subtitle states the
+        // per-command rule) instead of the tri-state menu with "Bypass".
+        IntegrationSection(
+            iconVector = Icons.Outlined.Terminal,
+            iconTint = Color(0xFFFF9500),
+            sectionHeaderRes = 0,
+            sectionFooterRes = 0,
+            sectionHeaderText = "原生 Root",
+            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认。",
+            toolName = "root_cli",
+            descriptionRes = 0,
+            titleText = "android-root-cli",
+            descriptionText = "su 执行 package / settings / input / file 等设备命令，与 Shizuku 相互独立",
+            systemReady = rootSnap.state == RootManager.State.READY,
+            systemStatusTitleRes = 0,
+            systemStatusText = rootStateLabel(rootSnap.state),
+            systemActionTitleRes = 0,
+            onSystemAction = { openRootBridgeSettings(context) },
+            // Same interaction as the Shizuku row: the status line itself opens
+            // the detail page, whatever the current state is.
+            onStatusRowClick = { openRootBridgeSettings(context) },
+            policyContent = { divider ->
+                SettingsSwitchRow(
+                    title = "允许请求原生 Root",
+                    subtitle = "默认关闭；开启后仅开放请求入口，每条命令仍需单独确认，不产生会话级授权。",
+                    checked = rootEnabled,
+                    onCheckedChange = { on ->
+                        if (on) {
+                            showRootEnable = true
+                        } else {
+                            RootManager.setEnabled(false)
+                            rootEnabled = false
+                        }
+                    },
+                    showDivider = divider,
+                )
+            },
+        )
 
         Spacer(Modifier.height(16.dp))
+    }
+
+    // Same warning as the walkthrough page's dialog: enabling the request entry
+    // must never be a silent toggle, and enabling never runs su.
+    if (showRootEnable) {
+        AlertDialog(
+            onDismissRequest = { showRootEnable = false },
+            title = { Text("启用原生 Root 请求？") },
+            text = {
+                Text(
+                    "Root 命令能控制完整设备，误操作可能丢失数据或导致系统无法启动。" +
+                        "此开关仅开放请求入口，不运行 su；逐次确认之后仍由你的 Root 管理器决定授权。" +
+                        "无需 Xposed 或 Shizuku 服务。"
+                )
+            },
+            confirmButton = {
+                MinisTextButton(onClick = {
+                    RootManager.setEnabled(true)
+                    rootEnabled = true
+                    showRootEnable = false
+                }) { Text("启用请求入口") }
+            },
+            dismissButton = {
+                MinisTextButton(onClick = { showRootEnable = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 
     if (showResetConfirm) {
@@ -285,22 +362,39 @@ private fun IntegrationSection(
     // open it even when the backend is already authorized. Null keeps the
     // original read-only status row + conditional action behavior (a11y row).
     onStatusRowClick: (() -> Unit)? = null,
+    // [T-android-root-cli-parity] Inline-copy overrides so a card can be added
+    // here without a strings.xml edit (Root card). Null keeps the resource id,
+    // so every pre-existing caller renders unchanged.
+    sectionHeaderText: String? = null,
+    sectionFooterText: String? = null,
+    titleText: String? = null,
+    descriptionText: String? = null,
+    systemStatusText: String? = null,
+    // Replaces the generic tri-state AgentPolicyRow for a backend whose
+    // permission model is not the three-level one (Root: fixed per-command
+    // confirmation, so no "Bypass" entry is offered). The Boolean is the
+    // divider flag the policy row has to draw below itself.
+    policyContent: (@Composable (Boolean) -> Unit)? = null,
 ) {
     SettingsSection(
-        header = stringResource(sectionHeaderRes),
-        footer = stringResource(sectionFooterRes),
+        header = sectionHeaderText ?: stringResource(sectionHeaderRes),
+        footer = sectionFooterText ?: stringResource(sectionFooterRes),
     ) {
         // Header row: CLI title + description, with a colored leading icon.
         SettingsRow(
             icon = iconVector,
             iconColor = iconTint,
-            title = stringResource(toolTitleRes(toolName)),
-            subtitle = stringResource(descriptionRes),
+            title = titleText ?: stringResource(toolTitleRes(toolName)),
+            subtitle = descriptionText ?: stringResource(descriptionRes),
             showChevron = false,
         )
 
-        // Agent tri-state policy.
-        AgentPolicyRow(toolName = toolName, showDivider = true)
+        // Agent tri-state policy (or the caller's equivalent gate row).
+        if (policyContent != null) {
+            policyContent(true)
+        } else {
+            AgentPolicyRow(toolName = toolName, showDivider = true)
+        }
 
         // System-layer status. When [onStatusRowClick] is provided the row is a
         // navigation entry (chevron, always shown); otherwise it's read-only.
@@ -311,7 +405,7 @@ private fun IntegrationSection(
             showDivider = onStatusRowClick == null && !systemReady,
             trailing = {
                 Text(
-                    text = stringResource(systemStatusTitleRes),
+                    text = systemStatusText ?: stringResource(systemStatusTitleRes),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (systemReady) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.error,
@@ -534,6 +628,29 @@ private fun openAppDetailsSettings(context: Context) {
             )
         } catch (_: Throwable) {}
     }
+}
+
+/**
+ * [T-android-root-cli-parity] Root state label rendered in the card's "System
+ * authorization" trailing slot, in the same short-label style as
+ * [shizukuSubtitleRes]. Pure state read — it never probes su.
+ */
+fun rootStateLabel(state: RootManager.State): String = when (state) {
+    RootManager.State.DISABLED -> "未启用"
+    RootManager.State.NOT_FOUND -> "未检测到 su"
+    RootManager.State.NEED_PERMISSION -> "等待 Root 授权"
+    RootManager.State.READY -> "已授权"
+    RootManager.State.DENIED -> "已拒绝"
+}
+
+/** Opens the native-Root walkthrough page (enable switch, su lookup, one-shot verify). */
+private fun openRootBridgeSettings(context: Context) {
+    try {
+        context.startActivity(
+            Intent(context, com.openminis.app.rootbridge.RootBridgeSettingsActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (_: Throwable) {}
 }
 
 private fun shizukuSubtitleRes(state: ShizukuManager.State): Int = when (state) {
