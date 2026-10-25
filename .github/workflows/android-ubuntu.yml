@@ -100,6 +100,8 @@ jobs:
           key: ubuntu-base-24.04.5-arm64-v1
       - name: Prepare verified Ubuntu guest
         run: bash scripts/prepare_android_sandbox.sh
+      - name: Check APK payload verifier compatibility
+        run: python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v
       - name: Build APK
         working-directory: src/android
         shell: bash
@@ -115,6 +117,8 @@ jobs:
             :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
         shell: bash
+        env:
+          UBUNTU_ROOTFS_SOURCE: src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
         run: |
           set -euo pipefail
           python3 scripts/verify_ubuntu_apk.py src/android/app/build/outputs/apk/github

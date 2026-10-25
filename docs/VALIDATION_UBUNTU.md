@@ -1,7 +1,7 @@
 # Ubuntu fork validation — 2026-10-25
 
 Source branch: `ubuntu-chroot` in `liyongshun114514/OpenMinis`.
-Latest source commit at this report: `be9af7f`.
+Cloud build verified below: source commit `7258059`; subsequent APK-verifier correction is documented separately.
 
 ## Actually verified
 
@@ -20,8 +20,10 @@ Latest source commit at this report: `be9af7f`.
 
 - Run 40200136218 (b59ed16): failed in existing unit-test compilation because old callers lacked the new permission-request identity argument; fixed in 7258059.
 - Run 40201452769 (be9af7f): cancelled after the same source error was diagnosed, to avoid repeating a known failure.
-- Run 40201745266 (7258059): **in progress**. This is the latest authoritative APK acceptance run.
-- No final APK is claimed built or installable yet. Signing, ZIP/ABI/payload/alignment checks and artifact upload must succeed in the latest run.
+- Run 40201745266 (7258059): **completed/failure**, but `Build APK` succeeded (`BUILD SUCCESSFUL in 12m 49s`), and downloaded JUnit XML confirms **7 tests, 0 failures/errors**. Failure was in the subsequent APK verifier: it required only `assets/ubuntu-base-arm64.tar.gz`, whereas AGP's asset merger decompresses `.gz` files and removes the suffix. The runtime already accepts `.tar` as well as `.tar.gz`.
+- Independently executed the real AGP 8.7.3 / sdk-common 31.7.3 `AssetItem` + `MergedAssetWriter.AssetWorkAction` against a normal synthetic tar.gz: output was named `ubuntu-base-arm64.tar` and exactly matched the original uncompressed tar bytes. Direct aapt2 packaging retains `.gz`; the transformation is specifically AGP's merge stage.
+- APK-verifier correction: accepts exactly one of the runtime-supported `.tar.gz` / `.tar` names, validates Ubuntu 24.04 archive content, and compares its decompressed SHA-256 with the prepared source. CI explicitly requires that source to exist. Main-agent independent ordinary compatibility tests: **20/20 passed**; signature/package/ABI/alignment checks are retained, not bypassed.
+- No final APK is claimed installable or delivered yet. The failed run uploaded only test XML; signing, ZIP/ABI/payload/alignment checks and APK artifact upload remain pending successful end-to-end acceptance.
 
 ## Not verified
 

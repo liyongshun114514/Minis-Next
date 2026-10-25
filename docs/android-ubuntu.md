@@ -105,9 +105,13 @@ Pinned arm64 digests (from the signed SHA256SUMS):
 | 24.04.4 | `04207713ece899c3740823d33690441ad3a7f0ded1101aca744e2b0f37ac7ff2` |
 | 24.04.3 | `7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048` |
 
-`build.gradle.kts` already lists `tar.gz` in `androidResources.noCompress`, so
-the asset is packaged compressed; `RootfsManager` also handles the AAPT
-`.tar`-decompressed case for safety.
+AGP 8.7.3's asset merger inflates `.gz` assets and removes the suffix before
+APK packaging: `ubuntu-base-arm64.tar.gz` normally becomes
+`assets/ubuntu-base-arm64.tar`. `androidResources.noCompress` controls ZIP
+compression, not this merge-stage conversion. `RootfsManager` accepts either
+name and decompresses only the `.gz` form. `verify_ubuntu_apk.py` checks the
+actual archive and compares its decompressed SHA-256 with the checksum-verified
+source asset; accepting `.tar` does not skip the payload check.
 
 ---
 
