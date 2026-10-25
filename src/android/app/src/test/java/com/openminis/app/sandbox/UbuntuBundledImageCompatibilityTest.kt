@@ -11,11 +11,6 @@ import org.junit.Test
 import java.io.BufferedInputStream
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.FileVisitResult
-import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import java.io.IOException
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipFile
 
@@ -66,21 +61,7 @@ class UbuntuBundledImageCompatibilityTest {
 
     @After
     fun cleanUp() {
-        val temporaryRoot = root ?: return
-        // An Ubuntu tree contains absolute guest symlinks. Never use Kotlin's
-        // FileTreeWalk here: cleanup must unlink them, not traverse host paths.
-        // walkFileTree has no FOLLOW_LINKS option, including for broken links.
-        Files.walkFileTree(temporaryRoot.toPath(), object : SimpleFileVisitor<Path>() {
-            override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-                Files.delete(file)
-                return FileVisitResult.CONTINUE
-            }
-            override fun postVisitDirectory(dir: Path, error: IOException?): FileVisitResult {
-                if (error != null) throw error
-                Files.delete(dir)
-                return FileVisitResult.CONTINUE
-            }
-        })
+        root?.let { GuestTreeFiles.deleteTree(it) }
     }
 
     @Test

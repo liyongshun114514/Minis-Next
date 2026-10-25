@@ -115,7 +115,7 @@ class RootfsManager private constructor(private val context: Context) {
 
             // Staging only. The live rootfsDir is not touched until the extract
             // has fully succeeded, so a crash leaves the old guest usable.
-            if (staging.exists()) staging.deleteRecursively()
+            GuestTreeFiles.deleteTree(staging)
             if (!staging.mkdirs() && !staging.isDirectory) {
                 error("Cannot create staging directory at $staging")
             }
@@ -235,7 +235,7 @@ class RootfsManager private constructor(private val context: Context) {
         } catch (t: Throwable) {
             // Only the staging tree is discarded. rootfsDir (old Alpine or a
             // previous Ubuntu install) is intentionally left untouched.
-            runCatching { staging.deleteRecursively() }
+            runCatching { GuestTreeFiles.deleteTree(staging) }
             Log.e(TAG, "Rootfs installation failed", t)
             _installState.value = RootfsInstallState.Failed(t.message ?: t.javaClass.simpleName)
             throw t
@@ -417,19 +417,19 @@ class RootfsManager private constructor(private val context: Context) {
             val rootHome = File(rootfsDir, "root")
             if (rootHome.exists()) {
                 backupDir = File(context.cacheDir, "rootfs-backup-root")
-                backupDir.deleteRecursively()
+                GuestTreeFiles.deleteTree(backupDir)
                 rootHome.copyRecursively(backupDir, overwrite = true)
             }
         }
 
-        rootfsDir.deleteRecursively()
+        GuestTreeFiles.deleteTree(rootfsDir)
         installIfNeeded()
 
         // Restore user data
         if (backupDir != null && backupDir.exists()) {
             val rootHome = File(rootfsDir, "root")
             backupDir.copyRecursively(rootHome, overwrite = true)
-            backupDir.deleteRecursively()
+            GuestTreeFiles.deleteTree(backupDir)
         }
 
         backupDir
@@ -451,7 +451,7 @@ class RootfsManager private constructor(private val context: Context) {
         val rootHome = File(rootfsDir, "root")
         rootHome.mkdirs()
         backupDir.copyRecursively(rootHome, overwrite = true)
-        backupDir.deleteRecursively()
+        GuestTreeFiles.deleteTree(backupDir)
         Log.i(TAG, "User data restored from $backupDir")
     }
 
