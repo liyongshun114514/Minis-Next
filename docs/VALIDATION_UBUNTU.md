@@ -18,8 +18,9 @@ Latest source commit at this report: `be9af7f`.
 
 ## Current cloud status at handoff
 
-- Run 40200136218 (b59ed16): still **in progress**, Build APK step.
-- Run 40201452769 (be9af7f): **pending**, queued without cancelling the earlier build.
+- Run 40200136218 (b59ed16): failed in existing unit-test compilation because old callers lacked the new permission-request identity argument; fixed in 7258059.
+- Run 40201452769 (be9af7f): cancelled after the same source error was diagnosed, to avoid repeating a known failure.
+- Run 40201745266 (7258059): **in progress**. This is the latest authoritative APK acceptance run.
 - No final APK is claimed built or installable yet. Signing, ZIP/ABI/payload/alignment checks and artifact upload must succeed in the latest run.
 
 ## Not verified
