@@ -186,8 +186,10 @@ class Guest:
         self.set_installed(installed)
         self._write_stub(self.root / "bin/apt-get", APT_STUB)
         self._write_stub(self.root / "bin/dpkg-query", DPKG_STUB)
-        if uid is not None:
-            self._write_stub(self.root / "bin/id", ID_STUB)
+        # Always simulate the guest uid, never depend on the host runner uid.
+        # This affects only the isolated test PATH, not real permissions.
+        self.uid = 0 if uid is None else uid
+        self._write_stub(self.root / "bin/id", ID_STUB)
         self.script = self.root / "bootstrap.sh"
         self.script.write_text(guestize(SCRIPT_RAW, self.root), encoding="utf-8")
         self.profile = self.root / "profile.sh"
@@ -240,8 +242,7 @@ class Guest:
             "MINIS_MCP_PROXY": "http://mcp:sup3rsecret@127.0.0.1:9/proxy",
             "HTTPS_PROXY": "http://user:pr0xypass@127.0.0.1:9",
         }
-        if uid is not None:
-            env["MINIS_TEST_UID"] = str(uid)
+        env["MINIS_TEST_UID"] = str(self.uid if uid is None else uid)
         return env
 
     def run(self, *args, backend="PROOT", uid=None):
