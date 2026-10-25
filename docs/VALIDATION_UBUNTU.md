@@ -1,7 +1,7 @@
 # Ubuntu fork validation — 2026-10-25
 
 Source branch: `ubuntu-chroot` in `liyongshun114514/OpenMinis`.
-Cloud build verified below: source commit `7258059`; subsequent APK-verifier correction is documented separately.
+Cloud builds verified below: source commits `7258059` and `9cd091a`; subsequent APK-verifier corrections are documented separately.
 
 ## Actually verified
 
@@ -23,7 +23,10 @@ Cloud build verified below: source commit `7258059`; subsequent APK-verifier cor
 - Run 40201745266 (7258059): **completed/failure**, but `Build APK` succeeded (`BUILD SUCCESSFUL in 12m 49s`), and downloaded JUnit XML confirms **7 tests, 0 failures/errors**. Failure was in the subsequent APK verifier: it required only `assets/ubuntu-base-arm64.tar.gz`, whereas AGP's asset merger decompresses `.gz` files and removes the suffix. The runtime already accepts `.tar` as well as `.tar.gz`.
 - Independently executed the real AGP 8.7.3 / sdk-common 31.7.3 `AssetItem` + `MergedAssetWriter.AssetWorkAction` against a normal synthetic tar.gz: output was named `ubuntu-base-arm64.tar` and exactly matched the original uncompressed tar bytes. Direct aapt2 packaging retains `.gz`; the transformation is specifically AGP's merge stage.
 - APK-verifier correction: accepts exactly one of the runtime-supported `.tar.gz` / `.tar` names, validates Ubuntu 24.04 archive content, and compares its decompressed SHA-256 with the prepared source. CI explicitly requires that source to exist. Main-agent independent ordinary compatibility tests: **20/20 passed**; signature/package/ABI/alignment checks are retained, not bypassed.
-- No final APK is claimed installable or delivered yet. The failed run uploaded only test XML; signing, ZIP/ABI/payload/alignment checks and APK artifact upload remain pending successful end-to-end acceptance.
+- Run 40203864705 (9cd091a): `Build APK` and the 20 payload-verifier compatibility tests succeeded. Downloaded JUnit XML again confirms **7 tests, 0 failures/errors**. The payload content/source-digest and package checks completed, then verification failed at the old `launchable-activity:` badging assertion.
+- Launcher correction: the app's dynamic icon uses enabled/exported `activity-alias` pointing to `MainActivity`. Independently compiled an ordinary two-alias manifest with real aapt2; `dump badging` omitted `launchable-activity:` while `dump xmltree` retained the valid structure. The verifier now checks the compiled manifest for enabled/exported MAIN + LAUNCHER in the same intent-filter and a declared, enabled activity target. Main-agent independent tests: **21 launcher tests + 20 payload tests passed**, including real aapt2 packaging fixtures. No app/runtime/permission behavior was changed.
+- CI now retains a clearly labelled **UNVERIFIED diagnostic APK** for three days if compilation succeeds but verification fails; this is not an accepted delivery. This avoids losing build bytes needed for further diagnosis. Normal verified artifact upload still requires full verification success.
+- No final APK is claimed installable or delivered yet. The failed run uploaded only test XML; signature/alignment checks and verified APK artifact upload remain pending successful end-to-end acceptance.
 
 ## Not verified
 

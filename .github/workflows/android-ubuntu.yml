@@ -100,9 +100,12 @@ jobs:
           key: ubuntu-base-24.04.5-arm64-v1
       - name: Prepare verified Ubuntu guest
         run: bash scripts/prepare_android_sandbox.sh
-      - name: Check APK payload verifier compatibility
-        run: python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v
+      - name: Check APK verifier compatibility
+        run: |
+          python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v
+          python3 -m unittest discover -s scripts/tests -p test_verify_android_launcher.py -v
       - name: Build APK
+        id: build-apk
         working-directory: src/android
         shell: bash
         env:
@@ -116,6 +119,7 @@ jobs:
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*UbuntuNormalCompatibilityTest' \
             :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
+        id: verify-apk
         shell: bash
         env:
           UBUNTU_ROOTFS_SOURCE: src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
@@ -132,6 +136,16 @@ jobs:
             src/android/app/build/outputs/mapping/githubRelease/mapping.txt
           if-no-files-found: error
           retention-days: 14
+      # Diagnostic only: never treat this artifact as an accepted delivery.
+      # Retain built bytes if verification fails so diagnosis need not rebuild.
+      - name: Retain unverified APK only after a verification failure
+        if: failure() && steps.build-apk.outcome == 'success' && steps.verify-apk.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: UNVERIFIED-diagnostic-APK-${{ github.run_number }}
+          path: src/android/app/build/outputs/apk/github/**/*.apk
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
