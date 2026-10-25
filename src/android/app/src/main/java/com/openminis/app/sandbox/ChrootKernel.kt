@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.io.File
 import java.security.SecureRandom
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,7 +33,7 @@ import kotlinx.coroutines.withContext
  *
  * For each request it forks, then in the child: `unshare(CLONE_NEWNS)`, make
  * `/` private, bind the minimal device nodes, mount a fresh procfs, bind the
- * validated `/var/minis/*` mounts (read-only ones remounted `MS_RDONLY`),
+ * validated `/var/minis/...` mounts (read-only ones remounted `MS_RDONLY`),
  * `chroot(rootfs)`, `chdir(cwd)`, drop to the app uid/gid, `setsid()`, and
  * `execve`. The host keeps streaming stdio through the client, so exit codes,
  * `Ctrl-C`, PTYs and `Stop` behave exactly as they do under PRoot.
@@ -68,6 +69,9 @@ object ChrootKernel {
     /** How long the unprivileged stop client may take. */
     private const val STOP_TIMEOUT_MS = 5_000L
 
+    /** How long the unprivileged liveness probe (`/bin/sh -c true`) may take. */
+    private const val PROBE_TIMEOUT_MS = 5_000L
+
     /** How long [serverArgv]'s helper may idle before exiting on its own. */
     const val DEFAULT_IDLE_TTL_SECONDS = 900
 
@@ -96,7 +100,8 @@ object ChrootKernel {
             offloadClientInstalled = offloadClientPath(context).let { it.isFile && it.canExecute() },
             bridgePresent = ChrootPrivilege.bridgePresent(),
             rootManagerDetected = ChrootPrivilege.rootManagerDetected(),
-            serverRunning = SandboxBackendStore.chrootGranted(generation),
+            serverRunning = SandboxBackendStore.chrootGranted(generation) &&
+                !SandboxBackendStore.chrootGrantMayBeExpired(generation),
             lastError = SandboxBackendStore.lastError(context),
         )
     }
@@ -363,6 +368,13 @@ object ChrootKernel {
         val notes = mutableListOf<String>()
         if (!SandboxBackendStore.chrootGranted(generation)) {
             notes += "no runtime root grant for generation=$generation; client will exit $EXIT_NO_HELPER"
+        } else if (SandboxBackendStore.chrootGrantMayBeExpired(generation)) {
+            // The command still gets the real client argv; if the helper's
+            // idle TTL already fired it exits EXIT_NO_HELPER and the user is
+            // told to re-enable chroot. Never fall back to running outside
+            // the sandbox.
+            notes += "runtime grant may be stale (helper idle TTL); a command may exit $EXIT_NO_HELPER " +
+                "until chroot is started again"
         }
         notes += rejected.map { "mount rejected: $it" }
         if (offloadRoute == SandboxOffloadRoute.BLOCKED) {
@@ -407,7 +419,52 @@ object ChrootKernel {
             return Result.failure(IllegalStateException("helper not packaged: ${launcher.absolutePath}"))
         }
         val generation = SandboxBackendStore.generation(context)
-        if (SandboxBackendStore.chrootGranted(generation)) return Result.success(Unit)
+        if (SandboxBackendStore.chrootGranted(generation)) {
+            if (!SandboxBackendStore.chrootGrantMayBeExpired(generation)) {
+                return Result.success(Unit)
+            }
+            // [FEAT-261025-CHROOT] The helper enforces its own idle TTL, so a
+            // live grant can outlive the process it names. Do NOT trust the
+            // boolean: ask the helper (as the ordinary app-uid client) before
+            // either declaring success or starting a second one.
+            when (val probe = probeServer(context, generation)) {
+                EXIT_NO_HELPER -> {
+                    Log.i(TAG, "helper for generation=$generation is gone (idle TTL/crash); relaunching")
+                    SandboxBackendStore.revokeChrootGrant()
+                }
+                null -> {
+                    val reason =
+                        "chroot helper state unknown: liveness probe did not complete; " +
+                            "refusing to start a second helper"
+                    SandboxBackendStore.setLastError(context, reason)
+                    return Result.failure(IllegalStateException(reason))
+                }
+                else -> {
+                    // The lease was merely stale; a long-running command kept
+                    // the helper alive. Re-arm the timestamp, not root.
+                    SandboxBackendStore.grantChrootForProcess(generation)
+                    SandboxBackendStore.setLastError(context, null)
+                    Log.i(TAG, "helper still alive (probe exit=$probe); grant refreshed")
+                    return Result.success(Unit)
+                }
+            }
+        }
+
+        // A helper started by a PREVIOUS app process can still be alive: the
+        // in-memory grant died with that process, the detached root helper
+        // did not. It still owns this generation's abstract socket, so a new
+        // helper would fail to bind. Stopping it is unprivileged (app-uid
+        // client) and harmless when nothing is listening (exit 97).
+        val staleStop = stopServer(context, generation)
+        if (staleStop == null || (staleStop != 0 && staleStop != EXIT_NO_HELPER)) {
+            val reason = if (staleStop == null) {
+                "could not confirm that a previous chroot helper is stopped (client did not finish)"
+            } else {
+                "previous chroot helper did not stop (client exit=$staleStop)"
+            }
+            SandboxBackendStore.setLastError(context, reason)
+            return Result.failure(IllegalStateException(reason))
+        }
 
         val argv = serverArgv(
             launcher = launcher.absolutePath,
@@ -415,14 +472,9 @@ object ChrootKernel {
             generation = generation,
             allowedHostRoots = allowedHostRoots(context),
             uid = android.os.Process.myUid(),
-            gid = android.os.Process.myPid().let { 0 }, // replaced below
+            gid = appGid(),
         )
-        // The helper drops to the app's uid; the primary gid is the app's too.
-        val fixedArgv = argv.toMutableList().also {
-            val gidIndex = it.indexOf("--gid") + 1
-            if (gidIndex in it.indices) it[gidIndex] = appGid().toString()
-        }
-        val outcome = ChrootPrivilege.run(context, fixedArgv, reason)
+        val outcome = ChrootPrivilege.run(context, argv, reason)
         // A printed handshake is not enough: `su` may print it from a wrapper
         // or the helper may die right after binding. Only exit 0 counts.
         val pid = if (outcome.exitCode == 0) parseHandshake(outcome.stdout, generation) else null
@@ -454,41 +506,119 @@ object ChrootKernel {
     }
 
     /**
+     * [FEAT-261025-CHROOT] Ask a running helper whether it is still there.
+     *
+     * The helper has no ping frame, so the cheapest honest question is a real
+     * command. This runs as the ordinary app-uid client (same as every other
+     * command; no root prompt) and returns the client's exit code:
+     *
+     *  - [EXIT_NO_HELPER]: nothing is listening on this generation's abstract
+     *    socket — the idle TTL or a crash ended it;
+     *  - any other code: the helper answered. The probe command itself may
+     *    have failed (98 rejected, 126/127 exec), but that still proves the
+     *    server is alive;
+     *  - `null`: it could not be started or did not finish. The state is
+     *    UNKNOWN, and callers must not start a second helper: two servers on
+     *    one abstract socket would fight over the name.
+     */
+    private suspend fun probeServer(context: Context, generation: String): Int? {
+        val launcherFile = launcher(context)
+        if (!launcherFile.isFile) return EXIT_NO_HELPER
+        return withContext(Dispatchers.IO) {
+            val proc = runCatching {
+                val pb = ProcessBuilder(
+                    clientArgv(
+                        launcher = launcherFile.absolutePath,
+                        generation = generation,
+                        rootfs = rootfs(context).absolutePath,
+                        guestArgv = listOf("/bin/sh", "-c", "true"),
+                        mounts = emptyList(),
+                    ),
+                )
+                pb.redirectErrorStream(true)
+                pb.start()
+            }.getOrNull() ?: return@withContext null
+            val finished = runCatching { proc.waitFor(PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS) }
+                .getOrDefault(false)
+            if (!finished) {
+                runCatching { proc.destroyForcibly() }
+                return@withContext null
+            }
+            // The probe prints at most one diagnostic line; drain it without
+            // letting a write block the child.
+            runCatching { proc.inputStream.readBytes() }
+            runCatching { proc.exitValue() }.getOrNull()
+        }
+    }
+
+    /**
+     * [FEAT-261025-CHROOT] Ask the helper to exit, as the ordinary app-uid
+     * client.
+     *
+     * [security] The stop request is unprivileged on purpose: the helper
+     * checks SO_PEERCRED against `--uid`, so routing this through
+     * [RootManager] would run it as uid 0 (rejected) and would ask the user
+     * for a root grant just to shut down.
+     *
+     * @return the client's exit code (0 = the server acknowledged and is
+     *   exiting, [EXIT_NO_HELPER] = nothing was listening), or `null` when
+     *   the client timed out / could not start.
+     */
+    private suspend fun stopServer(context: Context, generation: String): Int? {
+        val launcherFile = launcher(context)
+        if (!launcherFile.isFile) return EXIT_NO_HELPER
+        return withContext(Dispatchers.IO) {
+            val proc = runCatching {
+                val pb = ProcessBuilder(
+                    stopArgv(launcherFile.absolutePath, generation, rootfs(context).absolutePath),
+                )
+                pb.redirectErrorStream(true)
+                pb.start()
+            }.getOrNull() ?: return@withContext null
+            val finished = runCatching { proc.waitFor(STOP_TIMEOUT_MS, TimeUnit.MILLISECONDS) }
+                .getOrDefault(false)
+            if (!finished) {
+                runCatching { proc.destroyForcibly() }
+                return@withContext null
+            }
+            runCatching { proc.inputStream.readBytes() }
+            runCatching { proc.exitValue() }.getOrNull()
+        }
+    }
+
+    /**
      * [FEAT-261025-CHROOT] Stop the helper and restore the PRoot stub set.
      *
      * Nothing under the rootfs is deleted except this backend's own state
      * directory and the offload wrappers, which are re-created by
      * [PRootKernel.refreshOffloadStubs]. User data, installed packages and the
      * rootfs itself are untouched — switching back to PRoot is not a reset.
+     *
+     * The stop is attempted whenever the launcher exists, NOT only when this
+     * process holds a grant: a helper started by an earlier app process
+     * survives that process (it is detached) for up to its idle TTL, and the
+     * persisted generation is the only handle on it. If the helper does not
+     * confirm the stop, the generation is deliberately NOT rotated — rotating
+     * would make a still-running helper unreachable forever.
      */
     suspend fun shutdown(context: Context): Boolean {
         val generation = SandboxBackendStore.generation(context)
-        val launcher = launcher(context)
-        var stopped = false
-        if (SandboxBackendStore.chrootGranted(generation) && launcher.isFile) {
-            // [security] The stop request is an ORDINARY client: it runs as the
-            // app uid and is accepted because the helper checks SO_PEERCRED
-            // against --uid. Routing it through RootManager would run it as
-            // uid 0, which the helper rejects — and would ask the user for a
-            // root grant just to shut down.
-            stopped = withContext(Dispatchers.IO) {
-                runCatching {
-                    val pb = ProcessBuilder(
-                        stopArgv(launcher.absolutePath, generation, rootfs(context).absolutePath),
-                    )
-                    pb.redirectErrorStream(true)
-                    val proc = pb.start()
-                    val finished = proc.waitFor(STOP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
-                    if (!finished) runCatching { proc.destroyForcibly() }
-                    finished && proc.exitValue() == 0
-                }.getOrDefault(false)
-            }
-        }
+        val stopExit = stopServer(context, generation)
+        val stopped = stopExit == 0
+        val gone = stopped || stopExit == EXIT_NO_HELPER
         SandboxBackendStore.revokeChrootGrant()
-        SandboxBackendStore.rotateGeneration(context)
-        runCatching { stateDir(context).deleteRecursively() }
+        if (gone) {
+            SandboxBackendStore.rotateGeneration(context)
+            runCatching { stateDir(context).deleteRecursively() }
+        } else {
+            Log.w(TAG, "shutdown: helper did not confirm stop (client exit=$stopExit); generation kept")
+            SandboxBackendStore.setLastError(
+                context,
+                "chroot helper did not confirm stop (client exit=${stopExit ?: "timeout"})",
+            )
+        }
         PRootKernel.refreshOffloadStubs()
-        Log.i(TAG, "shutdown: helperStopped=$stopped, PRoot stubs restored, rootfs untouched")
+        Log.i(TAG, "shutdown: helperStopped=$stopped gone=$gone, PRoot stubs restored, rootfs untouched")
         return stopped
     }
 

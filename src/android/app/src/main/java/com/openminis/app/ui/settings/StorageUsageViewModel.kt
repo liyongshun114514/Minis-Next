@@ -199,7 +199,9 @@ internal class StorageUsageViewModel(
                 }
                 UiState(
                     isLoading = false,
-                    shellSize = SessionStorage.directorySize(File(appContext.filesDir, "alpine-rootfs")),
+                    shellSize = (listOf(File(appContext.filesDir, "alpine-rootfs")) +
+                        com.openminis.app.sandbox.RootfsManager.getInstance(appContext).legacyBackupDirs)
+                        .sumOf { SessionStorage.directorySize(it) },
                     dbSize = databaseSize(appContext),
                     logsCachesSize = LogsAndCachesCleaner.size(appContext),
                     orphanBytes = orphanScan.totalBytes,
@@ -220,7 +222,9 @@ internal class StorageUsageViewModel(
         shellStale = false
         viewModelScope.launch {
             val size = withContext(Dispatchers.IO) {
-                SessionStorage.directorySize(File(appContext.filesDir, "alpine-rootfs"))
+                (listOf(File(appContext.filesDir, "alpine-rootfs")) +
+                        com.openminis.app.sandbox.RootfsManager.getInstance(appContext).legacyBackupDirs)
+                        .sumOf { SessionStorage.directorySize(it) }
             }
             _state.update { it.copy(shellSize = size) }
         }

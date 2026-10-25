@@ -49,7 +49,7 @@ Files:
 | `sandbox/RootfsManagementScreen.kt` | backend section, risk dialog, active-task dialog, Root Bridge settings entry |
 | `cpp/minis_chroot.c` | privileged helper + unprivileged client, one protocol |
 | `cpp/minis_offload_client.c` | guest-side native_offload client (same wire protocol as proot) |
-| `test/.../ChrootBackendTest.kt` | pure-JVM tests |
+| `test/.../UbuntuNormalCompatibilityTest.kt` | ordinary asset/source/bootstrap configuration checks |
 
 ## 3. Switching: refuse, never silently cut
 
@@ -184,6 +184,32 @@ never visible under the final name. If the asset is absent the backend reports
 `RootManager` must stay initialised at startup and “Native Root” enabled; that
 is the only wiring `ChrootPrivilege` needs.
 
+## 9b. Ubuntu rootfs: no busybox, and the first-run bootstrap
+
+The rootfs is shared with the Ubuntu 24.04 port, which ships no busybox. The
+PRoot wrappers were rewritten accordingly:
+
+* `top` calls `ps` from `PATH` (procps on Ubuntu, busybox applet on the old
+  Alpine image) instead of `/bin/busybox ps`.
+* The read-only-mount write guards exec `/usr/bin/<name>` or `/bin/<name>`
+  first (absolute, so they cannot re-enter the wrapper) and fall back to
+  `/bin/busybox <name>` only when busybox exists; otherwise they print
+  `not found in /usr/bin or /bin` and exit 127.
+
+`RootfsManager` performs the Ubuntu bootstrap from the first INTERACTIVE
+shell, so an agent's non-interactive command can run before python/git exist.
+`SandboxRouter` therefore attaches a one-time, user-visible hint to a
+non-interactive PRoot spawn when `isBootstrapComplete` is false:
+
+* not failed → “first-time initialisation is not finished; open a terminal and
+  run `minis-bootstrap` once”;
+* failed → the same line framed as a retry instruction.
+
+It deliberately does not execute `minis-bootstrap` itself: that is an apt run
+that can exceed the tool-call timeout, and retrying it per command is exactly
+the loop the requirement forbids. The hint is emitted once per shell instance,
+prepended to the command's output, never as a silent success.
+
 ## 10. Security review notes (post-review fixes)
 
 Applied after the main agent's review, no vulnerability reproduction performed:
@@ -221,15 +247,9 @@ Verified in this workspace (no device root used):
 
 * `minis_chroot.c` and `minis_offload_client.c` compile clean with
   `aarch64-linux-android24-clang -std=c11 -O2 -Wall -Wextra` (NDK r28).
-* Pure-JVM tests: switch policy (refusal vs confirmed stop), mount allowlist
-  (escape, `..`, `:`, `/`, `/etc`), argv shapes (command only after `--`,
-  privileged argv free of user data), handshake nonce matching, availability
-  wording, protocol constants matched against `NativeOffload.kt`, and source
-  facts for the four spawn sites. `ChrootBackendTest`.
-* `./gradlew testDebugUnitTest --tests '*ChrootBackendTest'` was attempted;
-  see the delivery report for whether the offline Gradle cache allowed it in
-  this environment. If it did not run, the tests are still compile-ready and
-  should be run in CI.
+* The integrator independently cross-compiled the Android PIE launcher with NDK r28 and verified all PT_LOAD segments for 16 KiB compatibility plus the exact Android linker path. It was not executed.
+* Lifecycle and mount handling received static code review only. No security-trigger or exploitability tests were run; associated synthetic security fixtures are not in the final delivery.
+* Seven ordinary configuration/Root-disabled/Root-denied tests ran successfully outside Gradle (`UbuntuNormalCompatibilityTest`, `NativeRootPolicyTest`). Cloud CI is the authoritative whole-module compilation and APK check; this document does not claim it succeeded.
 
 NOT verified (needs a rooted device):
 

@@ -37,9 +37,7 @@ Touched files (all within the delegated scope):
   mirrors, deb822 writer, official restore.
 - `src/.../ui/sandbox/RootfsManagementViewModel.kt` — distro label, preserved
   backup path, migration-aware result messages.
-- `src/.../sandbox/sandbox tests` — `SandboxDistributionTest.kt`,
-  `UbuntuTarExtractionTest.kt` (new, JVM); `RootfsManagerInstrumentedTest.kt`
-  updated to the new marker/asset contract.
+- `src/.../sandbox/UbuntuNormalCompatibilityTest.kt` — ordinary asset/source/bootstrap configuration checks; `RootfsManagerInstrumentedTest.kt` updated to the new marker/asset contract (not device-run).
 - `scripts/tests/test_prepare_android_ubuntu.py`,
   `scripts/tests/test_ubuntu_rootfs_contract.py` — **new** (stdlib only).
 - `docs/android-ubuntu.md` — this file.
@@ -358,10 +356,7 @@ emulator, `apt-get update` inside the guest. `RootfsManager`,
 `MirrorSettingsScreen` and the ViewModel could not be compiled here (they need
 the Android SDK), and the new JVM tests were not executed because JUnit is not
 available in this environment. No APK was produced and no on-device claim is
-made. Per the verification-scope instruction, no malicious/security-trigger tar
-input was constructed or run; the traversal/tar-slip cases exist only as unit
-test vectors (`SandboxDistributionTest`, `UbuntuTarExtractionTest`) for a later
-Gradle run.
+made. The final integration retains ordinary configuration tests and official-archive metadata inspection only. Security-trigger fixtures were removed and are not part of CI. The integrator separately compiled and ran `UbuntuNormalCompatibilityTest` and `NativeRootPolicyTest`: 7 ordinary tests passed; these do not establish device operation.
 
 ---
 

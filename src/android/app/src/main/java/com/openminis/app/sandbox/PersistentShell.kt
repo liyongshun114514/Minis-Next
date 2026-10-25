@@ -221,7 +221,9 @@ class PersistentShell(
         com.openminis.app.logging.AppLogger.info(
             TAG,
             "spawn ctx: proot=${rootfsManager.prootBinary.exists()} " +
-                "rootfs=${File(rootfsManager.rootfsDir, "bin/busybox").exists()} " +
+                // [FEAT-261025-CHROOT] The shared rootfs may be Ubuntu (no
+                // busybox); probe the shell that actually exists.
+                "rootfs_sh=${File(rootfsManager.rootfsDir, "bin/sh").exists() || File(rootfsManager.rootfsDir, "usr/bin/sh").exists()} " +
                 "loader64=${PRootKernel.prootLoaderPath.isNotEmpty()} " +
                 "loader32=${PRootKernel.prootLoader32Path.isNotEmpty()}",
         )

@@ -1,6 +1,7 @@
 package com.openminis.app.sandbox
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 
@@ -119,6 +120,9 @@ data class ChrootAvailability(
             "chroot helper not installed in this build (libminis-chroot.so)"
         !bridgePresent ->
             "root bridge not available — chroot needs the Minis root bridge"
+        !serverRunning ->
+            "chroot helper is not confirmed running (no grant, or its idle TTL expired) — " +
+                "switch to chroot again to start it"
         !offloadClientInstalled ->
             "chroot ready; Minis tools BLOCKED (guest offload client not installed)"
         else -> "chroot ready; Minis tools via guest offload client"
@@ -255,6 +259,17 @@ object SandboxBackendStore {
     }
 
     /**
+     * [FEAT-261025-CHROOT] Persist ONLY the risk acknowledgement.
+     *
+     * [setSelected] stays the single writer of the selected backend, so the
+     * acknowledgement cannot make the store claim a backend that was never
+     * started. See [SandboxSwitchController.authorizeChroot].
+     */
+    fun setAuthorizedAt(context: Context, at: Long) {
+        prefs(context).edit().putLong(KEY_AUTHORIZED_AT, at).apply()
+    }
+
+    /**
      * The helper's socket name / challenge nonce. Regenerated on every helper
      * start so a stale process can never be mistaken for the live one, and so
      * nobody can connect to a name learned from an earlier run. Persisted only
@@ -285,16 +300,54 @@ object SandboxBackendStore {
     @Volatile
     private var grantedGeneration: String? = null
 
+    /**
+     * [FEAT-261025-CHROOT] When the grant was recorded, on the monotonic
+     * clock. The grant is a fact about THIS process, but the helper it names
+     * enforces its own idle TTL ([ChrootKernel.DEFAULT_IDLE_TTL_SECONDS]) and
+     * may already have exited. Recording the time lets readers tell "definitely
+     * active" from "possibly gone" instead of reporting a stale boolean.
+     */
+    @Volatile
+    private var grantedAtElapsedMs: Long = 0L
+
     fun grantChrootForProcess(generation: String) {
         grantedGeneration = generation
+        grantedAtElapsedMs = SystemClock.elapsedRealtime()
         Log.i(TAG, "chroot runtime grant present for generation=$generation")
     }
 
     fun chrootGranted(generation: String): Boolean = grantedGeneration == generation
 
+    /**
+     * [FEAT-261025-CHROOT] True when the helper may have exited on its idle
+     * TTL even though [chrootGranted] still reports a grant.
+     *
+     * This is deliberately a *lower bound*, not a liveness test: the helper
+     * refreshes its TTL on every accepted connection, and a long-running
+     * command keeps its handler alive past this point. So callers must use it
+     * only to decide that a handshake is needed — [ChrootKernel.ensureServer]
+     * probes an unprivileged `/bin/sh -c true` before it will start a second
+     * helper — never to claim the helper is dead.
+     *
+     * A small margin covers the gap between the handshake and our timestamp;
+     * it is capped at half the TTL so a short TTL stays meaningful.
+     */
+    fun chrootGrantMayBeExpired(
+        generation: String,
+        idleTtlSeconds: Int = ChrootKernel.DEFAULT_IDLE_TTL_SECONDS,
+    ): Boolean {
+        if (grantedGeneration != generation) return false
+        val recordedAt = grantedAtElapsedMs
+        if (recordedAt <= 0L) return false
+        val ttlMs = idleTtlSeconds.coerceAtLeast(1) * 1000L
+        val marginMs = 60_000L.coerceAtMost(ttlMs / 2)
+        return SystemClock.elapsedRealtime() - recordedAt >= ttlMs - marginMs
+    }
+
     fun revokeChrootGrant() {
         if (grantedGeneration != null) Log.i(TAG, "chroot runtime grant revoked")
         grantedGeneration = null
+        grantedAtElapsedMs = 0L
     }
 }
 
@@ -311,12 +364,25 @@ data class SandboxSpawn(
     val env: Map<String, String>,
     val offload: SandboxOffloadRoute,
     val notes: List<String> = emptyList(),
+    /**
+     * [FEAT-261025-UBUNTU] User-visible one-liner for a first-run condition that
+     * would otherwise look like "the sandbox has no python/git". Null when
+     * nothing is wrong; callers prepend it to the command output.
+     */
+    val warning: String? = null,
 )
 
 /** [FEAT-261025-CHROOT] What a spawn site asks for. */
 data class SandboxCommandSpec(
     /** Shell string. Ignored when [interactive] is true. */
     val command: String,
+    /**
+     * Non-null on the fresh-process path: where the in-guest wrapper reports
+     * the exit status (see `ForegroundCommandGroup`). The PRoot backend appends
+     * the wrapper; the chroot backend does not need it — the helper reports the
+     * real child status itself and Stop/timeout kill the process group.
+     */
+    val statusGuestPath: String? = null,
     /** Long-lived `<shell>` with no `-c` (warm shell / terminal). */
     val interactive: Boolean = false,
     /** Login+interactive flags for the terminal (`/bin/sh -l -i`). */
@@ -345,9 +411,42 @@ object SandboxRouter {
 
     fun build(context: Context, spec: SandboxCommandSpec): SandboxSpawn =
         when (SandboxBackendStore.selected(context)) {
-            SandboxBackend.PROOT -> prootSpawn(context, spec)
+            SandboxBackend.PROOT -> withBootstrapHint(context, spec, prootSpawn(context, spec))
             SandboxBackend.CHROOT -> ChrootKernel.spawn(context, spec)
         }
+
+    /**
+     * [FEAT-261025-UBUNTU] Ubuntu rootfs bootstrap is done by the FIRST
+     * INTERACTIVE shell, so a non-interactive agent command can run before
+     * python/git exist. Saying nothing would let the agent conclude the tool is
+     * missing from the image.
+     *
+     * We deliberately do NOT run `minis-bootstrap` from here: it is an apt
+     * install that can take minutes, would run under the tool call's timeout,
+     * and retrying it on every command is exactly the loop the requirement
+     * forbids. The caller gets one explicit sentence pointing at the terminal
+     * command, and [RootfsManager.isBootstrapFailed] turns it into a retry hint
+     * instead of an endless "initialising…".
+     */
+    private fun withBootstrapHint(
+        context: Context,
+        spec: SandboxCommandSpec,
+        spawn: SandboxSpawn,
+    ): SandboxSpawn {
+        if (spec.interactive) return spawn
+        val manager = runCatching { RootfsManager.getInstance(context) }.getOrNull() ?: return spawn
+        if (manager.isBootstrapComplete) return spawn
+        val command = runCatching { manager.bootstrapCommand() }.getOrDefault("minis-bootstrap")
+        val text = if (manager.isBootstrapFailed) {
+            "首次初始化（$command）上次失败：请打开终端执行 `$command` 重试；" +
+                "在此之前命令可能缺少 python/git 等工具。"
+        } else {
+            "首次初始化尚未完成：非交互命令可能缺少 python/git 等工具。" +
+                "请打开终端执行一次 `$command` 完成初始化（不会自动重复执行）。"
+        }
+        Log.w(TAG, "bootstrap hint (complete=${manager.isBootstrapComplete} failed=${manager.isBootstrapFailed})")
+        return spawn.copy(warning = text)
+    }
 
     /**
      * The PRoot argv comes from [PRootKernel.buildProotCommand] verbatim for
@@ -358,7 +457,12 @@ object SandboxRouter {
     private fun prootSpawn(context: Context, spec: SandboxCommandSpec): SandboxSpawn {
         val mounts = spec.sessionMounts ?: PRootKernel.bindMounts
         val argv = when {
-            !spec.interactive -> PRootKernel.buildProotCommand(spec.command, mounts)
+            !spec.interactive -> {
+                val shellArgv = spec.statusGuestPath?.let { statusPath ->
+                    ForegroundCommandGroup.wrapForFreshProcess(spec.command, statusPath)
+                } ?: listOf("/bin/sh", "-c", spec.command)
+                PRootKernel.buildProotArgv(shellArgv, mounts)
+            }
             spec.loginShell -> PRootKernel.buildProotInteractiveCommand(listOf("/bin/sh", "-l", "-i"), mounts)
             else -> PRootKernel.buildProotInteractiveCommand(listOf("/bin/sh"), mounts)
         }
@@ -399,9 +503,20 @@ object SandboxRouter {
 object SandboxSwitchController {
     private const val TAG = "SandboxSwitchController"
 
-    /** Record the user's explicit risk acknowledgement (shown by the UI). */
+    /**
+     * [FEAT-261025-CHROOT] Record the user's explicit risk acknowledgement
+     * (shown by the UI). Does NOT select chroot.
+     *
+     * The UI calls this immediately before [requestSwitch]. The previous
+     * implementation wrote `selected = CHROOT` here, so requestSwitch then
+     * saw `current == target`, returned [BackendSwitchDecision.NoChange], and
+     * the first "enable chroot" never checked availability/active tasks,
+     * never started the helper, and persisted a backend whose commands all
+     * exited [ChrootKernel.EXIT_NO_HELPER]. The selection is written only
+     * after the helper handshake succeeds (see [requestSwitch]).
+     */
     fun authorizeChroot(context: Context, at: Long = System.currentTimeMillis()) {
-        SandboxBackendStore.setSelected(context, SandboxBackend.CHROOT, authorizedAt = at)
+        SandboxBackendStore.setAuthorizedAt(context, at)
         Log.i(TAG, "user acknowledged the chroot risk at $at")
     }
 
@@ -434,8 +549,27 @@ object SandboxSwitchController {
                     Log.i(TAG, "stopping '${task.label}' before switching to $target")
                     runCatching { task.stop() }
                 }
+
+                // A task that started after the decision snapshot was NOT in
+                // the dialog the user confirmed. Exclude the ones we just
+                // stopped (their `finally` may not have unregistered yet) and
+                // refuse rather than kill anything unconfirmed.
+                val confirmedIds = decision.stopTasks.mapTo(HashSet()) { it.id }
+                fun appearedSinceDecision(): List<ActiveSandboxTask> =
+                    SandboxActivityRegistry.snapshot().filterNot { it.id in confirmedIds }
+
+                appearedSinceDecision().takeIf { it.isNotEmpty() }?.let { appeared ->
+                    Log.i(TAG, "not switching: ${appeared.size} task(s) started after the decision")
+                    return BackendSwitchDecision.RefusedActiveTasks(target, appeared)
+                }
+
                 if (target == SandboxBackend.CHROOT) {
-                    val started = ChrootKernel.ensureServer(context)
+                    // The root bridge may show a confirmation dialog here, so
+                    // this can take a while. Keep the old backend selected
+                    // until the helper is ready: a refused/failed grant must
+                    // leave the previous backend fully usable.
+                    val started = runCatching { ChrootKernel.ensureServer(context) }
+                        .getOrElse { Result.failure(it) }
                     if (started.isFailure) {
                         val reason = started.exceptionOrNull()?.message ?: "chroot helper failed to start"
                         SandboxBackendStore.setLastError(context, reason)
@@ -444,6 +578,24 @@ object SandboxSwitchController {
                 } else {
                     ChrootKernel.shutdown(context)
                 }
+
+                // [FEAT-261025-CHROOT] Idle warm shells are invisible to the
+                // activity registry: PersistentShell registers only while a
+                // command is in flight, but keeps its `/bin/sh` (spawned with
+                // the OLD backend's argv) alive between commands. Without this
+                // teardown the next `shell_execute` would silently run under
+                // the previous backend after the switch. Only idle shells can
+                // be hit here — every in-flight command is registered and was
+                // either absent from the snapshot or explicitly stopped above
+                // — and the re-check keeps a task that appeared during a root
+                // prompt from being killed unconfirmed.
+                val late = appearedSinceDecision()
+                if (late.isNotEmpty()) {
+                    Log.i(TAG, "helper ready, but ${late.size} task(s) started meanwhile; backend not switched")
+                    return BackendSwitchDecision.RefusedActiveTasks(target, late)
+                }
+                ExecutionCoordinator.stopCurrentCommand()
+
                 SandboxBackendStore.setSelected(context, target)
                 Log.i(TAG, "backend switched $current -> $target")
                 return decision

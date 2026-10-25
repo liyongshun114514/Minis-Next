@@ -707,7 +707,17 @@ object PRootKernel {
      * through here so a flag can never be added to one spawn site only — see
      * [ProotFlagParityTest].
      */
-    fun buildProotCommand(shellCommand: String, mounts: Map<String, String>): List<String> {
+    fun buildProotCommand(shellCommand: String, mounts: Map<String, String>): List<String> =
+        buildProotArgv(listOf("/bin/sh", "-c", shellCommand), mounts)
+
+    /**
+     * [FEAT-261025-CHROOT] Flags only + the exact guest argv.
+     *
+     * The fresh-process path passes the `ForegroundCommandGroup` wrapper as
+     * `shellArgv` instead of a `sh -c` string, which is why this exists as a
+     * separate builder rather than another string overload.
+     */
+    fun buildProotArgv(shellArgv: List<String>, mounts: Map<String, String>): List<String> {
         check(isBooted) { "PRootKernel.boot() must be called before building commands" }
 
         val cmd = mutableListOf<String>()
@@ -792,12 +802,10 @@ object PRootKernel {
         // that knows the option - an older binary would reject it.
         cmd.addAll(com.openminis.app.network.ShellTransparentNet.prootArgs(rootfsManager.prootBinary))
 
-        // Shell command
-        cmd.add("/bin/sh")
-        cmd.add("-c")
-        cmd.add(shellCommand)
+        // Guest argv (shell command, or the fresh-process runner wrapper).
+        cmd.addAll(shellArgv)
 
-        Log.d(TAG, "proot cmd: ${cmd.take(cmd.size - 1).joinToString(" ")} <shellCommand ${shellCommand.length} bytes>")
+        Log.d(TAG, "proot cmd: ${cmd.joinToString(" ").take(600)}")
         return cmd
     }
 
@@ -952,11 +960,18 @@ object PRootKernel {
 
     /**
      * Install /usr/local/bin/ wrapper scripts that work around Android-specific
-     * sandbox limitations. These take precedence over /bin/busybox in PATH.
+     * sandbox limitations. These take precedence over the distro binaries in
+     * PATH (/usr/bin, /bin) and never assume busybox exists.
      *
      * top: Android's hidepid=2 + SELinux blocks reads of /proc/<other_pid>/stat
      * for non-system UIDs, so plain `top` fails with "can't open 'stat': Permission
      * denied". Restrict it transparently to the PIDs we can actually read.
+     *
+     * [FEAT-261025-CHROOT] The rootfs is shared with the chroot backend and is
+     * Ubuntu 24.04, which ships no busybox. The wrapper therefore calls `ps`
+     * from PATH (procps on Ubuntu, busybox applet on the old Alpine image) and
+     * the write guards exec `/usr/bin/<name>` or `/bin/<name>`, falling back to
+     * busybox only when present.
      *
      * Always rewritten so improvements ship with each app update.
      */
@@ -1018,7 +1033,8 @@ object PRootKernel {
             |    visible=${'$'}(echo "${'$'}pids" | tr ',' '\n' | wc -l)
             |    printf 'top — up %dd %02d:%02d  visible processes: %d (own session only)\n' "${'$'}days" "${'$'}hours" "${'$'}mins" "${'$'}visible"
             |    printf '%s\n' '  PID USER     STAT  RSS  PPID COMMAND'
-            |    /bin/busybox ps -o pid,user,stat,rss,ppid,comm 2>/dev/null \
+            |    # ps from PATH: procps on Ubuntu 24.04, busybox applet on Alpine.
+            |    ps -o pid,user,stat,rss,ppid,comm 2>/dev/null \
             |        | awk -v pids=",${'$'}pids," 'NR==1 {next} {if (index(pids,","${'$'}1",")) print "  " ${'$'}0}'
             |}
             |
@@ -1128,7 +1144,16 @@ object PRootKernel {
                 |        done < "${'$'}cfg"
                 |    done
                 |fi
-                |exec /bin/busybox $name "${'$'}@"
+                |# Ubuntu 24.04 has no busybox: resolve the real command from the
+                |# standard bins first (this wrapper lives in /usr/local/bin, so the
+                |# absolute path avoids re-entering the wrapper), and fall back to
+                |# busybox only for Alpine-style rootfs images.
+                |for cand in "/usr/bin/$name" "/bin/$name"; do
+                |    if [ -x "${'$'}cand" ]; then exec "${'$'}cand" "${'$'}@"; fi
+                |done
+                |if [ -x /bin/busybox ]; then exec /bin/busybox $name "${'$'}@"; fi
+                |echo "$name: not found in /usr/bin or /bin" >&2
+                |exit 127
                 |""".trimMargin(),
             )
             wrapper.setExecutable(true, false)

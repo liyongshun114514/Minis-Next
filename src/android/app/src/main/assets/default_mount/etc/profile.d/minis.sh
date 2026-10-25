@@ -8,14 +8,16 @@
 # matches without needing a rootfs rebuild.
 export PS1='\u@minis:\w\$ '
 
-# Enable ash command history with arrow keys
-export HISTFILE="$HOME/.ash_history"
+# Ubuntu login shells use bash; /bin/sh is dash (no bash-specific syntax here).
 export HISTSIZE=1000
+if [ -n "${BASH_VERSION:-}" ]; then
+    export HISTFILE="$HOME/.bash_history"
+else
+    export HISTFILE="$HOME/.sh_history"
+fi
+export ENV=/etc/profile
 
-# Point ENV to .ashrc so interactive ash picks up line-editing config
-export ENV="$HOME/.ashrc"
-
-# Default pager — less is standard on Alpine; keep explicit for scripts
+# Default pager — less is installed by the Ubuntu bootstrap; explicit for scripts
 # that probe $PAGER.
 export PAGER=less
 

@@ -306,7 +306,7 @@
     <string name="soul_section_preview">Preview</string>
     <string name="soul_section_identity">Identity</string>
     <string name="soul_section_personality">Personality Prompt</string>
-    <string name="soul_personality_footer">Edited as the Markdown body of SOUL.md. Length cap is language-aware: Chinese ≤ 1600 characters OR English ≤ 1000 words (the rule is picked by the majority language). Over-limit bodies are rejected on save and ignored at prompt-build time.</string>
+    <string name="soul_personality_footer">Edited as the Markdown body of SOUL.md. Choose native length caps, custom caps, or unlimited length above. This setting changes application length handling only; prompt-injection checks and provider context limits still apply.</string>
     <string name="soul_field_name">Name</string>
     <string name="soul_field_style">Style</string>
     <string name="soul_field_lang">Language</string>
@@ -344,7 +344,7 @@
     <string name="settings_env_vars">Environment Variables</string>
     <string name="settings_env_vars_subtitle">Variables injected into the sandbox</string>
     <string name="settings_section_storage">Storage</string>
-    <string name="settings_storage_subtitle">Manage Alpine Linux rootfs and browse files</string>
+    <string name="settings_storage_subtitle">Manage Ubuntu 24.04 LTS rootfs and browse files</string>
     <string name="settings_section_permissions">Permissions</string>
     <string name="settings_permissions_subtitle">Control Agent access to privacy-sensitive features</string>
     <string name="settings_section_logs">Logs</string>
@@ -1094,7 +1094,7 @@
     <string name="rootfs_result_section">Result</string>
     <string name="rootfs_info_section">Info</string>
     <string name="rootfs_about_title">About Rootfs</string>
-    <string name="rootfs_about_description">The rootfs contains the Alpine Linux filesystem used by the sandbox. Resetting will delete all data and restore to factory state.</string>
+    <string name="rootfs_about_description">The rootfs contains the Ubuntu 24.04 LTS filesystem used by the sandbox. Resetting will delete all data and restore to factory state.</string>
     <string name="rootfs_about_operations">Reset: Delete everything | Backup: Save /root directory | Restore: Recover saved data</string>
     <string name="rootfs_reset_confirm_title">Reset Rootfs?</string>
     <string name="rootfs_reset_confirm_message">This will delete the entire rootfs. All data will be lost.</string>

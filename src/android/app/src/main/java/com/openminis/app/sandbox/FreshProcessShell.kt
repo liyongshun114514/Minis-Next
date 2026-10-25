@@ -268,6 +268,12 @@ internal class FreshProcessShell(
             )
         }
 
+        // Prepend the one-time bootstrap hint (see spawn()).
+        val hint = bootstrapHint
+        if (hint != null) {
+            bootstrapHint = null
+            return@withContext Pair("[Minis] $hint\n${output.toString()}", exitCode)
+        }
         Pair(output.toString(), exitCode)
     }
 
@@ -278,17 +284,27 @@ internal class FreshProcessShell(
         // ForegroundCommandGroup wrapper); chroot yields the client argv and
         // its own environment, with the same wrapper so the exit-status file,
         // the pid file and the group kill keep working unchanged.
-        val wrapped = ForegroundCommandGroup.wrapForFreshProcess(command, statusGuestPath)
         val spawn = SandboxRouter.build(
             context,
             SandboxCommandSpec(
-                command = wrapped,
+                command = command,
+                // PRoot: the runner wrapper carries the exit-status file and
+                // the process group. CHROOT: the helper's child status is the
+                // command's status, so no in-guest wrapper is added.
+                statusGuestPath = statusGuestPath,
                 sessionId = sessionId,
                 sessionMounts = sessionBindMounts,
             ),
         )
         if (spawn.offload == SandboxOffloadRoute.BLOCKED) {
             Log.w(TAG, "[$sessionId] backend=${spawn.backend}: Minis tools are BLOCKED (${spawn.notes})")
+        }
+        // [FEAT-261025-UBUNTU] First-run hint, once per shell instance: a
+        // missing python/git must be explained, not silently attributed to the
+        // image. Emitted before the command's own output.
+        if (spawn.warning != null && !bootstrapHintShown) {
+            bootstrapHintShown = true
+            bootstrapHint = spawn.warning
         }
         val cmd = spawn.argv
 
@@ -372,6 +388,10 @@ internal class FreshProcessShell(
 
     /** The running command's status file (its `.pid` sibling names the group). */
     @Volatile private var statusHandle: File? = null
+
+    /** [FEAT-261025-UBUNTU] Emitted once, before the first command's output. */
+    @Volatile private var bootstrapHintShown: Boolean = false
+    @Volatile private var bootstrapHint: String? = null
 
     /** Set once [stop] is called; this instance runs one command only. */
     @Volatile private var stopped: Boolean = false

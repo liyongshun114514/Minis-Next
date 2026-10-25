@@ -18,6 +18,12 @@ OpenMinis bundles, links, or depends on the following third-party components. Ve
 | Alpine Linux minirootfs | downloaded at build time by `deps/prepare_alpine_rootfs.sh` | Aggregate of package licenses (musl **MIT**, BusyBox **GPL-2.0**, etc.) | Not stored in this repo; bundled into app builds as the default rootfs |
 | Alpine packages for the AOJIT restore (`busybox`, `busybox-binsh`, `ssl_client` 1.37.0-r8; `musl`, `musl-utils` 1.2.5-r8) | Original signed Alpine 3.21 packages, vendored as binaries in `src/ios/AOJITRestore/` | **GPL-2.0-only** (BusyBox, ssl_client), **MIT** (musl) | Used by `restore.sh` to put a rootfs back on the exact builds the AOT images match; the Alpine mirror no longer carries these builds. Corresponding source: Alpine aports `main/busybox` and `main/musl` at the 3.21 release, and upstream [busybox.net](https://busybox.net) / [musl.libc.org](https://musl.libc.org) |
 
+## Ubuntu Android fork additions
+
+- **Ubuntu Base 24.04 LTS arm64** replaces Alpine only on Android. Official archives are downloaded by `scripts/prepare_android_ubuntu.sh` and checked against the official SHA256SUMS and a pinned digest. This is an aggregate of separately licensed packages; retain `/usr/share/doc/*/copyright` inside the guest. Package sources and corresponding source archives are available through the Ubuntu archive (`https://ports.ubuntu.com/ubuntu-ports/`); this repository does not relicense Ubuntu or claim ownership of its trademarks.
+- **MinisAllInOne 1.0.2 source** (user-supplied) is GPL-3.0. Its RootExecutor/ShellCommand/config/protocol code is adapted to native permission-controlled Root; Composer behaviour is reimplemented with Compose and Soul length settings are native. The original licence is retained at `third_party/minis-all-in-one/LICENSE`. Xposed API code, DEX scanners and precompiled title DEX are not shipped.
+- **Static guest offload client** is compiled with the Ubuntu cross glibc toolchain. glibc is LGPL-2.1-or-later; distribution of a statically linked client must retain corresponding source and relinkable material as required. `scripts/build_chroot_helpers.sh`, its client C source and the Ubuntu toolchain packages provide the documented rebuild path; production redistributors must fulfil all applicable notices/source obligations.
+
 ## iOS — Swift Package Manager dependencies
 
 Direct packages declared in `src/ios/Minis.xcodeproj`:

@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Executes shell commands inside the PRoot sandbox via ProcessBuilder.
@@ -48,6 +49,36 @@ object ShellExecutor {
     ): ShellResult = withContext(Dispatchers.IO) {
         check(PRootKernel.isBooted) { "PRootKernel must be booted before executing commands" }
 
+        // [FEAT-261025-CHROOT] This path is a fifth spawn site next to the
+        // fresh / warm / terminal ones, but unlike them it was invisible to
+        // a backend switch: a command started here would keep running while
+        // the user flipped backends and could be cut by ChrootKernel.shutdown
+        // without ever appearing in the confirmation dialog. Register before
+        // the first spawn and unregister in `finally` so every exit path
+        // (timeout, error, seccomp retry) clears it.
+        val activityId = SandboxActivityRegistry.begin(
+            ActiveSandboxTask(
+                id = "executor-${activitySequence.incrementAndGet()}",
+                label = "shell command: ${command.lineSequence().firstOrNull()?.take(80).orEmpty()}",
+                stop = { destroyCurrent() },
+            ),
+        )
+        try {
+            executeRegistered(context, command, timeout, environment, lineCallback)
+        } finally {
+            SandboxActivityRegistry.end(activityId)
+        }
+    }
+
+    /** [FEAT-261025-CHROOT] [execute]'s body, kept separate so the activity
+     *  registration above wraps the seccomp retry as ONE task. */
+    private suspend fun executeRegistered(
+        context: Context,
+        command: String,
+        timeout: Long,
+        environment: Map<String, String>,
+        lineCallback: ((String) -> Unit)?,
+    ): ShellResult {
         val first = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = false)
 
         // [T-android-seccomp-selfheal / GH#186] If the child died on an early
@@ -61,7 +92,7 @@ object ShellExecutor {
                 alreadyRetried = false,
             )
         ) {
-            return@withContext first
+            return first
         }
 
         com.openminis.app.logging.AppLogger.warning(
@@ -81,7 +112,7 @@ object ShellExecutor {
         }
         // Whatever the retry returned is what the caller sees: if it failed
         // too, the error surfaces normally rather than being swallowed.
-        retried
+        return retried
     }
 
     /**
@@ -101,6 +132,7 @@ object ShellExecutor {
         // argv is unchanged (buildProotCommand, global mount table); chroot
         // returns the unprivileged client argv instead.
         val spawn = SandboxRouter.build(context, SandboxCommandSpec(command = command))
+        if (spawn.warning != null) Log.w(TAG, "bootstrap: ${spawn.warning}")
 
         Log.d(TAG, "Executing: $command (backend=${spawn.backend}, offload=${spawn.offload})")
 

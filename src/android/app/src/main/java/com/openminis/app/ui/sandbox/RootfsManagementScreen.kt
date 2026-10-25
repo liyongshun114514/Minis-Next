@@ -151,6 +151,16 @@ fun RootfsManagementScreen(
                 }
             }
 
+            state.legacyBackupPath?.let { backupPath ->
+                SettingsSection(title = "迁移保留的旧环境") {
+                    ListItem(
+                        headlineContent = { Text("原客体数据已保留，未自动删除") },
+                        supportingContent = { Text(backupPath, style = MaterialTheme.typography.bodySmall) },
+                        colors = transparentListItemColors(),
+                    )
+                }
+            }
+
             if (state.isInstalled) {
                 // --- Browse section ---
                 SettingsSection(title = stringResource(R.string.rootfs_browse_section)) {
@@ -345,6 +355,13 @@ fun RootfsManagementScreen(
             },
         )
     }
+
+    // [FEAT-261025-CHROOT] This screen is reached from Settings, i.e. OUTSIDE
+    // ChatScreen's composition, and that is where OffloadPermissionDialog is
+    // normally rendered. Starting chroot asks RootManager for a per-command
+    // confirmation; without this, the request would block with no UI until it
+    // times out. Rendering it here makes the prompt appear on this screen.
+    com.openminis.app.ui.chat.OffloadPermissionDialog()
 
     if (showResetBackupDialog) {
         AlertDialog(

@@ -1,5 +1,10 @@
 # Building Minis
 
+> **Ubuntu Android fork:** see [docs/UBUNTU_FORK.md](docs/UBUNTU_FORK.md).
+> The `ubuntu-chroot` branch builds `com.openminis.app.ubuntu` with Ubuntu 24.04
+> arm64 via GitHub Actions. Android no longer bundles Alpine; iOS is unchanged.
+> Chroot helpers are built with `scripts/build_chroot_helpers.sh` after PRoot.
+
 Minis ships a full Linux sandbox inside the app, so a first build is not just
 "open the project and press Run": the native dependencies (iSH on iOS, PRoot on
 Android, FFmpeg, LAME) and the Alpine rootfs are **built from source by the
@@ -200,8 +205,12 @@ mkdir -p src/android/app/libs && cp deps/build/rclone/rclone.aar src/android/app
   Artifacts are **not** byte-identical across NDK releases; the loader's code
   differs between toolchain generations. Functionally equivalent — don't expect
   checksums to match someone else's build.
-- **`prepare_android_sandbox.sh`** downloads the Alpine aarch64 minirootfs into
-  `assets/`.
+- **`prepare_android_sandbox.sh`** delegates to `prepare_android_ubuntu.sh`,
+  downloading and verifying Ubuntu 24.04 LTS arm64 Base into `assets/`.
+- **`scripts/build_chroot_helpers.sh`** builds the Android PIE launcher and
+  static guest offload client. On Linux x86_64 install `gcc-aarch64-linux-gnu`
+  and `libc6-dev-arm64-cross`; set `ANDROID_NDK_HOME` to NDK r28+. Actions
+  supplies these dependencies. It cross-compiles only and never runs the guest.
 - **`build_rclone_android.sh`** binds rclone with gomobile into an `.aar` for
   the backup feature's remote destinations. It needs `ANDROID_NDK_HOME` (or
   `ANDROID_HOME`) set, and it writes to `deps/build/rclone/`; Gradle reads the
