@@ -1,9 +1,10 @@
 package com.openminis.app.sandbox
 
 import android.content.Context
-import android.os.SystemClock
 import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * [FEAT-261025-CHROOT] Which execution backend runs the guest.
@@ -312,9 +313,12 @@ object SandboxBackendStore {
 
     fun grantChrootForProcess(generation: String) {
         grantedGeneration = generation
-        grantedAtElapsedMs = SystemClock.elapsedRealtime()
+        grantedAtElapsedMs = monotonicMs()
         Log.i(TAG, "chroot runtime grant present for generation=$generation")
     }
+
+    /** Monotonic milliseconds; JVM-pure so the store stays unit-testable. */
+    private fun monotonicMs(): Long = System.nanoTime() / 1_000_000L
 
     fun chrootGranted(generation: String): Boolean = grantedGeneration == generation
 
@@ -341,7 +345,7 @@ object SandboxBackendStore {
         if (recordedAt <= 0L) return false
         val ttlMs = idleTtlSeconds.coerceAtLeast(1) * 1000L
         val marginMs = 60_000L.coerceAtMost(ttlMs / 2)
-        return SystemClock.elapsedRealtime() - recordedAt >= ttlMs - marginMs
+        return monotonicMs() - recordedAt >= ttlMs - marginMs
     }
 
     fun revokeChrootGrant() {
@@ -491,10 +495,20 @@ object SandboxRouter {
  *
  * 1. Ask [SandboxSwitchPolicy] — a refusal returns the tasks, nothing is killed.
  * 2. Only when the decision says so: stop the tasks the user just confirmed.
- * 3. Start the chroot helper (root bridge, per-command confirmation) or stop it
- *    and restore the PRoot stubs.
+ * 3. Start the chroot helper (root bridge, per-command confirmation, plus an
+ *    app-uid handshake against a stale grant) or stop it and restore the PRoot
+ *    stubs. Idle warm shells are not in the activity registry; they are torn
+ *    down here because they were spawned with the old backend's argv and would
+ *    otherwise serve the next command under it.
  * 4. Persist the choice LAST, so a failed handshake leaves the previous
  *    backend selected instead of a selection that cannot run.
+ *
+ * Steps 2-4 re-check the registry before persisting: a command that started
+ * while the helper was being confirmed is not killed unconfirmed, and it keeps
+ * the old backend selected. This shrinks but cannot eliminate the race with a
+ * spawn that begins in the last few instructions before
+ * [SandboxBackendStore.setSelected] — closing it fully would need every spawn
+ * site to take the same lock.
  *
  * No wait loops: [SandboxActivityRegistry] is updated by the shells themselves,
  * and a command that is still winding down after `stop()` is still visible to
@@ -502,6 +516,17 @@ object SandboxRouter {
  */
 object SandboxSwitchController {
     private const val TAG = "SandboxSwitchController"
+
+    /**
+     * [FEAT-261025-CHROOT] Serialises switch attempts.
+     *
+     * Two quick taps (or "switch to chroot" while a "back to PRoot" is still
+     * waiting for the root dialog) used to run the whole decide/stop/start/
+     * persist sequence twice against the same backend state. The second
+     * attempt then read a generation the first had already rotated, or started
+     * a helper while the other was stopping it. One lock, no waiting loop.
+     */
+    private val switchLock = Mutex()
 
     /**
      * [FEAT-261025-CHROOT] Record the user's explicit risk acknowledgement
@@ -524,6 +549,14 @@ object SandboxSwitchController {
         context: Context,
         target: SandboxBackend,
         stopActive: Boolean = false,
+    ): BackendSwitchDecision = switchLock.withLock {
+        requestSwitchLocked(context, target, stopActive)
+    }
+
+    private suspend fun requestSwitchLocked(
+        context: Context,
+        target: SandboxBackend,
+        stopActive: Boolean,
     ): BackendSwitchDecision {
         val current = SandboxBackendStore.selected(context)
         val generation = SandboxBackendStore.generation(context)
@@ -595,6 +628,15 @@ object SandboxSwitchController {
                     return BackendSwitchDecision.RefusedActiveTasks(target, late)
                 }
                 ExecutionCoordinator.stopCurrentCommand()
+
+                // Last look before persisting: if anything registered while
+                // the idle shells were being torn down, keep the old backend
+                // rather than claim a switch under a running command.
+                val raced = appearedSinceDecision()
+                if (raced.isNotEmpty()) {
+                    Log.i(TAG, "backend not switched: ${raced.size} task(s) appeared during teardown")
+                    return BackendSwitchDecision.RefusedActiveTasks(target, raced)
+                }
 
                 SandboxBackendStore.setSelected(context, target)
                 Log.i(TAG, "backend switched $current -> $target")

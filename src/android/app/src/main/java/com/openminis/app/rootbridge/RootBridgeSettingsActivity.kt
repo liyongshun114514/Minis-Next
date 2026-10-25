@@ -38,11 +38,21 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var showEnable by remember { mutableStateOf(false) }
     var probing by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { RootManager.refresh() }
+    // The permission level lives in SharedPreferences, not in Compose state;
+    // mirror it locally so the switch reflects an immediate off/on change.
+    var enabled by remember { mutableStateOf(RootManager.isEnabled()) }
+    LaunchedEffect(Unit) { RootManager.refresh(); enabled = RootManager.isEnabled() }
     SettingsScaffold(title = "原生 Root", onBack = onBack) {
         SettingsSection(header = "Root 状态", footer = "与 Shizuku 独立，使用设备 su。启用不会执行命令；所有 Root 调用仍须逐次确认。") {
-            SettingsSwitchRow(title = "允许请求原生 Root", checked = RootManager.isEnabled(),
-                onCheckedChange = { if (it) showEnable = true else RootManager.setEnabled(false) })
+            SettingsSwitchRow(title = "允许请求原生 Root", checked = enabled,
+                onCheckedChange = {
+                    if (it) {
+                        showEnable = true
+                    } else {
+                        RootManager.setEnabled(false)
+                        enabled = false
+                    }
+                })
             SettingsRow(title = snap.state.name, subtitle = "${snap.suPath ?: "未发现 su"}\n${snap.message}",
                 showChevron = false)
             SettingsRow(title = if (probing) "正在等待确认或 Root 管理器…" else "验证 Root（id）",
@@ -65,6 +75,10 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     if (showEnable) AlertDialog(onDismissRequest = { showEnable = false },
         title = { Text("启用原生 Root 请求？") },
         text = { Text("Root 命令能控制完整设备，误操作可能丢失数据或导致系统无法启动。此开关仅开放请求入口，不运行 su；逐次确认之后仍由你的 Root 管理器决定授权。无需 Xposed 或 Shizuku 服务。") },
-        confirmButton = { TextButton(onClick = { RootManager.setEnabled(true); showEnable = false }) { Text("启用请求入口") } },
+        confirmButton = { TextButton(onClick = {
+            RootManager.setEnabled(true)
+            enabled = true
+            showEnable = false
+        }) { Text("启用请求入口") } },
         dismissButton = { TextButton(onClick = { showEnable = false }) { Text("取消") } })
 }

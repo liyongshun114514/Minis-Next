@@ -54,6 +54,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sched.h>
@@ -468,7 +469,10 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
             _exit(126);
         }
         if (enter_sandbox(s->rootfs, &r, &s->allow) != 0) _exit(126);
-        if (setgroups(0, NULL) != 0) { /* root-only; ignore failure */ }
+        if (setgroups(0, NULL) != 0 || prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
+            say("minis-chroot: cannot clear supplementary groups or lock privileges: %s\n", strerror(errno));
+            _exit(126);
+        }
         if (setgid((gid_t)r.gid) != 0 || setuid((uid_t)r.uid) != 0) {
             say("minis-chroot: drop to %u:%u failed: %s\n", r.uid, r.gid, strerror(errno));
             _exit(126);
@@ -493,7 +497,12 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
     for (;;) {
         pid_t w = waitpid(pid, &status, WNOHANG);
         if (w == pid) break;
-        if (w < 0) break;
+        if (w < 0) {
+            if (errno == EINTR) continue;
+            put_u32(conn, 126);
+            close(conn);
+            return;
+        }
         struct pollfd p = { .fd = conn, .events = POLLIN | POLLHUP };
         int pr = poll(&p, 1, 200);
         if (pr > 0 && (p.revents & (POLLHUP | POLLERR | POLLIN))) {

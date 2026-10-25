@@ -1568,7 +1568,7 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.body",
                 displayName = "Soul personality prompt",
-                description = "Personality / voice instructions injected as a block in the system prompt. Length cap is language-aware: Chinese ≤ ${com.openminis.app.agent.SoulStore.CHINESE_CHAR_LIMIT} chars OR English ≤ ${com.openminis.app.agent.SoulStore.ENGLISH_WORD_LIMIT} words (rule picked by the majority language). The writer also rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
+                description = "Personality / voice instructions injected as a block in the system prompt. Length follows Settings → Soul: native language-aware caps, custom caps, or unlimited. Unlimited changes application length handling only, not provider context limits. The writer also rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
                 // No schema maxLength because either character or word
                 // count is wrong for the *other* language. Both checks
                 // (length + injection) run in the writer below.

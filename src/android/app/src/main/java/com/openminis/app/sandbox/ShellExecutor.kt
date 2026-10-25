@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -29,6 +30,21 @@ object ShellExecutor {
     @Volatile
     var currentProcess: Process? = null
         private set
+
+    /** [FEAT-261025-CHROOT] Unique activity id per [execute] call. */
+    private val activitySequence = AtomicLong()
+
+    /**
+     * [FEAT-261025-CHROOT] Per-call stop flag.
+     *
+     * A switch that the user confirmed can stop this task before
+     * `SpawnSignalMask.start` has produced a process; `destroyCurrent()` alone
+     * would be a no-op and the command would then run under the backend the
+     * user just left. The flag closes that window.
+     */
+    private class ExecutionGuard {
+        val stopped = AtomicBoolean(false)
+    }
 
     /**
      * Execute a command inside the PRoot sandbox.
@@ -56,15 +72,19 @@ object ShellExecutor {
         // without ever appearing in the confirmation dialog. Register before
         // the first spawn and unregister in `finally` so every exit path
         // (timeout, error, seccomp retry) clears it.
+        val guard = ExecutionGuard()
         val activityId = SandboxActivityRegistry.begin(
             ActiveSandboxTask(
                 id = "executor-${activitySequence.incrementAndGet()}",
                 label = "shell command: ${command.lineSequence().firstOrNull()?.take(80).orEmpty()}",
-                stop = { destroyCurrent() },
+                stop = {
+                    guard.stopped.set(true)
+                    destroyCurrent()
+                },
             ),
         )
         try {
-            executeRegistered(context, command, timeout, environment, lineCallback)
+            executeRegistered(context, command, timeout, environment, lineCallback, guard)
         } finally {
             SandboxActivityRegistry.end(activityId)
         }
@@ -78,8 +98,9 @@ object ShellExecutor {
         timeout: Long,
         environment: Map<String, String>,
         lineCallback: ((String) -> Unit)?,
+        guard: ExecutionGuard,
     ): ShellResult {
-        val first = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = false)
+        val first = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = false, guard = guard)
 
         // [T-android-seccomp-selfheal / GH#186] If the child died on an early
         // fatal signal with no output at all, the host kernel's seccomp fast
@@ -102,7 +123,7 @@ object ShellExecutor {
         // The retry deliberately reuses the caller's lineCallback: the first
         // attempt produced no output (that is a precondition of retrying), so
         // there is nothing to duplicate.
-        val retried = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = true)
+        val retried = runOnce(context, command, timeout, environment, lineCallback, noSeccomp = true, guard = guard)
         if (retried.exitCode == 0) {
             com.openminis.app.logging.AppLogger.warning(
                 TAG,
@@ -127,6 +148,7 @@ object ShellExecutor {
         environment: Map<String, String>,
         lineCallback: ((String) -> Unit)?,
         noSeccomp: Boolean,
+        guard: ExecutionGuard,
     ): ShellResult = withContext(Dispatchers.IO) {
         // [FEAT-261025-CHROOT] Backend routing lives in one place. PRoot's
         // argv is unchanged (buildProotCommand, global mount table); chroot
@@ -181,11 +203,26 @@ object ShellExecutor {
         val output = StringBuilder()
         var exitCode = -1
 
+        // [FEAT-261025-CHROOT] A confirmed backend switch may have stopped
+        // this task while the argv/env above were being prepared. Do not
+        // spawn into the backend the user just left.
+        if (guard.stopped.get()) {
+            return@withContext ShellResult(
+                output = "[Cancelled]",
+                exitCode = 130,
+                durationMs = System.currentTimeMillis() - startTime,
+            )
+        }
+
         try {
             withTimeout(timeout) {
                 // [T-shell-stall-yes-head] SIGPIPE unblocked in the child; see SpawnSignalMask.
                 val process = SpawnSignalMask.start(processBuilder)
                 currentProcess = process
+                // The stop may have landed between the check above and
+                // start(); kill the child, then let the normal read/wait
+                // report its real signal status instead of a fabricated one.
+                if (guard.stopped.get()) process.destroyForcibly()
 
                 try {
                     // Read raw chars to preserve \r for TerminalSanitizer CR-folding.

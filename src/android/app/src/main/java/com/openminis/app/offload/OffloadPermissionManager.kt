@@ -400,6 +400,9 @@ object OffloadPermissionManager {
         prefs = context.getSharedPreferences("offload_permissions", Context.MODE_PRIVATE)
     }
 
+    /** False until [init] ran; RootManager may refresh before startup finishes. */
+    fun isInitialized(): Boolean = this::prefs.isInitialized
+
     fun getLevel(toolName: String): PermissionLevel {
         val info = toolRegistry.find { it.toolName == toolName }
             ?: return PermissionLevel.BYPASS // Unknown tools are bypassed
@@ -473,16 +476,29 @@ object OffloadPermissionManager {
                     if (toolName in grants) return true
                     val response = withTimeoutOrNull(DECISION_TIMEOUT_MS) {
                         suspendCancellableCoroutine<Response> { cont ->
-                            pendingContinuation = cont
-                            _pendingRequest.value = PermissionRequest(
+                            val request = PermissionRequest(
                                 toolName = toolName,
                                 toolTitle = toolTitle,
                                 description = "Allow ${info?.displayName ?: toolName} access?",
                                 sessionId = sessionId,
                             )
+                            // Same monitor as @Synchronized respondToRequest(): a
+                            // publish and an answer can never interleave halfway.
+                            synchronized(this@OffloadPermissionManager) {
+                                pendingContinuation = cont
+                                _pendingRequest.value = request
+                            }
+                            // A timed-out dialog may clear only the request it
+                            // published, never the next queued request's slot.
                             cont.invokeOnCancellation {
-                                _pendingRequest.value = null
-                                pendingContinuation = null
+                                synchronized(this@OffloadPermissionManager) {
+                                    if (_pendingRequest.value === request &&
+                                        pendingContinuation === cont
+                                    ) {
+                                        _pendingRequest.value = null
+                                        pendingContinuation = null
+                                    }
+                                }
                             }
                         }
                     }
@@ -514,13 +530,22 @@ object OffloadPermissionManager {
         try {
             val answer = withTimeoutOrNull(120_000L) {
                 suspendCancellableCoroutine<Response> { cont ->
-                    pendingContinuation = cont
-                    _pendingRequest.value = PermissionRequest(
+                    val request = PermissionRequest(
                         toolName, title, description, OFFLOAD_GLOBAL_SESSION_ID, singleUse = true,
                     )
+                    synchronized(this@OffloadPermissionManager) {
+                        pendingContinuation = cont
+                        _pendingRequest.value = request
+                    }
                     cont.invokeOnCancellation {
-                        _pendingRequest.value = null
-                        pendingContinuation = null
+                        synchronized(this@OffloadPermissionManager) {
+                            if (_pendingRequest.value === request &&
+                                pendingContinuation === cont
+                            ) {
+                                _pendingRequest.value = null
+                                pendingContinuation = null
+                            }
+                        }
                     }
                 }
             }

@@ -420,13 +420,12 @@ object ChrootKernel {
         }
         val generation = SandboxBackendStore.generation(context)
         if (SandboxBackendStore.chrootGranted(generation)) {
-            if (!SandboxBackendStore.chrootGrantMayBeExpired(generation)) {
-                return Result.success(Unit)
-            }
-            // [FEAT-261025-CHROOT] The helper enforces its own idle TTL, so a
-            // live grant can outlive the process it names. Do NOT trust the
-            // boolean: ask the helper (as the ordinary app-uid client) before
-            // either declaring success or starting a second one.
+            // [FEAT-261025-CHROOT] The helper enforces its own idle TTL and
+            // can also crash, so a live grant can outlive the process it
+            // names. Do NOT trust the boolean: ask the helper (as the
+            // ordinary app-uid client) before either declaring success or
+            // starting a second one. The probe is cheap and only runs on an
+            // actual switch, never per command.
             when (val probe = probeServer(context, generation)) {
                 EXIT_NO_HELPER -> {
                     Log.i(TAG, "helper for generation=$generation is gone (idle TTL/crash); relaunching")
@@ -440,8 +439,9 @@ object ChrootKernel {
                     return Result.failure(IllegalStateException(reason))
                 }
                 else -> {
-                    // The lease was merely stale; a long-running command kept
-                    // the helper alive. Re-arm the timestamp, not root.
+                    // Alive: a long-running command may have kept it past our
+                    // lease, or the grant simply predates this check. Re-arm
+                    // the timestamp; never ask for root again here.
                     SandboxBackendStore.grantChrootForProcess(generation)
                     SandboxBackendStore.setLastError(context, null)
                     Log.i(TAG, "helper still alive (probe exit=$probe); grant refreshed")

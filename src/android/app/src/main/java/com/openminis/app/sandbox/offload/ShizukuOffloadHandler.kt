@@ -107,9 +107,9 @@ class ShizukuOffloadHandler(
                 "exec" -> handleExec(rest, args)
                 else -> NativeOffloadResult(
                     2,
-                    "android-shizuku-cli: unknown subcommand '$group'.\n" +
-                        "  - Try `android-shizuku-cli exec $group ${rest.joinToString(" ")}`".trimEnd() + " to run as a raw shell command.\n" +
-                        "  - Run `android-shizuku-cli` with no args to see available subcommands.\n",
+                    "$cliName: unknown subcommand '$group'.\n" +
+                        "  - Try `$cliName exec $group ${rest.joinToString(" ")}`".trimEnd() + " to run as a raw shell command.\n" +
+                        "  - Run `$cliName` with no args to see available subcommands.\n",
                 )
             }
         } catch (t: Throwable) {

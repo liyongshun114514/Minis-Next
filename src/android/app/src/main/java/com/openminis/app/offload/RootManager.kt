@@ -22,8 +22,17 @@ object RootManager {
     @Volatile private var appContext: Context? = null
     private const val MAX_CAPTURE_BYTES = 2 * 1024 * 1024
 
-    fun init(context: Context) { appContext = context.applicationContext; refresh() }
-    fun isEnabled(): Boolean = OffloadPermissionManager.getLevel("root_cli") !=
+    fun init(context: Context) {
+        val app = context.applicationContext
+        appContext = app
+        // refresh() reads the permission level through SharedPreferences;
+        // initialising it here makes RootManager usable even if a future
+        // startup reorder (or a standalone activity) calls us first.
+        OffloadPermissionManager.init(app)
+        refresh()
+    }
+    fun isEnabled(): Boolean = OffloadPermissionManager.isInitialized() &&
+        OffloadPermissionManager.getLevel("root_cli") !=
         OffloadPermissionManager.PermissionLevel.NOT_ALLOWED
     fun setEnabled(enabled: Boolean) {
         OffloadPermissionManager.setLevel("root_cli", if (enabled)
@@ -60,34 +69,57 @@ object RootManager {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
         var exit = 126
-        val executor = RootExecutor(config(timeoutMs), ((timeoutMs + 999) / 1000).coerceIn(1, 900).toInt(), RootExecutor.Authorizer { exact ->
+        // The UI text, the executor override and the kill deadline must all
+        // describe the same number; the old copy showed 1s for a 5s request
+        // clamped to 10s by RootExecutorConfig.
+        val timeoutSec = ((timeoutMs + 999) / 1000).coerceIn(1, 900).toInt()
+        val truncated = java.util.concurrent.atomic.AtomicBoolean(false)
+        // Capture never answers "client gone": exceeding the cap truncates the
+        // stream instead of making RootExecutor kill the running command.
+        fun captureInto(out: ByteArrayOutputStream, data: ByteArray): Boolean {
+            synchronized(out) {
+                val remaining = MAX_CAPTURE_BYTES - out.size()
+                if (remaining <= 0) {
+                    truncated.set(true)
+                    return true
+                }
+                val take = minOf(remaining, data.size)
+                out.write(data, 0, take)
+                if (take < data.size) truncated.set(true)
+            }
+            return true
+        }
+        val executor = RootExecutor(config(timeoutMs), timeoutSec, RootExecutor.Authorizer { exact ->
             if (!isEnabled()) false else runBlocking {
                 OffloadPermissionManager.confirmPrivilegedOperation(
                     "root_cli", "Root · ${ShellCommand.joinQuoted(exact.argv)}",
                     "Execute this exact Android command via su with full device privileges?\n\n" +
                         ShellCommand.joinQuoted(exact.argv) + "\nWorking directory: ${exact.cwd.ifEmpty { "Android default" }}\n" +
-                        "Timeout: ${(timeoutMs / 1000).coerceAtLeast(1)}s. Commands may modify or delete system/user data. " +
+                        "Timeout: ${timeoutSec}s. Captured output is capped at 2 MiB per stream (excess is " +
+                        "truncated, the command is not killed). Commands may modify or delete system/user data. " +
                         "This approval covers only this invocation, not later commands. Reject if the target or recovery plan is unclear.",
                 ) && isEnabled()
             }
         })
         executor.execute(request, object : RootExecutor.Sink {
-            override fun stdout(data: ByteArray): Boolean = capture(stdout, data)
-            override fun stderr(data: ByteArray): Boolean = capture(stderr, data)
+            override fun stdout(data: ByteArray): Boolean = captureInto(stdout, data)
+            override fun stderr(data: ByteArray): Boolean = captureInto(stderr, data)
             override fun finish(code: Int) { exit = code }
         })
-        val result = ShizukuManager.ProcessResult(exit, stdout.toString("UTF-8"), stderr.toString("UTF-8"))
+        val stderrText = buildString {
+            append(stderr.toString("UTF-8"))
+            if (truncated.get()) {
+                if (isNotEmpty()) append('\n')
+                append("[minis-root: output truncated at 2 MiB per stream; the command was not killed]\n")
+            }
+        }
+        val result = ShizukuManager.ProcessResult(exit, stdout.toString("UTF-8"), stderrText)
         if (argv.contentEquals(arrayOf("/system/bin/id")) || argv.contentEquals(arrayOf("id"))) {
             val uid = if (exit == 0) ShellCommand.parseUid(result.stdout) else -1
             _snapshot.value = Snapshot(if (uid == 0) State.READY else State.DENIED,
                 executor.resolveSu(), uid, if (uid == 0) "Root verified for this probe; future commands still require approval" else result.combined)
         }
         return result
-    }
-    @Synchronized private fun capture(out: ByteArrayOutputStream, data: ByteArray): Boolean {
-        if (out.size() + data.size > MAX_CAPTURE_BYTES) return false
-        out.write(data)
-        return true
     }
     private fun failure(message: String) = ShizukuManager.ProcessResult(126, "", message)
 }
