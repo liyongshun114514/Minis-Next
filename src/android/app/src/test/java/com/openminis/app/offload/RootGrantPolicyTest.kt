@@ -128,7 +128,7 @@ class RootGrantPolicyTest {
 
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
         assertTrue(request.contains("之后直接用，不再逐次询问"))
-        assertTrue(request.contains("拒绝、取消或超时则不执行"))
+        assertTrue(request.contains("拒绝、取消或超时则只跳过本次"))
         assertTrue(request.contains("设置 → 权限 → 原生 Root"))
         assertTrue(request.contains("关键风险："))
         assertTrue(request.contains("5s"))
