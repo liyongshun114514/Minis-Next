@@ -3085,41 +3085,6 @@ fun ChatScreen(
                                     }
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
                             )
-                            // [T-native-composer-topbar-subtitle] The ported
-                            // Composer UI keeps model + thinking level in the
-                            // composer's bottom bar (ComposerModelThinkingBar).
-                            // The title block therefore carries only the
-                            // two-line centred title and one quiet subtitle,
-                            // so the same model/level is not rendered twice.
-                            //
-                            // Subtitle mirrors the upstream title card: Soul
-                            // name (and the session category when set), never
-                            // the model. Tapping it no longer opens the model
-                            // picker — that moved to the bottom bar's model
-                            // chip, which owns the stuck-ripple interaction
-                            // source handed to it below.
-                            val appName = stringResource(R.string.app_name)
-                            val subtitleText = buildString {
-                                val soul = topBarSoul.name.trim()
-                                if (soul.isNotEmpty() && soul != displayTitle) append(soul)
-                                val category = sessionCategory?.trim().orEmpty()
-                                if (category.isNotEmpty()) {
-                                    if (isNotEmpty()) append(" · ")
-                                    append(category)
-                                }
-                                if (isEmpty()) append(appName)
-                            }
-                            Text(
-                                text = subtitleText,
-                                fontSize = 12.sp,
-                                lineHeight = 14.sp,
-                                color = ChatColors.tertiaryText,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = noFontPad,
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            )
                         }
                     }
                 },
@@ -7144,70 +7109,6 @@ fun ChatScreen(
                         )
                     }
 
-                    // [T-native-composer-bottom-bar] Model + thinking toolbar.
-                    // This is the row upstream `ComposerViews.Toolbar` injected
-                    // after "+": model name first, then the current thinking
-                    // level chip. It is wired to the LIVE ViewModel state and
-                    // the two native callbacks. There is no DEX hash and no
-                    // obfuscated symbol table, so a host rebuild cannot gate
-                    // the bar off the way the Xposed module was gated. A host
-                    // API rename would still surface at compile time / in the
-                    // static contract instead of silently removing the UI.
-                    //
-                    // It sits on its own 30dp row directly under the text
-                    // field instead of inside the +/mic/send row: the native
-                    // host keeps its mic / stop / queue buttons, and sharing
-                    // that row on a 360dp phone would truncate the model name
-                    // to a few glyphs. Empty drafts and existing sessions both
-                    // render this same composer, so the bar is present in
-                    // every branch (narrow two-pane included).
-                    val thinkingBarLevel by viewModel.thinkingLevel.collectAsState()
-                    // Same fallback chain the removed top-bar group row used,
-                    // so a bound group stays visible while the VM's name is
-                    // still empty (group resolve) instead of flashing away.
-                    val defaultGroupName = stringResource(R.string.common_default)
-                    val bottomGroupLabel = if (selectedGroupId != null) {
-                        selectedGroupName.ifEmpty {
-                            val defaultGroupId = providerRepository.defaultPrimaryGroupId
-                            availableGroups.firstOrNull { it.id == defaultGroupId }?.name
-                                ?: defaultGroupName
-                        }
-                    } else {
-                        null
-                    }
-                    ComposerModelThinkingBar(
-                        modelName = modelName,
-                        providerName = providerName,
-                        level = thinkingBarLevel,
-                        availableLevels = viewModel.availableThinkingLevels,
-                        reasoningSupported = viewModel.currentModelSupportsReasoning,
-                        onModelClick = { showModelPicker = true },
-                        onLevelClick = { showThinkingLevelSheet = true },
-                        // Same interaction source the removed top-bar subtitle
-                        // owned, so opening the modal picker still drains the
-                        // press and cannot leave a stuck ripple.
-                        modelInteractionSource = modelPickerInteraction,
-                        // A bound group stays visible as a short auxiliary
-                        // label; a direct model pick (no group) shows none.
-                        groupLabel = bottomGroupLabel?.takeIf { it.isNotBlank() },
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 2.dp),
-                        leading = {
-                            // Native status that used to live on the top bar:
-                            // speed tier + quota dot. Kept so moving model /
-                            // thinking down does not delete them.
-                            val bottomSpeedTier by viewModel.displayedSpeedTier.collectAsState()
-                            SpeedTierNavBadge(bottomSpeedTier)
-                            if (modelName.isNotEmpty() || providerName.isNotEmpty()) {
-                                com.openminis.app.ui.quota.ModelQuotaStatusDot(
-                                    isAuthed = modelName.isNotEmpty(),
-                                    activeEntryId = viewModel.activeEntryId,
-                                    providerRepository = providerRepository,
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
-                        },
-                    )
-
                     // Button row below text field (iOS layout: + / ... mic send)
                     Row(
                         modifier = Modifier
@@ -7323,22 +7224,23 @@ fun ChatScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Left: "/" slash command button (iOS: italic /, bold)
-                        InputCircleButton(onClick = {
-                            if (viewModel.showSlashMenu.value) {
-                                viewModel.setInputText(viewModel.dismissSlashMenu(inputText))
-                            } else {
-                                viewModel.setInputText(viewModel.showSlashMenuOverInput(inputText))
-                            }
-                        }) {
-                            Text(
-                                "/",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontStyle = FontStyle.Italic,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        // [T-native-composer-bottom-bar] Model + thinking chips,
+                        // inline on the + row: "+", model name (tap = picker),
+                        // thinking level (tap = sheet), then send. Provider,
+                        // group, speed tier and quota moved off this row: the
+                        // bar is the composer, not a status bar.
+                        val thinkingBarLevel by viewModel.thinkingLevel.collectAsState()
+                        ComposerModelThinkingBar(
+                            modelName = modelName,
+                            providerName = providerName,
+                            level = thinkingBarLevel,
+                            availableLevels = viewModel.availableThinkingLevels,
+                            reasoningSupported = viewModel.currentModelSupportsReasoning,
+                            onModelClick = { showModelPicker = true },
+                            onLevelClick = { showThinkingLevelSheet = true },
+                            modelInteractionSource = modelPickerInteraction,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
 
                         // T187: Exit Edit Mode pill, only while editingMessageId
                         // is non-null. Tap clears the edit flag + composer text
@@ -7749,33 +7651,6 @@ fun ChatScreen(
                             // sides centre it between the leading (+, /) and
                             // trailing (keyboard, mic/send) button groups.
                             Spacer(modifier = Modifier.weight(1f))
-                        }
-
-                        // [T-android-voice-entry-always-available] The voice /
-                        // keyboard toggle is ALWAYS shown. It used to be gated on
-                        // `sttAvailable`, a runtime probe — so when the active
-                        // engine degraded mid-session the button disappeared while
-                        // `isVoiceActive` stayed true, leaving the user inside the
-                        // voice panel with no way back to the keyboard (the toggle
-                        // IS this button). Gating an escape hatch on the health of
-                        // the thing you're escaping from is the bug.
-                        //
-                        // Existence now depends only on a structural fact —
-                        // microphone hardware. "No speech service", "engine
-                        // degraded" and "no ASR provider configured" are all
-                        // RECOVERABLE states, explained inside the panel with a
-                        // link to the relevant settings rather than by silently
-                        // removing the control.
-                        if (com.openminis.app.speech.SpeechRecognitionManager.hasMicrophoneHardware) {
-                            MicButton(
-                                isRecording = !com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive &&
-                                    (sttState == com.openminis.app.speech.RecognitionState.RECORDING ||
-                                        sttState == com.openminis.app.speech.RecognitionState.STARTING),
-                                localeBadge = null,
-                                onClick = { triggerVoiceInput() },
-                                onLongClick = { showLangSheet = true },
-                                isVoiceActive = com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive,
-                            )
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
@@ -8643,39 +8518,6 @@ private fun speedTierLabel(tier: com.openminis.app.data.SpeedTier): String = str
 @Composable
 private fun SpeedTierMenuGlyph(tier: com.openminis.app.data.SpeedTier) {
     MenuItemIcon(com.openminis.app.ui.components.SpeedTierIcons.forTier(tier))
-}
-
-/**
- * [T-codex-fast-mode] Nav-bar speed badge ahead of the model name (iOS
- * 9e3c76ef row-3 placement). [T-speed-tier-icons] One monochrome bolt: outline
- * for Fast, solid for Ultrafast (iOS `bolt` / `bolt.fill`); the orange circle
- * and the Ultrafast double bolt are gone. Nothing for Standard. The tier name
- * is its content description, so TalkBack reads "Fast" / "Ultrafast".
- */
-@Composable
-private fun SpeedTierNavBadge(tier: com.openminis.app.data.SpeedTier, textSize: TextUnit = 11.sp) {
-    if (tier == com.openminis.app.data.SpeedTier.STANDARD) return
-    // [T-android-ultrafast-align] The bolt is no taller than the capital letters
-    // of the model name beside it (iOS 43b3f006f: scaled to the font's cap
-    // height). A fixed 12dp box drew a bolt taller than the 11sp text. The cap
-    // height is measured from the text size, so it follows the font scale; the
-    // Row keeps the bolt vertically centred on the text.
-    val density = LocalDensity.current
-    val boxDp = remember(density, textSize) {
-        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            this.textSize = with(density) { textSize.toPx() }
-        }
-        val bounds = android.graphics.Rect()
-        paint.getTextBounds("H", 0, 1, bounds)
-        val ink = kotlin.math.ceil(bounds.height().toFloat())
-        with(density) { com.openminis.app.ui.components.SpeedTierIcons.boltBoxForInk(ink).toDp() }
-    }
-    Icon(
-        com.openminis.app.ui.components.SpeedTierIcons.forTier(tier),
-        contentDescription = speedTierLabel(tier),
-        tint = Color(0xFFFF9500),
-        modifier = Modifier.size(boxDp),
-    )
 }
 
 /**

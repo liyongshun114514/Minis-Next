@@ -218,3 +218,9 @@ this document. No rootfs/Root/workflow/version change; no APK installed; no
 Root/Shizuku call; no shared config changed; no dependency installed; no
 commit/push. Temporary helper script lived only under
 `/var/minis/workspace/tmp/ubuntu3-composer-agent` and was removed at the end.
+
+## 2026-10-27 简化（本仓库）
+
+- 顶栏只保留当前对话标题，Soul/分类副标题行删除。
+- 模型名 + 思考等级并入 `+` 这一行：`+`（附件 + 全部斜杠命令）→ 模型名（点开模型选择）→ 思考等级（点开档位面板）→ 发送。
+- 独立的 `/` 按钮删除（命令已在 `+` 菜单里）；语音按钮删除；速度徽标、配额点、分组标签不再显示。

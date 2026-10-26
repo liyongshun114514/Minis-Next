@@ -107,7 +107,7 @@ def main() -> int:
     soul = text(SOUL)
     math = text(MATH)
 
-    # --- Composer: title + subtitle --------------------------------------
+    # --- Composer: title only -------------------------------------------
     ok("textAlign = TextAlign.Center" in chat, "title is not centre-aligned")
     title_block = re.search(
         r"Text\(\s*text = displayTitle,.*?maxLines = 2", chat, re.S
@@ -116,60 +116,53 @@ def main() -> int:
     ok("expandedHeight = 80.dp" in chat, "top bar height does not match the two-row title card")
     ok("editingSession = viewModel.loadSessionEntity()" in chat,
        "native rename click lost")
-    ok("val subtitleText = buildString" in chat and "topBarSoul.name" in chat,
-       "top-bar subtitle is not the Soul/category line")
+    # The bar carries the current chat title and nothing else: the Soul/category
+    # subtitle row is gone.
+    ok("val subtitleText = buildString" not in chat,
+       "top bar still renders a subtitle line")
     ok('"$providerName · $modelName"' not in chat,
-       "model is still rendered in the top bar (duplicate with the bottom bar)")
+       "model is still rendered in the top bar")
     ok("ThinkingLevelBadge(" not in chat.replace("private fun ThinkingLevelBadge(", ""),
-       "thinking badge is still called from the top bar (duplicate with the bottom bar)")
+       "thinking badge is still called from the top bar")
 
-    # --- Composer: bottom model + thinking toolbar ------------------------
-    # Definition first...
+    # --- Composer: one + row carrying model + thinking --------------------
     ok("internal fun ComposerModelThinkingBar(" in extras,
-       "bottom model/thinking toolbar is not defined")
-    # ...then REAL invocation evidence: exactly one call, inside the composer,
-    # between the input area and the native +/mic/send row. A definition alone
-    # must never satisfy this contract again.
+       "model/thinking chips are not defined")
     ok(chat.count("ComposerModelThinkingBar(") == 1,
-       "bottom model/thinking toolbar is not called exactly once in ChatScreen")
-    if "ComposerModelThinkingBar(" in chat:
-        call_at = chat.index("ComposerModelThinkingBar(")
-        ok(chat.index("// ─── Input area") < call_at,
-           "toolbar call is outside the composer input area")
-        ok(call_at < chat.index("// Button row below text field"),
-           "toolbar call is not in the composer's bottom region")
-        ok("viewModel.thinkingLevel.collectAsState()" in chat[call_at - 1600:call_at],
-           "toolbar does not observe the live thinking level")
-        ok("viewModel.availableThinkingLevels" in chat[call_at:call_at + 900],
-           "toolbar does not read the live supported levels")
-        ok("viewModel.currentModelSupportsReasoning" in chat[call_at:call_at + 900],
-           "toolbar does not read the live reasoning capability")
-        ok("onModelClick = { showModelPicker = true }" in chat[call_at:call_at + 900],
-           "toolbar model chip does not open the native model picker")
-        ok("onLevelClick = { showThinkingLevelSheet = true }" in chat[call_at:call_at + 900],
-           "toolbar level chip does not open the native thinking sheet")
-        ok("modelInteractionSource = modelPickerInteraction" in chat[call_at:call_at + 1500],
-           "toolbar lost the native model-picker interaction source")
-        ok("groupLabel = bottomGroupLabel?.takeIf" in chat[call_at:call_at + 1800],
-           "group binding is not passed to the bottom toolbar")
-        ok("selectedGroupName.ifEmpty" in chat[call_at - 1200:call_at]
-           and "selectedGroupId != null" in chat[call_at - 1200:call_at],
-           "group binding fallback/resolve visibility was dropped")
-    ok("groupLabel: String? = null" in extras,
-       "bottom toolbar cannot show the bound group")
-    ok("Icons.Default.Layers" in extras and "contentDescription = \"当前分组 $groupLabel\"" in extras,
-       "group label is not drawn with the native Layers icon / a11y label")
-    ok("widthIn(max = 56.dp)" in extras,
-       "group label is not capped for narrow screens")
-    # Role status that used to live on the top bar must survive the move.
-    ok("SpeedTierNavBadge(" in chat[chat.index("ComposerModelThinkingBar("):]
-       if "ComposerModelThinkingBar(" in chat else False,
-       "speed-tier badge was dropped instead of moving to the bottom bar")
-    ok("com.openminis.app.ui.quota.ModelQuotaStatusDot(" in chat[
-        chat.index("ComposerModelThinkingBar("):] if "ComposerModelThinkingBar(" in chat else False,
-       "quota dot was dropped instead of moving to the bottom bar")
+       "model/thinking chips are not called exactly once in ChatScreen")
+    row_at = chat.index("// Button row below text field")
+    call_at = chat.index("ComposerModelThinkingBar(")
+    ok(row_at < call_at,
+       "model/thinking chips are not inside the composer button row")
+    ok(call_at < chat.index("// Right: 3-state Send"),
+       "model/thinking chips are not on the + row, before send")
+    ok("viewModel.thinkingLevel.collectAsState()" in chat[call_at - 600:call_at],
+       "chips do not observe the live thinking level")
+    ok("viewModel.availableThinkingLevels" in chat[call_at:call_at + 900],
+       "chips do not read the live supported levels")
+    ok("viewModel.currentModelSupportsReasoning" in chat[call_at:call_at + 900],
+       "chips do not read the live reasoning capability")
+    ok("onModelClick = { showModelPicker = true }" in chat[call_at:call_at + 900],
+       "model chip does not open the native model picker")
+    ok("onLevelClick = { showThinkingLevelSheet = true }" in chat[call_at:call_at + 900],
+       "level chip does not open the native thinking sheet")
+    ok("modelInteractionSource = modelPickerInteraction" in chat[call_at:call_at + 900],
+       "model chip lost the native model-picker interaction source")
+    # Nothing else on that row: no group label, no speed tier, no quota dot.
+    ok("groupLabel = bottomGroupLabel" not in chat,
+       "group label is still passed to the chips")
+    ok("SpeedTierNavBadge(" not in chat,
+       "speed-tier badge is still drawn in the composer")
+    ok("com.openminis.app.ui.quota.ModelQuotaStatusDot(" not in chat,
+       "quota dot is still drawn in the composer")
+    # The + button keeps every action; "/" and the mic button are gone.
+    ok("Icons.Default.Add" in chat, "+ button lost its icon")
+    ok("showAttachMenu = true" in chat, "+ button no longer opens the merged menu")
+    ok("MicButton(" not in chat, "mic button is still rendered in the composer")
+    ok('                        // Left: "/" slash command button' not in chat,
+       "the separate / button is still rendered")
 
-    # Layout contract that keeps the bar usable on narrow phones.
+    # Layout contract that keeps the chips usable on narrow phones.
     for token in (
         "weight(1f, fill = false)",
         "widthIn(min = 64.dp)",
@@ -179,9 +172,9 @@ def main() -> int:
         "rows.indexOf(level)",
         "ComposerPortMath.levelColorArgb(",
     ):
-        ok(token in extras, f"bottom toolbar layout/state contract missing: {token}")
+        ok(token in extras, f"chip layout/state contract missing: {token}")
     ok("localizedName(context)" in extras,
-       "toolbar level chip is not localized")
+       "thinking chip is not localized")
 
     # --- Composer: merged + menu ----------------------------------------
     ok("ComposerCommandMenuRows(" in chat, "merged + menu does not render commands")
