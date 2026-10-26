@@ -2,7 +2,8 @@
 
 This branch replaces the Android Alpine guest with **Ubuntu 24.04 LTS arm64**.
 The iOS iSH/Alpine guest is unchanged. It is an independent Android installation:
-`com.openminis.app.ubuntu`, labelled **Minis Ubuntu**, test-signed by Actions.
+`com.openminis.app.ubuntu.next`, labelled **Minis Ubuntu Next**, test-signed by Actions.
+This package also coexists with the earlier Ubuntu test builds, whose signing keys changed.
 Do not uninstall the upstream app to try it. Export/import configuration and data
 explicitly; an independent package cannot read the upstream app's private data.
 
@@ -13,20 +14,20 @@ explicitly; an independent package cannot read the upstream app's private data.
   data directory is preserved as a sibling backup rather than overwritten.
 * Default non-root **PRoot** backend and selectable **Chroot** backend. Switching
   refuses active work or explicitly stops it; no guest data reset is required.
-* Chroot setup requires a fresh Root confirmation, a working su implementation,
-  kernel namespace/mount support and compatible SELinux policy. This fork does
-  not disable SELinux or alter partitions. Commands drop to the app UID after
-  entering the chroot; **apt/dpkg installs must be performed in PRoot mode**.
-  Do not confuse guest PRoot uid 0, app UID in Chroot, and Android device Root.
-* **Native Root**, parallel to the source's Shizuku integration: state/permission
-  page, `android-root-cli`, grouped package/device/settings/file APIs and `exec`.
-  Default disabled. Every invocation needs native approval of the exact argv;
-  no cached session-wide approval, no Xposed and no separate socket Root bridge.
-* Native Composer merged attachment/command menu, two-line centred title and
-  particle thinking-level slider; existing model/rename/send callbacks retained.
-* Soul body-length mode: native limits, unlimited counter, or custom limits.
-  This changes only application length handling. Native prompt construction,
-  injection checks and instruction priority are preserved.
+* Chroot uses the Root grant from Settings → Permissions with no additional
+  application confirmation on switching. It requires working su, kernel
+  namespace/mount support and compatible SELinux policy. The device su manager
+  still controls actual access. Commands drop to the app UID after entering
+  the chroot; **apt/dpkg installs must be performed in PRoot mode**.
+* **Native Root**, parallel to Shizuku: default off, explicitly granted in the
+  permission page. Granted calls run directly until revoked. An agent tool
+  request while off can request approval for that invocation; rejecting it
+  runs nothing and does not change the settings switch.
+* Original upstream chat UI restored from pre-port commit `6eda552`;
+  MinisAllInOne Composer toolbar, particle slider and merged menu removed.
+* Settings → **System Prompt** contains avatar, name and one system-prompt
+  editor. Existing SOUL.md data remains compatible. Prompt text is sent through
+  the provider's system/instructions field; length and validation remain active.
 
 ## Build in GitHub Actions
 

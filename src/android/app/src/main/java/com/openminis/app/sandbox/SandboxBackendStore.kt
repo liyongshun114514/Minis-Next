@@ -179,6 +179,7 @@ object SandboxSwitchPolicy {
         availability: ChrootAvailability,
         authorizedThisProcess: Boolean,
         stopActive: Boolean,
+        rootAccessGranted: Boolean = true,
     ): BackendSwitchDecision {
         if (current == target && (target != SandboxBackend.CHROOT || availability.serverRunning)) {
             return BackendSwitchDecision.NoChange(current)
@@ -195,6 +196,14 @@ object SandboxSwitchPolicy {
                 return BackendSwitchDecision.RefusedUnavailable(
                     target,
                     "the Minis root bridge is unavailable — chroot needs a runtime root grant",
+                )
+            }
+            if (!rootAccessGranted) {
+                // Never enable Root implicitly from a backend switch, and never
+                // pop a Root dialog here: point at the permission that does.
+                return BackendSwitchDecision.RefusedNotAuthorized(
+                    target,
+                    com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM,
                 )
             }
         }
@@ -525,20 +534,16 @@ object SandboxSwitchController {
     private val switchLock = Mutex()
 
     /**
-     * [FEAT-261025-CHROOT] Record the user's explicit risk acknowledgement
-     * (shown by the UI). Does NOT select chroot.
+     * [FEAT-261025-CHROOT] Legacy risk-acknowledgement hook.
      *
-     * The UI calls this immediately before [requestSwitch]. The previous
-     * implementation wrote `selected = CHROOT` here, so requestSwitch then
-     * saw `current == target`, returned [BackendSwitchDecision.NoChange], and
-     * the first "enable chroot" never checked availability/active tasks,
-     * never started the helper, and persisted a backend whose commands all
-     * exited [ChrootKernel.EXIT_NO_HELPER]. The selection is written only
-     * after the helper handshake succeeds (see [requestSwitch]).
+     * The separate chroot risk dialog is gone: the persistent Native Root grant
+     * is the single authorisation, so switching neither asks for another
+     * acknowledgement nor enables Root. Kept as a no-op so an older caller
+     * cannot bring the second prompt back.
      */
+    @Deprecated("The Native Root grant replaces the separate chroot acknowledgement")
     fun authorizeChroot(context: Context, at: Long = System.currentTimeMillis()) {
-        SandboxBackendStore.setAuthorizedAt(context, at)
-        Log.i(TAG, "user acknowledged the chroot risk at $at")
+        Log.i(TAG, "authorizeChroot ignored; Native Root grant is the authorisation ($at)")
     }
 
     suspend fun requestSwitch(
@@ -563,6 +568,7 @@ object SandboxSwitchController {
             availability = ChrootKernel.availability(context),
             authorizedThisProcess = SandboxBackendStore.chrootGranted(generation),
             stopActive = stopActive,
+            rootAccessGranted = com.openminis.app.offload.RootManager.isEnabled(),
         )
         when (decision) {
             is BackendSwitchDecision.NoChange,

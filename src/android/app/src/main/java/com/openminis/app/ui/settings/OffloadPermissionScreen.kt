@@ -233,17 +233,18 @@ fun OffloadPermissionScreen(
         // the android-shizuku-cli card right above: colored leading icon + CLI
         // title + one-line description, then the agent-gate row(s), then the
         // chevron "System authorization" row that opens the walkthrough page.
-        // Only the gate differs, deliberately: Root's model is fixed (default
-        // off, explicit opt-in, one confirmation per command, no session /
-        // always-allow grant), so it gets a switch (whose subtitle states the
-        // per-command rule) instead of the tri-state menu with "Bypass".
+        // Only the gate differs, deliberately: Root has one persistent, explicit
+        // opt-in (default off) instead of the tri-state menu, so it gets a
+        // switch. While it is on, android-root-cli and Chroot use it directly;
+        // when an agent calls android-root-cli with it off, RootManager sends
+        // one confirmable request and never turns the switch on itself.
         IntegrationSection(
             iconVector = Icons.Outlined.Terminal,
             iconTint = Color(0xFFFF9500),
             sectionHeaderRes = 0,
             sectionFooterRes = 0,
             sectionHeaderText = "原生 Root",
-            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭，每条命令单独确认；su 授权由你的 Root 管理器决定，可随时关闭。",
+            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭。开启后在设置中授权期间 android-root-cli 与 Chroot 直接使用，不再逐次确认；设备 su 管理器仍会单独授权。可随时关闭，关闭后新的 Root 操作会被拒绝。",
             toolName = "root_cli",
             descriptionRes = 0,
             titleText = "android-root-cli",
@@ -258,8 +259,8 @@ fun OffloadPermissionScreen(
             onStatusRowClick = { openRootBridgeSettings(context) },
             policyContent = { divider ->
                 SettingsSwitchRow(
-                    title = "允许请求原生 Root",
-                    subtitle = "默认关闭；开启后每条命令仍需单独确认。",
+                    title = "允许使用原生 Root",
+                    subtitle = "默认关闭；开启后无需逐次确认，可随时关闭。",
                     checked = rootEnabled,
                     onCheckedChange = { on ->
                         if (on) {
@@ -282,7 +283,7 @@ fun OffloadPermissionScreen(
     if (showRootEnable) {
         AlertDialog(
             onDismissRequest = { showRootEnable = false },
-            title = { Text("启用原生 Root 请求？") },
+            title = { Text("启用原生 Root 授权？") },
             text = {
                 Text(
                     ROOT_ENABLE_MESSAGE

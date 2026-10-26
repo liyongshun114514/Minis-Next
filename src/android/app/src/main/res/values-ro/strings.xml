@@ -248,12 +248,12 @@
     <string name="mcp_import_submit">Importă</string>
     <string name="mcp_delete_title">Ștergi: %1$s</string>
     <string name="mcp_delete_message">Serverul va fi eliminat din servers.json. Operația nu poate fi anulată.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Personalitate și identitate permanente (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Prompt de sistem</string>
+    <string name="settings_soul_subtitle">Prompt de sistem și identitate (SOUL.md)</string>
+    <string name="soul_settings_title">Prompt de sistem</string>
     <string name="soul_section_preview">Previzualizare</string>
     <string name="soul_section_identity">Identitate</string>
-    <string name="soul_section_personality">Prompt de personalitate</string>
+    <string name="soul_section_personality">Prompt de sistem</string>
     <string name="soul_personality_footer">Se editează ca text Markdown al fișierului SOUL.md. Limita de lungime ține cont de limbă: chineză cel mult 1600 de caractere SAU engleză cel mult 1000 de cuvinte (regula se alege după limba dominantă). Conținutul care depășește limita este respins la salvare și ignorat la construirea promptului.</string>
     <string name="soul_field_name">Nume</string>
     <string name="soul_field_style">Stil</string>

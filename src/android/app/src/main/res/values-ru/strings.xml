@@ -249,12 +249,12 @@
     <string name="mcp_import_submit">Импортировать</string>
     <string name="mcp_delete_title">Удалить %1$s?</string>
     <string name="mcp_delete_message">Это удалит сервер из servers.json. Действие необратимо.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Постоянная личность и идентичность (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Системный промпт</string>
+    <string name="settings_soul_subtitle">Системный промпт и идентичность (SOUL.md)</string>
+    <string name="soul_settings_title">Системный промпт</string>
     <string name="soul_section_preview">Предпросмотр</string>
     <string name="soul_section_identity">Идентичность</string>
-    <string name="soul_section_personality">Промпт личности</string>
+    <string name="soul_section_personality">Системный промпт</string>
     <string name="soul_personality_footer">Редактируется как тело SOUL.md в формате Markdown. Ограничение длины зависит от языка: китайский ≤ 1600 символов ИЛИ английский ≤ 1000 слов (правило выбирается по преобладающему языку). Тексты сверх лимита отклоняются при сохранении и игнорируются при построении промпта.</string>
     <string name="soul_field_name">Имя</string>
     <string name="soul_field_style">Стиль</string>

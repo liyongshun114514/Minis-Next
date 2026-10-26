@@ -247,12 +247,12 @@
     <string name="mcp_import_submit">Importar</string>
     <string name="mcp_delete_title">¿Eliminar %1$s?</string>
     <string name="mcp_delete_message">Esto quita el servidor de servers.json. Esta acción no se puede deshacer.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Personalidad e identidad persistentes (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Prompt del sistema</string>
+    <string name="settings_soul_subtitle">Prompt del sistema e identidad (SOUL.md)</string>
+    <string name="soul_settings_title">Prompt del sistema</string>
     <string name="soul_section_preview">Vista previa</string>
     <string name="soul_section_identity">Identidad</string>
-    <string name="soul_section_personality">Prompt de personalidad</string>
+    <string name="soul_section_personality">Prompt del sistema</string>
     <string name="soul_personality_footer">Se edita como el cuerpo Markdown de SOUL.md. El límite de longitud depende del idioma: chino ≤ 1600 caracteres O inglés ≤ 1000 palabras (la regla se elige según el idioma mayoritario). Los cuerpos que excedan el límite se rechazan al guardar y se ignoran al construir el prompt.</string>
     <string name="soul_field_name">Nombre</string>
     <string name="soul_field_style">Estilo</string>

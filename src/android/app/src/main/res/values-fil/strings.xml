@@ -247,12 +247,12 @@
     <string name="mcp_import_submit">Mag-import</string>
     <string name="mcp_delete_title">Burahin ang %1$s?</string>
     <string name="mcp_delete_message">Aalisin nito ang server sa servers.json. Hindi na ito maibabalik.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Permanenteng personalidad at pagkakakilanlan (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">System Prompt</string>
+    <string name="settings_soul_subtitle">System prompt at pagkakakilanlan (SOUL.md)</string>
+    <string name="soul_settings_title">System Prompt</string>
     <string name="soul_section_preview">Preview</string>
     <string name="soul_section_identity">Pagkakakilanlan</string>
-    <string name="soul_section_personality">Personality Prompt</string>
+    <string name="soul_section_personality">System Prompt</string>
     <string name="soul_personality_footer">Ine-edit bilang Markdown body ng SOUL.md. Nakabatay sa wika ang limitasyon sa haba: Chinese ≤ 1600 na karakter O English ≤ 1000 salita (pinipili ang panuntunan ayon sa nangingibabaw na wika). Tinatanggihan sa pag-save ang lumalampas sa limitasyon at hindi ito isinasama kapag binubuo ang prompt.</string>
     <string name="soul_field_name">Pangalan</string>
     <string name="soul_field_style">Estilo</string>

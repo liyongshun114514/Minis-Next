@@ -248,12 +248,12 @@
     <string name="mcp_import_submit">นำเข้า</string>
     <string name="mcp_delete_title">ลบ %1$s หรือไม่</string>
     <string name="mcp_delete_message">การกระทำนี้จะลบเซิร์ฟเวอร์ออกจาก servers.json และไม่สามารถย้อนกลับได้</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">บุคลิกและตัวตนถาวร (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">พรอมป์ตระบบ</string>
+    <string name="settings_soul_subtitle">พรอมป์ตระบบและตัวตน (SOUL.md)</string>
+    <string name="soul_settings_title">พรอมป์ตระบบ</string>
     <string name="soul_section_preview">ตัวอย่าง</string>
     <string name="soul_section_identity">ตัวตน</string>
-    <string name="soul_section_personality">พรอมป์ตบุคลิก</string>
+    <string name="soul_section_personality">พรอมป์ตระบบ</string>
     <string name="soul_personality_footer">แก้ไขในรูปแบบเนื้อหา Markdown ของ SOUL.md ขีดจำกัดความยาวขึ้นอยู่กับภาษา: ภาษาจีนไม่เกิน 1600 อักขระ หรือภาษาอังกฤษไม่เกิน 1000 คำ (เลือกกฎตามภาษาที่ใช้เป็นหลัก) เนื้อหาที่เกินขีดจำกัดจะถูกปฏิเสธเมื่อบันทึก และจะไม่ถูกนำไปใช้ตอนสร้างพรอมป์ต</string>
     <string name="soul_field_name">ชื่อ</string>
     <string name="soul_field_style">สไตล์</string>

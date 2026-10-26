@@ -43,8 +43,24 @@ class ShizukuOffloadHandler(
     private val nativeRoot: Boolean = false,
 ) : NativeOffloadHandler {
     private val cliName get() = if (nativeRoot) "android-root-cli" else "android-shizuku-cli"
+
+    /**
+     * Root approval for the CURRENT invocation only.
+     *
+     * `handle` is called synchronously on an offload worker thread; the
+     * ThreadLocal keeps one ticket per invocation without threading a
+     * parameter through every subcommand handler. Cleared in `handle`'s
+     * finally block, so a pooled thread can never reuse an old approval.
+     */
+    private val agentTicket =
+        ThreadLocal<com.openminis.app.offload.RootManager.AccessTicket?>()
+
     private fun runProcess(argv: Array<String>, timeoutMs: Long = 5_000L): ShizukuManager.ProcessResult =
-        if (nativeRoot) com.openminis.app.offload.RootManager.runProcess(argv, timeoutMs = timeoutMs)
+        if (nativeRoot) com.openminis.app.offload.RootManager.runProcess(
+            argv,
+            timeoutMs = timeoutMs,
+            ticket = agentTicket.get(),
+        )
         else ShizukuManager.runProcess(argv, timeoutMs = timeoutMs)
 
 
@@ -77,9 +93,21 @@ class ShizukuOffloadHandler(
         }
 
         // Every other group needs binder + permission.
-        if (nativeRoot && !com.openminis.app.offload.RootManager.isEnabled()) {
-            return errEnvelope("PERMISSION_DENIED", "Native Root is disabled. Open Settings → Permissions → Native Root.", args)
-        }
+        //
+        // Native Root is a persistent user grant. When it is off, the agent's
+        // call still sends ONE confirmable request naming this exact
+        // invocation; declining runs nothing and never enables Root. The
+        // request is obtained here, once per invocation, and every root command
+        // the invocation issues rides that ticket (no second dialog).
+        val rootTicket: com.openminis.app.offload.RootManager.AccessTicket? = if (nativeRoot) {
+            com.openminis.app.offload.RootManager.requestAccessFromAgent(
+                request.argv.toTypedArray(),
+            ) ?: return errEnvelope(
+                "PERMISSION_DENIED",
+                com.openminis.app.offload.ROOT_AGENT_REQUEST_DENIED,
+                args,
+            )
+        } else null
         if (!nativeRoot) ShizukuManager.refresh()
         if (!nativeRoot) when (val st = ShizukuManager.snapshot.value.state) {
             ShizukuManager.State.NOT_INSTALLED ->
@@ -91,6 +119,7 @@ class ShizukuOffloadHandler(
             ShizukuManager.State.READY -> { /* fall through */ }
         }
 
+        if (rootTicket != null) agentTicket.set(rootTicket)
         return try {
             when (group) {
                 "package" -> handlePackage(rest, args)
@@ -115,6 +144,8 @@ class ShizukuOffloadHandler(
         } catch (t: Throwable) {
             AppLogger.warning(TAG, "group=$group failed: ${t.message}")
             errEnvelope("OPERATION_FAILED", t.message ?: "unknown", args)
+        } finally {
+            if (nativeRoot) agentTicket.remove()
         }
     }
 
@@ -127,7 +158,12 @@ class ShizukuOffloadHandler(
                 "status", "ping" -> okEnvelope(JSONObject().put("state", root.state.name)
                     .put("uid", root.uid).put("su_path", root.suPath)
                     .put("enabled", com.openminis.app.offload.RootManager.isEnabled())
-                    .put("per_command_confirmation", true).put("message", root.message), args)
+                    // The grant is persistent: once enabled, commands run
+                    // without a per-command app dialog. The device's su manager
+                    // still decides whether su itself may run.
+                    .put("per_command_confirmation", false)
+                    .put("persistent_grant", true)
+                    .put("message", root.message), args)
                 else -> ok("android-root-cli service status|ping; verify Root from its permission page.\n")
             }
         }

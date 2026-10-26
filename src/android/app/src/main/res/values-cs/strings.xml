@@ -262,12 +262,12 @@
     <string name="mcp_import_submit">Importovat</string>
     <string name="mcp_delete_title">Smazat %1$s?</string>
     <string name="mcp_delete_message">Tímto se server odstraní ze servers.json. Nelze to vrátit.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Trvalá osobnost a identita (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Systémový prompt</string>
+    <string name="settings_soul_subtitle">Systémový prompt a identita (SOUL.md)</string>
+    <string name="soul_settings_title">Systémový prompt</string>
     <string name="soul_section_preview">Náhled</string>
     <string name="soul_section_identity">Identita</string>
-    <string name="soul_section_personality">Prompt osobnosti</string>
+    <string name="soul_section_personality">Systémový prompt</string>
     <string name="soul_personality_footer">Upravuje se jako tělo SOUL.md v Markdownu. Limit délky závisí na jazyce: čínština ≤ 1600 znaků NEBO angličtina ≤ 1000 slov (pravidlo se volí podle převažujícího jazyka). Text nad limit se při ukládání odmítne a při sestavování promptu ignoruje.</string>
     <string name="soul_field_name">Název</string>
     <string name="soul_field_style">Styl</string>

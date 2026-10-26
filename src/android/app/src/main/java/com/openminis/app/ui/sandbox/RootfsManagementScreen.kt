@@ -367,11 +367,10 @@ fun RootfsManagementScreen(
         )
     }
 
-    // [FEAT-261025-CHROOT] This screen is reached from Settings, i.e. OUTSIDE
-    // ChatScreen's composition, and that is where OffloadPermissionDialog is
-    // normally rendered. Starting chroot asks RootManager for a per-command
-    // confirmation; without this, the request would block with no UI until it
-    // times out. Rendering it here makes the prompt appear on this screen.
+    // [FEAT-261025-CHROOT] Kept as a safety net: this screen lives outside
+    // ChatScreen's composition, and a Root permission request raised from an
+    // agent call that happens while Settings is open must still render. Chroot
+    // itself no longer prompts — it uses the persistent grant or refuses.
     com.openminis.app.ui.chat.OffloadPermissionDialog()
 
     if (showResetBackupDialog) {
@@ -437,7 +436,6 @@ private fun SandboxBackendSection() {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var selected by remember { mutableStateOf(com.openminis.app.sandbox.SandboxBackendStore.selected(context)) }
     var availability by remember { mutableStateOf(com.openminis.app.sandbox.ChrootKernel.availability(context)) }
-    var showRiskDialog by remember { mutableStateOf(false) }
     var pendingTasks by remember { mutableStateOf<List<com.openminis.app.sandbox.ActiveSandboxTask>>(emptyList()) }
     var pendingTarget by remember { mutableStateOf<com.openminis.app.sandbox.SandboxBackend?>(null) }
     var switching by remember { mutableStateOf(false) }
@@ -458,7 +456,7 @@ private fun SandboxBackendSection() {
                 when (val d = com.openminis.app.sandbox.SandboxSwitchController.requestSwitch(context, target, stopActive)) {
                     is com.openminis.app.sandbox.BackendSwitchDecision.Allowed -> {
                         message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
-                            "已切换到 chroot。新的命令使用真实 chroot；运行时授权失效或 helper 停止后，再点一次 Chroot 即可重新授权启动。"
+                            "已切换到 chroot。新的命令使用真实 chroot；helper 停止后再点一次 Chroot 即可重新启动。"
                         } else {
                             "已切回 PRoot。数据未删除。"
                         }
@@ -470,7 +468,7 @@ private fun SandboxBackendSection() {
                     }
                     is com.openminis.app.sandbox.BackendSwitchDecision.NoChange -> {
                         message = if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT) {
-                            "Chroot 已在运行，运行时授权有效；如需重新授权，先切回 PRoot 再切回 Chroot。"
+                            "Chroot 已在运行；如需重启 helper，先切回 PRoot 再切回 Chroot。"
                         } else {
                             "当前已是 PRoot（默认后端）。"
                         }
@@ -486,16 +484,11 @@ private fun SandboxBackendSection() {
         }
     }
 
-    // The two segments are the only entry points to a backend change, so both
-    // gates live here: the persisted risk acknowledgement, then the switch
-    // controller (availability, active tasks, root bridge confirmation).
+    // The two segments are the only entry points to a backend change. There is
+    // no separate chroot risk dialog: the persistent Native Root grant is the
+    // single authorisation, and the switch controller refuses with a settings
+    // hint when it is off (never enabling it from here).
     fun selectBackend(target: com.openminis.app.sandbox.SandboxBackend) {
-        if (target == com.openminis.app.sandbox.SandboxBackend.CHROOT &&
-            com.openminis.app.sandbox.SandboxBackendStore.authorizedAt(context) <= 0L
-        ) {
-            showRiskDialog = true
-            return
-        }
         if (target == com.openminis.app.sandbox.SandboxBackend.PROOT &&
             selected == com.openminis.app.sandbox.SandboxBackend.PROOT
         ) {
@@ -515,10 +508,13 @@ private fun SandboxBackendSection() {
         } else {
             append("当前使用 PRoot：默认后端，无需 root；与 Chroot 共用同一个 rootfs，切换不删除数据。")
         }
+        if (!com.openminis.app.offload.RootManager.isEnabled()) {
+            append("\n需要先在 设置 → 权限 → 原生 Root 开启；此处不会自动开启，也不会弹出 Root 确认。")
+        }
         append("\nChroot 可用性：").append(availability.summary())
         availability.lastError?.let { append("\n最近错误：").append(it) }
         if (chrootSelected && !availability.serverRunning) {
-            append("\n运行时授权已失效或 helper 未运行：再点一次 Chroot 会重新授权并启动。")
+            append("\nhelper 未运行：再点一次 Chroot 会直接用已开启的 Root 授权启动（不再单独确认）。")
         }
     }
 
@@ -554,61 +550,12 @@ private fun SandboxBackendSection() {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
-        SettingsRowDivider()
-        ListItem(
-            headlineContent = { Text("Root Bridge 设置") },
-            supportingContent = { Text("查看 / 撤销已授权的 root 通道（逐命令确认）") },
-            trailingContent = {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-            },
-            modifier = Modifier.fillMaxWidth().clickableListItem(onClick = {
-                val intent = android.content.Intent().setClassName(
-                    context.packageName,
-                    "com.openminis.app.rootbridge.RootBridgeSettingsActivity",
-                )
-                try {
-                    context.startActivity(intent)
-                } catch (e: android.content.ActivityNotFoundException) {
-                    message = "本版本尚未包含 Root Bridge 设置页"
-                }
-            }),
-            colors = transparentListItemColors(),
-        )
         message?.let { text ->
             ListItem(
                 headlineContent = { Text(text, style = MaterialTheme.typography.bodySmall) },
                 colors = transparentListItemColors(),
             )
         }
-    }
-
-    if (showRiskDialog) {
-        AlertDialog(
-            onDismissRequest = { showRiskDialog = false },
-            title = { Text("启用真实 chroot？") },
-            text = {
-                Text(
-                    "Chroot 后端会用内核 chroot(2) 共享同一个 rootfs，因此需要一次 root 授权。\n\n" +
-                        "• 每个命令在私有 mount namespace 中运行，命令本身以本应用 uid 执行\n" +
-                        "• 只绑定最小设备节点、procfs、sysfs(read-only) 与 /var/minis 中已允许的目录\n" +
-                        "• 不修改 SELinux、不重挂载任何分区、不改启动项\n" +
-                        "• root 授权仅本次应用运行有效，重启即失效；随时可切回 PRoot，数据不删除\n" +
-                        "• 若 guest offload client 未打包，Android/Minis 工具会明确报不可用\n" +
-                        "• 命令以本应用 uid 运行：apt/dpkg 等需要 root 的包管理会拒绝\n" +
-                        "• 默认镜像是预装完整环境包（工具链已随镜像内置），无需再装；确需维护包时切回 PRoot 维护同一个 rootfs，完成后再切回 Chroot",
-                )
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showRiskDialog = false
-                    com.openminis.app.sandbox.SandboxSwitchController.authorizeChroot(context)
-                    apply(com.openminis.app.sandbox.SandboxBackend.CHROOT, stopActive = false)
-                }) { Text("我了解风险，继续") }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showRiskDialog = false }) { Text("取消") }
-            },
-        )
     }
 
     if (pendingTasks.isNotEmpty()) {

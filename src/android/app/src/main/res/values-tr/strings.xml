@@ -247,12 +247,12 @@
     <string name="mcp_import_submit">İçe Aktar</string>
     <string name="mcp_delete_title">Silinsin mi: %1$s</string>
     <string name="mcp_delete_message">Bu işlem sunucuyu servers.json dosyasından kaldırır ve geri alınamaz.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Kalıcı kişilik ve kimlik (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Sistem istemi</string>
+    <string name="settings_soul_subtitle">Sistem istemi ve kimlik (SOUL.md)</string>
+    <string name="soul_settings_title">Sistem istemi</string>
     <string name="soul_section_preview">Önizleme</string>
     <string name="soul_section_identity">Kimlik</string>
-    <string name="soul_section_personality">Kişilik İstemi</string>
+    <string name="soul_section_personality">Sistem istemi</string>
     <string name="soul_personality_footer">SOUL.md dosyasının Markdown gövdesi olarak düzenlenir. Uzunluk sınırı dile göre belirlenir: Çince için en fazla 1600 karakter VEYA İngilizce için en fazla 1000 kelime (kural, baskın dile göre seçilir). Sınırı aşan içerik kaydedilirken reddedilir ve istem oluşturulurken yok sayılır.</string>
     <string name="soul_field_name">Ad</string>
     <string name="soul_field_style">Üslup</string>

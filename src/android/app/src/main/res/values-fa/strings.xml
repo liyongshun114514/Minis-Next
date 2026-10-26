@@ -260,12 +260,12 @@
     <string name="mcp_import_submit">وارد کردن</string>
     <string name="mcp_delete_title">\u200F%1$s حذف شود؟</string>
     <string name="mcp_delete_message">با این کار سرور از servers.json حذف می‌شود. این کار برگشت‌پذیر نیست.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">شخصیت و هویت ماندگار (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">پرامپت سیستم</string>
+    <string name="settings_soul_subtitle">پرامپت سیستم و هویت (SOUL.md)</string>
+    <string name="soul_settings_title">پرامپت سیستم</string>
     <string name="soul_section_preview">پیش‌نمایش</string>
     <string name="soul_section_identity">هویت</string>
-    <string name="soul_section_personality">پرامپت شخصیت</string>
+    <string name="soul_section_personality">پرامپت سیستم</string>
     <string name="soul_personality_footer">به‌عنوان متن Markdown فایل SOUL.md ویرایش می‌شود. سقف طول به زبان بستگی دارد: چینی حداکثر ۱۶۰۰ نویسه یا انگلیسی حداکثر ۱۰۰۰ واژه (قاعده بر اساس زبان غالب انتخاب می‌شود). متن‌های بیش از حد هنگام ذخیره رد می‌شوند و هنگام ساخت پرامپت نادیده گرفته می‌شوند.</string>
     <string name="soul_field_name">نام</string>
     <string name="soul_field_style">سبک</string>

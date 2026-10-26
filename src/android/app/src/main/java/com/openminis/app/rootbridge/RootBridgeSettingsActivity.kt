@@ -45,8 +45,8 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     var enabled by remember { mutableStateOf(RootManager.isEnabled()) }
     LaunchedEffect(Unit) { RootManager.refresh(); enabled = RootManager.isEnabled() }
     SettingsScaffold(title = "原生 Root", onBack = onBack) {
-        SettingsSection(header = "Root 状态", footer = "与 Shizuku 独立，使用设备 su；su 授权由你的 Root 管理器决定。启用不会执行命令，所有 Root 调用仍须逐次确认。") {
-            SettingsSwitchRow(title = "允许请求原生 Root", checked = enabled,
+        SettingsSection(header = "Root 状态", footer = "与 Shizuku 独立，使用设备 su；su 授权由你的 Root 管理器决定，本应用无法绕过。开启不执行任何命令；开启后 android-root-cli 与 Chroot 直接使用这次授权，不再逐次确认，随时可在此关闭。") {
+            SettingsSwitchRow(title = "允许使用原生 Root", checked = enabled,
                 onCheckedChange = {
                     if (it) {
                         showEnable = true
@@ -60,25 +60,34 @@ fun RootPermissionScreen(onBack: () -> Unit) {
             SettingsRow(title = rootStateLabel(snap.state),
                 subtitle = "${snap.suPath ?: "未发现 su"}\n${snap.message}",
                 showChevron = false)
-            SettingsRow(title = if (probing) "正在等待确认或 Root 管理器…" else "验证 Root（id）",
-                subtitle = "只执行 /system/bin/id，不修改设备；授权属于此 APK 的独立包名。",
+            SettingsRow(title = if (probing) "正在等待 Root 管理器…" else "验证 Root（id）",
+                subtitle = "只执行 /system/bin/id，不修改设备；设备 su 管理器可能单独询问，授权属于此 APK 的独立包名。",
                 onClick = {
                     if (!probing && RootManager.isEnabled()) {
                         probing = true
                         scope.launch {
-                            try { withContext(Dispatchers.IO) { RootManager.runProcess(arrayOf("/system/bin/id"), timeoutMs = 30_000) } }
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    RootManager.runProcess(
+                                        arrayOf("/system/bin/id"),
+                                        timeoutMs = 30_000,
+                                        // A settings probe never raises a Root dialog.
+                                        caller = com.openminis.app.offload.RootGrantPolicy.Caller.SYSTEM,
+                                    )
+                                }
+                            }
                             finally { probing = false }
                         }
                     }
                 }, showDivider = false)
         }
-        SettingsSection(header = "命令能力", footer = "Chroot 另由沙盒后端页面授权；Root CLI 的许可不等于 Chroot 已启动。") {
+        SettingsSection(header = "命令能力", footer = "Chroot 与 android-root-cli 共用这一次授权；Chroot 是否启动仍由沙盒后端页面控制。") {
             SettingsRow(title = "android-root-cli", subtitle = "package / permission / activity / display / settings / user / network / input / notification / file / device / service / exec", showChevron = false)
-            SettingsRow(title = "执行前逐次确认", subtitle = "确认卡展示确切命令、目录及超时。取消或超时不执行；不继承整会话许可。", showChevron = false, showDivider = false)
+            SettingsRow(title = "授权期间直接执行", subtitle = "开启后不再逐命令弹应用确认；撤销后新的 Root 操作立即被拒绝。", showChevron = false, showDivider = false)
         }
     }
     if (showEnable) AlertDialog(onDismissRequest = { showEnable = false },
-        title = { Text("启用原生 Root 请求？") },
+        title = { Text("启用原生 Root 授权？") },
         text = { Text(ROOT_ENABLE_MESSAGE) },
         confirmButton = { TextButton(onClick = {
             RootManager.setEnabled(true)

@@ -300,20 +300,20 @@
     <string name="mcp_delete_title">Delete %1$s?</string>
     <string name="mcp_delete_message">This removes the server from servers.json. This cannot be undone.</string>
     <!-- T-soul-md — SOUL.md personality / identity settings -->
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Persistent personality and identity (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">System Prompt</string>
+    <string name="settings_soul_subtitle">System prompt and identity (SOUL.md)</string>
+    <string name="soul_settings_title">System Prompt</string>
     <string name="soul_section_preview">Preview</string>
     <string name="soul_section_identity">Identity</string>
-    <string name="soul_section_personality">Personality Prompt</string>
-    <string name="soul_personality_footer">Edited as the Markdown body of SOUL.md. Choose native length caps, custom caps, or unlimited length above. This setting changes application length handling only; prompt-injection checks and provider context limits still apply.</string>
+    <string name="soul_section_personality">System Prompt</string>
+    <string name="soul_personality_footer">Saved as the Markdown body of SOUL.md. Prompt assembly, injection checks and provider context limits are unchanged.</string>
     <string name="soul_field_name">Name</string>
     <string name="soul_field_style">Style</string>
     <string name="soul_field_lang">Language</string>
     <string name="soul_lang_auto">Auto</string>
     <string name="soul_lang_zh">中文</string>
     <string name="soul_lang_en">English</string>
-    <string name="soul_body_placeholder">Describe how the Agent should sound, think, and behave…</string>
+    <string name="soul_body_placeholder">Write the system prompt: who the Agent is, and how it should think and respond…</string>
     <string name="soul_length_indicator">%1$d characters</string>
     <string name="soul_count_zero">0 chars</string>
     <string name="soul_count_chars">%1$d / %2$d chars</string>

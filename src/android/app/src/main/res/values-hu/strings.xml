@@ -260,12 +260,12 @@
     <string name="mcp_import_submit">Importálás</string>
     <string name="mcp_delete_title">Törlöd ezt: %1$s?</string>
     <string name="mcp_delete_message">Ez eltávolítja a szervert a servers.json fájlból. Nem vonható vissza.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Állandó személyiség és identitás (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Rendszerprompt</string>
+    <string name="settings_soul_subtitle">Rendszerprompt és identitás (SOUL.md)</string>
+    <string name="soul_settings_title">Rendszerprompt</string>
     <string name="soul_section_preview">Előnézet</string>
     <string name="soul_section_identity">Identitás</string>
-    <string name="soul_section_personality">Személyiségprompt</string>
+    <string name="soul_section_personality">Rendszerprompt</string>
     <string name="soul_personality_footer">A SOUL.md Markdown-törzseként szerkeszthető. A hosszkorlát a nyelvtől függ: kínaiul ≤ 1600 karakter VAGY angolul ≤ 1000 szó (a szabályt a többségi nyelv határozza meg). A korlát feletti szöveget mentéskor elutasítja, a prompt összeállításakor pedig figyelmen kívül hagyja az app.</string>
     <string name="soul_field_name">Név</string>
     <string name="soul_field_style">Stílus</string>

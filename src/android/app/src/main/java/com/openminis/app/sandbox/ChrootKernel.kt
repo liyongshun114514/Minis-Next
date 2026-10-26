@@ -403,15 +403,17 @@ object ChrootKernel {
     /**
      * [FEAT-261025-CHROOT] Start (or adopt) the privileged helper.
      *
-     * Requires the persisted risk acknowledgement AND the root bridge. The
-     * bridge shows its own per-command confirmation; we pass [reason] so the
-     * dialog says what is being authorised. On success the handshake's nonce
-     * is checked before the in-memory grant is recorded.
+     * Requires the persistent Root grant (Settings → Permissions → Native
+     * Root) AND the root bridge. Switching backends never prompts for Root and
+     * never enables it: without the grant this fails with a settings hint. On
+     * success the handshake's nonce is checked before the in-memory grant is
+     * recorded.
      */
     suspend fun ensureServer(context: Context, reason: String = DEFAULT_GRANT_REASON): Result<Unit> {
-        if (SandboxBackendStore.authorizedAt(context) <= 0L) {
+        if (!com.openminis.app.offload.RootManager.isEnabled()) {
+            // No implicit enable and no Root dialog from a backend switch.
             return Result.failure(
-                IllegalStateException("chroot was never enabled by the user (no risk acknowledgement)"),
+                IllegalStateException(com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM),
             )
         }
         val launcher = launcher(context)
@@ -557,8 +559,8 @@ object ChrootKernel {
      *
      * [security] The stop request is unprivileged on purpose: the helper
      * checks SO_PEERCRED against `--uid`, so routing this through
-     * [RootManager] would run it as uid 0 (rejected) and would ask the user
-     * for a root grant just to shut down.
+     * [RootManager] would run it as uid 0 (rejected) and would need a Root
+     * grant just to shut down.
      *
      * @return the client's exit code (0 = the server acknowledged and is
      *   exiting, [EXIT_NO_HELPER] = nothing was listening), or `null` when

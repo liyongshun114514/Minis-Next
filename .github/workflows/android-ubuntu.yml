@@ -77,10 +77,31 @@ jobs:
           sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
       - name: Restore test signing identity
-        uses: actions/cache@v4
+        id: test-signing
+        uses: actions/cache/restore@v4
         with:
-          path: ~/.android/debug.keystore
-          key: ubuntu-apk-test-signing-v1-${{ github.repository_id }}
+          path: ${{ runner.temp }}/minis-test-signing
+          key: ubuntu-next-test-signing-v1-${{ github.repository_id }}
+      - name: Prepare explicit test signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          SIGNING_DIR="${RUNNER_TEMP}/minis-test-signing"
+          mkdir -p "$SIGNING_DIR"
+          KEYSTORE="$SIGNING_DIR/debug.keystore"
+          if [ ! -s "$KEYSTORE" ]; then
+            keytool -genkeypair -keystore "$KEYSTORE" -storepass android -keypass android \
+              -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          echo "MINIS_TEST_KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
+          keytool -list -keystore "$KEYSTORE" -storepass android -alias androiddebugkey
+      - name: Save test identity before compilation
+        if: steps.test-signing.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/minis-test-signing
+          key: ${{ steps.test-signing.outputs.cache-primary-key }}
       - name: Native dependency cache
         id: native-cache
         uses: actions/cache@v4
@@ -164,7 +185,9 @@ jobs:
           ./gradlew "${GRADLE_ARGS[@]}" \
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
             --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
-            --tests '*TarExtractorRootEntryTest' --tests '*ComposerPortMathTest'
+            --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
+            --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
+            --tests '*SoulBodyLimitPolicyTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Verify APK structure, signatures and metadata
         id: verify-apk

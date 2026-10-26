@@ -286,12 +286,12 @@
     <string name="mcp_delete_title">Izbrisati %1$s?</string>
     <string name="mcp_delete_message">Ovo uklanja poslužitelj iz servers.json. Radnja se ne može poništiti.</string>
     <!-- T-soul-md — SOUL.md personality / identity settings -->
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Trajna osobnost i identitet (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Sistemski prompt</string>
+    <string name="settings_soul_subtitle">Sistemski prompt i identitet (SOUL.md)</string>
+    <string name="soul_settings_title">Sistemski prompt</string>
     <string name="soul_section_preview">Pregled</string>
     <string name="soul_section_identity">Identitet</string>
-    <string name="soul_section_personality">Prompt osobnosti</string>
+    <string name="soul_section_personality">Sistemski prompt</string>
     <string name="soul_personality_footer">Uređuje se kao Markdown tijelo datoteke SOUL.md. Ograničenje duljine ovisi o jeziku: kineski ≤ 1600 znakova ILI engleski ≤ 1000 riječi (pravilo se bira prema prevladavajućem jeziku). Predugi tekstovi odbijaju se pri spremanju i zanemaruju pri izgradnji prompta.</string>
     <string name="soul_field_name">Ime</string>
     <string name="soul_field_style">Stil</string>

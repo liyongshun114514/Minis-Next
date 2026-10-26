@@ -248,12 +248,12 @@
     <string name="mcp_import_submit">インポート</string>
     <string name="mcp_delete_title">%1$s を削除しますか？</string>
     <string name="mcp_delete_message">サーバーを servers.json から削除します。この操作は取り消せません。</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">永続的な人格とアイデンティティ（SOUL.md）</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">システムプロンプト</string>
+    <string name="settings_soul_subtitle">システムプロンプトとアイデンティティ（SOUL.md）</string>
+    <string name="soul_settings_title">システムプロンプト</string>
     <string name="soul_section_preview">プレビュー</string>
     <string name="soul_section_identity">アイデンティティ</string>
-    <string name="soul_section_personality">人格プロンプト</string>
+    <string name="soul_section_personality">システムプロンプト</string>
     <string name="soul_personality_footer">SOUL.md の Markdown 本文として編集します。文字数の上限は言語に応じて変わり、中国語なら 1600 文字以内、英語なら 1000 語以内です（本文の主要言語によってどちらの基準を使うかが決まります）。上限を超えた本文は保存時に拒否され、プロンプト生成時にも無視されます。</string>
     <string name="soul_field_name">名前</string>
     <string name="soul_field_style">スタイル</string>

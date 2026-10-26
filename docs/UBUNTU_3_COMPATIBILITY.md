@@ -18,7 +18,7 @@ The enable dialog is two sentences. Per-command confirmation shows the exact quo
 
 ## Upgrade and recovery
 
-Package ID and test-signing identity remain unchanged; versionCode increases to 38. Install over the previous Ubuntu APK rather than clearing data. Opening the terminal retries missing rootfs installation. Installation extracts into staging; the previous guest is preserved until extraction and readiness checks succeed. Do not clear app storage or automatically delete a previous rootfs/backup to work around this error.
+The .3 package ID remained unchanged and versionCode increased to 38, but delivered .2 and .3 test APKs have different signing certificates because the previous CI cache did not retain the actual AGP keystore. They cannot update each other in place. Do not uninstall or clear data to resolve the signature mismatch. The subsequent .4 release uses the independent `com.openminis.app.ubuntu.next` package for coexistence, as selected by the user. Opening the terminal retries missing rootfs installation. Installation extracts into staging; the previous guest is preserved until extraction and readiness checks succeed. Do not clear app storage or automatically delete a previous rootfs/backup to work around this error.
 
 ## CI compiler memory
 

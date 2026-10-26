@@ -252,12 +252,12 @@
     <string name="mcp_import_submit">Impor</string>
     <string name="mcp_delete_title">Hapus %1$s?</string>
     <string name="mcp_delete_message">Ini akan menghapus server dari servers.json. Tindakan ini tidak dapat dibatalkan.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Kepribadian dan identitas permanen (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Prompt Sistem</string>
+    <string name="settings_soul_subtitle">Prompt sistem dan identitas (SOUL.md)</string>
+    <string name="soul_settings_title">Prompt Sistem</string>
     <string name="soul_section_preview">Pratinjau</string>
     <string name="soul_section_identity">Identitas</string>
-    <string name="soul_section_personality">Prompt Kepribadian</string>
+    <string name="soul_section_personality">Prompt Sistem</string>
     <string name="soul_personality_footer">Diedit sebagai badan Markdown dari SOUL.md. Batas panjang menyesuaikan bahasa: bahasa Mandarin ≤ 1600 karakter ATAU bahasa Inggris ≤ 1000 kata (aturan dipilih berdasarkan bahasa yang dominan). Isi yang melebihi batas akan ditolak saat disimpan dan diabaikan saat prompt disusun.</string>
     <string name="soul_field_name">Nama</string>
     <string name="soul_field_style">Gaya</string>

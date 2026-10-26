@@ -1,0 +1,15 @@
+# Ubuntu .4: original chat UI, system prompt and Root grant
+
+Version 1.15-ubuntu.4 / code 39 uses package `com.openminis.app.ubuntu.next`, labelled Minis Ubuntu Next. It coexists with earlier Ubuntu test APKs. It does not automatically read their private chats, provider keys or rootfs. No uninstall, storage reset or automatic data migration is part of this change.
+
+The chat screen is restored byte-for-byte to upstream commit `6eda552`, before the MinisAllInOne Composer port. The imported toolbar, merged attachment/command menu, two-line title and particle thinking slider are removed. Existing rootfs extraction and no-follow cleanup fixes remain.
+
+Settings → System Prompt contains avatar, name and the prompt editor. It saves the existing SOUL.md format, preserving hidden legacy metadata. The body is labelled as an application system prompt rather than a persona subordinate to later messages. OpenAI chat sends it in `role=system`; Responses uses `instructions`; Anthropic uses `system`; Gemini text models use `systemInstruction`. Provider-side instruction precedence remains governed by the API. Existing validation and body-length policy remain active. The application supplies no tier above the provider's system role.
+
+Native Root defaults off. Enabling it in Settings → Permissions stores an explicit persistent grant. Granted `android-root-cli` calls and Chroot startup use it without repeated application dialogs. The device su manager remains authoritative. A chat tool call while Root is off can ask for that invocation only; refusal, dismissal or timeout runs nothing and never flips the persistent switch. Disabling or resetting permissions invalidates outstanding approval tickets. It does not forcibly kill already-started processes; existing chroot commands run at app UID and the helper retains its existing idle lifetime.
+
+PRoot/Chroot switching no longer has a separate Root-risk dialog. Rootfs management has no Root Bridge settings row. Chroot still requires the permission-page grant and working device Root, and does not change SELinux or partitions. A switch during active tasks still offers stop-and-switch or cancel. The same guest filesystem is shared; package maintenance remains in PRoot.
+
+CI compiles variants sequentially with one worker and a bounded JVM. It explicitly binds signing to a cache-managed test keystore, saves that identity before compilation, checks the package ID and signed ZIP, and extracts the actual final APK through the production Kotlin installer with zero skipped acceptance tests. Test signing is not a production release identity; cache deletion still requires restoring the original key to preserve future upgrade compatibility.
+
+Local preflight: 46 JVM tests (actual Kotlin prompt/render/store data classes, Root grant policy, page contract and ordinary guest compatibility) and 46 original-UI source checks passed. Full Android compilation, final APK extraction and device validation are recorded separately at delivery. No Root, Shizuku or app installation is used by the local checks.

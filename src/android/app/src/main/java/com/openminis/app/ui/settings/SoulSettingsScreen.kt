@@ -10,15 +10,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,7 +64,6 @@ import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.agent.SoulBodyLimitCheck
-import com.openminis.app.agent.SoulBodyLimitMode
 import com.openminis.app.agent.SoulBodyLimitPolicy
 import com.openminis.app.agent.SoulBodyLimitSettings
 import com.openminis.app.agent.SoulIcon
@@ -81,18 +77,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
 
 /**
- * [T-soul-md] Settings page for editing SOUL.md. Mirrors iOS
- * `SoulSettingsView` (commit 6370d5a):
- *   - Header preview card showing `✨ [name]` + `[style]` (emoji is
- *     locked to ✨; the editable emoji field was removed to keep
- *     identity surface consistent across the app)
- *   - Identity fields: name, style, lang (Auto / Chinese / English)
- *   - Personality prompt (multiline) with soft-warning + hard-truncate
- *     length indicators (>2000 chars = yellow, >4000 = red)
- *   - "Restore Default" with confirmation dialog
- *   - "Save" writes to SOUL.md via [SoulStore.save] and refreshes the
- *     in-memory metadata cache so chat bubble headers update without a
- *     restart.
+ * [T-soul-md] Settings page for SOUL.md, now reduced to the system-prompt
+ * setting: an editable avatar, a name, and one multiline prompt field.
+ *
+ * [T-android-soul-system-prompt-only] Style, language and the body-length
+ * mode/cap controls were removed from the page. They are NOT removed from
+ * the data model: whatever SOUL.md already carries for `style`, `lang` and
+ * `emoji` is read into state at load and written back unchanged on save, so
+ * the file still round-trips and older/other-device values are not silently
+ * dropped. The length gate itself is untouched — it is still evaluated from
+ * the persisted [SoulBodyLimitPolicy], it is only no longer configurable
+ * here; a body over the stored cap still cannot be saved and now says so
+ * inline.
+ *
+ * The prompt is saved as the Markdown body of SOUL.md via [SoulStore.save];
+ * prompt assembly, layering and instruction priority live in the agent layer
+ * and are not changed by this screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,14 +101,17 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf(SoulMetadata.DEFAULT.name) }
+    // Preserved, not editable. Kept in state so Save re-emits the values the
+    // loaded file had; dropping them would rewrite metadata the user set
+    // elsewhere just because this page no longer shows a field for it.
     var style by remember { mutableStateOf(SoulMetadata.DEFAULT.style) }
     var lang by remember { mutableStateOf(SoulMetadata.DEFAULT.lang) }
     var body by remember { mutableStateOf("") }
-    // [T-native-composer-soul-limit] Length policy, persisted independently
-    // of the SOUL.md Save button so changing a cap does not mark the text dirty.
+    // [T-native-composer-soul-limit] The persisted length policy is still
+    // read (never written from here) so the Save button keeps enforcing the
+    // same gate the agent layer uses.
     var limitSettings by remember { mutableStateOf(SoulBodyLimitSettings()) }
     var loaded by remember { mutableStateOf(false) }
-    var showRestoreDialog by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
     // Preserve the raw `emoji` field exactly as it appears in SOUL.md so
     // Save round-trips without clobbering a value the user may have set
@@ -129,8 +132,8 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // A boolean set by every onValueChange would report dirty after a round
     // trip that lands back on the original text (type a character, delete it),
     // and would need a reset at each of the several places state is
-    // reassigned — the load, the restore-default, and the save itself. A
-    // snapshot compared by value cannot drift out of sync with the fields.
+    // reassigned — the load and the save itself. A snapshot compared by value
+    // cannot drift out of sync with the fields.
     var baseline by remember { mutableStateOf<SoulFile?>(null) }
 
     // [T-android-soul-custom-icon] Image import: decode → reject opaque →
@@ -201,8 +204,9 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         loaded = true
     }
 
-    // Language-aware length check used by both the editor counter and the
-    // Save button's enabled state. See [SoulStore.isOverLimit] for the rule.
+    // The length gate is unchanged; this only surfaces it. [bodyLimitCheck]
+    // is the same object Save's enabled state consults, so the warning and
+    // the disabled button can never disagree.
     val bodyLimitCheck by remember(body, limitSettings) {
         derivedStateOf { SoulStore.isOverLimit(body, limitSettings) }
     }
@@ -246,16 +250,16 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         actions = {
             // Save lives in the app bar, where a top-level commit action
             // belongs and where it stays reachable without scrolling the
-            // (long) prompt editor to the bottom.
+            // prompt editor to the bottom.
             MinisTextButton(
                 onClick = save,
                 enabled = loaded && isDirty && !bodyLimitCheck.isOverLimit,
             ) { Text(stringResource(R.string.soul_save)) }
         },
     ) {
-        SettingsSection(
-            header = stringResource(R.string.soul_section_preview),
-        ) {
+        // Identity: the avatar and the name, and nothing else. Tapping the
+        // avatar opens the icon menu (emoji / image / default).
+        SettingsSection {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -267,7 +271,7 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                 // filled circle with a hairline border and a pencil badge.
                 // The circle doubles as the backdrop for transparent PNGs,
                 // which by definition have no background of their own.
-                Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.width(56.dp), contentAlignment = Alignment.Center) {
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -316,66 +320,22 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                         onUseDefault = { showIconMenu = false; icon = "" },
                     )
                 }
-                Column(modifier = Modifier.padding(start = 4.dp)) {
-                    Text(
-                        text = name.ifBlank { "Minis" },
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (style.isNotBlank()) {
-                        Text(
-                            text = style,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-
-        SettingsSection(
-            header = stringResource(R.string.soul_section_identity),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.soul_field_name)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp),
                 )
-                Spacer(Modifier.height(8.dp))
-                // Emoji field intentionally removed — identity emoji is
-                // locked to ✨; only name / style / lang are editable.
-                OutlinedTextField(
-                    value = style,
-                    onValueChange = { style = it },
-                    label = { Text(stringResource(R.string.soul_field_style)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                LangPicker(lang = lang, onLangChange = { lang = it })
             }
         }
 
-        // [T-native-composer-soul-limit] Length mode + explicit custom caps.
-        // Sits above the editor so the counter below the field has a visible
-        // explanation for "N / ∞".
-        SettingsSection(header = "Soul body length") {
-            SoulBodyLimitControls(
-                settings = limitSettings,
-                onChange = { next ->
-                    limitSettings = next
-                    SoulBodyLimitPolicy.save(context, next)
-                },
-            )
-        }
-
+        // The system prompt: the SOUL.md body, unchanged in meaning and in
+        // how it is saved.
         SettingsSection(
             header = stringResource(R.string.soul_section_personality),
-            footer = stringResource(R.string.soul_personality_footer),
         ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 // [T-android-editor-keyboard-overlap] The page scrolls and
@@ -394,47 +354,35 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                     ownScroll = false,
                     minHeight = 240.dp,
                 )
-                Spacer(Modifier.height(6.dp))
-                val isOverLimit = bodyLimitCheck.isOverLimit
-                val warnColor: Color =
-                    if (isOverLimit) Color(0xFFFF3B30)
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                val indicatorText: String = when (val c = bodyLimitCheck) {
-                    is SoulBodyLimitCheck.Ok -> {
-                        // Show the unit that matches whichever rule the
-                        // current body is being measured against — mirrors
-                        // iOS soulBodyCountText.
-                        soulBodyCountTextAndroid(body, limitSettings)
-                    }
-                    is SoulBodyLimitCheck.OverLimitChinese -> stringResource(
-                        R.string.soul_over_limit_chinese, c.chars, c.cap, limitSettings.englishWordLimit,
-                    )
-                    is SoulBodyLimitCheck.OverLimitEnglish -> stringResource(
-                        R.string.soul_over_limit_english, c.words, c.cap, limitSettings.chineseCharLimit,
+                // Only while over the stored cap: without this the disabled
+                // Save button would look broken. The cap itself is unchanged
+                // (and still enforced by SoulStore.save); it is just not
+                // editable from this page any more.
+                val overLimit = bodyLimitCheck
+                if (overLimit is SoulBodyLimitCheck.OverLimitChinese ||
+                    overLimit is SoulBodyLimitCheck.OverLimitEnglish
+                ) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = when (overLimit) {
+                            is SoulBodyLimitCheck.OverLimitChinese -> stringResource(
+                                R.string.soul_over_limit_chinese,
+                                overLimit.chars,
+                                overLimit.cap,
+                                limitSettings.englishWordLimit,
+                            )
+                            is SoulBodyLimitCheck.OverLimitEnglish -> stringResource(
+                                R.string.soul_over_limit_english,
+                                overLimit.words,
+                                overLimit.cap,
+                                limitSettings.chineseCharLimit,
+                            )
+                            else -> ""
+                        },
+                        fontSize = 12.sp,
+                        color = Color(0xFFFF3B30),
                     )
                 }
-                Text(
-                    text = indicatorText,
-                    fontSize = 12.sp,
-                    color = warnColor,
-                )
-            }
-        }
-
-        SettingsSection {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MinisOutlinedButton(
-                    onClick = { showRestoreDialog = true },
-                    // [T-android-soul-save-in-appbar] Full width now that Save
-                    // has moved to the app bar and this is the only button left
-                    // in the row.
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.soul_restore_default)) }
             }
         }
     }
@@ -463,31 +411,6 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             dismissButton = {
                 MinisTextButton(onClick = { showDiscardDialog = false }) {
                     Text(stringResource(R.string.soul_discard_cancel))
-                }
-            },
-        )
-    }
-
-    if (showRestoreDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestoreDialog = false },
-            title = { Text(stringResource(R.string.soul_restore_confirm_title)) },
-            text = { Text(stringResource(R.string.soul_restore_confirm_body)) },
-            confirmButton = {
-                MinisButton(onClick = {
-                    val parsed = SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)
-                    name = parsed.metadata.name
-                    preservedEmoji = parsed.metadata.emoji
-                    icon = parsed.metadata.icon
-                    style = parsed.metadata.style
-                    lang = parsed.metadata.lang
-                    body = parsed.body
-                    showRestoreDialog = false
-                }) { Text(stringResource(R.string.soul_restore_default)) }
-            },
-            dismissButton = {
-                MinisOutlinedButton(onClick = { showRestoreDialog = false }) {
-                    Text(stringResource(R.string.soul_cancel))
                 }
             },
         )
@@ -707,112 +630,4 @@ private fun SoulEmojiPickerSheet(
             }
         }
     }
-}
-
-/// Render the within-budget counter — picks the CJK character unit vs "words"
-/// depending on the same CJK ratio rule that decides which cap applies.
-/// Standalone helper so it stays out of the Composable hot-path's expression
-/// budget.
-///
-/// [T-native-composer-soul-limit] In UNLIMITED mode the right-hand side is
-/// ∞; NATIVE keeps the shipped localized strings, CUSTOM substitutes the
-/// user's caps.
-@Composable
-private fun soulBodyCountTextAndroid(
-    body: String,
-    settings: SoulBodyLimitSettings,
-): String {
-    val trimmed = body.trim()
-    if (trimmed.isEmpty()) {
-        return when (settings.mode) {
-            SoulBodyLimitMode.UNLIMITED -> "0 / ∞ chars"
-            SoulBodyLimitMode.CUSTOM ->
-                stringResource(R.string.soul_count_chars, 0, settings.chineseCharLimit)
-            SoulBodyLimitMode.NATIVE -> stringResource(R.string.soul_count_zero)
-        }
-    }
-    var cjk = 0
-    var total = 0
-    var i = 0
-    while (i < trimmed.length) {
-        val cp = trimmed.codePointAt(i)
-        total += 1
-        if (SoulStore.isCJKCodePoint(cp)) cjk += 1
-        i += Character.charCount(cp)
-    }
-    val ratio = if (total > 0) cjk.toDouble() / total else 0.0
-    val cjkHeavy = ratio > SoulStore.CJK_RATIO_THRESHOLD
-    val chars = trimmed.codePointCount(0, trimmed.length)
-    val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
-    return when (settings.mode) {
-        SoulBodyLimitMode.UNLIMITED ->
-            if (cjkHeavy) "$chars / ∞ chars" else "$words / ∞ words"
-        SoulBodyLimitMode.CUSTOM ->
-            if (cjkHeavy) {
-                stringResource(R.string.soul_count_chars, chars, settings.chineseCharLimit)
-            } else {
-                stringResource(R.string.soul_count_words, words, settings.englishWordLimit)
-            }
-        SoulBodyLimitMode.NATIVE ->
-            if (cjkHeavy) {
-                stringResource(R.string.soul_count_chars, chars, SoulStore.CHINESE_CHAR_LIMIT)
-            } else {
-                stringResource(R.string.soul_count_words, words, SoulStore.ENGLISH_WORD_LIMIT)
-            }
-    }
-}
-
-/** [T-soul-lang-button-wrap] Side padding of the language buttons. */
-internal val LANG_BUTTON_SIDE_PADDING = 8.dp
-
-@Composable
-private fun LangButtonLabel(label: String) {
-    Text(label, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LangPicker(lang: String, onLangChange: (String) -> Unit) {
-    val options = listOf(
-        "auto" to stringResource(R.string.soul_lang_auto),
-        "zh" to stringResource(R.string.soul_lang_zh),
-        "en" to stringResource(R.string.soul_lang_en),
-    )
-    val current = options.firstOrNull { it.first == lang } ?: options.first()
-    var expanded by remember { mutableStateOf(false) }
-    // Render the picker as a simple labeled row of buttons. Three options
-    // (auto / Chinese / English) fit comfortably without a dropdown — avoids
-    // depending on material3 ExposedDropdownMenu, which has a fragile
-    // alignment story across compose versions.
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.soul_field_lang),
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-        )
-        // [T-soul-lang-button-wrap] Three equal-width buttons leave little room
-        // once the default 24dp side padding is taken: on narrow phones
-        // "English" broke mid-word ("Englis" / "h"). Keep labels on one line
-        // and use a tighter side padding.
-        val padding = PaddingValues(horizontal = LANG_BUTTON_SIDE_PADDING, vertical = 8.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            options.forEach { (key, label) ->
-                if (key == current.first) {
-                    MinisButton(
-                        onClick = { onLangChange(key) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = padding,
-                    ) { LangButtonLabel(label) }
-                } else {
-                    MinisOutlinedButton(
-                        onClick = { onLangChange(key) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = padding,
-                    ) { LangButtonLabel(label) }
-                }
-            }
-        }
-    }
-    expanded // suppress unused-var warning
 }

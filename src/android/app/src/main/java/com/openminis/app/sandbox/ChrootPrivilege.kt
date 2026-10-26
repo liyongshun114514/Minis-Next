@@ -10,9 +10,12 @@ import kotlinx.coroutines.withContext
  * [FEAT-261025-CHROOT] The ONE place the chroot backend asks for privilege.
  *
  * It delegates to the root bridge the native-port agent landed:
- * [com.openminis.app.offload.RootManager.runProcess], which shows a fresh
- * native confirmation per invocation displaying the EXACT argv and refuses
- * custom environments, main-thread callers and disabled states.
+ * [com.openminis.app.offload.RootManager.runProcess]. Chroot does NOT show a
+ * per-command Root prompt: the persistent Root grant (Settings → Permissions →
+ * Native Root) is the authorisation, and without it the switch refuses with a
+ * settings hint instead of enabling anything. RootManager still refuses custom
+ * environments and main-thread callers, and the device su manager keeps its
+ * own prompt.
  *
  * ## Why a helper process instead of one root call per command
  *
@@ -21,8 +24,8 @@ import kotlinx.coroutines.withContext
  * socket, runs each guest command as the APP's uid inside a private mount
  * namespace, and refuses every path outside the allowlist it was started with.
  * Authorising it once per app run (see [SandboxBackendStore.grantChrootForProcess],
- * never persisted, plus the settings risk dialog) keeps the root prompt rare
- * enough to be read. A prompt per `ls` would train users to approve blind.
+ * never persisted) keeps the root prompt rare enough to be read. A prompt per
+ * `ls` would train users to approve blind.
  *
  * ## What never happens here
  *
@@ -50,7 +53,8 @@ internal object ChrootPrivilege {
      */
     fun rootManagerDetected(): Boolean {
         RootManager.refresh()
-        return RootManager.snapshot.value.state != RootManager.State.NOT_FOUND
+        return RootManager.isEnabled() &&
+            RootManager.snapshot.value.state != RootManager.State.NOT_FOUND
     }
 
     /** Human-readable bridge state, for the settings row. */
@@ -70,10 +74,9 @@ internal object ChrootPrivilege {
         timeoutMs: Long = LAUNCH_TIMEOUT_MS,
     ): Outcome = withContext(Dispatchers.IO) {
         if (!RootManager.isEnabled()) {
-            return@withContext Outcome(
-                126, "",
-                "Native root is disabled. Enable Settings → Permissions → Native Root, then retry.",
-            )
+            // Switching backends must never enable Root or pop a Root dialog:
+            // the Chroot row reports the settings hint instead.
+            return@withContext Outcome(126, "", com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM)
         }
         RootManager.refresh()
         Log.i(
@@ -87,6 +90,9 @@ internal object ChrootPrivilege {
                 env = null,
                 cwd = null,
                 timeoutMs = timeoutMs,
+                // Chroot is authorised by the persistent Root grant, not by a
+                // per-command prompt: no dialog, and no grant → settings hint.
+                caller = com.openminis.app.offload.RootGrantPolicy.Caller.SYSTEM,
             )
         }.getOrElse { t ->
             return@withContext Outcome(-1, "", "root bridge threw: ${t.javaClass.simpleName}: ${t.message}")

@@ -35,11 +35,11 @@ android {
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.openminis.app.ubuntu"
+        applicationId = "com.openminis.app.ubuntu.next"
         minSdk = 26
         targetSdk = 35
-        versionCode = 38
-        versionName = "1.15-ubuntu.3"
+        versionCode = 39
+        versionName = "1.15-ubuntu.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -85,6 +85,12 @@ android {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
+    }
+
+    // CI owns a fixed test-keystore path instead of relying on AGP's SDK home.
+    signingConfigs.getByName("debug") {
+        val ciStore = providers.environmentVariable("MINIS_TEST_KEYSTORE").orNull
+        if (!ciStore.isNullOrBlank()) storeFile = file(ciStore)
     }
 
     buildTypes {

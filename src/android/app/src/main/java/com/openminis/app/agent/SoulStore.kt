@@ -697,8 +697,10 @@ object SystemPromptBuilder {
      * sentence alone is the safe fallback when SOUL.md is missing or
      * empty, matching pre-SOUL behavior.
      */
-    fun identitySection(context: Context): String {
-        val file = SoulStore.load(context)
+    fun identitySection(context: Context): String = render(SoulStore.load(context))
+
+    /** Render settings into the application's API system message. */
+    internal fun render(file: SoulFile?): String {
         val name = (file?.metadata?.name ?: SoulMetadata.DEFAULT.name)
             .trim()
             .ifEmpty { "Minis" }
@@ -715,10 +717,8 @@ object SystemPromptBuilder {
         // SOUL body length limit (#356 / 1000 EN words / 1600 CN chars).
         val soulEditHint =
             "---\n" +
-            "SOUL.md fields (name / icon / style / lang / body) can be edited two ways:\n" +
-            "1. Tool: call `minis-config` to propose changes (user must approve).\n" +
-            "2. UI: ask the user to go to Settings → Soul to edit directly.\n" +
-            "Pick whichever the user finds easier in context. Do not say you cannot change your personality."
+            "The assistant avatar, name and application system prompt can be edited in Settings → System Prompt (系统提示词).\n" +
+            "The backing file remains SOUL.md for compatibility. The `minis-config` tool can propose changes with user approval."
 
         // [T-soul-style-injection 2026-05-18, port iOS 0409e24f] The `style`
         // frontmatter field (response voice / tone / formatting preference,
@@ -760,7 +760,7 @@ object SystemPromptBuilder {
         // Strip the trailing space we'd otherwise leave hanging at the
         // end of the first paragraph when a personality block follows.
         return identityTrimmed +
-            "\n\nPersonality (from SOUL.md — your character and voice; defer to the user's latest message when it conflicts with anything here):\n" +
+            "\n\nApplication system prompt (configured in Settings → System Prompt):\n" +
             personality +
             styleBlock(style) +
             "\n\n" +

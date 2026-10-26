@@ -260,12 +260,12 @@
     <string name="mcp_import_submit">Importeren</string>
     <string name="mcp_delete_title">%1$s verwijderen?</string>
     <string name="mcp_delete_message">Hiermee wordt de server uit servers.json verwijderd. Dit kan niet ongedaan worden gemaakt.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Blijvende persoonlijkheid en identiteit (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Systeemprompt</string>
+    <string name="settings_soul_subtitle">Systeemprompt en identiteit (SOUL.md)</string>
+    <string name="soul_settings_title">Systeemprompt</string>
     <string name="soul_section_preview">Voorvertoning</string>
     <string name="soul_section_identity">Identiteit</string>
-    <string name="soul_section_personality">Persoonlijkheidsprompt</string>
+    <string name="soul_section_personality">Systeemprompt</string>
     <string name="soul_personality_footer">Wordt bewerkt als de Markdown-tekst van SOUL.md. De lengtelimiet hangt af van de taal: Chinees ≤ 1600 tekens OF Engels ≤ 1000 woorden (de regel wordt gekozen op basis van de meest gebruikte taal). Te lange teksten worden bij opslaan geweigerd en bij het opbouwen van de prompt genegeerd.</string>
     <string name="soul_field_name">Naam</string>
     <string name="soul_field_style">Stijl</string>

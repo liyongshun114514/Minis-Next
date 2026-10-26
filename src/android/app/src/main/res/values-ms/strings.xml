@@ -247,12 +247,12 @@
     <string name="mcp_import_submit">Import</string>
     <string name="mcp_delete_title">Padam %1$s?</string>
     <string name="mcp_delete_message">Ini akan membuang pelayan daripada servers.json. Tindakan ini tidak boleh dibatalkan.</string>
-    <string name="settings_soul">Soul</string>
-    <string name="settings_soul_subtitle">Personaliti dan identiti kekal (SOUL.md)</string>
-    <string name="soul_settings_title">Soul</string>
+    <string name="settings_soul">Gesaan Sistem</string>
+    <string name="settings_soul_subtitle">Gesaan sistem dan identiti (SOUL.md)</string>
+    <string name="soul_settings_title">Gesaan Sistem</string>
     <string name="soul_section_preview">Pratonton</string>
     <string name="soul_section_identity">Identiti</string>
-    <string name="soul_section_personality">Prompt Personaliti</string>
+    <string name="soul_section_personality">Gesaan Sistem</string>
     <string name="soul_personality_footer">Diedit sebagai badan Markdown bagi SOUL.md. Had panjang mengikut bahasa: bahasa Cina ≤ 1600 aksara ATAU bahasa Inggeris ≤ 1000 patah perkataan (peraturan dipilih berdasarkan bahasa majoriti). Kandungan yang melebihi had akan ditolak semasa disimpan dan diabaikan semasa prompt dibina.</string>
     <string name="soul_field_name">Nama</string>
     <string name="soul_field_style">Gaya</string>

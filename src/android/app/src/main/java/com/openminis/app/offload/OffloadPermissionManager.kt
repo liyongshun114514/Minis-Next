@@ -398,6 +398,41 @@ object OffloadPermissionManager {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("offload_permissions", Context.MODE_PRIVATE)
+        migrateRootLevel()
+    }
+
+    // ── Root-only grant state ────────────────────────────────────────────────
+    //
+    // Root is a persistent, user-granted permission: BYPASS means "use it
+    // directly" (no per-command dialog), NOT_ALLOWED means "off" (default).
+    // The three-level model still applies to the other integration CLIs; Root
+    // has no per-session level, so a stored ASK_ONCE from older builds is
+    // migrated to NOT_ALLOWED instead of silently becoming a persistent grant.
+
+    private const val ROOT_TOOL = "root_cli"
+
+    /** Bumped on every transition from granted to not granted. */
+    private val rootGrantEpoch = java.util.concurrent.atomic.AtomicLong(0L)
+
+    /** Monotonic token: an approval issued before a revocation is invalid. */
+    fun rootAuthorizationEpoch(): Long = rootGrantEpoch.get()
+
+    /** True only for an explicit persistent grant. */
+    fun isRootGranted(): Boolean =
+        isInitialized() && getLevel(ROOT_TOOL) == PermissionLevel.BYPASS
+
+    /** Persist the grant; revoking bumps the epoch so pending approvals die. */
+    fun setRootGranted(granted: Boolean) {
+        setLevel(ROOT_TOOL, if (granted) PermissionLevel.BYPASS else PermissionLevel.NOT_ALLOWED)
+    }
+
+    private fun migrateRootLevel() {
+        val stored = prefs.getString("level_$ROOT_TOOL", null) ?: return
+        if (stored == PermissionLevel.ASK_ONCE.name) {
+            // Old default was "ask once per session"; that must not turn into
+            // a persistent grant on upgrade. Default stays off.
+            prefs.edit().putString("level_$ROOT_TOOL", PermissionLevel.NOT_ALLOWED.name).apply()
+        }
     }
 
     /** False until [init] ran; RootManager may refresh before startup finishes. */
@@ -417,6 +452,13 @@ object OffloadPermissionManager {
 
     fun setLevel(toolName: String, level: PermissionLevel) {
         prefs.edit().putString("level_$toolName", level.name).apply()
+        // Revoking the Root grant invalidates every approval given before it,
+        // including a one-off agent request that has not started yet.
+        if (toolName == ROOT_TOOL && level != PermissionLevel.BYPASS) {
+            // Explicit disable also cancels a pending one-invocation approval
+            // while the persistent switch was already off.
+            rootGrantEpoch.incrementAndGet()
+        }
     }
 
     fun resetAll() {
@@ -425,6 +467,7 @@ object OffloadPermissionManager {
             editor.remove("level_${tool.toolName}")
         }
         editor.apply()
+        rootGrantEpoch.incrementAndGet()
     }
 
     /**
