@@ -28,9 +28,11 @@ class SystemChannelPlacementTest {
     private val soul = ProductionSources.read("agent/SoulStore.kt")
 
     @Test fun `the interface exposes an application prompt separate from systemPrompt`() {
-        assertTrue(
-            iface.contains("var applicationSystemPrompt: String? get() = null set(_) {}"),
-        )
+        // Declared with a default getter/setter (an interface property may not
+        // have a backing field, and a one-line body is not valid here).
+        assertTrue(iface.contains("var applicationSystemPrompt: String?"))
+        assertTrue(iface.contains("get() = null"))
+        assertTrue(iface.contains("set(_) {}"))
     }
 
     @Test fun `every provider carries the field`() {
@@ -98,7 +100,7 @@ class SystemChannelPlacementTest {
     // ── The wiring: ChatViewModel hands it over ─────────────────────────────
 
     @Test fun `the chat view model copies the prompt onto every provider it may send with`() {
-        assertTrue(chatVm.contains("private fun applyApplicationSystemPrompt(provider: LLMProvider, prompt: String?)"))
+        assertTrue(chatVm.contains("private fun applyApplicationSystemPrompt(provider: LLMProvider?, prompt: String?)"))
         // Applied to the loop's starting provider and to both mid-turn switch
         // points, so a fallback / switch cannot strand the prompt.
         assertTrue(chatVm.contains("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)"))
@@ -114,7 +116,7 @@ class SystemChannelPlacementTest {
         assertFalse("prompt text must not be logged",
             chatVm.contains("AppLogger.info(TAG_STREAM, \$prompt"))
         // applyApplicationSystemPrompt passes the value straight to the field.
-        val fn = chatVm.indexOf("private fun applyApplicationSystemPrompt(provider: LLMProvider, prompt: String?)")
+        val fn = chatVm.indexOf("private fun applyApplicationSystemPrompt(provider: LLMProvider?, prompt: String?)")
         val body = chatVm.substring(fn, chatVm.indexOf("\n    }\n", fn))
         assertFalse(body.contains("AppLogger"))
         assertFalse(body.contains("Log."))

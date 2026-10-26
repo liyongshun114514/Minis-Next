@@ -66,7 +66,18 @@ class FakePrefs(initial: Map<String, Any?> = emptyMap()) {
  * Install [prefs] into the singleton [OffloadPermissionManager] without a
  * Context, and reset the process-lifetime state a "restart" would clear.
  */
+private var installedStore: FakePrefs? = null
+
+/**
+ * A fresh process: same persisted values, empty process-lifetime state.
+ * Reads the values from the store the manager is CURRENTLY using, so a write
+ * made after the previous restart is not lost.
+ */
+fun restartPermissionPrefs(): FakePrefs =
+    FakePrefs(installedStore?.values ?: emptyMap()).also { installPermissionPrefs(it) }
+
 fun installPermissionPrefs(prefs: FakePrefs) {
+    installedStore = prefs
     val field = OffloadPermissionManager::class.java.getDeclaredField("prefs")
     field.isAccessible = true
     field.set(OffloadPermissionManager, prefs.prefs)
@@ -74,4 +85,13 @@ fun installPermissionPrefs(prefs: FakePrefs) {
     val cache = OffloadPermissionManager::class.java.getDeclaredField("rootDetectedCache")
     cache.isAccessible = true
     cache.set(OffloadPermissionManager, null)
+    // `init(context)` is exactly "set prefs + migrateRootLevel()"; mirror the
+    // migration so upgrade behaviour (an old stored level counts as the user's
+    // choice) is exercised instead of skipped.
+    runCatching {
+        val migrate = OffloadPermissionManager::class.java
+            .getDeclaredMethod("migrateRootLevel")
+            .apply { isAccessible = true }
+        migrate.invoke(OffloadPermissionManager)
+    }
 }

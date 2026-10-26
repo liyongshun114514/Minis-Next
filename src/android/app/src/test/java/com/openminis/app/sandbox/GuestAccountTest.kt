@@ -212,9 +212,17 @@ class GuestAccountTest {
 
     // ── wiring (source-level, so a refactor that drops the call is caught) ──
 
-    private fun code(path: String): String = File(path).readText().lineSequence()
-        .filterNot { val t = it.trimStart(); t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") }
-        .joinToString("\n")
+    private fun code(path: String): String {
+        // Unit tests run with the module (src/android/app) as the working dir,
+        // so try the module-relative path first and the repo-relative one
+        // second; one of them always exists.
+        val candidates = listOf(File(path), File(path.removePrefix("src/android/app/")))
+        val file = candidates.firstOrNull { it.isFile }
+            ?: throw java.io.FileNotFoundException(candidates.joinToString(" | ") { it.absolutePath })
+        return file.readText().lineSequence()
+            .filterNot { val t = it.trimStart(); t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") }
+            .joinToString("\n")
+    }
 
     @Test fun chrootSpawnProvisionsTheAccountAndUsesItsHome() {
         val kernel = code("src/android/app/src/main/java/com/openminis/app/sandbox/ChrootKernel.kt")

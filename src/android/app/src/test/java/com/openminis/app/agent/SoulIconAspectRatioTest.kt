@@ -52,7 +52,7 @@ class SoulIconAspectRatioTest {
         val (w, h) = SoulIcon.scaledSize(10_000, 3, 256)
         assertEquals(256, w)
         assertEquals(1, h)
-        assertEquals(256 to 1, SoulIcon.scaledSize(10_000, 1, 200))
+        assertEquals(200 to 1, SoulIcon.scaledSize(10_000, 1, 200))
     }
 
     @Test fun `longest edge never exceeds the cap after rounding`() {

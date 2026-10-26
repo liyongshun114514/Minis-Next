@@ -92,14 +92,16 @@ class RootLevelGateTest {
         OffloadPermissionManager.setRootLevel(RootAccess.ASK_ONCE)
         assertFalse(OffloadPermissionManager.isRootGranted())
 
-        // First invocation: the gate raises one single-use request.
+        // First invocation: the gate raises one single-use request. The
+        // request is published before it suspends, so the answer must come
+        // from the test body — answering inside the coroutine would deadlock
+        // until the 120 s dialog timeout.
         val first = async(start = CoroutineStart.UNDISPATCHED) {
-            val granted = OffloadPermissionManager.confirmPrivilegedOperation(
+            OffloadPermissionManager.confirmPrivilegedOperation(
                 "root_cli", "'id'", rootAgentAccessRequest("", 5),
             )
-            pendingAnswer(OffloadPermissionManager.Response.ALLOW_ONCE)
-            granted
         }
+        pendingAnswer(OffloadPermissionManager.Response.ALLOW_ONCE)
         assertTrue(first.await())
         assertEquals(
             "a one-off approval must not persist 允许",
@@ -109,12 +111,11 @@ class RootLevelGateTest {
 
         // Second invocation: asks again (nothing was remembered).
         val second = async(start = CoroutineStart.UNDISPATCHED) {
-            val granted = OffloadPermissionManager.confirmPrivilegedOperation(
+            OffloadPermissionManager.confirmPrivilegedOperation(
                 "root_cli", "'id'", rootAgentAccessRequest("", 5),
             )
-            pendingAnswer(OffloadPermissionManager.Response.DENY_SESSION)
-            granted
         }
+        pendingAnswer(OffloadPermissionManager.Response.DENY_SESSION)
         assertFalse(second.await())
         assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
     }
@@ -130,12 +131,11 @@ class RootLevelGateTest {
             OffloadPermissionManager.Response.ALLOW_SESSION, // also refused for privileged ops
         )) {
             val gate = async(start = CoroutineStart.UNDISPATCHED) {
-                val granted = OffloadPermissionManager.confirmPrivilegedOperation(
+                OffloadPermissionManager.confirmPrivilegedOperation(
                     "root_cli", "'id'", rootAgentAccessRequest("", 5),
                 )
-                pendingAnswer(response)
-                granted
             }
+            pendingAnswer(response)
             assertFalse(gate.await())
             assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
         }
@@ -210,14 +210,13 @@ class RootLevelGateTest {
 
     @Test
     fun promotionAndExplicitChoiceSurviveARestart() {
-        val store = FakePrefs()
-        installPermissionPrefs(store)
+        installPermissionPrefs(FakePrefs())
         OffloadPermissionManager.applyDetectedRootDefault(true)
-        installPermissionPrefs(store.restart())
+        restartPermissionPrefs()
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
         // Now the user downgrades; the choice survives a restart too.
         OffloadPermissionManager.setRootLevel(RootAccess.NOT_ALLOWED)
-        installPermissionPrefs(store.restart())
+        restartPermissionPrefs()
         assertEquals(RootAccess.NOT_ALLOWED, OffloadPermissionManager.rootLevel())
         assertTrue(OffloadPermissionManager.isRootLevelUserChosen())
         assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
@@ -307,22 +306,20 @@ class RootLevelGateTest {
         OffloadPermissionManager.setRootLevel(RootAccess.ASK_ONCE)
 
         val switch = async(start = CoroutineStart.UNDISPATCHED) {
-            val granted = OffloadPermissionManager.confirmPrivilegedOperation(
+            OffloadPermissionManager.confirmPrivilegedOperation(
                 "root_cli", "'/data/app/lib/libminis-chroot.so' …", rootChrootSwitchRequest(20),
             )
-            pendingAnswer(OffloadPermissionManager.Response.ALLOW_ONCE)
-            granted
         }
+        pendingAnswer(OffloadPermissionManager.Response.ALLOW_ONCE)
         assertTrue(switch.await())
         assertEquals("the switch does not enable Root", RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
         // Refusing the next switch leaves a settings hint, not a new level.
         val refused = async(start = CoroutineStart.UNDISPATCHED) {
-            val granted = OffloadPermissionManager.confirmPrivilegedOperation(
+            OffloadPermissionManager.confirmPrivilegedOperation(
                 "root_cli", "'/data/app/lib/libminis-chroot.so' …", rootChrootSwitchRequest(20),
             )
-            pendingAnswer(OffloadPermissionManager.Response.DENY_SESSION)
-            granted
         }
+        pendingAnswer(OffloadPermissionManager.Response.DENY_SESSION)
         assertFalse(refused.await())
         assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
     }

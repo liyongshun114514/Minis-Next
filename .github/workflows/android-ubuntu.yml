@@ -191,6 +191,23 @@ jobs:
             --tests '*SystemChannelPlacementTest' --tests '*SoulIconAspectRatioTest' \
             --tests '*SoulBodyLimitPolicyTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
+      - name: Show unit-test failures
+        # A failing JVM test is compiled and reported by Gradle, but the run
+        # log only carries "FAILED" plus a file:line. Print the assertion
+        # messages right here so a red build is diagnosable without a second
+        # run, and never let this step fail the job by itself.
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          found=0
+          for f in $(find src/android/app/build/test-results -name '*.xml' 2>/dev/null); do
+            found=1
+            echo "── $f"
+            grep -h -m 40 -A4 '<failure' "$f" | head -60
+          done
+          if [ "$found" = 0 ]; then echo "no unit-test XML found"; fi
+          exit 0
       - name: Verify APK structure, signatures and metadata
         id: verify-apk
         shell: bash
