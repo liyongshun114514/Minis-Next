@@ -438,7 +438,7 @@ object OffloadPermissionManager {
         val stored = prefs.getString("level_$ROOT_TOOL", null)?.let {
             runCatching { PermissionLevel.valueOf(it) }.getOrNull()
         }
-        return RootGrantPolicy.effectiveLevel(
+        return RootDefaultPolicy.effectiveLevel(
             stored = stored,
             userChosen = isRootLevelUserChosen(),
             rootDetected = prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false),

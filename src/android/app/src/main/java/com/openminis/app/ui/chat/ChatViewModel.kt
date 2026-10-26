@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.compose.foundation.lazy.LazyListState
 import com.openminis.app.agent.Level
+import com.openminis.app.agent.SystemPromptBuilder
 import com.openminis.app.agent.ToolLoopDetector
 import com.openminis.app.browser.BrowserActionInput
 import com.openminis.app.browser.BrowserTabPool
@@ -7492,7 +7493,8 @@ class ChatViewModel(
      * does without any surface saying so. The caller passes null for a helper,
      * the resolved block for the top-level agent.
      */
-    private fun applyApplicationSystemPrompt(provider: LLMProvider, prompt: String?) {
+    private fun applyApplicationSystemPrompt(provider: LLMProvider?, prompt: String?) {
+        if (provider == null) return
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 

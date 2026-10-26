@@ -72,7 +72,7 @@ fun RootPermissionScreen(onBack: () -> Unit) {
                                         arrayOf("/system/bin/id"),
                                         timeoutMs = 30_000,
                                         // A settings probe never raises a Root dialog.
-                                        caller = com.openminis.app.offload.RootGrantPolicy.Caller.SYSTEM,
+                                        caller = com.openminis.app.offload.RootCaller.SYSTEM,
                                     )
                                 }
                             }

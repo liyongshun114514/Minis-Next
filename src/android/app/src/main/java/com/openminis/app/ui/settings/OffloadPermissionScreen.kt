@@ -1,6 +1,7 @@
 package com.openminis.app.ui.settings
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
@@ -634,6 +635,10 @@ private fun shizukuSubtitleRes(state: ShizukuManager.State): Int = when (state) 
 // the Shizuku setup funnel.
 private fun shizukuActionTitleRes(state: ShizukuManager.State): Int = when (state) {
     ShizukuManager.State.NOT_INSTALLED -> R.string.shizuku_install_btn
-    ShizukuManager.State.NOT_RUNNING -> R.string.shizuku_open_btn
-    ShizukuManager.State.READY -> {} // no-op; row never rendered
+    // Every other phase routes to the same walkthrough page; the READY row is
+    // never rendered, but the `when` still has to be exhaustive and Int-typed.
+    ShizukuManager.State.NOT_RUNNING,
+    ShizukuManager.State.NEED_PERMISSION,
+    ShizukuManager.State.READY,
+    -> R.string.shizuku_open_btn
 }

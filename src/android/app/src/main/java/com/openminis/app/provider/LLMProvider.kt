@@ -42,7 +42,9 @@ interface LLMProvider {
      * blank means "no application prompt" and every provider then emits
      * exactly what it emitted before this field existed.
      */
-    var applicationSystemPrompt: String? get() = null set(_) {}
+    var applicationSystemPrompt: String?
+        get() = null
+        set(_) {}
 
     /**
      * Effective max output tokens ceiling for the given model.
