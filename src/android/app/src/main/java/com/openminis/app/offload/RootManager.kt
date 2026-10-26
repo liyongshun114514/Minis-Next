@@ -120,6 +120,15 @@ object RootManager {
         val previous = _snapshot.value
         _snapshot.value = when {
             path == null -> Snapshot(State.NOT_FOUND, message = "No executable su found; Root is not available")
+            // Root was verified on this install already: report 已授权 right
+            // away instead of "等待 Root 授权", which made the state look lost
+            // after every restart until the user pressed 验证 Root（id） again.
+            OffloadPermissionManager.rootDetectedOnce() -> Snapshot(
+                State.READY,
+                path,
+                -1,
+                "Root verified earlier; commands run directly",
+            )
             previous.suPath == path && previous.state in setOf(State.READY, State.DENIED) -> previous
             else -> Snapshot(State.NEED_PERMISSION, path)
         }
@@ -324,8 +333,14 @@ object RootManager {
     fun ensureDetectedDefault(): Boolean {
         val ctx = appContext ?: return false
         // 原生 Root 只验证一次：su was already proven usable on this install,
-        // so there is nothing left to detect and nothing to ask again.
-        if (OffloadPermissionManager.rootDetectedOnce()) return false
+        // so there is nothing left to detect and nothing to ask again — but the
+        // su channel is still warmed up once per launch, so the first real
+        // command does not have to pay the su-manager grant. This is what used
+        // to require pressing 验证 Root（id） after every restart.
+        if (OffloadPermissionManager.rootDetectedOnce()) {
+            warmUp()
+            return false
+        }
         // An explicit 不允许 is final; 询问 does not block detection (an old
         // build's stored default must not turn into a permanent prompt).
         if (OffloadPermissionManager.isRootLevelUserChosen() &&
@@ -347,6 +362,24 @@ object RootManager {
         val written = OffloadPermissionManager.applyDetectedRootDefault(detected)
         refresh()
         return written
+    }
+
+    /**
+     * One `id` through the normal execution path, no in-app dialog.
+     *
+     * Runs on the detector thread (never the UI thread) and only after the
+     * level is already 允许, so it cannot raise a permission prompt of its own;
+     * the device su manager may still show its usual grant dialog.
+     */
+    private fun warmUp() {
+        runCatching {
+            runProcess(
+                arrayOf("/system/bin/id"),
+                timeoutMs = 30_000,
+                caller = RootCaller.SYSTEM,
+            )
+            refresh()
+        }
     }
 
     /** Fire-and-forget wrapper; the probe forks `su`, never the main thread. */
