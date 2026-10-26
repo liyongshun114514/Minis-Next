@@ -435,15 +435,35 @@ object OffloadPermissionManager {
      */
     fun rootLevel(): RootAccess {
         if (!isInitialized()) return RootAccess.ASK_ONCE
-        val stored = prefs.getString("level_$ROOT_TOOL", null)?.let {
-            runCatching { PermissionLevel.valueOf(it) }.getOrNull()
-        }
+        val stored = storedLevel()
+        // [FEAT-261027-ROOT sticky] 原生 Root 只验证一次。
+        // An explicit 不允许 is the user's decision and always wins;
+        // otherwise, once `su` has been proven usable, the level IS 允许 — no
+        // second probe, no per-call dialog, across restarts.
+        if (stored == PermissionLevel.NOT_ALLOWED) return RootAccess.NOT_ALLOWED
+        if (rootDetectedOnce()) return RootAccess.BYPASS
         return RootDefaultPolicy.effectiveLevel(
             stored = stored,
             userChosen = isRootLevelUserChosen(),
             rootDetected = prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false),
         )
     }
+
+    /** The stored value for [ROOT_TOOL], or null when nothing was written. */
+    private fun storedLevel(): PermissionLevel? =
+        prefs.getString("level_$ROOT_TOOL", null)?.let {
+            runCatching { PermissionLevel.valueOf(it) }.getOrNull()
+        }
+
+    /**
+     * True once su was proven usable in this install.
+     *
+     * Persisted (not just a process cache) so a relaunch costs no probe and
+     * asks nothing: 检测到一次就够了。Cleared only by [resetAll] or by the user
+     * choosing 不允许.
+     */
+    fun rootDetectedOnce(): Boolean =
+        isInitialized() && prefs.getBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, false)
 
     /** True only for an explicit 允许 (the state that executes directly). */
     fun isRootGranted(): Boolean = rootLevel() == RootAccess.BYPASS
@@ -463,7 +483,18 @@ object OffloadPermissionManager {
      */
     fun setRootLevel(level: RootAccess, byUser: Boolean = true) {
         setLevel(ROOT_TOOL, RootGrantPolicy.toLevel(level))
-        if (byUser) prefs.edit().putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true).apply()
+        if (byUser) {
+            val editor = prefs.edit().putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true)
+            // 不允许 revokes the sticky "su works" grant; 允许 may write it
+            // (the user just confirmed Root is fine), 询问 leaves it alone so a
+            // later probe can promote instead of asking forever.
+            when (level) {
+                RootAccess.NOT_ALLOWED -> editor.remove(RootDefaultPolicy.KEY_DETECTED_ONCE)
+                RootAccess.BYPASS -> editor.putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
+                RootAccess.ASK_ONCE -> Unit
+            }
+            editor.apply()
+        }
     }
 
     /** Compatibility shim: `true` = 允许, `false` = 不允许 (both explicit). */
@@ -485,17 +516,17 @@ object OffloadPermissionManager {
     fun applyDetectedRootDefault(detected: Boolean): Boolean {
         if (!isInitialized()) return false
         recordRootProbe(detected)
-        if (!RootDefaultPolicy.shouldPromote(
-                userChosen = isRootLevelUserChosen(),
-                alreadyApplied = rootDefaultApplied(),
-                rootDetected = detected,
-            )
-        ) {
-            return false
-        }
+        if (!detected) return false
+        // 不允许 is the one answer detection must never override: it is how a
+        // user turns Root off on purpose. 询问 does NOT block the promotion —
+        // a level that an older build stored as its default must not keep
+        // asking once Root is known to work.
+        if (isRootLevelUserChosen() && storedLevel() == PermissionLevel.NOT_ALLOWED) return false
+        if (rootDetectedOnce() && storedLevel() == PermissionLevel.BYPASS) return false
         prefs.edit()
             .putString("level_$ROOT_TOOL", PermissionLevel.BYPASS.name)
             .putBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, true)
+            .putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
             .apply()
         return true
     }
@@ -565,6 +596,7 @@ object OffloadPermissionManager {
         // epoch bump below.
         editor.remove(RootDefaultPolicy.KEY_USER_CHOSEN)
         editor.remove(RootDefaultPolicy.KEY_DEFAULT_APPLIED)
+        editor.remove(RootDefaultPolicy.KEY_DETECTED_ONCE)
         editor.apply()
         rootGrantEpoch.incrementAndGet()
     }

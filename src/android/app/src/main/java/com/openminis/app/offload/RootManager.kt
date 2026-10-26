@@ -317,9 +317,16 @@ object RootManager {
      */
     fun ensureDetectedDefault(): Boolean {
         val ctx = appContext ?: return false
-        // A level the user picked (or a previous promotion) is final.
-        if (OffloadPermissionManager.isRootLevelUserChosen()) return false
-        if (OffloadPermissionManager.rootDefaultApplied()) return false
+        // 原生 Root 只验证一次：su was already proven usable on this install,
+        // so there is nothing left to detect and nothing to ask again.
+        if (OffloadPermissionManager.rootDetectedOnce()) return false
+        // An explicit 不允许 is final; 询问 does not block detection (an old
+        // build's stored default must not turn into a permanent prompt).
+        if (OffloadPermissionManager.isRootLevelUserChosen() &&
+            OffloadPermissionManager.rootLevel() == RootAccess.NOT_ALLOWED
+        ) {
+            return false
+        }
         val prefs = ctx.getSharedPreferences("native_root", Context.MODE_PRIVATE)
         val last = prefs.getLong(KEY_AUTO_PROBE_AT, 0L)
         val now = System.currentTimeMillis()

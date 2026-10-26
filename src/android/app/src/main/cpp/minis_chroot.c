@@ -545,37 +545,46 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
     pid_t pid = fork();
     if (pid == 0) {
         /* child */
-        /* setsid() first, and it must succeed before TIOCSCTTY below: making a
-         * tty the controlling terminal is only legal for a session leader. */
-        if (setsid() < 0) {
-            say("minis-chroot: setsid: %s\n", strerror(errno));
-        }
         dup2(fds[0], 0); dup2(fds[1], 1); dup2(fds[2], 2);
         for (int i = 0; i < 3; i++) if (fds[i] > 2) close(fds[i]);
-        /* [FEAT-261025-CHROOT tty] The client's filedescriptors are the far
-         * end of a bionic forkpty() (or, for non-interactive commands, a
-         * pipe). A session leader that never acquires a controlling terminal
-         * makes bash's tcsetpgrp() fail with ENOTTY:
-         *   "cannot set terminal process group (-1)" / "no job control".
-         * TIOCSCTTY attaches the pty and puts this (the process group leader,
-         * since setsid() made pgid == pid) in the FOREGROUND group, which is
-         * exactly what tcsetpgrp needs. Only done when stdin really is a tty;
-         * a failure is logged and never blocks the command. */
+        /* [FEAT-261027-CHROOT ctty] Join the terminal, never steal it.
+         *
+         * The pty comes from the app's forkpty(), whose login_tty() already
+         * made it the controlling terminal of the CLIENT's session. Claiming
+         * it a second time from here (setsid() + TIOCSCTTY) needs
+         * CAP_SYS_ADMIN, which this helper does not reliably hold on Android,
+         * so the claim failed with EPERM — and leaving that session was also
+         * what left bash without job control:
+         *   minis-chroot: TIOCSCTTY: Operation not permitted
+         *   bash: cannot set terminal process group (-1)
+         *   bash: no job control in this shell
+         * Staying in the client's session and putting our OWN process group in
+         * the foreground gives bash a real foreground group and needs no
+         * capability. SIGTTOU is ignored while doing it: a background process
+         * group calling tcsetpgrp() is otherwise stopped with SIGTTOU. The
+         * handler is restored to the default before exec, so the guest shell
+         * starts with normal signal semantics.
+         *
+         * The old claim is kept only as a fallback (no session to join, or a
+         * terminal nobody owns yet) and is never fatal. */
+        signal(SIGTTOU, SIG_IGN);
         int want_ctty = (r.flags & FLAG_TTY) != 0;
         if (!want_ctty) {
             int fl = fcntl(0, F_GETFL);
             want_ctty = fl >= 0 && isatty(0);
         }
         if (want_ctty) {
-            if (ioctl(0, TIOCSCTTY, 0) != 0) {
-                say("minis-chroot: TIOCSCTTY: %s\n", strerror(errno));
-            } else {
-                /* A tty inherited from the app process would already be ours;
-                 * this just makes the foreground group explicit. */
-                pid_t pg = getpid();
-                if (tcsetpgrp(0, pg) != 0) {
-                    say("minis-chroot: tcsetpgrp: %s\n", strerror(errno));
-                }
+            int claimed = 0;
+            if (setpgid(0, 0) != 0 && errno != EACCES && errno != EPERM) {
+                say("minis-chroot: setpgid: %s\n", strerror(errno));
+            }
+            if (tcsetpgrp(0, getpid()) == 0) {
+                claimed = 1;
+            } else if (setsid() >= 0 && ioctl(0, TIOCSCTTY, 0) == 0) {
+                claimed = tcsetpgrp(0, getpid()) == 0;
+            }
+            if (!claimed) {
+                say("minis-chroot: no job control on this terminal: %s\n", strerror(errno));
             }
         }
         close(conn);
@@ -592,6 +601,7 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
             say("minis-chroot: drop to %u:%u failed: %s\n", r.uid, r.gid, strerror(errno));
             _exit(126);
         }
+        signal(SIGTTOU, SIG_DFL);
         execvpe(r.argv[0], r.argv, r.envp);
         /* The guest shell may be a busybox predating execvpe; retry PATH walk. */
         execvp(r.argv[0], r.argv);
@@ -606,8 +616,9 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
         close(conn);
         return;
     }
-    /* The child is its own group leader (setsid), so a dead client kills the
-     * whole command tree, including anything it forked. */
+    /* The child is its own group leader (setpgid, or setsid on the fallback
+     * path), so a dead client kills the whole command tree, including anything
+     * it forked. */
     int status = 0;
     for (;;) {
         pid_t w = waitpid(pid, &status, WNOHANG);

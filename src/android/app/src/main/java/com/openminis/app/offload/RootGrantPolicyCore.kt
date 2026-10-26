@@ -131,6 +131,16 @@ object RootDefaultPolicy {
     /** Persisted marker: the detection-driven default was already written. */
     const val KEY_DEFAULT_APPLIED = "root_level_default_applied"
 
+    /**
+     * Persisted marker: Root was PROVEN usable at least once (an executable
+     * `su` was resolved and `id` came back uid 0).
+     *
+     * While it is set the level is 允许 without any further probing or
+     * confirmation: 检测到一次就长期有效. Only an explicit 不允许 clears it,
+     * because that is the one answer the user gives on purpose.
+     */
+    const val KEY_DETECTED_ONCE = "root_detected_once"
+
     fun defaultLevel(userChosen: Boolean, rootDetected: Boolean): RootAccess =
         if (!userChosen && rootDetected) RootAccess.BYPASS else RootAccess.ASK_ONCE
 

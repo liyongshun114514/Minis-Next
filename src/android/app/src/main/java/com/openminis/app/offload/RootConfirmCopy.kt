@@ -14,7 +14,7 @@ package com.openminis.app.offload
 internal const val ROOT_TRI_STATE_FOOTER =
     "与 android-shizuku-cli 一样按三态控制：允许 → 直接使用，不逐次确认；" +
         "询问 → 每次调用询问一次；不允许 → 拒绝执行。设备 su 管理器仍会单独授权，本应用无法绕过。" +
-        "检测到设备 Root 可用时默认允许并记住该选择，可随时更改；" +
+        "检测到设备 Root 可用时默认允许并长期记住：只验证一次，之后直接使用、不再重复确认，可随时改为不允许；" +
         "Root 操作可能修改系统或删除数据，部分操作无法撤销。"
 
 /**

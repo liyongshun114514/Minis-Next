@@ -182,30 +182,46 @@ class RootLevelGateTest {
     }
 
     @Test
-    fun explicitUserChoiceIsNeverOverriddenByDetection() {
+    fun explicitNotAllowedIsTheOnlyAnswerDetectionCannotOverride() {
         installPermissionPrefs(FakePrefs())
         // The user deliberately says 不允许 (e.g. after a previous 允许).
         OffloadPermissionManager.setRootLevel(RootAccess.NOT_ALLOWED)
         assertTrue(OffloadPermissionManager.isRootLevelUserChosen())
         assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
         assertEquals(RootAccess.NOT_ALLOWED, OffloadPermissionManager.rootLevel())
-
-        // Same for 询问.
-        OffloadPermissionManager.setRootLevel(RootAccess.ASK_ONCE)
-        assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
-        assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
+        assertFalse(OffloadPermissionManager.rootDetectedOnce())
     }
 
     @Test
-    fun downgradeFromAllowedIsNotUndoneByTheNextProbe() {
+    fun askOnceIsPromotedOnceRootIsProven() {
+        // 原生 Root 只验证一次: a stored 询问 (the default older builds wrote)
+        // must not turn into a permanent per-call prompt on a rooted device.
         installPermissionPrefs(FakePrefs())
-        OffloadPermissionManager.applyDetectedRootDefault(true)
-        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
-
         OffloadPermissionManager.setRootLevel(RootAccess.ASK_ONCE)
-        // Detection has already been applied once: it must never fire again.
+        assertTrue(OffloadPermissionManager.applyDetectedRootDefault(true))
+        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
+        assertTrue(OffloadPermissionManager.rootDetectedOnce())
+        assertTrue(OffloadPermissionManager.isRootGranted())
+    }
+
+    @Test
+    fun detectedGrantIsStickyAcrossRestartsAndRevocableByTheUser() {
+        installPermissionPrefs(FakePrefs())
+        assertTrue(OffloadPermissionManager.applyDetectedRootDefault(true))
+        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
+        restartPermissionPrefs()
+        // No second probe, no dialog: straight back to 允许.
+        assertTrue(OffloadPermissionManager.rootDetectedOnce())
+        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
+        assertFalse("already proven; nothing left to detect",
+            OffloadPermissionManager.applyDetectedRootDefault(true))
+
+        // 不允许 is how the user revokes it, and it clears the marker.
+        OffloadPermissionManager.setRootLevel(RootAccess.NOT_ALLOWED)
+        assertFalse(OffloadPermissionManager.rootDetectedOnce())
+        assertEquals(RootAccess.NOT_ALLOWED, OffloadPermissionManager.rootLevel())
         assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
-        assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
+        assertEquals(RootAccess.NOT_ALLOWED, OffloadPermissionManager.rootLevel())
     }
 
     @Test
