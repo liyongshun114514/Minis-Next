@@ -102,9 +102,9 @@ class RootLevelGateTest {
         }
         assertTrue(first.await())
         assertEquals(
+            "a one-off approval must not persist 允许",
             RootAccess.ASK_ONCE,
             OffloadPermissionManager.rootLevel(),
-            "a one-off approval must not persist 允许",
         )
 
         // Second invocation: asks again (nothing was remembered).
@@ -164,7 +164,7 @@ class RootLevelGateTest {
         assertTrue("first successful probe writes the default", OffloadPermissionManager.applyDetectedRootDefault(true))
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
         assertTrue(OffloadPermissionManager.isRootGranted())
-        assertEquals(PermissionLevel.BYPASS.name, store.values["level_root_cli"])
+        assertEquals(OffloadPermissionManager.PermissionLevel.BYPASS.name, store.values["level_root_cli"])
         assertEquals(1, store.levelWrites)
 
         // A second probe in the same process writes nothing.
@@ -227,7 +227,7 @@ class RootLevelGateTest {
     fun legacyStoredLevelCountsAsAnExplicitChoice() {
         // A level written by an older build (there was only a switch) is the
         // user's decision, not a default: detection must not touch it.
-        val store = FakePrefs(mapOf("level_root_cli" to PermissionLevel.NOT_ALLOWED.name))
+        val store = FakePrefs(mapOf("level_root_cli" to OffloadPermissionManager.PermissionLevel.NOT_ALLOWED.name))
         installPermissionPrefs(store)
         assertTrue(OffloadPermissionManager.isRootLevelUserChosen())
         assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
