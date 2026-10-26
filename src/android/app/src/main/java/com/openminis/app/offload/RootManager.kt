@@ -187,6 +187,12 @@ object RootManager {
                 // Refuse an approval the user invalidated while the dialog was
                 // open (they revoked, downgraded or reset permissions).
                 if (current != now && accessLevel() != RootAccess.BYPASS) return@withLock null
+                // 点一次“允许”就是长期允许：记下来，后面直接执行，不再把用户
+                // 送回设置页重新授权。显式改“不允许”仍会覆盖。
+                if (caller == RootCaller.AGENT) {
+                    OffloadPermissionManager.promoteRootToPersistentAllow()
+                    refresh()
+                }
                 AccessTicket(current)
             }
         }

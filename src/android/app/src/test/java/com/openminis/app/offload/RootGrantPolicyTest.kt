@@ -127,7 +127,7 @@ class RootGrantPolicyTest {
         assertFalse(ROOT_ENABLE_MESSAGE.contains("每条命令仍须"))
 
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
-        assertTrue(request.contains("不会把权限改成“允许”"))
+        assertTrue(request.contains("之后直接用，不再逐次询问"))
         assertTrue(request.contains("拒绝、取消或超时则不执行"))
         assertTrue(request.contains("设置 → 权限 → 原生 Root"))
         assertTrue(request.contains("关键风险："))

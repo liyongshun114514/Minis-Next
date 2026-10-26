@@ -325,3 +325,145 @@ Java_com_openminis_app_sandbox_PtyBridge_blockSigpipe(
     int rc = pthread_sigmask(SIG_BLOCK, &set, NULL);
     return rc == 0 ? 0 : -rc;
 }
+
+/*
+ * [FEAT-261027-CHROOT-ctty] openpty() + fork(), WITHOUT login_tty().
+ *
+ * forkpty() calls login_tty(), which makes the forked child a session leader
+ * and claims the slave as its controlling terminal. The chroot helper's server
+ * lives in a DIFFERENT session (it is started by root ahead of time), so its
+ * attempt to claim that terminal is refused with EPERM — and bash then dies
+ * with "cannot set terminal process group (-1) / no job control". Only
+ * CAP_SYS_ADMIN could take a tty away from the session that owns it, and the
+ * helper does not reliably hold that on Android.
+ *
+ * Returning a pty that nobody owns fixes it at the root: the guest shell's own
+ * process group calls setsid() and then TIOCSCTTY on a terminal with no owner,
+ * which needs no capability. Only the chroot client uses this entry point;
+ * proot keeps forkpty() and its login_tty() behaviour.
+ */
+JNIEXPORT jint JNICALL
+Java_com_openminis_app_sandbox_PtyBridge_forkExecNoCtty(
+    JNIEnv *env, jclass clazz,
+    jstring jCmd, jobjectArray jArgv, jobjectArray jEnvp,
+    jstring jCwd, jint cols, jint rows, jintArray outPid)
+{
+    const char *cmd = (*env)->GetStringUTFChars(env, jCmd, NULL);
+    if (!cmd) return -EINVAL;
+
+    jsize argc = (*env)->GetArrayLength(env, jArgv);
+    char **argv = (char **) calloc(argc + 1, sizeof(char *));
+    if (!argv) {
+        (*env)->ReleaseStringUTFChars(env, jCmd, cmd);
+        return -ENOMEM;
+    }
+    for (jsize i = 0; i < argc; i++) {
+        jstring s = (jstring) (*env)->GetObjectArrayElement(env, jArgv, i);
+        const char *cs = (*env)->GetStringUTFChars(env, s, NULL);
+        argv[i] = strdup(cs ? cs : "");
+        (*env)->ReleaseStringUTFChars(env, s, cs);
+        (*env)->DeleteLocalRef(env, s);
+    }
+    argv[argc] = NULL;
+
+    jsize envc = jEnvp ? (*env)->GetArrayLength(env, jEnvp) : 0;
+    char **envp = (char **) calloc(envc + 1, sizeof(char *));
+    if (!envp) {
+        for (jsize i = 0; i < argc; i++) free(argv[i]);
+        free(argv);
+        (*env)->ReleaseStringUTFChars(env, jCmd, cmd);
+        return -ENOMEM;
+    }
+    for (jsize i = 0; i < envc; i++) {
+        jstring s = (jstring) (*env)->GetObjectArrayElement(env, jEnvp, i);
+        const char *cs = (*env)->GetStringUTFChars(env, s, NULL);
+        envp[i] = strdup(cs ? cs : "");
+        (*env)->ReleaseStringUTFChars(env, s, cs);
+        (*env)->DeleteLocalRef(env, s);
+    }
+    envp[envc] = NULL;
+
+    const char *cwd = jCwd ? (*env)->GetStringUTFChars(env, jCwd, NULL) : NULL;
+
+    struct winsize ws;
+    ws.ws_col = (cols > 0) ? (unsigned short) cols : 80;
+    ws.ws_row = (rows > 0) ? (unsigned short) rows : 24;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+
+    struct termios tio;
+    memset(&tio, 0, sizeof(tio));
+    tio.c_iflag = ICRNL | IXON | IUTF8;
+    tio.c_oflag = OPOST | ONLCR;
+    tio.c_cflag = CREAD | CS8 | HUPCL;
+    tio.c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOK | IEXTEN;
+    cfsetispeed(&tio, B38400);
+    cfsetospeed(&tio, B38400);
+    tio.c_cc[VINTR]  = 0x03;
+    tio.c_cc[VQUIT]  = 0x1c;
+    tio.c_cc[VERASE] = 0x7f;
+    tio.c_cc[VKILL]  = 0x15;
+    tio.c_cc[VEOF]   = 0x04;
+    tio.c_cc[VSTART] = 0x11;
+    tio.c_cc[VSTOP]  = 0x13;
+    tio.c_cc[VSUSP]  = 0x1a;
+    tio.c_cc[VMIN]   = 1;
+    tio.c_cc[VTIME]  = 0;
+
+    int masterFd = -1, slaveFd = -1;
+    if (openpty(&masterFd, &slaveFd, NULL, &tio, &ws) != 0) {
+        int err = errno;
+        LOGE("openpty failed: %s", strerror(err));
+        for (jsize i = 0; i < argc; i++) free(argv[i]);
+        free(argv);
+        for (jsize i = 0; i < envc; i++) free(envp[i]);
+        free(envp);
+        (*env)->ReleaseStringUTFChars(env, jCmd, cmd);
+        if (jCwd && cwd) (*env)->ReleaseStringUTFChars(env, jCwd, cwd);
+        return -err;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        int err = errno;
+        LOGE("fork failed: %s", strerror(err));
+        close(masterFd);
+        close(slaveFd);
+        for (jsize i = 0; i < argc; i++) free(argv[i]);
+        free(argv);
+        for (jsize i = 0; i < envc; i++) free(envp[i]);
+        free(envp);
+        (*env)->ReleaseStringUTFChars(env, jCmd, cmd);
+        if (jCwd && cwd) (*env)->ReleaseStringUTFChars(env, jCwd, cwd);
+        return -err;
+    }
+
+    if (pid == 0) {
+        /* Child: NO setsid(), NO TIOCSCTTY — the pty is handed over unowned so
+         * the helper's guest shell can claim it without CAP_SYS_ADMIN. */
+        close(masterFd);
+        if (dup2(slaveFd, 0) < 0 || dup2(slaveFd, 1) < 0 || dup2(slaveFd, 2) < 0) _exit(127);
+        if (slaveFd > 2) close(slaveFd);
+        if (cwd && *cwd) chdir(cwd);
+        sigset_t empty;
+        sigemptyset(&empty);
+        sigprocmask(SIG_SETMASK, &empty, NULL);
+        for (int s = 1; s < NSIG; s++) signal(s, SIG_DFL);
+        closeInheritedFds();
+        execve(cmd, argv, envp);
+        _exit(127);
+    }
+
+    close(slaveFd);
+    for (jsize i = 0; i < argc; i++) free(argv[i]);
+    free(argv);
+    for (jsize i = 0; i < envc; i++) free(envp[i]);
+    free(envp);
+    (*env)->ReleaseStringUTFChars(env, jCmd, cmd);
+    if (jCwd && cwd) (*env)->ReleaseStringUTFChars(env, jCwd, cwd);
+
+    jint pidOut = (jint) pid;
+    (*env)->SetIntArrayRegion(env, outPid, 0, 1, &pidOut);
+    LOGI("forkExecNoCtty ok: pid=%d masterFd=%d cols=%d rows=%d", pid, masterFd, cols, rows);
+    return masterFd;
+}

@@ -156,6 +156,8 @@ def main() -> int:
     ok("com.openminis.app.ui.quota.ModelQuotaStatusDot(" not in chat,
        "quota dot is still drawn in the composer")
     # The + button keeps every action; "/" and the mic button are gone.
+    ok("compact = true" in chat,
+       "chips are laid out full-width instead of inline on the + row")
     ok("Icons.Default.Add" in chat, "+ button lost its icon")
     ok("showAttachMenu = true" in chat, "+ button no longer opens the merged menu")
     ok("MicButton(" not in chat, "mic button is still rendered in the composer")

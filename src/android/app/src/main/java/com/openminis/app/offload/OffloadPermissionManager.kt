@@ -532,6 +532,23 @@ object OffloadPermissionManager {
     }
 
     /**
+     * Remember a one-off approval as the persistent 允许 level.
+     *
+     * 在 root 请求里点过一次“允许”就够了：之后每次调用直接执行，不需要用户
+     * 再回设置里点一次。写入的标记与一次成功的检测相同，所以它同样会跳过后续
+     * 探测；用户显式改回“不允许”仍会覆盖并清掉它。
+     */
+    fun promoteRootToPersistentAllow() {
+        if (!isInitialized()) return
+        prefs.edit()
+            .putString("level_$ROOT_TOOL", PermissionLevel.BYPASS.name)
+            .putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true)
+            .putBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, true)
+            .putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
+            .apply()
+    }
+
+    /**
      * Cache the last probe result in memory only. A failed probe does not
      * write anything: the next launch probes again instead of remembering a
      * one-off failure (su may only be granted after the user opens their su

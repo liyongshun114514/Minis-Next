@@ -7239,7 +7239,8 @@ fun ChatScreen(
                             onModelClick = { showModelPicker = true },
                             onLevelClick = { showThinkingLevelSheet = true },
                             modelInteractionSource = modelPickerInteraction,
-                            modifier = Modifier.weight(1f, fill = false),
+                            compact = true,
+                            modifier = Modifier.padding(start = 2.dp),
                         )
 
                         // T187: Exit Edit Mode pill, only while editingMessageId

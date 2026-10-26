@@ -37,6 +37,28 @@ object PtyBridge {
         outPid: IntArray
     ): Int
 
+    /**
+     * Same as [forkExec], but the pty is handed over with NO controlling
+     * terminal (openpty + fork, no login_tty).
+     *
+     * The chroot helper server runs in its own session, so it cannot claim a
+     * terminal that forkpty() already gave to this child: on Android the second
+     * claim is refused with EPERM and bash loses job control
+     * ("cannot set terminal process group (-1)"). With an unowned pty the
+     * guest shell claims it itself with setsid() + TIOCSCTTY, which needs no
+     * capability. proot keeps [forkExec].
+     */
+    @JvmStatic
+    external fun forkExecNoCtty(
+        cmd: String,
+        argv: Array<String>,
+        envp: Array<String>,
+        cwd: String?,
+        cols: Int,
+        rows: Int,
+        outPid: IntArray
+    ): Int
+
     /** Read from PTY master. Returns bytes read, 0 on EOF, or -errno. */
     @JvmStatic
     external fun readBytes(fd: Int, buf: ByteArray, off: Int, len: Int): Int

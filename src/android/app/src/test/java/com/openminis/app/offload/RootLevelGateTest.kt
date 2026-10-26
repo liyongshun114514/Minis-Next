@@ -350,7 +350,7 @@ class RootLevelGateTest {
         assertTrue(ROOT_TRI_STATE_FOOTER.contains("可随时更改"))
         for (level in RootAccess.entries) assertTrue(rootLevelNote(level).isNotEmpty())
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
-        assertTrue(request.contains("不会把权限改成“允许”"))
+        assertTrue(request.contains("之后直接用，不再逐次询问"))
         assertTrue(request.contains("超时"))
         assertTrue(request.contains("关键风险："))
         val switch = rootChrootSwitchRequest(20)

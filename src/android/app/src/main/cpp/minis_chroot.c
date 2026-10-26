@@ -547,26 +547,25 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
         /* child */
         dup2(fds[0], 0); dup2(fds[1], 1); dup2(fds[2], 2);
         for (int i = 0; i < 3; i++) if (fds[i] > 2) close(fds[i]);
-        /* [FEAT-261027-CHROOT ctty] Join the terminal, never steal it.
+        /* [FEAT-261027-CHROOT ctty] Become the terminal's session leader.
          *
-         * The pty comes from the app's forkpty(), whose login_tty() already
-         * made it the controlling terminal of the CLIENT's session. Claiming
-         * it a second time from here (setsid() + TIOCSCTTY) needs
-         * CAP_SYS_ADMIN, which this helper does not reliably hold on Android,
-         * so the claim failed with EPERM — and leaving that session was also
-         * what left bash without job control:
+         * The pty now arrives UNOWNED: the app's chroot client uses openpty()
+         * + fork() without login_tty() (PtyBridge.forkExecNoCtty), precisely so
+         * this process can take the terminal the legal way. Claiming a tty
+         * that another session already owns is what failed with EPERM before
          *   minis-chroot: TIOCSCTTY: Operation not permitted
          *   bash: cannot set terminal process group (-1)
          *   bash: no job control in this shell
-         * Staying in the client's session and putting our OWN process group in
-         * the foreground gives bash a real foreground group and needs no
-         * capability. SIGTTOU is ignored while doing it: a background process
-         * group calling tcsetpgrp() is otherwise stopped with SIGTTOU. The
-         * handler is restored to the default before exec, so the guest shell
-         * starts with normal signal semantics.
+         * and no capability is needed for an ownerless one.
          *
-         * The old claim is kept only as a fallback (no session to join, or a
-         * terminal nobody owns yet) and is never fatal. */
+         * setsid() first (it also makes pgid == pid, i.e. we are the group
+         * leader TIOCSCTTY wants), then TIOCSCTTY, which puts that group in the
+         * foreground. If the terminal turns out to be owned after all (an old
+         * client, or a pipe pretending to be a tty), fall back to joining the
+         * session we are already in. SIGTTOU is ignored while the foreground
+         * group changes — a background group calling tcsetpgrp() would
+         * otherwise be stopped — and restored before exec so the guest shell
+         * starts with normal signal semantics. Nothing here is ever fatal. */
         signal(SIGTTOU, SIG_IGN);
         int want_ctty = (r.flags & FLAG_TTY) != 0;
         if (!want_ctty) {
@@ -575,13 +574,13 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
         }
         if (want_ctty) {
             int claimed = 0;
-            if (setpgid(0, 0) != 0 && errno != EACCES && errno != EPERM) {
-                say("minis-chroot: setpgid: %s\n", strerror(errno));
-            }
-            if (tcsetpgrp(0, getpid()) == 0) {
+            if (setsid() >= 0 && ioctl(0, TIOCSCTTY, 0) == 0) {
                 claimed = 1;
-            } else if (setsid() >= 0 && ioctl(0, TIOCSCTTY, 0) == 0) {
-                claimed = tcsetpgrp(0, getpid()) == 0;
+            } else if (setpgid(0, 0) == 0 && tcsetpgrp(0, getpid()) == 0) {
+                /* pty still owned by the client's session: borrow it. Job
+                 * control then needs the caller to be in that session, which
+                 * is exactly what not calling setsid() gives us. */
+                claimed = 1;
             }
             if (!claimed) {
                 say("minis-chroot: no job control on this terminal: %s\n", strerror(errno));

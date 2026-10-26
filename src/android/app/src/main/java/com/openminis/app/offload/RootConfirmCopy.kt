@@ -13,7 +13,7 @@ package com.openminis.app.offload
  */
 internal const val ROOT_TRI_STATE_FOOTER =
     "与 android-shizuku-cli 一样按三态控制：允许 → 直接使用，不逐次确认；" +
-        "询问 → 每次调用询问一次；不允许 → 拒绝执行。设备 su 管理器仍会单独授权，本应用无法绕过。" +
+        "询问 → 首次调用询问一次，点“允许”后记住、不再逐次询问；不允许 → 拒绝执行。设备 su 管理器仍会单独授权，本应用无法绕过。" +
         "检测到设备 Root 可用时默认允许并长期记住：只验证一次，之后直接使用、不再重复确认，可随时更改（选“不允许”即彻底关闭）；" +
         "Root 操作可能修改系统或删除数据，部分操作无法撤销。"
 
@@ -57,12 +57,12 @@ internal fun rootConfirmRisk(cwd: String, timeoutSec: Int): String =
  * stored level stays 询问, so the next call asks again.
  */
 internal fun rootAgentAccessRequest(cwd: String, timeoutSec: Int): String =
-    "Root 权限当前为“询问”。允许只执行这次调用，不会把权限改成“允许”；拒绝、取消或超时则不执行。\n" +
-        "如需之后直接使用（不再逐次询问），请到 设置 → 权限 → 原生 Root 中改为“允许”。\n" +
+    "Root 权限当前为“询问”。点“允许”会记住这次授权：之后直接用，不再逐次询问；拒绝、取消或超时则只跳过本次，权限保持“询问”。\n" +
+        "想彻底关闭请到 设置 → 权限 → 原生 Root 改为“不允许”。\n" +
         rootConfirmRisk(cwd, timeoutSec)
 
 /** Confirmation shown once when the user switches the backend to Chroot under 询问. */
 internal fun rootChrootSwitchRequest(timeoutSec: Int): String =
-    "Root 权限为“询问”。允许只启动这次 Chroot helper；拒绝、取消或超时则不切换，权限保持“询问”。\n" +
+    "Root 权限为“询问”。点“允许”会记住这次授权：之后的切换不再询问；拒绝、取消或超时则不切换，权限保持“询问”。\n" +
         "如需直接切换（不再询问），请到 设置 → 权限 → 原生 Root 中改为“允许”。\n" +
         rootConfirmRisk("", timeoutSec)

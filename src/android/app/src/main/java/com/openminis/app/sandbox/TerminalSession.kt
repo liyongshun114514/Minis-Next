@@ -204,7 +204,15 @@ class TerminalSession(private val context: Context) {
                 val cwd = File(cmd).parentFile?.absolutePath
 
                 val outPid = IntArray(1)
-                val fd = PtyBridge.forkExec(cmd, argv, envp, cwd, cols, rows, outPid)
+                // [FEAT-261027-CHROOT-ctty] The chroot helper owns the process,
+                // not the terminal: give it a pty nobody has claimed so the
+                // guest shell can become the session leader itself. proot keeps
+                // forkpty()'s login_tty(), which it relies on.
+                val fd = if (terminalSpawn.backend == SandboxBackend.CHROOT) {
+                    PtyBridge.forkExecNoCtty(cmd, argv, envp, cwd, cols, rows, outPid)
+                } else {
+                    PtyBridge.forkExec(cmd, argv, envp, cwd, cols, rows, outPid)
+                }
                 if (fd < 0) {
                     Log.e(TAG, "forkExec failed: errno=${-fd}")
                     _outputBytes.emit("Failed to start PTY: errno=${-fd}\r\n".toByteArray())

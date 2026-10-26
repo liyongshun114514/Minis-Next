@@ -152,6 +152,13 @@ internal fun ComposerModelThinkingBar(
     modelInteractionSource: MutableInteractionSource? = null,
     groupLabel: String? = null,
     leading: @Composable () -> Unit = {},
+    // [T-composer-inline-chips] Lays the chips out on the "+" row instead of
+    // owning a full-width row of their own. Nothing is weighted or stretched:
+    // the model name takes its natural width (capped), the level chip follows
+    // it immediately, and the caller's spacer supplies the slack. Sharing the
+    // row through `weight(1f)` was what squeezed the name down to a single
+    // ellipsis dot on a normal-width phone.
+    compact: Boolean = false,
 ) {
     val context = LocalContext.current
     // OFF is always offered (it switches thinking off); availableLevels never
@@ -174,8 +181,8 @@ internal fun ComposerModelThinkingBar(
 
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .height(30.dp),
+            .then(if (compact) Modifier else Modifier.fillMaxWidth())
+            .height(if (compact) 34.dp else 30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Group binding, as a short auxiliary label: Layers glyph + the bound
@@ -221,7 +228,12 @@ internal fun ComposerModelThinkingBar(
             modifier = Modifier
                 // fill=false: the label takes at most its share of the row and
                 // truncates instead of pushing the level chip off screen.
-                .weight(1f, fill = false)
+                // Compact keeps a hard cap instead, so the level chip always
+                // stays visible on the + row.
+                .then(
+                    if (compact) Modifier.widthIn(max = 150.dp)
+                    else Modifier.weight(1f, fill = false),
+                )
                 .clip(RoundedCornerShape(8.dp))
                 .then(
                     if (modelInteractionSource != null) {
@@ -244,13 +256,13 @@ internal fun ComposerModelThinkingBar(
 
         Box(
             modifier = Modifier
-                .height(30.dp)
-                .widthIn(min = 64.dp)
+                .height(if (compact) 30.dp else 30.dp)
+                .then(if (compact) Modifier.widthIn(min = 0.dp) else Modifier.widthIn(min = 64.dp))
                 .alpha(if (levelEnabled) 1f else 0.45f)
                 .clip(RoundedCornerShape(15.dp))
                 .background(levelColor.copy(alpha = 0.13f))
                 .clickable(enabled = levelEnabled, onClick = onLevelClick)
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = if (compact) 8.dp else 10.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -270,7 +282,7 @@ internal fun ComposerModelThinkingBar(
             )
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        if (!compact) Spacer(modifier = Modifier.weight(1f))
     }
 }
 
