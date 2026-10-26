@@ -2,7 +2,7 @@
 
 This branch replaces the Android Alpine guest with **Ubuntu 24.04 LTS arm64**.
 The iOS iSH/Alpine guest is unchanged. It is an independent Android installation:
-`com.openminis.app.ubuntu.next`, labelled **Minis Ubuntu Next**, test-signed by Actions.
+`com.openminis.app.next`, labelled **Minis Next**, test-signed by Actions.
 This package also coexists with the earlier Ubuntu test builds, whose signing keys changed.
 Do not uninstall the upstream app to try it. Export/import configuration and data
 explicitly; an independent package cannot read the upstream app's private data.

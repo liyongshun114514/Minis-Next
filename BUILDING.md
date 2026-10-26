@@ -1,7 +1,7 @@
 # Building Minis
 
 > **Ubuntu Android fork:** see [docs/UBUNTU_FORK.md](docs/UBUNTU_FORK.md).
-> The `ubuntu-chroot` branch builds `com.openminis.app.ubuntu` with Ubuntu 24.04
+> The `ubuntu-chroot` branch builds `com.openminis.app.next` (Minis Next) with Ubuntu 24.04
 > arm64 via GitHub Actions. Android no longer bundles Alpine; iOS is unchanged.
 > Chroot helpers are built with `scripts/build_chroot_helpers.sh` after PRoot.
 

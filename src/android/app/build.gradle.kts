@@ -35,7 +35,7 @@ android {
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.openminis.app.ubuntu.next"
+        applicationId = "com.openminis.app.next"
         minSdk = 26
         targetSdk = 35
         versionCode = 39

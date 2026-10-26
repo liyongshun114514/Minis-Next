@@ -1,6 +1,6 @@
 # Ubuntu .4: original chat UI, system prompt and Root grant
 
-Version 1.15-ubuntu.4 / code 39 uses package `com.openminis.app.ubuntu.next`, labelled Minis Ubuntu Next. It coexists with earlier Ubuntu test APKs. It does not automatically read their private chats, provider keys or rootfs. No uninstall, storage reset or automatic data migration is part of this change.
+Version 1.15-ubuntu.4 / code 39 uses package `com.openminis.app.next`, labelled Minis Next. It coexists with earlier Ubuntu test APKs. It does not automatically read their private chats, provider keys or rootfs. No uninstall, storage reset or automatic data migration is part of this change.
 
 The chat screen is restored byte-for-byte to upstream commit `6eda552`, before the MinisAllInOne Composer port. The imported toolbar, merged attachment/command menu, two-line title and particle thinking slider are removed. Existing rootfs extraction and no-follow cleanup fixes remain.
 
