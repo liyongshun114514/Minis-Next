@@ -1,7 +1,6 @@
 package com.openminis.app.ui.settings
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
@@ -35,7 +34,7 @@ import com.openminis.app.accessibility.RestrictedSettingsManager
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.RootManager
-import com.openminis.app.offload.ROOT_ENABLE_MESSAGE
+import com.openminis.app.offload.ROOT_TRI_STATE_FOOTER
 import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisTextButton
@@ -72,13 +71,12 @@ fun OffloadPermissionScreen(
     var unrestricting by remember { mutableStateOf(false) }
     var unrestrictFailed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    // [T-android-root-cli-parity] Native Root card mirrors the Shizuku CLI card
-    // above it. Both mirrors are pure state reads: the su lookup and the
-    // per-command confirmation stay in RootManager / the walkthrough page, so
-    // rendering this page never executes a root command.
+    // [T-android-root-cli-parity] Native Root card is the same anatomy as the
+    // android-shizuku-cli card above it, INCLUDING the tri-state agent gate.
+    // Both are pure state reads: the stored level is read from prefs and the
+    // su lookup stays in RootManager / the walkthrough page, so rendering this
+    // page never executes a root command or raises a Root probe.
     val rootSnap by RootManager.snapshot.collectAsState()
-    var rootEnabled by remember { mutableStateOf(RootManager.isEnabled()) }
-    var showRootEnable by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         // Re-poll once a second so coming back from system Accessibility
         // settings flips the row without a manual refresh.
@@ -87,9 +85,10 @@ fun OffloadPermissionScreen(
             // Re-probed each tick so the section disappears by itself once the
             // user allows restricted settings and returns.
             a11yRestricted = !a11yEnabled && RestrictedSettingsManager.isRestricted(context)
-            // Same reason for the Root card: the switch may have been flipped on
-            // the walkthrough page, and back-navigation does not recreate us.
-            rootEnabled = RootManager.isEnabled()
+            // The Root level may have been changed on the walkthrough page, or
+            // promoted by detection; back-navigation does not recreate us.
+            // refresh() reads prefs only and never runs su.
+            RootManager.refresh()
             delay(1000)
         }
     }
@@ -229,22 +228,20 @@ fun OffloadPermissionScreen(
             onStatusRowClick = onOpenPrivilegedBackend,
         )
 
-        // [T-android-root-cli-parity] Native Root uses the SAME card anatomy as
-        // the android-shizuku-cli card right above: colored leading icon + CLI
-        // title + one-line description, then the agent-gate row(s), then the
-        // chevron "System authorization" row that opens the walkthrough page.
-        // Only the gate differs, deliberately: Root has one persistent, explicit
-        // opt-in (default off) instead of the tri-state menu, so it gets a
-        // switch. While it is on, android-root-cli and Chroot use it directly;
-        // when an agent calls android-root-cli with it off, RootManager sends
-        // one confirmable request and never turns the switch on itself.
+        // [T-android-root-cli-parity] Native Root uses the SAME card anatomy and
+        // the SAME tri-state gate as the android-shizuku-cli card right above:
+        // colored leading icon + CLI title + description, then the 允许 / 询问 /
+        // 不允许 row, then the chevron "System authorization" row that opens the
+        // walkthrough page. There is no separate switch and no enable dialog —
+        // the level IS the authorisation (RootManager / RootGrantPolicy enforce
+        // it for android-root-cli and the Chroot backend).
         IntegrationSection(
             iconVector = Icons.Outlined.Terminal,
             iconTint = Color(0xFFFF9500),
             sectionHeaderRes = 0,
             sectionFooterRes = 0,
             sectionHeaderText = "原生 Root",
-            sectionFooterText = "通过 su 执行，不依赖 Shizuku 或 Xposed；默认关闭。开启后在设置中授权期间 android-root-cli 与 Chroot 直接使用，不再逐次确认；设备 su 管理器仍会单独授权。可随时关闭，关闭后新的 Root 操作会被拒绝。",
+            sectionFooterText = ROOT_TRI_STATE_FOOTER,
             toolName = "root_cli",
             descriptionRes = 0,
             titleText = "android-root-cli",
@@ -257,51 +254,9 @@ fun OffloadPermissionScreen(
             // Same interaction as the Shizuku row: the status line itself opens
             // the detail page, whatever the current state is.
             onStatusRowClick = { openRootBridgeSettings(context) },
-            policyContent = { divider ->
-                SettingsSwitchRow(
-                    title = "允许使用原生 Root",
-                    subtitle = "默认关闭；开启后无需逐次确认，可随时关闭。",
-                    checked = rootEnabled,
-                    onCheckedChange = { on ->
-                        if (on) {
-                            showRootEnable = true
-                        } else {
-                            RootManager.setEnabled(false)
-                            rootEnabled = false
-                        }
-                    },
-                    showDivider = divider,
-                )
-            },
         )
 
         Spacer(Modifier.height(16.dp))
-    }
-
-    // Same warning as the walkthrough page's dialog: enabling the request entry
-    // must never be a silent toggle, and enabling never runs su.
-    if (showRootEnable) {
-        AlertDialog(
-            onDismissRequest = { showRootEnable = false },
-            title = { Text("启用原生 Root 授权？") },
-            text = {
-                Text(
-                    ROOT_ENABLE_MESSAGE
-                )
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    RootManager.setEnabled(true)
-                    rootEnabled = true
-                    showRootEnable = false
-                }) { Text("开启") }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showRootEnable = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
     }
 
     if (showResetConfirm) {
@@ -313,6 +268,7 @@ fun OffloadPermissionScreen(
                 MinisTextButton(onClick = {
                     OffloadPermissionManager.resetAll()
                     com.openminis.app.config.MinisConfigPermissionStore.setEnabled(true)
+                    RootManager.refresh()
                     AppLogger.info("PermissionsScreen", "user confirmed Reset All — all tool permissions cleared, minis-config switch reset to default")
                     showResetConfirm = false
                 }) {
@@ -370,11 +326,6 @@ private fun IntegrationSection(
     titleText: String? = null,
     descriptionText: String? = null,
     systemStatusText: String? = null,
-    // Replaces the generic tri-state AgentPolicyRow for a backend whose
-    // permission model is not the three-level one (Root: fixed per-command
-    // confirmation, so no "Bypass" entry is offered). The Boolean is the
-    // divider flag the policy row has to draw below itself.
-    policyContent: (@Composable (Boolean) -> Unit)? = null,
 ) {
     SettingsSection(
         header = sectionHeaderText ?: stringResource(sectionHeaderRes),
@@ -389,12 +340,8 @@ private fun IntegrationSection(
             showChevron = false,
         )
 
-        // Agent tri-state policy (or the caller's equivalent gate row).
-        if (policyContent != null) {
-            policyContent(true)
-        } else {
-            AgentPolicyRow(toolName = toolName, showDivider = true)
-        }
+        // Agent tri-state policy — the SAME row for every integration CLI.
+        AgentPolicyRow(toolName = toolName, showDivider = true)
 
         // System-layer status. When [onStatusRowClick] is provided the row is a
         // navigation entry (chevron, always shown); otherwise it's read-only.
@@ -428,15 +375,19 @@ private fun IntegrationSection(
 
 /**
  * Shared tri-state row. Reused by the dedicated IntegrationSection cards
- * AND by the auto-rendered category loop below — same dropdown menu,
- * same chip in trailing.
+ * (including Native Root) AND by the auto-rendered category loop below —
+ * same dropdown menu, same chip in trailing.
+ *
+ * Root stores its level through [RootManager.setAccessLevel], which also
+ * records the "user chose this" marker: detection must never overwrite an
+ * explicit 询问 / 不允许 afterwards.
  */
 @Composable
 private fun AgentPolicyRow(
     toolName: String,
     showDivider: Boolean,
 ) {
-    var currentLevel by remember { mutableStateOf(OffloadPermissionManager.getLevel(toolName)) }
+    var currentLevel by remember { mutableStateOf(currentRootLevel(toolName)) }
     var expanded by remember { mutableStateOf(false) }
 
     Box {
@@ -475,7 +426,7 @@ private fun AgentPolicyRow(
                     },
                     onClick = {
                         currentLevel = level
-                        OffloadPermissionManager.setLevel(toolName, level)
+                        setLevelFromUi(toolName, level)
                         expanded = false
                     },
                 )
@@ -483,6 +434,25 @@ private fun AgentPolicyRow(
         }
     }
 }
+
+/** The stored level for a row: Root resolves its default without probing. */
+private fun currentRootLevel(toolName: String): OffloadPermissionManager.PermissionLevel =
+    if (toolName == ROOT_TOOL) {
+        com.openminis.app.offload.RootGrantPolicy.toLevel(RootManager.accessLevel())
+    } else {
+        OffloadPermissionManager.getLevel(toolName)
+    }
+
+/** One write path for every AgentPolicyRow (Root also marks the user's choice). */
+private fun setLevelFromUi(toolName: String, level: OffloadPermissionManager.PermissionLevel) {
+    if (toolName == ROOT_TOOL) {
+        RootManager.setAccessLevel(com.openminis.app.offload.RootGrantPolicy.levelOf(level), byUser = true)
+    } else {
+        OffloadPermissionManager.setLevel(toolName, level)
+    }
+}
+
+private const val ROOT_TOOL = "root_cli"
 
 @Composable
 private fun PermissionRow(
@@ -643,7 +613,7 @@ fun rootStateLabel(state: RootManager.State): String = when (state) {
     RootManager.State.DENIED -> "已拒绝"
 }
 
-/** Opens the native-Root walkthrough page (enable switch, su lookup, one-shot verify). */
+/** Opens the native-Root walkthrough page (su lookup, one-shot verify). */
 private fun openRootBridgeSettings(context: Context) {
     try {
         context.startActivity(
@@ -665,15 +635,5 @@ private fun shizukuSubtitleRes(state: ShizukuManager.State): Int = when (state) 
 private fun shizukuActionTitleRes(state: ShizukuManager.State): Int = when (state) {
     ShizukuManager.State.NOT_INSTALLED -> R.string.shizuku_install_btn
     ShizukuManager.State.NOT_RUNNING -> R.string.shizuku_open_btn
-    ShizukuManager.State.NEED_PERMISSION -> R.string.shizuku_grant_btn
-    ShizukuManager.State.READY -> 0  // never displayed (systemReady=true)
-}
-
-private fun performShizukuAction(context: Context, state: ShizukuManager.State) {
-    when (state) {
-        ShizukuManager.State.NOT_INSTALLED -> ShizukuManager.openInstallPage(context)
-        ShizukuManager.State.NOT_RUNNING -> ShizukuManager.openShizukuApp(context)
-        ShizukuManager.State.NEED_PERMISSION -> ShizukuManager.requestPermission()
-        ShizukuManager.State.READY -> {} // no-op; row never rendered
-    }
+    ShizukuManager.State.READY -> {} // no-op; row never rendered
 }

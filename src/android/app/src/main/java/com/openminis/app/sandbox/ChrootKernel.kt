@@ -168,7 +168,9 @@ object ChrootKernel {
         guestArgv: List<String>,
         interactive: Boolean = false,
         loginShell: Boolean = false,
-        cwd: String = "/root",
+        // [FEAT-261025-CHROOT account] `/root` is 0700 root-owned in the image
+        // and the app uid cannot enter it; the account's home is ours.
+        cwd: String = GuestAccount.WORKDIR,
         mounts: List<ChrootMount> = emptyList(),
     ): List<String> {
         val argv = mutableListOf(
@@ -327,6 +329,11 @@ object ChrootKernel {
      */
     fun spawn(context: Context, spec: SandboxCommandSpec): SandboxSpawn {
         val generation = SandboxBackendStore.generation(context)
+        // [FEAT-261025-CHROOT account] The guest must be able to name the uid
+        // it runs as (otherwise bash prints "I have no name!" and `groups`
+        // reports a numeric id). Idempotent and cheap once provisioned; it
+        // only APPENDS a row for this app's uid, it never rewrites one.
+        val account = GuestAccount.ensureForApp(context)
         val rootfs = rootfs(context).absolutePath
         val launcher = launcher(context).absolutePath
         val guestArgv = when {
@@ -342,6 +349,10 @@ object ChrootKernel {
             guestArgv = guestArgv,
             interactive = spec.interactive,
             loginShell = spec.loginShell && spec.interactive,
+            // [FEAT-261025-CHROOT account] `/root` is mode 0700 owned by guest
+            // root in every image, so the app uid cannot chdir into it and the
+            // helper fell back to `/`. /home/minis belongs to us.
+            cwd = GuestAccount.WORKDIR,
             mounts = mounts,
         )
         val offloadRoute = offloadRoute(context)
@@ -354,6 +365,10 @@ object ChrootKernel {
             PRootKernel.customEnvironment[key]?.let { env[key] = it }
         }
         env.putAll(PRootKernel.systemProxyEnv(context))
+        // The PRoot environment names "/root" for HOME; under chroot that
+        // directory is unreachable for the app uid. These four are the ones
+        // bash's login/PS1 code and `groups` consult.
+        env.putAll(GuestAccount.environment())
         env["MINIS_CHROOT_SOCKET"] = socketName(generation)
         env["MINIS_CHROOT_GENERATION"] = generation
         env["MINIS_NOFF_SOCKET"] = NativeOffloadServer.socketName
@@ -377,6 +392,10 @@ object ChrootKernel {
                 "until chroot is started again"
         }
         notes += rejected.map { "mount rejected: $it" }
+        account?.warning?.let { notes += "guest account incomplete: $it" }
+        if (account?.userName == null && account != null) {
+            notes += "guest has no name for uid=${account.uid}; the shell will show a numeric identity"
+        }
         if (offloadRoute == SandboxOffloadRoute.BLOCKED) {
             notes += "guest offload client missing; Android/Minix tools are blocked in this backend"
         }
@@ -403,15 +422,15 @@ object ChrootKernel {
     /**
      * [FEAT-261025-CHROOT] Start (or adopt) the privileged helper.
      *
-     * Requires the persistent Root grant (Settings → Permissions → Native
-     * Root) AND the root bridge. Switching backends never prompts for Root and
-     * never enables it: without the grant this fails with a settings hint. On
-     * success the handshake's nonce is checked before the in-memory grant is
-     * recorded.
+     * Follows the Root tri-state (Settings → Permissions → 原生 Root):
+     * 允许 starts the helper directly; 询问 asks ONE confirmable request for
+     * this switch (RootPrivilege → RootManager SYSTEM caller); 不允许 fails
+     * with a settings hint. A switch never enables Root by itself. On success
+     * the handshake's nonce is checked before the in-memory grant is recorded.
      */
     suspend fun ensureServer(context: Context, reason: String = DEFAULT_GRANT_REASON): Result<Unit> {
-        if (!com.openminis.app.offload.RootManager.isEnabled()) {
-            // No implicit enable and no Root dialog from a backend switch.
+        if (!com.openminis.app.sandbox.ChrootPrivilege.switchAllowed()) {
+            // 不允许: no implicit enable and no Root dialog from a switch.
             return Result.failure(
                 IllegalStateException(com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM),
             )
@@ -420,6 +439,9 @@ object ChrootKernel {
         if (!launcher.isFile) {
             return Result.failure(IllegalStateException("helper not packaged: ${launcher.absolutePath}"))
         }
+        // [FEAT-261025-CHROOT account] Before the first command, not only
+        // before the terminal: the agent's warm shell runs `id`/`groups` too.
+        GuestAccount.ensureForApp(context)
         val generation = SandboxBackendStore.generation(context)
         if (SandboxBackendStore.chrootGranted(generation)) {
             // [FEAT-261025-CHROOT] The helper enforces its own idle TTL and

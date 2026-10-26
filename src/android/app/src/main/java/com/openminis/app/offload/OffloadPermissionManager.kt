@@ -104,6 +104,9 @@ object OffloadPermissionManager {
 
     private lateinit var prefs: SharedPreferences
 
+    /** In-memory cache of the last Root probe; null until one runs. */
+    @Volatile private var rootDetectedCache: Boolean? = null
+
     /** Session-scoped grants for ASK_ONCE tools. Populated by the
      *  "Allow in this session" dialog response. Cleared when the
      *  hosting session ends (or process death — see
@@ -403,36 +406,126 @@ object OffloadPermissionManager {
 
     // ── Root-only grant state ────────────────────────────────────────────────
     //
-    // Root is a persistent, user-granted permission: BYPASS means "use it
-    // directly" (no per-command dialog), NOT_ALLOWED means "off" (default).
-    // The three-level model still applies to the other integration CLIs; Root
-    // has no per-session level, so a stored ASK_ONCE from older builds is
-    // migrated to NOT_ALLOWED instead of silently becoming a persistent grant.
+    // Root carries the SAME tri-state as android-shizuku-cli:
+    //   BYPASS     允许      → used directly, no per-command application dialog
+    //   ASK_ONCE   询问      → one confirmable request per invocation/switch
+    //   NOT_ALLOWED 不允许   → refused
+    // A stored level from an older build (only 允许/不允许 existed) is treated
+    // as an explicit user choice, and a fresh install defaults to 询问 until
+    // the detection probe proves Root works ([applyDetectedRootDefault]).
 
     private const val ROOT_TOOL = "root_cli"
 
-    /** Bumped on every transition from granted to not granted. */
+    /** Bumped on every transition away from 允许 (revoke, downgrade, reset). */
     private val rootGrantEpoch = java.util.concurrent.atomic.AtomicLong(0L)
 
     /** Monotonic token: an approval issued before a revocation is invalid. */
     fun rootAuthorizationEpoch(): Long = rootGrantEpoch.get()
 
-    /** True only for an explicit persistent grant. */
-    fun isRootGranted(): Boolean =
-        isInitialized() && getLevel(ROOT_TOOL) == PermissionLevel.BYPASS
-
-    /** Persist the grant; revoking bumps the epoch so pending approvals die. */
-    fun setRootGranted(granted: Boolean) {
-        setLevel(ROOT_TOOL, if (granted) PermissionLevel.BYPASS else PermissionLevel.NOT_ALLOWED)
+    /**
+     * The tri-state Root level, default resolved without touching su.
+     *
+     *  - a level the user (or a previous detection-driven promotion) stored
+     *    wins;
+     *  - otherwise the default is 询问, and only 允许 when the promotion was
+     *    already recorded by [applyDetectedRootDefault].
+     *
+     * Deliberately does NOT probe: the settings page reads this on every
+     * recomposition, and probing would run su over and over.
+     */
+    fun rootLevel(): RootAccess {
+        if (!isInitialized()) return RootAccess.ASK_ONCE
+        val stored = prefs.getString("level_$ROOT_TOOL", null)?.let {
+            runCatching { PermissionLevel.valueOf(it) }.getOrNull()
+        }
+        return RootGrantPolicy.effectiveLevel(
+            stored = stored,
+            userChosen = isRootLevelUserChosen(),
+            rootDetected = prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false),
+        )
     }
+
+    /** True only for an explicit 允许 (the state that executes directly). */
+    fun isRootGranted(): Boolean = rootLevel() == RootAccess.BYPASS
+
+    /** True once the user picked 允许/询问/不允许 themselves; never cleared. */
+    fun isRootLevelUserChosen(): Boolean =
+        isInitialized() && prefs.getBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, false)
+
+    /** Marker for "the detection-driven 允许 default was written once". */
+    fun rootDefaultApplied(): Boolean =
+        isInitialized() && prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false)
+
+    /**
+     * Change the Root level from an explicit user action (the tri-state row or
+     * an accepted one-off request). Always records the "user chose" marker, so
+     * a later Root detection can never override it.
+     */
+    fun setRootLevel(level: RootAccess, byUser: Boolean = true) {
+        setLevel(ROOT_TOOL, RootGrantPolicy.toLevel(level))
+        if (byUser) prefs.edit().putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true).apply()
+    }
+
+    /** Compatibility shim: `true` = 允许, `false` = 不允许 (both explicit). */
+    fun setRootGranted(granted: Boolean) {
+        setRootLevel(if (granted) RootAccess.BYPASS else RootAccess.NOT_ALLOWED)
+    }
+
+    /**
+     * Write the "Root detected → 允许" default exactly once.
+     *
+     * Called only after a real Root capability was proven (an executable su was
+     * resolved, or `id` returned uid 0 — see RootManager.probe/execute). A
+     * failed probe must call [recordRootProbe] with detected=false and this
+     * method with detected=false: nothing is written then, and the level stays
+     * 询问.
+     *
+     * @return true when the level was written by this call.
+     */
+    fun applyDetectedRootDefault(detected: Boolean): Boolean {
+        if (!isInitialized()) return false
+        recordRootProbe(detected)
+        if (!RootDefaultPolicy.shouldPromote(
+                userChosen = isRootLevelUserChosen(),
+                alreadyApplied = rootDefaultApplied(),
+                rootDetected = detected,
+            )
+        ) {
+            return false
+        }
+        prefs.edit()
+            .putString("level_$ROOT_TOOL", PermissionLevel.BYPASS.name)
+            .putBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, true)
+            .apply()
+        return true
+    }
+
+    /**
+     * Cache the last probe result in memory only. A failed probe does not
+     * write anything: the next launch probes again instead of remembering a
+     * one-off failure (su may only be granted after the user opens their su
+     * manager).
+     */
+    fun recordRootProbe(detected: Boolean) {
+        rootDetectedCache = detected
+    }
+
+    /** Last known "su is usable" answer, or null when no probe ran this process. */
+    fun rootDetectedCached(): Boolean? = rootDetectedCache
 
     private fun migrateRootLevel() {
         val stored = prefs.getString("level_$ROOT_TOOL", null) ?: return
-        if (stored == PermissionLevel.ASK_ONCE.name) {
-            // Old default was "ask once per session"; that must not turn into
-            // a persistent grant on upgrade. Default stays off.
-            prefs.edit().putString("level_$ROOT_TOOL", PermissionLevel.NOT_ALLOWED.name).apply()
+        if (!prefs.getBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, false) &&
+            !prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false)
+        ) {
+            // A level stored by an older build was written by the old switch
+            // (only 允许/不允许 were offered), i.e. by the user: mark it as an
+            // explicit choice so detection never overwrites it.
+            prefs.edit().putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true).apply()
         }
+        // Old builds migrated a stored ASK_ONCE to NOT_ALLOWED; ASK_ONCE is a
+        // first-class level now, so the stored value is used as-is.
+        runCatching { PermissionLevel.valueOf(stored) }
     }
 
     /** False until [init] ran; RootManager may refresh before startup finishes. */
@@ -466,6 +559,12 @@ object OffloadPermissionManager {
         for (tool in toolRegistry) {
             editor.remove("level_${tool.toolName}")
         }
+        // Root is back to its undecided default (询问). Clearing the "user
+        // chose" marker is what makes the next successful probe restore the
+        // detected-允许 default; the in-flight approvals are dropped by the
+        // epoch bump below.
+        editor.remove(RootDefaultPolicy.KEY_USER_CHOSEN)
+        editor.remove(RootDefaultPolicy.KEY_DEFAULT_APPLIED)
         editor.apply()
         rootGrantEpoch.incrementAndGet()
     }

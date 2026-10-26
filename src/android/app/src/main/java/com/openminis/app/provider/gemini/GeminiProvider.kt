@@ -37,6 +37,12 @@ class GeminiProvider(
     private val apiKey: String,
     override var model: LLMModel = LLMModel.gemini25Flash,
     private val basePath: String = "https://generativelanguage.googleapis.com/v1beta",
+    /**
+     * [T-soul-prompt-supreme] Settings → System Prompt content. Leads
+     * `systemInstruction.parts[0]`, ahead of the app-generated prompt. See
+     * [LLMProvider.applicationSystemPrompt].
+     */
+    override var applicationSystemPrompt: String? = null,
 ) : LLMProvider, com.openminis.app.network.NetworkTagged {
     override val name = "Google"
 
@@ -416,9 +422,22 @@ class GeminiProvider(
         // responsible) rather than the model id. Dropping it costs nothing: the preamble
         // is guidance for a text responder, and a TTS model speaks `contents` verbatim.
         val rejectsSystemInstruction = "audio" in model.outputModalities.orEmpty()
-        if (systemPrompt != null && !rejectsSystemInstruction) {
+        // [T-soul-prompt-supreme] `systemInstruction` is a single text slot, so
+        // the application system prompt (Settings → System Prompt) is placed at
+        // the START of that text, ahead of the app-generated prompt — the same
+        // "first in the system channel" position the other three providers use.
+        // Kept as one string because Gemini has one `systemInstruction` and
+        // splitting it into parts would not change the ordering anyway; the
+        // blank line keeps the boundary visible to the model.
+        val appPrompt = applicationSystemPrompt?.takeIf { it.isNotBlank() }
+        val systemText = when {
+            appPrompt == null -> systemPrompt
+            systemPrompt.isNullOrBlank() -> appPrompt
+            else -> appPrompt + "\n\n" + systemPrompt
+        }
+        if (systemText != null && !rejectsSystemInstruction) {
             body.put("systemInstruction", JSONObject().put(
-                "parts", JSONArray().put(JSONObject().put("text", systemPrompt))
+                "parts", JSONArray().put(JSONObject().put("text", systemText))
             ))
         }
 

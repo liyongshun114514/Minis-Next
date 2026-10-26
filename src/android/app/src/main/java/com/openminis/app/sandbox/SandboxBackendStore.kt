@@ -568,7 +568,9 @@ object SandboxSwitchController {
             availability = ChrootKernel.availability(context),
             authorizedThisProcess = SandboxBackendStore.chrootGranted(generation),
             stopActive = stopActive,
-            rootAccessGranted = com.openminis.app.offload.RootManager.isEnabled(),
+            // 不允许 refuses the switch; 允许/询问 may proceed (询问 asks once
+            // inside ChrootKernel.ensureServer, never enabling Root here).
+            rootAccessGranted = com.openminis.app.sandbox.ChrootPrivilege.switchAllowed(),
         )
         when (decision) {
             is BackendSwitchDecision.NoChange,

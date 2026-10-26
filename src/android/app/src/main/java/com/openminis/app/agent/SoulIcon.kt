@@ -19,8 +19,17 @@ object SoulIcon {
     /** The stored prefix. PNG specifically: it is the format we re-encode to. */
     const val DATA_URI_PREFIX = "data:image/png;base64,"
 
-    /** Longest edge of the stored bitmap, in pixels. ~1-4 KB as a data URI. */
-    const val STORED_PIXELS = 96
+    /**
+     * Longest edge of the stored bitmap, in pixels.
+     *
+     * [T-soul-avatar-fill] Raised from 96 to 256 when the square crop was
+     * dropped: the image now keeps its aspect ratio and is FILLED into the
+     * avatar frame, so a 4:3 photo is cropped by the renderer (ContentScale.Crop)
+     * and only its middle survives — 96px of a wide photo left too little
+     * resolution for a 56dp avatar. A 256px PNG still lands in the tens of KB,
+     * far below [MAX_DATA_URI_CHARS].
+     */
+    const val STORED_PIXELS = 256
 
     /**
      * Hard cap on the stored string. A 96px PNG lands far below this; the cap
@@ -71,8 +80,13 @@ object SoulIcon {
     }
 
     /**
-     * Normalize a picked bitmap into the stored form: centre-cropped to 1:1,
-     * downscaled to [STORED_PIXELS], PNG, base64 data URI.
+     * Normalize a picked bitmap into the stored form: aspect ratio preserved,
+     * longest edge downscaled to [STORED_PIXELS], PNG, base64 data URI.
+     *
+     * [T-soul-avatar-fill] Not centre-cropped to a square any more. The avatar
+     * is drawn with `ContentScale.Crop` inside a rounded rectangle, so a
+     * non-square image fills the frame instead of letterboxing inside it; the
+     * crop happens at draw time, not by destroying pixels on save.
      *
      * **Opaque images are accepted.** An earlier version refused anything
      * without an alpha channel, reasoning that an unframed opaque rectangle
@@ -91,14 +105,20 @@ object SoulIcon {
             return EncodeResult.Failure(Rejection.UNREADABLE)
         }
 
-        val square = squareCropped(source)
+        // [T-soul-avatar-fill] NO crop. The stored image keeps the picked
+        // image's aspect ratio; only its LONGEST edge is bounded, by
+        // [STORED_PIXELS]. Cropping here was the old behaviour and it threw
+        // away everything outside the centre square before the user could see
+        // where the avatar would sit; the renderer now fills the frame
+        // (ContentScale.Crop) so the visible crop is predictable and reversible
+        // — pick a different image, nothing was destroyed on disk.
+        val (w, h) = scaledSize(source.width, source.height, STORED_PIXELS)
         // Never upscale: a 48px source stays 48px rather than being blown up
-        // to 96 and looking soft.
-        val side = minOf(STORED_PIXELS, square.width, square.height)
-        val scaled = if (square.width == side && square.height == side) {
-            square
+        // and looking soft.
+        val scaled = if (source.width == w && source.height == h) {
+            source
         } else {
-            Bitmap.createScaledBitmap(square, side, side, true)
+            Bitmap.createScaledBitmap(source, w, h, true)
         }
 
         val png = ByteArrayOutputStream().use { out ->
@@ -229,13 +249,28 @@ object SoulIcon {
         return c == r || c.path.startsWith(r.path + java.io.File.separator)
     }
 
-    /** Centre-crop to 1:1, keeping the shorter edge. */
-    private fun squareCropped(bitmap: Bitmap): Bitmap {
-        val w = bitmap.width
-        val h = bitmap.height
-        if (w == h) return bitmap
-        val side = minOf(w, h)
-        return Bitmap.createBitmap(bitmap, (w - side) / 2, (h - side) / 2, side, side)
+    /**
+     * [T-soul-avatar-fill] The stored pixel size for an image of
+     * [width]×[height]: aspect ratio preserved, longest edge capped at
+     * [maxEdge], never enlarged.
+     *
+     * Pure arithmetic, no Bitmap — the unit tests assert it on the JVM where
+     * `android.graphics.Bitmap` cannot run. A degenerate source yields
+     * 1×1 rather than 0 (a 0 would make `createScaledBitmap` throw).
+     */
+    internal fun scaledSize(width: Int, height: Int, maxEdge: Int = STORED_PIXELS): Pair<Int, Int> {
+        require(width > 0 && height > 0) { "image has no pixels" }
+        require(maxEdge > 0) { "maxEdge must be positive" }
+        val longest = maxOf(width, height)
+        if (longest <= maxEdge) return width to height
+        val ratio = maxEdge.toDouble() / longest.toDouble()
+        val w = Math.round(width * ratio).toInt().coerceAtLeast(1)
+        val h = Math.round(height * ratio).toInt().coerceAtLeast(1)
+        // Rounding can push the scaled longest edge one pixel over; clamp it
+        // so "longest edge <= maxEdge" is an invariant the caller can rely on.
+        val overW = (w - maxEdge).coerceAtLeast(0)
+        val overH = (h - maxEdge).coerceAtLeast(0)
+        return (w - overW) to (h - overH)
     }
 
     // ── Emoji ────────────────────────────────────────────────────────────

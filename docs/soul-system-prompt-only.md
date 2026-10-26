@@ -1,91 +1,58 @@
-# Soul page is now the system-prompt setting
+# Settings → System Prompt (native, no Xposed)
 
-Status: UI change only. The agent layer (`SoulStore.kt` — including the new
-`render(file)` and the Application's system-prompt label — `SoulMDParser`,
-length policy, prompt assembly) is untouched by this change. Nothing here
-changes prompt assembly, layering or validation.
+The Soul page is the app's system-prompt setting. It is implemented natively in
+this fork, so the Minis All-in-One module is no longer needed for it.
 
-## What the page contains now
+## What the page contains
 
 `ui/settings/SoulSettingsScreen.kt` renders exactly three editable things:
 
 | Control | Behaviour |
 | --- | --- |
-| Avatar | Tap opens the existing menu: emoji / image / use default. Same `SoulIcon` encode path, same rejection dialogs. |
+| Avatar | Tap opens the existing menu: emoji / image / use default. Images are stored **uncropped** (aspect preserved, longest edge ≤ 256 px) and drawn with `ContentScale.Crop` inside the rounded clip, so the frame is filled edge to edge. |
 | Name | Single-line `OutlinedTextField`, written to SOUL.md `name`. |
-| System prompt | The `DocumentEditorField` previously labelled "Personality Prompt" / 人格提示词, now labelled "System Prompt" / 系统提示词. Still the Markdown body of SOUL.md. |
+| System prompt | The Markdown body of SOUL.md, previously labelled “Personality Prompt”. |
 
-Plus the controls needed to leave the screen safely: app-bar **Save**
-(disabled until dirty and not over the stored length cap), the back arrow,
-the unsaved-changes discard dialog, and the save-error dialog.
+Plus app-bar **Save** (enabled when dirty), the back arrow, the unsaved-changes
+dialog and the save-error dialog. Titles: `soul_settings_title` /
+`settings_soul` are “System Prompt / 系统提示词” in all 23 resource sets.
 
-Titles: the page's app-bar title (`soul_settings_title`) and the Settings row
-(`settings_soul`) are now "System Prompt" / 系统提示词 (localized in all 23
-base+locale resource sets).
+Removed from the page: preview card, `Style` field, `Language` picker, the
+length-mode editor, `Restore Default` and the always-on character counter.
+`style`, `lang` and `emoji` are still read and written back unchanged, so an
+older SOUL.md round-trips without losing metadata.
 
-## Removed from the page (not from the data model)
+## Length
 
-- The preview card that repeated the name plus the `style` subtitle.
-- The `Style` text field and the `Language` (Auto / 中文 / English) picker.
-- The "Soul body length" section (`SoulBodyLimitControls`: mode chips and the
-  custom `chineseCharLimit` / `englishWordLimit` fields).
-- "Restore Default" and its confirmation dialog.
-- The always-on `N / cap` counter. Its content is now shown **only** while the
-  body is over the stored cap — the same message that explains why Save is
-  disabled.
+`SoulBodyLimitSettings.mode` now defaults to `UNLIMITED`, and a stored `NATIVE`
+from an older build is folded into `UNLIMITED`. Only an explicit `CUSTOM` still
+counts characters, and the page no longer offers that editor. Nothing else was
+relaxed: native format validation, `containsInjectionPattern` and
+`scrubInjections` still run on the body.
 
-## Data compatibility
+## Priority
 
-Load → edit → save still goes through `SoulStore.load` / `SoulStore.save` with
-a complete `SoulFile`, so nothing invisible is dropped:
+`SystemPromptBuilder.applicationPrompt()` produces “supreme preamble + user
+body”. The result travels in `LLMProvider.applicationSystemPrompt`, which every
+provider places **first** in its own native system channel:
 
-- `name` — edited.
-- `icon` — edited (emoji literal or `data:image/png;base64,…`).
-- `body` — edited.
-- `emoji` — **preserved verbatim** in `preservedEmoji` and written back; it is
-  never displayed (identity glyph is locked to ✨) and never reset.
-- `style`, `lang` — **preserved verbatim**: read into state on load, used in
-  both the dirty-check baseline and the saved file, just no longer editable.
-  A value set by an older build or another device therefore round-trips.
+| Provider call | Field |
+| --- | --- |
+| OpenAI Chat Completions | `messages[0]` with `role: "system"`, ahead of the app-generated system message and every turn |
+| OpenAI Responses | start of `instructions` (Codex image path too) |
+| Anthropic | first `system` text block, after the mandatory OAuth identity block |
+| Gemini | start of `systemInstruction.parts[0].text` |
 
-The dirty check is still a value comparison against the loaded `SoulFile`, so
-opening the page with old metadata does not mark it dirty, and Save cannot
-rewrite the file with defaults for fields the page no longer shows.
+It is a separate field rather than a prefix concatenated into `systemPrompt`
+because the callers replace `systemPrompt` wholesale on the OAuth path and on a
+model switch; folding the two would silently reorder or drop the user's prompt.
+A sub agent (`helperConfig != null`) intentionally does not inherit the parent's
+application prompt: it has its own `HelperRunner.identitySection` and no
+settings surface.
 
-Length validation is unchanged: `SoulStore.isOverLimit(body, limitSettings)` is
-still loaded from the persisted `SoulBodyLimitPolicy` (never written from this
-page) and still gates the Save button. Only the mode/cap *editor* is gone.
+## Verification
 
-## Strings
-
-`res/values*/strings.xml` (23 files):
-
-- `settings_soul`, `soul_settings_title`: → "System Prompt" (localized).
-- `soul_section_personality`: "Personality Prompt" → "System Prompt"
-  (localized).
-- `settings_soul_subtitle`: → "System prompt and identity (SOUL.md)"
-  (localized).
-- `soul_body_placeholder`, `soul_personality_footer`: reworded to describe the
-  system prompt; the footer no longer advertises the removed length controls.
-
-Keys kept but no longer referenced by the screen (harmless, still translated):
-`soul_field_style`, `soul_field_lang`, `soul_lang_*`, `soul_length_indicator`,
-`soul_count_*`, `soul_restore_*`.
-
-## Tests
-
-- `src/android/app/src/test/.../ui/settings/SoulLangButtonWrapTest.kt` asserted
-  the removed language row — deleted, replaced by
-  `SoulSettingsPageContractTest.kt` (three-item page contract: one prompt
-  editor, name field, avatar menu; the removed controls stay removed;
-  style/lang/emoji round-trip; the length gate still guards Save).
-- `scripts/tests/test_native_composer_port.py` no longer asserts the Soul
-  length UI (it now covers the native-composer revert only); it passes after
-  this change.
-
-## Known follow-up (outside this change's file boundary)
-
-`ui/settings/SoulLimitUi.kt` has no production or test reference any more. It is
-kept in this change because `docs/UBUNTU_FORK.md` (line 27) and
-`docs/native-composer-port.md` (line 48) still describe `SoulLimitUi` as part of
-the Soul stack; delete the file and those two doc lines together.
+Local (no compilation, per project rule): `soul_static_check.py` bracket/symbol
+audit, `soul_wire_sim.py` reproduces the four assembled bodies, and
+`scripts/tests/test_native_composer_port.py` passes 98/98. Kotlin compilation,
+JUnit and the real wire format are verified by CI.

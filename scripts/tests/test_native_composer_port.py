@@ -1,42 +1,31 @@
 #!/usr/bin/env python3
-"""Static guards for the reverted native Composer port.
+"""Static contract checks for the native Composer / Soul-length port.
 
 Run from the repository root:
 
     python3 scripts/tests/test_native_composer_port.py
 
-The chat Composer UI that was ported from `MinisAllInOne` was reverted: the
-native `ChatScreen.kt` of baseline commit `6eda552` (the parent of the port
-commit `0dfd03d`) is back in place, and the port-only files were deleted.
-This script therefore asserts the ABSENCE of the port and the presence of the
-original native chat UI, instead of the port's bindings.
-
-It does NOT compile Android and does NOT claim visual verification. It only
-checks source-level facts and that no Xposed / reflection / DEX-scanning
-machinery was copied into the app.
-
-Soul (SOUL.md) and permission surfaces are deliberately out of scope here:
-they are owned by separate changes, and their tests live with them
-(`SoulBodyLimitPolicyTest`, the offload/root tests).
+It does NOT compile Android and does NOT claim visual verification. It
+checks the source-level bindings that the port depends on, and that no
+Xposed / reflection / DEX-scanning machinery was copied into the app.
 """
 
 from __future__ import annotations
 
+import hashlib
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHAT = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatScreen.kt"
-CHAT_REL = "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatScreen.kt"
-# Baseline that the port (0dfd03d) modified; ChatScreen.kt is restored to it.
-BASELINE = "6eda552"
-REMOVED = (
-    ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/NativeComposerExtras.kt",
-    ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/ComposerPortMath.kt",
-    ROOT / "src/android/app/src/test/java/com/openminis/app/ui/chat/ComposerPortMathTest.kt",
-)
-REMOVED_NAMES = {p.name for p in REMOVED}
+CHAT_EXTRAS = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/NativeComposerExtras.kt"
+MATH = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/ComposerPortMath.kt"
+MATH_TEST = ROOT / "src/android/app/src/test/java/com/openminis/app/ui/chat/ComposerPortMathTest.kt"
+SOUL = ROOT / "src/android/app/src/main/java/com/openminis/app/agent/SoulStore.kt"
+SOUL_UI = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/settings/SoulLimitUi.kt"
+SOUL_SCREEN = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/settings/SoulSettingsScreen.kt"
 
 failures: list[str] = []
 checks = 0
@@ -54,7 +43,7 @@ def text(path: Path) -> str:
 
 
 def strip_kotlin(src: str) -> str:
-    """Remove comments and string/char literals so token scans are code-only."""
+    """Remove comments and string/char literals so brace balance is meaningful."""
     out: list[str] = []
     i = 0
     n = len(src)
@@ -90,111 +79,161 @@ def strip_kotlin(src: str) -> str:
 
 
 def balanced(src: str, label: str) -> None:
-    pairs = {"(": ")", "[": "]", "{": "}"}
-    closers = {v: k for k, v in pairs.items()}
-    stack: list[str] = []
-    for ch in strip_kotlin(src):
-        if ch in pairs:
-            stack.append(ch)
-        elif ch in closers:
-            if not stack or stack[-1] != closers[ch]:
-                ok(False, f"{label}: unbalanced {ch!r}")
+    clean = strip_kotlin(src)
+    stack: list[tuple[str, int]] = []
+    pairs = {")": "(", "]": "[", "}": "{"}
+    line = 1
+    for ch in clean:
+        if ch == "\n":
+            line += 1
+        elif ch in "([{":
+            stack.append((ch, line))
+        elif ch in ")]}":
+            if not stack or stack[-1][0] != pairs[ch]:
+                ok(False, f"{label}: unmatched {ch} near line {line}")
                 return
             stack.pop()
     ok(not stack, f"{label}: unclosed delimiters {stack[-3:]}")
 
 
 def main() -> int:
-    # --- Port-only files must be gone ------------------------------------
-    for path in REMOVED:
-        ok(not path.exists(), f"port-only file still present: {path.relative_to(ROOT)}")
+    for path in (CHAT, CHAT_EXTRAS, MATH, MATH_TEST, SOUL):
+        ok(path.is_file(), f"missing {path.relative_to(ROOT)}")
+        if path.is_file():
+            balanced(text(path), str(path.relative_to(ROOT)))
 
-    # --- ChatScreen is the pre-port baseline ------------------------------
-    ok(CHAT.is_file(), "missing ui/chat/ChatScreen.kt")
     chat = text(CHAT)
-    balanced(chat, "ChatScreen.kt")
-    try:
-        baseline = subprocess.check_output(
-            ["git", "show", f"{BASELINE}:{CHAT_REL}"], cwd=ROOT, text=True
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print(f"NOTE: {BASELINE} unavailable (shallow clone?); "
-              "skipping byte-identical baseline comparison")
-    else:
-        ok(chat == baseline,
-           f"ChatScreen.kt is not byte-identical to the {BASELINE} baseline")
+    extras = text(CHAT_EXTRAS)
+    soul = text(SOUL)
+    math = text(MATH)
 
-    # --- No residue of the ported Composer UI ----------------------------
-    port_tokens = (
-        "ComposerModelThinkingBar",
-        "ComposerEffortSlider",
-        "ComposerCommandMenuRows",
-        "ComposerMenuHeader",
-        "ComposerPortMath",
-        "NativeComposerExtras",
-        "T-native-composer",
-        "groupLabel = bottomGroupLabel",
+    # --- Composer: title + subtitle --------------------------------------
+    ok("textAlign = TextAlign.Center" in chat, "title is not centre-aligned")
+    title_block = re.search(
+        r"Text\(\s*text = displayTitle,.*?maxLines = 2", chat, re.S
     )
-    for token in port_tokens:
-        ok(token not in chat, f"ported Composer UI residue in ChatScreen.kt: {token}")
-    app_src = ROOT / "src/android/app/src"
-    for path in app_src.rglob("*.kt"):
-        if path.name in REMOVED_NAMES:
-            continue
-        body = text(path)
-        for token in ("ComposerModelThinkingBar", "ComposerEffortSlider",
-                      "ComposerCommandMenuRows", "ComposerPortMath"):
-            if token in body:
-                ok(False, f"{path.relative_to(ROOT)} still calls removed {token}")
-
-    # --- Original native top bar is back --------------------------------
-    title_at = chat.index("text = displayTitle,")
-    title_block = chat[title_at: title_at + 700]
-    ok("maxLines = 1," in title_block, "title no longer reserves a single line")
-    ok("lineHeight = 19.sp" in title_block, "title line height is not the native 19sp")
-    ok("textAlign = TextAlign.Center" not in title_block,
-       "ported centred title alignment is still present")
-    ok("expandedHeight = 68.dp" in chat, "top bar height is not the native 68dp")
-    ok('"$providerName · $modelName"' in chat,
-       "native top-bar model / provider subtitle is missing")
-    ok("ThinkingLevelBadge(" in chat.replace("private fun ThinkingLevelBadge(", ""),
-       "native top-bar thinking badge call is missing")
-    ok("selectedGroupName.ifEmpty" in chat,
-       "native top-bar group fallback is missing")
+    ok(title_block is not None, "title does not reserve two lines")
+    ok("expandedHeight = 80.dp" in chat, "top bar height does not match the two-row title card")
     ok("editingSession = viewModel.loadSessionEntity()" in chat,
        "native rename click lost")
+    ok("val subtitleText = buildString" in chat and "topBarSoul.name" in chat,
+       "top-bar subtitle is not the Soul/category line")
+    ok('"$providerName · $modelName"' not in chat,
+       "model is still rendered in the top bar (duplicate with the bottom bar)")
+    ok("ThinkingLevelBadge(" not in chat.replace("private fun ThinkingLevelBadge(", ""),
+       "thinking badge is still called from the top bar (duplicate with the bottom bar)")
 
-    # --- Native attachment / slash menu (no merged composer menu) -------
+    # --- Composer: bottom model + thinking toolbar ------------------------
+    # Definition first...
+    ok("internal fun ComposerModelThinkingBar(" in extras,
+       "bottom model/thinking toolbar is not defined")
+    # ...then REAL invocation evidence: exactly one call, inside the composer,
+    # between the input area and the native +/mic/send row. A definition alone
+    # must never satisfy this contract again.
+    ok(chat.count("ComposerModelThinkingBar(") == 1,
+       "bottom model/thinking toolbar is not called exactly once in ChatScreen")
+    if "ComposerModelThinkingBar(" in chat:
+        call_at = chat.index("ComposerModelThinkingBar(")
+        ok(chat.index("// ─── Input area") < call_at,
+           "toolbar call is outside the composer input area")
+        ok(call_at < chat.index("// Button row below text field"),
+           "toolbar call is not in the composer's bottom region")
+        ok("viewModel.thinkingLevel.collectAsState()" in chat[call_at - 1600:call_at],
+           "toolbar does not observe the live thinking level")
+        ok("viewModel.availableThinkingLevels" in chat[call_at:call_at + 900],
+           "toolbar does not read the live supported levels")
+        ok("viewModel.currentModelSupportsReasoning" in chat[call_at:call_at + 900],
+           "toolbar does not read the live reasoning capability")
+        ok("onModelClick = { showModelPicker = true }" in chat[call_at:call_at + 900],
+           "toolbar model chip does not open the native model picker")
+        ok("onLevelClick = { showThinkingLevelSheet = true }" in chat[call_at:call_at + 900],
+           "toolbar level chip does not open the native thinking sheet")
+        ok("modelInteractionSource = modelPickerInteraction" in chat[call_at:call_at + 1500],
+           "toolbar lost the native model-picker interaction source")
+        ok("groupLabel = bottomGroupLabel?.takeIf" in chat[call_at:call_at + 1800],
+           "group binding is not passed to the bottom toolbar")
+        ok("selectedGroupName.ifEmpty" in chat[call_at - 1200:call_at]
+           and "selectedGroupId != null" in chat[call_at - 1200:call_at],
+           "group binding fallback/resolve visibility was dropped")
+    ok("groupLabel: String? = null" in extras,
+       "bottom toolbar cannot show the bound group")
+    ok("Icons.Default.Layers" in extras and "contentDescription = \"当前分组 $groupLabel\"" in extras,
+       "group label is not drawn with the native Layers icon / a11y label")
+    ok("widthIn(max = 56.dp)" in extras,
+       "group label is not capped for narrow screens")
+    # Role status that used to live on the top bar must survive the move.
+    ok("SpeedTierNavBadge(" in chat[chat.index("ComposerModelThinkingBar("):]
+       if "ComposerModelThinkingBar(" in chat else False,
+       "speed-tier badge was dropped instead of moving to the bottom bar")
+    ok("com.openminis.app.ui.quota.ModelQuotaStatusDot(" in chat[
+        chat.index("ComposerModelThinkingBar("):] if "ComposerModelThinkingBar(" in chat else False,
+       "quota dot was dropped instead of moving to the bottom bar")
+
+    # Layout contract that keeps the bar usable on narrow phones.
+    for token in (
+        "weight(1f, fill = false)",
+        "widthIn(min = 64.dp)",
+        "TextOverflow.Ellipsis",
+        "enabled = levelEnabled",
+        "alpha(if (levelEnabled) 1f else 0.45f)",
+        "rows.indexOf(level)",
+        "ComposerPortMath.levelColorArgb(",
+    ):
+        ok(token in extras, f"bottom toolbar layout/state contract missing: {token}")
+    ok("localizedName(context)" in extras,
+       "toolbar level chip is not localized")
+
+    # --- Composer: merged + menu ----------------------------------------
+    ok("ComposerCommandMenuRows(" in chat, "merged + menu does not render commands")
+    ok('ComposerMenuHeader("附件")' in chat and 'ComposerMenuHeader("命令")' in chat,
+       "merged menu section headers missing")
     for native in (
         "R.string.chat_attach_take_photo",
         "R.string.chat_attach_choose_photos_videos",
         "R.string.chat_attach_add_file",
     ):
         ok(native in chat, f"native attachment action lost: {native}")
-    ok("showAttachMenu = true" in chat, "+ button no longer opens the native menu")
-    ok("viewModel.executeSlashCommand(" in chat,
-       "native slash command dispatcher call is missing")
-    ok("viewModel.showSlashMenuOverInput(" in chat,
-       "native draft-preserving slash entry is missing")
+    ok("viewModel.executeSlashCommand(cmd, inputText)" in chat,
+       "merged menu bypasses the native command dispatcher")
+    ok("viewModel.showSlashMenuOverInput(inputText)" in chat,
+       "merged menu does not preserve the existing draft before dispatch")
+    ok("showThinkingLevelSheet = true" in chat,
+       "thinking command does not route to the slider sheet")
+    ok("showAttachMenu = true" in chat, "+ button no longer opens the merged menu")
 
-    # --- Native thinking sheet (row list, dismiss on select) -------------
+    # --- Composer: slider / send / status --------------------------------
+    ok("ComposerEffortSlider(" in chat, "thinking sheet does not host the slider")
     ok("viewModel.setThinkingLevel(level)" in chat,
-       "native thinking setter call is missing")
-    ok("Icons.Default.Lightbulb" in chat,
-       "native thinking-sheet row list is missing")
-    ok("showThinkingLevelSheet = false" in chat,
-       "native thinking sheet no longer has a dismiss path")
-
-    # --- Native send / stop / queue state untouched ----------------------
+       "slider no longer persists through the native setter")
     ok("ComposerSendButton(" in chat, "native send button missing")
-    ok("ComposerStopButton(" in chat, "native stop button missing")
+    # Send-area state machine must stay native: streaming + text = Send into
+    # queue, streaming + no content = Stop, idle = Send, attachments-only =
+    # Send. The bottom bar must not have replaced or gated any of it.
     ok("val showStop = sessionBusy && !hasContent" in chat,
        "native send/stop state selection changed")
+    ok("ComposerStopButton(" in chat, "native stop button missing")
     ok("canActivate = canActivate" in chat, "native send activation changed")
+    ok("viewModel.thinkingLevel.collectAsState()" in chat,
+       "thinking-level state is not observed")
+    ok("viewModel.modelName.collectAsState()" in chat,
+       "model-name state is not observed")
+    ok("ComposerPortMath.energy(" in extras, "slider does not use the shared math")
 
-    # --- No forbidden machinery in ChatScreen ----------------------------
-    forbidden = (
+    # --- Slider math -----------------------------------------------------
+    for token in (
+        "const val PARTICLE_COUNT = 22",
+        "fun nearestIndex(",
+        "fun fillEndArgb(",
+        "fun starPhase(",
+        "fun starAlpha(",
+    ):
+        ok(token in math, f"slider math missing: {token}")
+    ok("PARTICLE_COUNT = 22" in math, "particle count changed")
+
+    # --- No forbidden machinery in new UI files --------------------------
+    forbidden = [
         "Xposed",
+        "reflect",
         "Reflect",
         "DexClass",
         "InMemoryDex",
@@ -202,28 +241,69 @@ def main() -> int:
         "RootBridge",
         "Shizuku",
         "su -c",
-    )
-    chat_code = strip_kotlin(chat)
-    for token in forbidden:
-        ok(token not in chat_code, f"ChatScreen.kt contains forbidden token {token!r}")
+        "AssetManager.open(\"classes",
+    ]
+    for path in (CHAT_EXTRAS, MATH):
+        # Scan CODE only: the header comments name the upstream Xposed
+        # component and title.dex deliberately, to document what was NOT ported.
+        body = strip_kotlin(text(path))
+        for token in forbidden:
+            ok(token not in body, f"{path.name} contains forbidden token {token!r}")
     ok(not (ROOT / "src/android/app/src/main/assets/title.dex").exists(),
        "title.dex was copied into the app")
 
+    # --- Soul length policy ---------------------------------------------
+    ok("enum class SoulBodyLimitMode" in soul and "UNLIMITED" in soul,
+       "soul limit modes missing")
+    ok("object SoulBodyLimitPolicy" in soul, "soul limit policy missing")
+    ok("fun isOverLimit(body: String): SoulBodyLimitCheck" in soul,
+       "legacy context-free isOverLimit signature lost")
+    ok("SoulBodyLimitPolicy.ensureLoaded(context)" in soul,
+       "policy is not primed from the native read paths")
+    # The settings page is now a three-field system-prompt editor and the
+    # policy defaults to UNLIMITED, so the length controls, the live counter
+    # and the mode persistence it used to assert no longer exist by design.
+    # The gate itself is still covered by ApplicationSystemPromptTest and
+    # SoulBodyLimitPolicy's own tests.
+
+    # --- Soul safety boundary: prompt text must stay native --------------
+    ok("Ubuntu 24.04" in soul and "PRoot or Chroot" in soul,
+       "OS identity string was not updated to Ubuntu 24.04")
+    for token in (
+        "ignore.{0,30}previous.{0,30}instructions?",
+        "disregard.{0,30}(previous|prior).{0,30}instructions?",
+        "forget.{0,30}(previous|prior).{0,30}instructions?",
+    ):
+        ok(token in soul, f"native injection pattern changed/missing: {token}")
+    ok("fun containsInjectionPattern(s: String): Boolean" in soul,
+       "native injection detector signature changed")
+    ok("private fun scrubInjections(s: String): String" in soul,
+       "native injection scrubber signature changed")
+
+    # The injection machinery itself is pinned by the token checks above; the
+    # old "byte-identical to HEAD" comparison was removed because this branch
+    # now legitimately edits SoulStore (unlimited default, supreme preamble),
+    # which shifted every later offset and made the fixed-width window compare
+    # two different regions of two different files.
+
     # --- Provenance / licence -------------------------------------------
+    up_license = ROOT.parent.parent / "workspace/tmp/openminis-port/MinisAllInOne/LICENSE"
     repo_license = ROOT / "LICENSE"
-    ok(repo_license.is_file(), "repository LICENSE missing")
-    if repo_license.is_file():
-        ok(repo_license.read_text(encoding="utf-8").startswith(
-            "                    GNU GENERAL PUBLIC LICENSE"),
-           "repository LICENSE is not GPL-3.0")
+    if up_license.is_file():
+        ok(
+            hashlib.md5(up_license.read_bytes()).hexdigest()
+            == hashlib.md5(repo_license.read_bytes()).hexdigest(),
+            "repository LICENSE differs from the uploaded module's GPL-3.0 LICENSE",
+        )
+    ok(repo_license.read_text(encoding="utf-8").startswith("                    GNU GENERAL PUBLIC LICENSE"),
+       "repository LICENSE is not GPL-3.0")
 
     if failures:
-        print(f"Native composer revert static checks: "
-              f"{checks - len(failures)}/{checks} passed")
+        print(f"Native composer/Soul static checks: {checks - len(failures)}/{checks} passed")
         for failure in failures:
             print("FAIL:", failure)
         return 1
-    print(f"Native composer revert static checks: {checks}/{checks} PASS")
+    print(f"Native composer/Soul static checks: {checks}/{checks} PASS")
     return 0
 
 

@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -136,9 +137,12 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // cannot drift out of sync with the fields.
     var baseline by remember { mutableStateOf<SoulFile?>(null) }
 
-    // [T-android-soul-custom-icon] Image import: decode → reject opaque →
-    // centre-crop → 96px → PNG → base64 data URI. Runs off the main thread
-    // because a full-resolution camera photo is expensive to decode and scan.
+    // [T-android-soul-custom-icon] Image import: decode → keep the aspect
+    // ratio → bound the longest edge ([SoulIcon.STORED_PIXELS]) → PNG → base64
+    // data URI. [T-soul-avatar-fill] No square crop: the avatar renderer fills
+    // its frame (ContentScale.Crop), so what the user sees is decided at draw
+    // time and nothing is destroyed on save. Runs off the main thread because a
+    // full-resolution camera photo is expensive to decode and scale.
     val iconUnreadableMsg = stringResource(R.string.soul_icon_error_unreadable)
     val iconTooLargeMsg = stringResource(R.string.soul_icon_error_too_large)
     val imagePicker = rememberLauncherForActivityResult(
@@ -204,9 +208,15 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         loaded = true
     }
 
-    // The length gate is unchanged; this only surfaces it. [bodyLimitCheck]
-    // is the same object Save's enabled state consults, so the warning and
-    // the disabled button can never disagree.
+    // [T-soul-unlimited-default] The length policy defaults to UNLIMITED, and
+    // SoulStore.isOverLimit() folds any stale NATIVE into it, so [bodyLimitCheck]
+    // is Ok for every mode this page can reach: there is no length control on
+    // this page any more, and CUSTOM is only reachable from the minis-config
+    // writer. It is kept (rather than deleted) because it is still the ONE
+    // classifier that Save and SoulStore.save() share — Save must stay wired to
+    // the same gate the store enforces, or a body the store accepts could still
+    // be blocked in the UI. The over-limit warning below is unreachable for the
+    // same reason; see its note.
     val bodyLimitCheck by remember(body, limitSettings) {
         derivedStateOf { SoulStore.isOverLimit(body, limitSettings) }
     }
@@ -354,13 +364,23 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                     ownScroll = false,
                     minHeight = 240.dp,
                 )
-                // Only while over the stored cap: without this the disabled
-                // Save button would look broken. The cap itself is unchanged
-                // (and still enforced by SoulStore.save); it is just not
-                // editable from this page any more.
+                // [T-soul-unlimited-default] Dead by construction, kept as a
+                // safety net: the default policy is UNLIMITED and this page has
+                // no control that can pick CUSTOM, so `bodyLimitCheck` never
+                // reports OverLimit* here and no "too long" red line appears.
+                // Deleting the branch would not change behaviour; leaving it
+                // means a body that SoulStore.save() WOULD still refuse (a
+                // CUSTOM policy left on disk by an older build or written via
+                // minis-config) explains itself instead of showing a disabled
+                // Save button with no reason.
+                // [T-soul-unlimited-default] Gated on the MODE as well as the
+                // result: CUSTOM is the only mode that can report OverLimit*
+                // now, and this page has no control that reaches it, so the
+                // banner is unreachable rather than merely unlikely.
                 val overLimit = bodyLimitCheck
-                if (overLimit is SoulBodyLimitCheck.OverLimitChinese ||
-                    overLimit is SoulBodyLimitCheck.OverLimitEnglish
+                if (!limitSettings.mode.isUnlimited &&
+                    (overLimit is SoulBodyLimitCheck.OverLimitChinese ||
+                        overLimit is SoulBodyLimitCheck.OverLimitEnglish)
                 ) {
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -429,7 +449,8 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
 
     // [T-android-soul-custom-icon] Image rejection is explained after the
     // fact here. There is no longer a transparency requirement to state up
-    // front — any image is accepted (see soul_icon_image_hint) — so the only
+    // front — any image is accepted (any aspect ratio: it is filled, not cropped
+    // to a square on save) — so the only
     // remaining rejections are "couldn't be read" and "too large", neither of
     // which can be predicted before the user picks a file.
     iconError?.let { err ->
@@ -474,9 +495,17 @@ internal fun SoulIconGlyph(
         // an opaque image acceptable at all — the refusal that used to guard
         // against "opaque rectangle reads as a broken tile" was a presentation
         // concern, and this is the presentation fix.
+        // [T-soul-avatar-fill] ContentScale.Crop: the stored image keeps its
+        // own aspect ratio, so a non-square one must FILL the frame rather
+        // than be letterboxed inside it. The default (Fit) left blank bands on
+        // two sides — the "white edges" a square crop used to hide. With Crop
+        // the image covers every pixel of the box, the rounded clip below cuts
+        // the corners, and .clip() also clamps the overflow a scaled-up image
+        // would otherwise paint outside the box.
         bitmap != null -> Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = null,
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(sizeDp)
                 .clip(RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)),
@@ -514,20 +543,12 @@ private fun SoulIconMenu(
             text = { Text(stringResource(R.string.soul_icon_choose_emoji)) },
             onClick = onChooseEmoji,
         )
+        // [T-soul-avatar-fill] Title only. The old "cropped to a square and
+        // rounded" second line described the crop that no longer happens; a
+        // sub-label would have to promise something about framing that the
+        // renderer decides, so there is no hint line here at all.
         DropdownMenuItem(
-            text = {
-                Column {
-                    Text(stringResource(R.string.soul_icon_choose_image))
-                    // Stated up front so the square crop isn't a surprise after
-                    // picking. (There is no alpha requirement: opaque images are
-                    // accepted and the rounded clip is what makes them look right.)
-                    Text(
-                        text = stringResource(R.string.soul_icon_image_hint),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+            text = { Text(stringResource(R.string.soul_icon_choose_image)) },
             onClick = onChooseImage,
         )
         // Only offered when there is something to clear.

@@ -19,6 +19,32 @@ interface LLMProvider {
     var model: LLMModel
 
     /**
+     * [T-soul-prompt-supreme] `systemPrompt` stays the single app-generated
+     * system message (tool list, skills, memory, environment, runtime
+     * context) — unchanged for every existing caller. This optional second
+     * string is the user's own application system prompt from Settings →
+     * System Prompt (SOUL.md), and it is placed BEFORE [systemPrompt] in each
+     * provider's native system channel:
+     *
+     *   - OpenAI Chat Completions: the first `{"role":"system"}` message, ahead
+     *     of the [systemPrompt] system message and of every user/assistant/
+     *     tool turn.
+     *   - OpenAI Responses: the start of `instructions`.
+     *   - Anthropic: the first `system` text block (ahead of the [systemPrompt]
+     *     block; under OAuth the Claude Code identity block still must come
+     *     first for the server-side gate to pass).
+     *   - Gemini: the start of `systemInstruction.parts[0].text`.
+     *
+     * It is a separate field rather than a prefix concatenated into
+     * [systemPrompt] because the callers that build [systemPrompt] also
+     * REPLACE it wholesale on the OAuth path and on model switch; folding the
+     * two would let either silently reorder or drop the user's prompt. Null or
+     * blank means "no application prompt" and every provider then emits
+     * exactly what it emitted before this field existed.
+     */
+    var applicationSystemPrompt: String? get() = null set(_) {}
+
+    /**
      * Effective max output tokens ceiling for the given model.
      * Priority: model.maxOutputTokens > provider-level default.
      * Used as the upper bound in dynamicMaxTokens().

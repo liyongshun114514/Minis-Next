@@ -1018,6 +1018,10 @@ class MinisApp : Application(), ImageLoaderFactory {
         // Initialize offload permission manager
         OffloadPermissionManager.init(this)
         com.openminis.app.offload.RootManager.init(this)
+        // [T-android-root-default] Verify Root once and persist 允许 so the
+        // user is not asked to re-authorise on every launch. Runs off the main
+        // thread and is a no-op once a level exists or the user chose one.
+        com.openminis.app.offload.RootManager.startDetectedDefaultProbe()
 
         // Initialize speech-recognition adapter layer (system + provider engines).
         com.openminis.app.speech.SpeechRecognitionManager.init(this)

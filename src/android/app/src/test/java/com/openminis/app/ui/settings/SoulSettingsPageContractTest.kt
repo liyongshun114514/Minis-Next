@@ -57,7 +57,32 @@ class SoulSettingsPageContractTest {
 
     @Test
     fun `the length gate still guards save`() {
+        // [T-soul-unlimited-default] The gate stays wired to the same
+        // classifier SoulStore.save() enforces — it is simply Ok by default
+        // now (mode UNLIMITED), so it never blocks a save.
         assertTrue(src.contains("SoulStore.isOverLimit(body, limitSettings)"))
         assertTrue(src.contains("!bodyLimitCheck.isOverLimit"))
+    }
+
+    @Test
+    fun `the over-limit banner cannot fire under the default policy`() {
+        // It is gated on the MODE as well as the result: only CUSTOM (which this
+        // page cannot reach) can report OverLimit*.
+        assertTrue(src.contains("!limitSettings.mode.isUnlimited"))
+        assertFalse("no unconditional red banner", src.contains("val overLimit = bodyLimitCheck\n                if (overLimit is"))
+    }
+
+    @Test
+    fun `the avatar fills its frame instead of letterboxing`() {
+        // [T-soul-avatar-fill] Default ContentScale.Fit left blank bands on the
+        // two short sides of a non-square image.
+        assertTrue("avatar image must Crop", src.contains("contentScale = ContentScale.Crop"))
+        assertTrue(src.contains("RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)"))
+    }
+
+    @Test
+    fun `the square crop hint is gone from the menu`() {
+        assertFalse("hint line removed", src.contains("R.string.soul_icon_image_hint"))
+        assertTrue("the menu item still has a title", src.contains("R.string.soul_icon_choose_image"))
     }
 }

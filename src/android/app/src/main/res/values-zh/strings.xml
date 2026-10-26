@@ -292,7 +292,7 @@
     <string name="soul_save_error_title">保存失败</string>
     <string name="soul_icon_choose_emoji">选择表情</string>
     <string name="soul_icon_choose_image">选择图片</string>
-    <string name="soul_icon_image_hint">会裁剪为方形并做圆角</string>
+    <string name="soul_icon_image_hint">铺满圆角头像，保留原始比例</string>
     <string name="soul_icon_use_default">恢复默认</string>
     <string name="soul_icon_emoji_title">身份图标</string>
     <string name="soul_icon_emoji_field">或输入一个表情</string>

@@ -46,6 +46,17 @@ class AnthropicProvider(
      * request. Only set for custom-base Anthropic-compat instances.
      */
     private val customUserAgent: String? = null,
+    /**
+     * [T-soul-prompt-supreme] Settings → System Prompt content. Emitted as the
+     * FIRST text block of the top-level `system` array, ahead of the
+     * app-generated prompt. See [LLMProvider.applicationSystemPrompt].
+     *
+     * Declared LAST on purpose: ProviderFactory calls this constructor both
+     * positionally — `AnthropicProvider(apiKey, model, basePath, isOAuth,
+     * customUserAgent)` — and by name, so a new parameter may only be appended
+     * after the existing ones.
+     */
+    override var applicationSystemPrompt: String? = null,
 ) : LLMProvider, com.openminis.app.network.NetworkTagged {
     override val name = "Anthropic"
 
@@ -145,7 +156,7 @@ class AnthropicProvider(
         tools: List<AgentToolDefinition>,
         thinkingLevel: ThinkingLevel,
     ): Flow<LLMStreamChunk> = callbackFlow {
-        val body = buildRequestBody(messages, systemPrompt, maxTokens, stream = true, temperature = temperature, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel)
+        val body = buildRequestBody(messages, systemPrompt, maxTokens, stream = true, temperature = temperature, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel, applicationSystemPrompt = applicationSystemPrompt)  // [T-soul-prompt-supreme]
         // T302: serialize the body exactly once and pass the string to
         // buildRequest. Pre-T302 body.toString() ran twice per call (once
         // here, once inside buildRequest); each emitted string was tens of
@@ -355,20 +366,32 @@ class AnthropicProvider(
     }
 
     /**
-     * Build the `system` field as a JSON array of content blocks.
-     * Mirrors iOS AnthropicProvider.resolveSystemPrompt — two authentication paths:
+     * [T-soul-prompt-supreme] Build the top-level `system` array.
      *
-     * - **OAuth (isOAuth=true)**: must start with the Claude Code prefix block (uncached)
-     *   so Anthropic's server-side OAuth check sees the exact expected prompt. Any user
-     *   tail is emitted as a second block with `cache_control: ephemeral` for cache hits.
-     *   If the caller already embedded the prefix, strip it before splitting; if not,
-     *   force-prepend the prefix so OAuth never fails the server-side gate.
+     * Ordering, first to last:
+     *   1. (OAuth only) the Claude Code identity block — uncached. It MUST
+     *      lead: Anthropic's server-side OAuth gate matches on it.
+     *   2. the application system prompt (Settings → System Prompt), the
+     *      user's own highest-priority instructions, as its own cached block.
+     *   3. the app-generated prompt ([userPrompt]: tool list, skills, memory,
+     *      environment, runtime context) as the trailing cached block.
      *
-     * - **API key (isOAuth=false)**: single user-prompt block with `cache_control: ephemeral`.
-     *   Returns null when the prompt is null/empty (iOS parity — no empty `system` field).
+     * `system` is a single channel, so the application prompt cannot be a
+     * separate API field on Anthropic; a leading BLOCK is the equivalent of
+     * OpenAI's leading `role:system` message. Blocks are not concatenated
+     * text, which additionally keeps the application prompt from being
+     * re-wrapped by anything the app-generated prompt does.
+     *
+     * Mirrors the iOS shape (two-block system array on the OAuth path). The
+     * single-argument overload below keeps every existing caller and test
+     * working; it simply passes no application prompt.
      */
-    internal fun resolveSystemPrompt(userPrompt: String?): JSONArray? {
+    internal fun resolveSystemPrompt(
+        userPrompt: String?,
+        applicationPrompt: String? = null,
+    ): JSONArray? {
         val claudeCodePrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
+        val appPrompt = applicationPrompt?.takeIf { it.isNotBlank() }
         if (isOAuth) {
             // Strip the prefix if the caller already prepended it; the tail is the real user prompt.
             val tail = when {
@@ -383,7 +406,18 @@ class AnthropicProvider(
                 put("type", "text")
                 put("text", claudeCodePrefix)
             })
-            // Block 2 (optional): user tail with ephemeral cache_control for max cache hits.
+            // Block 2: the application system prompt, right after the identity
+            // block and ahead of every app-generated instruction. Cached like
+            // the tail — it is stable across turns, so it extends the cached
+            // prefix rather than breaking it.
+            if (appPrompt != null) {
+                arr.put(JSONObject().apply {
+                    put("type", "text")
+                    put("text", appPrompt)
+                    put("cache_control", ephemeralCacheControl())
+                })
+            }
+            // Block 3 (optional): user tail with ephemeral cache_control for max cache hits.
             if (tail.isNotEmpty()) {
                 arr.put(JSONObject().apply {
                     put("type", "text")
@@ -393,11 +427,16 @@ class AnthropicProvider(
             }
             return arr
         }
-        // API key path: single cached block, or null when prompt is missing/empty.
-        if (userPrompt.isNullOrEmpty()) return null
+        // API key path: the application prompt leads, the app prompt follows;
+        // null when both are missing/empty (iOS parity — no empty `system`).
+        val parts = listOfNotNull(appPrompt, userPrompt?.takeIf { it.isNotEmpty() })
+        if (parts.isEmpty()) return null
         return JSONArray().put(JSONObject().apply {
             put("type", "text")
-            put("text", userPrompt)
+            // One string on this path: the two blocks are joined with a blank
+            // line so the model still sees the boundary, and the application
+            // prompt is guaranteed to be the leading text.
+            put("text", parts.joinToString("\n\n"))
             put("cache_control", ephemeralCacheControl())
         })
     }
@@ -413,6 +452,10 @@ class AnthropicProvider(
         // [T-android-thinking-level-arch] Already clamped to the model ceiling by
         // LLMProvider.streamMessage/sendMessage before reaching here.
         thinkingLevel: ThinkingLevel = ThinkingLevel.OFF,
+        // [T-soul-prompt-supreme] Immutable, not a member read, so the
+        // system-array construction stays a pure function of its arguments and
+        // can be asserted in a JVM unit test. Defaults to the property.
+        applicationSystemPrompt: String? = this.applicationSystemPrompt,
     ): JSONObject {
         val body = JSONObject()
         body.put("model", model.id)
@@ -509,7 +552,11 @@ class AnthropicProvider(
         }
 
         // System prompt blocks — mirrors iOS AnthropicProvider.resolveSystemPrompt.
-        val systemArray = resolveSystemPrompt(systemPrompt)
+        // [T-soul-prompt-supreme] `applicationSystemPrompt` is passed through
+        // resolveSystemPrompt, which emits it as the FIRST system block (after
+        // the Claude Code identity block on OAuth, which the server-side gate
+        // requires to lead). See that function for the ordering contract.
+        val systemArray = resolveSystemPrompt(systemPrompt, applicationSystemPrompt)
         if (systemArray != null) {
             body.put("system", systemArray)
         }

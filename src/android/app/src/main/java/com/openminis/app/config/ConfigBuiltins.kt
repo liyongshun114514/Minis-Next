@@ -1466,9 +1466,14 @@ internal object ConfigBuiltins {
                     "the icon renders with rounded corners, so it still reads as a normal small avatar. " +
                     "Transparency is preserved when the source has it.\n" +
                     "\n" +
-                    "PROCESSING — identical to picking an image in Settings → Soul: centre-cropped to a " +
-                    "square, downscaled to ${com.openminis.app.agent.SoulIcon.STORED_PIXELS}×" +
-                    "${com.openminis.app.agent.SoulIcon.STORED_PIXELS}, re-encoded as PNG and stored inline.\n" +
+                    // [T-soul-avatar-fill] No square crop: the image keeps its
+                    // aspect ratio, its longest edge is bounded, and the avatar
+                    // frame fills (ContentScale.Crop) at draw time.
+                    "PROCESSING — identical to picking an image in Settings → System Prompt: the " +
+                    "aspect ratio is preserved, the longest edge is downscaled to at most " +
+                    "${com.openminis.app.agent.SoulIcon.STORED_PIXELS}px, then it is re-encoded as " +
+                    "PNG and stored inline. Nothing is cropped on save; the avatar fills its " +
+                    "rounded frame from the image's centre when you look at it.\n" +
                     "\n" +
                     "READING — `get soul.icon` returns \"<image>\" for an image, never the base64.\n" +
                     "\n" +

@@ -435,7 +435,6 @@ private fun SandboxBackendSection() {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var selected by remember { mutableStateOf(com.openminis.app.sandbox.SandboxBackendStore.selected(context)) }
-    var availability by remember { mutableStateOf(com.openminis.app.sandbox.ChrootKernel.availability(context)) }
     var pendingTasks by remember { mutableStateOf<List<com.openminis.app.sandbox.ActiveSandboxTask>>(emptyList()) }
     var pendingTarget by remember { mutableStateOf<com.openminis.app.sandbox.SandboxBackend?>(null) }
     var switching by remember { mutableStateOf(false) }
@@ -443,7 +442,6 @@ private fun SandboxBackendSection() {
 
     fun refresh() {
         selected = com.openminis.app.sandbox.SandboxBackendStore.selected(context)
-        availability = com.openminis.app.sandbox.ChrootKernel.availability(context)
     }
 
     fun apply(target: com.openminis.app.sandbox.SandboxBackend, stopActive: Boolean) {
@@ -502,21 +500,6 @@ private fun SandboxBackendSection() {
     }
 
     val chrootSelected = selected == com.openminis.app.sandbox.SandboxBackend.CHROOT
-    val statusLine = buildString {
-        if (chrootSelected) {
-            append("当前使用 Chroot：每个命令在私有 mount namespace 中以本应用 uid 运行；rootfs 与用户数据同 PRoot 共用，切回不删除。")
-        } else {
-            append("当前使用 PRoot：默认后端，无需 root；与 Chroot 共用同一个 rootfs，切换不删除数据。")
-        }
-        if (!com.openminis.app.offload.RootManager.isEnabled()) {
-            append("\n需要先在 设置 → 权限 → 原生 Root 开启；此处不会自动开启，也不会弹出 Root 确认。")
-        }
-        append("\nChroot 可用性：").append(availability.summary())
-        availability.lastError?.let { append("\n最近错误：").append(it) }
-        if (chrootSelected && !availability.serverRunning) {
-            append("\nhelper 未运行：再点一次 Chroot 会直接用已开启的 Root 授权启动（不再单独确认）。")
-        }
-    }
 
     SettingsSection(title = "执行后端") {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -539,12 +522,6 @@ private fun SandboxBackendSection() {
                     onClick = { selectBackend(com.openminis.app.sandbox.SandboxBackend.CHROOT) },
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = statusLine,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (switching) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

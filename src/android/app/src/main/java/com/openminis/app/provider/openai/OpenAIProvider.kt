@@ -95,6 +95,18 @@ class OpenAIProvider private constructor(
      * which is wrong for Azure's deployments-path routing.
      */
     private val azureBase: String? = null,
+    /**
+     * [T-soul-prompt-supreme] Settings → System Prompt content, sent before
+     * the app-generated system message (`{"role":"system"}` first on Chat
+     * Completions, the head of `instructions` on Responses). See
+     * [LLMProvider.applicationSystemPrompt] for the contract.
+     *
+     * Declared LAST on purpose: the private constructor is called both
+     * positionally and by name from the companion factory methods, so a new
+     * parameter may only be appended. ChatViewModel sets it through a property
+     * write after ProviderFactory returns, so no factory site changes.
+     */
+    override var applicationSystemPrompt: String? = null,
 ) : LLMProvider, com.openminis.app.network.NetworkTagged {
     override val name = "OpenAI"
 
@@ -941,9 +953,9 @@ class OpenAIProvider private constructor(
             )
             buildCodexImageBody(messages)
         } else if (usesChatCompletionsAPI) {
-            buildRequestBody(messages, systemPrompt, maxTokens, stream = true, temperature = temperature, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel)
+            buildRequestBody(messages, systemPrompt, maxTokens, stream = true, temperature = temperature, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel, applicationSystemPrompt = applicationSystemPrompt)
         } else {
-            buildResponsesAPIBody(messages, systemPrompt, maxTokens, stream = true, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel)
+            buildResponsesAPIBody(messages, systemPrompt, maxTokens, stream = true, imageParts = imageParts, tools = tools, thinkingLevel = thinkingLevel, applicationSystemPrompt = applicationSystemPrompt)
         }
         // [T-speed-tier] What this request asked for, to compare with the tier
         // response.completed echoes back.
@@ -2337,6 +2349,10 @@ class OpenAIProvider private constructor(
         imageParts: List<LLMMessage.ImagePart>,
         tools: List<AgentToolDefinition> = emptyList(),
         thinkingLevel: ThinkingLevel = ThinkingLevel.OFF,
+        // [T-soul-prompt-supreme] The user's application system prompt. Placed
+        // as the FIRST system message, ahead of [systemPrompt] — see the
+        // ordering note at the messagesArray build below.
+        applicationSystemPrompt: String? = null,
     ): JSONObject {
         // T264: cross-provider image sanitization, mirrors iOS
         // OpenAIAgentProvider.swift:744-768 / 900-918. When the target model
@@ -2431,6 +2447,22 @@ class OpenAIProvider private constructor(
             WireToolIdMap()
         }
         val messagesArray = JSONArray()
+        // [T-soul-prompt-supreme] The application system prompt (Settings →
+        // System Prompt) goes in `role: system` FIRST — ahead of the
+        // app-generated [systemPrompt] (tool list, skills, memory, runtime
+        // context) and ahead of every conversation turn. Chat Completions has
+        // a single system channel, so order is the only lever; this is the
+        // order the model is meant to read: the user's prompt, then the app's
+        // operating instructions, then the conversation. It is its own message
+        // rather than a prefix glued onto [systemPrompt] so the two cannot be
+        // conflated or reordered by a caller.
+        val appPrompt = applicationSystemPrompt?.takeIf { it.isNotBlank() }
+        if (appPrompt != null) {
+            messagesArray.put(JSONObject().apply {
+                put("role", "system")
+                put("content", appPrompt)
+            })
+        }
         if (systemPrompt != null) {
             messagesArray.put(JSONObject().apply {
                 put("role", "system")
@@ -3261,9 +3293,19 @@ class OpenAIProvider private constructor(
                 ?: m.contentParts.filterIsInstance<AgentContentPart.Text>()
                     .joinToString(" ") { it.text }.trim()
         }.orEmpty()
+        // [T-soul-prompt-supreme] The image-generation sub-request gets the same
+        // leading application system prompt as any other Responses call, so the
+        // user's prompt is not silently absent on the one path that overrides
+        // `instructions`.
+        val appPrompt = applicationSystemPrompt?.takeIf { it.isNotBlank() }
+        val imageInstructions = if (appPrompt != null) {
+            appPrompt + "\n\n" + "You are a helpful assistant. Use tools when available."
+        } else {
+            "You are a helpful assistant. Use tools when available."
+        }
         return JSONObject().apply {
             put("model", "gpt-5.5")
-            put("instructions", "You are a helpful assistant. Use tools when available.")
+            put("instructions", imageInstructions)
             put("input", JSONArray().put(JSONObject().apply {
                 put("role", "user")
                 put("content", "Use the image generation tool to create: $prompt")
@@ -3516,6 +3558,9 @@ class OpenAIProvider private constructor(
         imageParts: List<LLMMessage.ImagePart> = emptyList(),
         tools: List<AgentToolDefinition> = emptyList(),
         thinkingLevel: ThinkingLevel = ThinkingLevel.OFF,
+        // [T-soul-prompt-supreme] Application system prompt, the leading part
+        // of `instructions`.
+        applicationSystemPrompt: String? = null,
     ): JSONObject {
         // T264: same vision-capability gate as buildRequestBody. Responses API
         // path (Codex OAuth) is currently always wired to a vision-capable
@@ -3683,8 +3728,21 @@ class OpenAIProvider private constructor(
             .ultrafastUnsupportedNote(com.openminis.app.data.FastModePrefs.tier(), model)
             ?.let { com.openminis.app.logging.AppLogger.info("OpenAIProvider", "[SpeedTier] $it") }
 
-        if (systemPrompt != null) {
-            body.put("instructions", systemPrompt)
+        // [T-soul-prompt-supreme] `instructions` is the Responses API's system
+        // channel. The application system prompt (Settings → System Prompt)
+        // leads it, so it is read before the app's tool / skill / memory /
+        // environment text that follows. Joining here rather than sending two
+        // separate instruction fields is the wire format's only option — the
+        // field takes ONE string — and the joiner keeps the two blocks
+        // visibly separate for the model.
+        val appPrompt = applicationSystemPrompt?.takeIf { it.isNotBlank() }
+        val instructions = when {
+            appPrompt == null -> systemPrompt
+            systemPrompt.isNullOrBlank() -> appPrompt
+            else -> appPrompt + "\n\n" + systemPrompt
+        }
+        if (instructions != null) {
+            body.put("instructions", instructions)
         }
 
         // Tools — flat shape required by Responses API ({type, name, description,

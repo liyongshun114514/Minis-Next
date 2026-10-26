@@ -187,6 +187,8 @@ jobs:
             --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
+            --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
+            --tests '*SystemChannelPlacementTest' --tests '*SoulIconAspectRatioTest' \
             --tests '*SoulBodyLimitPolicyTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Verify APK structure, signatures and metadata

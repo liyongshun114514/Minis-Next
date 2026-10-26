@@ -7458,6 +7458,44 @@ class ChatViewModel(
         return if (oauth) "$prefix\n\n$bare" else bare
     }
 
+    /**
+     * [T-soul-prompt-supreme] Copy the configured application system prompt
+     * (Settings → System Prompt, stored in SOUL.md) onto [provider]'s
+     * `applicationSystemPrompt` field.
+     *
+     * Why a field copy and not a prompt prefix: the four wire formats each
+     * have ONE system channel (a leading `role:system` message, `instructions`,
+     * the `system` array, `systemInstruction`), so the only way to put this
+     * text ahead of everything the app generates is to have the provider place
+     * it first. Concatenating it into [buildSystemPrompt] would land it AFTER
+     * the identity sentence, and the Anthropic OAuth path rebuilds that string
+     * wholesale — either would silently demote it.
+     *
+     * Failures are swallowed: a provider that is not one of the three
+     * implementations simply keeps its default (no application prompt), which
+     * is the pre-existing behaviour. The prompt text itself is never logged.
+     */
+    private fun applyApplicationSystemPromptGlobal(provider: LLMProvider) {
+        val prompt = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
+        runCatching { provider.applicationSystemPrompt = prompt }
+    }
+
+    /**
+     * [T-soul-prompt-supreme] The same copy, but with a prompt already
+     * resolved for ONE turn.
+     *
+     * The agent loop calls this instead of [applyApplicationSystemPromptGlobal]
+     * because a sub agent (helperConfig != null) is delegated from the parent
+     * with its own [HelperRunner.identitySection] and must NOT also inherit the
+     * parent's Settings → System Prompt block — it has no Settings page, and
+     * silently prepending the parent's prompt would change what a sub agent
+     * does without any surface saying so. The caller passes null for a helper,
+     * the resolved block for the top-level agent.
+     */
+    private fun applyApplicationSystemPrompt(provider: LLMProvider, prompt: String?) {
+        runCatching { provider.applicationSystemPrompt = prompt }
+    }
+
     private fun isBoundToAbandonedModel(): Boolean =
         _autoRetryAttempt.value > 0 || _autoRetryCountdown.value > 0
 
@@ -7791,6 +7829,12 @@ class ChatViewModel(
             val p = try {
                 ProviderFactory.create(instance, apiKey, entry.model, context, sessionId = activeSessionId, overrides = entry.overrides)
             } catch (_: Exception) { continue }
+            // [T-soul-prompt-supreme] A fallback provider is a different
+            // instance with its own empty `applicationSystemPrompt` field; it
+            // only becomes current after a switch, but seeding it here means
+            // the prompt cannot be missing on the very first request after a
+            // fallback (the loop re-applies it on adoption as well).
+            applyApplicationSystemPromptGlobal(p)
             result.add(FallbackCandidate(provider = p, entryId = entry.id))
         }
         return result
@@ -11107,6 +11151,19 @@ class ChatViewModel(
         // var only for the mid-turn switch: the Claude Code OAuth prefix is
         // the one provider-specific part of it.
         var loopSystemPrompt = systemPrompt
+        // [T-soul-prompt-supreme] Settings → System Prompt rides in its own
+        // provider field, AHEAD of loopSystemPrompt in each provider's native
+        // system channel (see LLMProvider.applicationSystemPrompt). Resolved
+        // ONCE per turn from the same SOUL.md snapshot the loop was built from
+        // — not re-read per request, so editing Settings mid-turn cannot make
+        // one turn's requests disagree. Null for a sub agent: it has its own
+        // identity text and no Settings page (see applyApplicationSystemPrompt).
+        val applicationPromptForTurn = if (helperConfig == null) {
+            runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
+        } else {
+            null
+        }
+        applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
         // A flag left over from a turn that ended before it could be applied
         // is stale once this turn starts on the class-level provider; a switch
         // made after the caller captured `provider` (the class-level provider
@@ -11293,6 +11350,10 @@ class ChatViewModel(
                     _activeEntryId.value?.let { triedEntryIds.add(it) }
                     emptyStreakEntryIds.clear()
                     loopSystemPrompt = systemPromptFor(chosen, loopSystemPrompt)
+                    // [T-soul-prompt-supreme] The new provider has its own
+                    // `applicationSystemPrompt` field; without this the user's
+                    // prompt would vanish for the rest of the turn.
+                    applyApplicationSystemPrompt(chosen, applicationPromptForTurn)
                     AppLogger.info(
                         TAG_STREAM,
                         "[SwitchModel] applied at next request: $from → ${chosen.model.displayName} turn=${turn + 1}",
@@ -13193,6 +13254,7 @@ class ChatViewModel(
                         currentProvider = next
                         currentIdentity = providerIdentity(emptyNext.entryId)
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
+                        applyApplicationSystemPrompt(next, applicationPromptForTurn)  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }
                         if (adoptLoopFallbackBinding(emptyNext, classProviderAtSend, isRealModelChange)) {
@@ -16283,6 +16345,17 @@ class ChatViewModel(
         // must be dropped when browser_use is switched off (same prompt/schema
         // drift rule as the parent's browser bullet below).
         val browserToolEnabled = com.openminis.app.tools.AgentToolSwitch.BROWSER.isEnabled(context)
+        // [T-soul-prompt-supreme] Settings → System Prompt (SOUL.md) is NOT part
+        // of this string any more. It is sent as a separate block that each
+        // provider places FIRST in its native system channel
+        // (LLMProvider.applicationSystemPrompt → applyApplicationSystemPrompt),
+        // ahead of the identity sentence below and ahead of every app-generated
+        // instruction that follows it. Keeping it here would put the user's
+        // prompt AFTER the identity paragraph, and the Anthropic OAuth path
+        // rewrites this string wholesale — either way it would be demoted.
+        // A sub agent keeps its own identity block; the top-level agent's is
+        // now identity sentence + style + edit hint only (the application
+        // prompt travels in the provider field described above).
         val identitySection = helperConfig?.let {
             com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
         }

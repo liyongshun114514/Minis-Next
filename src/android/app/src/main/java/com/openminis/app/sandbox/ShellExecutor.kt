@@ -180,8 +180,12 @@ object ShellExecutor {
         // Backend-owned environment (chroot: socket name, TZ, PATH, proxy).
         env.putAll(spawn.env)
 
-        // Apply custom environment from PRootKernel
+        // Apply custom environment from PRootKernel. [FEAT-261025-CHROOT
+        // account] Under chroot its HOME is "/root", which the app uid cannot
+        // enter; the backend already named the guest account's home, so PRoot's
+        // map must not overwrite it there.
         for ((key, value) in PRootKernel.customEnvironment) {
+            if (spawn.backend == SandboxBackend.CHROOT && key == "HOME") continue
             env[key] = value
         }
         // [T-net-android-phase3] Settings > Network "Shell" route: proxy

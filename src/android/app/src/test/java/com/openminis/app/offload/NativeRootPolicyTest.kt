@@ -8,16 +8,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * Native Root safety boundaries, plus the grant contract that replaced the old
- * "every command asks again" model.
+ * Native Root safety boundaries, plus the tri-state grant contract that replaced
+ * the old "persistent switch + per-invocation request" pair.
  *
  * Still true, and deliberately unchanged: the executor itself never asks for
  * su on a disabled/denied path, a missing authorizer denies even when the
- * config is enabled, and the authorizer sees the exact request. What changed:
- * the persistent grant (Settings → Permissions → Native Root) is used directly,
- * an ungranted AGENT call asks once per invocation, a SYSTEM call (Chroot,
- * settings probe) is refused with a settings hint, and revoking the grant
- * invalidates any approval issued before it.
+ * config is enabled, and the authorizer sees the exact request. What the gate
+ * adds: 允许 executes directly; 询问 asks once per invocation for the agent and
+ * only hints from a system path (Chroot, settings probe); 不允许 refuses; and
+ * revoking the level invalidates any approval issued before it.
  *
  * Denied/disabled paths are tested before su discovery; never launches real su.
  */
@@ -60,48 +59,39 @@ class NativeRootPolicyTest {
         assertEquals("'a'\\''b'", ShellCommand.quote("a'b"))
     }
 
-    @Test fun ungrantedAgentAsksOnceButSystemCallOnlyRefuses() {
+    @Test fun askOnceAgentRequestsOnceButSystemCallOnlyHints() {
         assertEquals(
-            RootGrantPolicy.Decision.REQUEST_ACCESS,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = null,
-                currentEpoch = 11,
-            ),
+            RootDecision.REQUEST_ONCE,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.AGENT, ticketEpoch = null, currentEpoch = 11),
         )
         assertEquals(
-            RootGrantPolicy.Decision.REFUSE,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.SYSTEM,
-                ticketEpoch = null,
-                currentEpoch = 11,
-            ),
+            RootDecision.SETTINGS_HINT,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.SYSTEM, ticketEpoch = null, currentEpoch = 11),
         )
     }
 
-    @Test fun grantedCallUsesTheGrantWithoutAnotherApproval() {
+    @Test fun notAllowedGetsNoDialogAtAll() {
         assertEquals(
-            RootGrantPolicy.Decision.USE_GRANT,
-            RootGrantPolicy.decide(
-                granted = true,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = null,
-                currentEpoch = 11,
-            ),
+            RootDecision.DENY,
+            RootGrantPolicy.decide(RootAccess.NOT_ALLOWED, RootCaller.AGENT, ticketEpoch = null, currentEpoch = 11),
+        )
+        assertEquals(
+            RootDecision.SETTINGS_HINT,
+            RootGrantPolicy.decide(RootAccess.NOT_ALLOWED, RootCaller.SYSTEM, ticketEpoch = null, currentEpoch = 11),
+        )
+    }
+
+    @Test fun allowedCallUsesTheGrantWithoutAnotherApproval() {
+        assertEquals(
+            RootDecision.EXECUTE,
+            RootGrantPolicy.decide(RootAccess.BYPASS, RootCaller.AGENT, ticketEpoch = null, currentEpoch = 11),
         )
     }
 
     @Test fun approvalFromBeforeRevocationCannotBeReused() {
         assertEquals(
-            RootGrantPolicy.Decision.REFUSE,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = 11,
-                currentEpoch = 12,
-            ),
+            RootDecision.DENY,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.AGENT, ticketEpoch = 11, currentEpoch = 12),
         )
         assertFalse(RootGrantPolicy.ticketStillValid(11, 12))
     }

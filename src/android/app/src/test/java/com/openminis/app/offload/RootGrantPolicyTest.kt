@@ -6,76 +6,63 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Normal Root grant / refusal / revocation logic, kept on the JVM.
+ * Normal Root tri-state logic, kept on the JVM.
  *
  * These pin the three states the feature has to get right:
- *  - an explicit grant is used directly (no per-command request);
- *  - without it, an agent call requests access once, while a system path
- *    (Chroot switch, settings probe) refuses with a settings hint and never
- *    enables anything;
+ *  - 允许 is used directly (no per-command request), for the agent and Chroot;
+ *  - 询问 asks ONE agent request that covers that invocation only, while a
+ *    system path (Chroot switch, settings probe) gets a settings hint and
+ *    never a dialog;
+ *  - 不允许 refuses everything;
  *  - revoking invalidates approvals issued before the revocation.
+ *
+ * @see RootLevelGateTest for the persisted default (detected → 允许 once).
  */
 class RootGrantPolicyTest {
-    private val noTicket: Long? = null
 
     @Test
-    fun grantedIsUsedDirectlyForBothCallers() {
+    fun allowedIsUsedDirectlyForBothCallers() {
+        for (caller in RootCaller.entries) {
+            assertEquals(
+                RootDecision.EXECUTE,
+                RootGrantPolicy.decide(RootAccess.BYPASS, caller, ticketEpoch = null, currentEpoch = 7),
+            )
+        }
+    }
+
+    @Test
+    fun askOnceAgentRequestsAccessOnce() {
         assertEquals(
-            RootGrantPolicy.Decision.USE_GRANT,
-            RootGrantPolicy.decide(
-                granted = true,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = noTicket,
-                currentEpoch = 7,
-            ),
-        )
-        assertEquals(
-            RootGrantPolicy.Decision.USE_GRANT,
-            RootGrantPolicy.decide(
-                granted = true,
-                caller = RootGrantPolicy.Caller.SYSTEM,
-                ticketEpoch = noTicket,
-                currentEpoch = 7,
-            ),
+            RootDecision.REQUEST_ONCE,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.AGENT, ticketEpoch = null, currentEpoch = 3),
         )
     }
 
     @Test
-    fun agentWithoutGrantRequestsAccessOnce() {
+    fun askOnceSystemPathGetsASettingsHintInsteadOfEnabling() {
         assertEquals(
-            RootGrantPolicy.Decision.REQUEST_ACCESS,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = noTicket,
-                currentEpoch = 3,
-            ),
+            RootDecision.SETTINGS_HINT,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.SYSTEM, ticketEpoch = null, currentEpoch = 3),
         )
     }
 
     @Test
-    fun systemWithoutGrantRefusesInsteadOfEnabling() {
+    fun notAllowedRefusesAgentAndHintsSystem() {
         assertEquals(
-            RootGrantPolicy.Decision.REFUSE,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.SYSTEM,
-                ticketEpoch = noTicket,
-                currentEpoch = 3,
-            ),
+            RootDecision.DENY,
+            RootGrantPolicy.decide(RootAccess.NOT_ALLOWED, RootCaller.AGENT, ticketEpoch = null, currentEpoch = 3),
+        )
+        assertEquals(
+            RootDecision.SETTINGS_HINT,
+            RootGrantPolicy.decide(RootAccess.NOT_ALLOWED, RootCaller.SYSTEM, ticketEpoch = null, currentEpoch = 3),
         )
     }
 
     @Test
     fun matchingTicketRunsWithoutASecondPrompt() {
         assertEquals(
-            RootGrantPolicy.Decision.USE_GRANT,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = 3,
-                currentEpoch = 3,
-            ),
+            RootDecision.EXECUTE,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.AGENT, ticketEpoch = 3, currentEpoch = 3),
         )
         assertTrue(RootGrantPolicy.ticketStillValid(3, 3))
     }
@@ -83,13 +70,8 @@ class RootGrantPolicyTest {
     @Test
     fun revokeInvalidatesTicketIssuedBeforeIt() {
         assertEquals(
-            RootGrantPolicy.Decision.REFUSE,
-            RootGrantPolicy.decide(
-                granted = false,
-                caller = RootGrantPolicy.Caller.AGENT,
-                ticketEpoch = 3,
-                currentEpoch = 4,
-            ),
+            RootDecision.DENY,
+            RootGrantPolicy.decide(RootAccess.ASK_ONCE, RootCaller.AGENT, ticketEpoch = 3, currentEpoch = 4),
         )
         assertFalse(RootGrantPolicy.ticketStillValid(3, 4))
     }
@@ -97,25 +79,55 @@ class RootGrantPolicyTest {
     @Test
     fun grantAfterRevokeUsesTheNewGrantNotTheStaleTicket() {
         assertEquals(
-            RootGrantPolicy.Decision.USE_GRANT,
-            RootGrantPolicy.decide(
-                granted = true,
-                caller = RootGrantPolicy.Caller.SYSTEM,
-                ticketEpoch = 3,
-                currentEpoch = 4,
-            ),
+            RootDecision.EXECUTE,
+            RootGrantPolicy.decide(RootAccess.BYPASS, RootCaller.SYSTEM, ticketEpoch = 3, currentEpoch = 4),
         )
     }
 
     @Test
-    fun copyStatesPersistentGrantAndNoImplicitEnable() {
+    fun levelMappingRoundTrips() {
+        for (level in OffloadPermissionManager.PermissionLevel.entries) {
+            assertEquals(level, RootGrantPolicy.toLevel(RootGrantPolicy.levelOf(level)))
+        }
+    }
+
+    @Test
+    fun detectedDefaultIsAllowedOnlyWhileUndecided() {
+        // Undecided + detected → 允许 ...
+        assertEquals(RootAccess.BYPASS, RootDefaultPolicy.defaultLevel(userChosen = false, rootDetected = true))
+        // ... and 询问 otherwise (a failed probe never means 允许).
+        assertEquals(RootAccess.ASK_ONCE, RootDefaultPolicy.defaultLevel(userChosen = false, rootDetected = false))
+        assertEquals(RootAccess.ASK_ONCE, RootDefaultPolicy.defaultLevel(userChosen = true, rootDetected = true))
+        assertTrue(RootDefaultPolicy.shouldPromote(true, false, false) == false)
+        assertTrue(RootDefaultPolicy.shouldPromote(false, false, true))
+        assertFalse(RootDefaultPolicy.shouldPromote(false, true, true))
+        assertFalse(RootDefaultPolicy.shouldPromote(true, false, true))
+    }
+
+    @Test
+    fun storedLevelWinsOverTheDetectionDefault() {
+        // A stored 不允许 survives detection, and a failed probe keeps 询问.
+        assertEquals(
+            RootAccess.NOT_ALLOWED,
+            RootDefaultPolicy.effectiveLevel(
+                OffloadPermissionManager.PermissionLevel.NOT_ALLOWED, userChosen = true, rootDetected = true,
+            ),
+        )
+        assertEquals(
+            RootAccess.ASK_ONCE,
+            RootDefaultPolicy.effectiveLevel(null, userChosen = false, rootDetected = false),
+        )
+    }
+
+    @Test
+    fun copyStatesTheTriStateAndNoImplicitEnable() {
         assertTrue(ROOT_ENABLE_MESSAGE.contains("不再逐条询问"))
         assertTrue(ROOT_ENABLE_MESSAGE.contains("su 管理器"))
         assertTrue(ROOT_ENABLE_MESSAGE.contains("随时"))
         assertFalse(ROOT_ENABLE_MESSAGE.contains("每条命令仍须"))
 
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
-        assertTrue(request.contains("不会自动开启"))
+        assertTrue(request.contains("不会把权限改成“允许”"))
         assertTrue(request.contains("拒绝、取消或超时则不执行"))
         assertTrue(request.contains("设置 → 权限 → 原生 Root"))
         assertTrue(request.contains("关键风险："))

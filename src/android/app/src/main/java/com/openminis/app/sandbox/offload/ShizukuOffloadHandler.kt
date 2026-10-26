@@ -94,11 +94,14 @@ class ShizukuOffloadHandler(
 
         // Every other group needs binder + permission.
         //
-        // Native Root is a persistent user grant. When it is off, the agent's
-        // call still sends ONE confirmable request naming this exact
-        // invocation; declining runs nothing and never enables Root. The
-        // request is obtained here, once per invocation, and every root command
-        // the invocation issues rides that ticket (no second dialog).
+        // Native Root is the same tri-state as Shizuku:
+        //  - 允许: run directly (no per-command app dialog);
+        //  - 询问: ONE confirmable request naming this exact invocation,
+        //    answering for this call only — declining runs nothing and never
+        //    changes the level;
+        //  - 不允许: refuse with a settings hint, no dialog.
+        // The ticket is obtained once per invocation; every root command the
+        // invocation issues rides it (no second dialog).
         val rootTicket: com.openminis.app.offload.RootManager.AccessTicket? = if (nativeRoot) {
             com.openminis.app.offload.RootManager.requestAccessFromAgent(
                 request.argv.toTypedArray(),
@@ -158,11 +161,16 @@ class ShizukuOffloadHandler(
                 "status", "ping" -> okEnvelope(JSONObject().put("state", root.state.name)
                     .put("uid", root.uid).put("su_path", root.suPath)
                     .put("enabled", com.openminis.app.offload.RootManager.isEnabled())
-                    // The grant is persistent: once enabled, commands run
-                    // without a per-command app dialog. The device's su manager
-                    // still decides whether su itself may run.
-                    .put("per_command_confirmation", false)
-                    .put("persistent_grant", true)
+                    // Tri-state: 允许 runs without a per-command app dialog;
+                    // 询问 asks once per invocation; 不允许 refuses. The
+                    // device's su manager still decides whether su may run.
+                    .put("level", com.openminis.app.offload.RootManager.accessLevel().name)
+                    .put("per_command_confirmation",
+                        com.openminis.app.offload.RootManager.accessLevel() ==
+                            com.openminis.app.offload.RootAccess.ASK_ONCE)
+                    .put("persistent_grant",
+                        com.openminis.app.offload.RootManager.accessLevel() ==
+                            com.openminis.app.offload.RootAccess.BYPASS)
                     .put("message", root.message), args)
                 else -> ok("android-root-cli service status|ping; verify Root from its permission page.\n")
             }

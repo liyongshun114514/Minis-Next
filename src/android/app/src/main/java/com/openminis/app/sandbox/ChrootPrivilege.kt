@@ -2,6 +2,8 @@ package com.openminis.app.sandbox
 
 import android.content.Context
 import android.util.Log
+import com.openminis.app.offload.RootAccess
+import com.openminis.app.offload.RootCaller
 import com.openminis.app.offload.RootManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,8 +55,18 @@ internal object ChrootPrivilege {
      */
     fun rootManagerDetected(): Boolean {
         RootManager.refresh()
-        return RootManager.isEnabled() &&
+        return RootManager.accessLevel() == RootAccess.BYPASS &&
             RootManager.snapshot.value.state != RootManager.State.NOT_FOUND
+    }
+
+    /**
+     * Whether a Chroot switch may proceed under the current tri-state level:
+     * 允许 runs directly; 询问 asks ONCE per switch (the user's answer covers
+     * this switch only); 不允许 refuses with the settings hint.
+     */
+    fun switchAllowed(): Boolean = when (RootManager.accessLevel()) {
+        RootAccess.BYPASS, RootAccess.ASK_ONCE -> true
+        RootAccess.NOT_ALLOWED -> false
     }
 
     /** Human-readable bridge state, for the settings row. */
@@ -73,9 +85,9 @@ internal object ChrootPrivilege {
         reason: String,
         timeoutMs: Long = LAUNCH_TIMEOUT_MS,
     ): Outcome = withContext(Dispatchers.IO) {
-        if (!RootManager.isEnabled()) {
-            // Switching backends must never enable Root or pop a Root dialog:
-            // the Chroot row reports the settings hint instead.
+        if (!switchAllowed()) {
+            // 不允许: switching backends must never enable Root or pop a Root
+            // dialog; the Chroot row reports the settings hint instead.
             return@withContext Outcome(126, "", com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM)
         }
         RootManager.refresh()
@@ -90,9 +102,10 @@ internal object ChrootPrivilege {
                 env = null,
                 cwd = null,
                 timeoutMs = timeoutMs,
-                // Chroot is authorised by the persistent Root grant, not by a
-                // per-command prompt: no dialog, and no grant → settings hint.
-                caller = com.openminis.app.offload.RootGrantPolicy.Caller.SYSTEM,
+                // Tri-state: 允许 executes directly; 询问 raises ONE
+                // confirmable request for this switch (never enabling Root,
+                // never changing the level); 不允许 is refused above.
+                caller = RootCaller.SYSTEM,
             )
         }.getOrElse { t ->
             return@withContext Outcome(-1, "", "root bridge threw: ${t.javaClass.simpleName}: ${t.message}")

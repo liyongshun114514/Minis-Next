@@ -56,6 +56,7 @@
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sched.h>
 #include <sys/sysmacros.h>
@@ -300,6 +301,68 @@ static int setup_dev(const char *rootfs) {
 }
 
 /*
+ * Create one directory level inside the rootfs, refusing to walk through a
+ * symlink.
+ *
+ * `path` is a plain, already-validated guest path (path_ok(): absolute, no
+ * "..", no control characters). We step through it one component at a time
+ * and for every *intermediate* component demand S_ISDIR from lstat(): a
+ * symlink there (the rootfs is app-writable, so anything inside it may be a
+ * symlink planted by a guest process) could otherwise carry the rest of the
+ * creation — and the later bind mount — to the host. The final component is
+ * created with mkdir(2) and then lstat'ed again by the caller. Because every
+ * component we accepted is a real directory that we never leave via a link,
+ * the walk cannot escape the rootfs.
+ *
+ * Returns 0 when the final directory exists (created now or before) and is a
+ * real directory, -1 otherwise, with `*why` naming the check that failed.
+ */
+static int mkdir_under_root(const char *rootfs, const char *guest, const char **why) {
+    char full[PATH_MAX];
+    if (snprintf(full, sizeof(full), "%s%s", rootfs, guest) >= (int)sizeof(full)) {
+        *why = "path too long";
+        return -1;
+    }
+    size_t n = strlen(full);
+    if (n == 0) { *why = "empty path"; return -1; }
+    size_t root_len = strlen(rootfs);
+    /* Index of the first byte after "<rootfs>/" — never walk the rootfs's own
+     * prefix (it is a path the server was started with, not guest data). */
+    size_t start = root_len + 1;
+    if (start >= n) { *why = "empty guest path"; return -1; }
+    for (size_t i = start; i < n; i++) {
+        if (full[i] != '/') continue;
+        full[i] = '\0';
+        struct stat st;
+        if (lstat(full, &st) != 0) {
+            if (errno != ENOENT) { *why = strerror(errno); full[i] = '/'; return -1; }
+            if (mkdir(full, 0755) != 0 && errno != EEXIST) {
+                *why = strerror(errno);
+                full[i] = '/';
+                return -1;
+            }
+            if (lstat(full, &st) != 0) { *why = strerror(errno); full[i] = '/'; return -1; }
+        }
+        full[i] = '/';
+        if (S_ISLNK(st.st_mode)) { *why = "parent is a symlink"; return -1; }
+        if (!S_ISDIR(st.st_mode)) { *why = "parent is not a directory"; return -1; }
+    }
+    struct stat st;
+    if (lstat(full, &st) != 0) {
+        if (errno != ENOENT) { *why = strerror(errno); return -1; }
+        if (mkdir(full, 0755) != 0) {
+            /* Lost a race with another request: EEXIST is fine, a lock file or
+             * a file of the same name is not (lstat below reports it). */
+            if (errno != EEXIST) { *why = strerror(errno); return -1; }
+        }
+        if (lstat(full, &st) != 0) { *why = strerror(errno); return -1; }
+    }
+    if (S_ISLNK(st.st_mode)) { *why = "symlink"; return -1; }
+    if (!S_ISDIR(st.st_mode)) { *why = "not a directory"; return -1; }
+    return 0;
+}
+
+/*
  * Runs in the forked child, as the last root code before exec.
  * Every mount is private to this process's namespace (unshare(CLONE_NEWNS)
  * by the caller), so nothing here can leak to the rest of the device.
@@ -347,8 +410,30 @@ static int enter_sandbox(const char *rootfs, const struct request *r,
          * still be inside the rootfs. */
         struct stat st;
         if (lstat(dst, &st) != 0) {
-            say("minis-chroot: mount target missing: %s\n", dst);
-            continue;
+            /* The guest directory does not exist yet (a fresh Ubuntu rootfs
+             * has no /var/minis/mcp-servers, and PRoot happily creates the
+             * target or silently drops the binding). Create it INSIDE the
+             * rootfs — never on the host — because mounting needs a real
+             * directory here, and an interactive shell that lacks the
+             * binding would silently write into the rootfs instead.
+             *
+             * Only a missing target is created; anything else that fails
+             * lstat (EACCES, ENOTDIR, ELOOP) is reported and skipped. The
+             * creation walk refuses symlinked parents, and the resolved path
+             * is re-checked against the rootfs below exactly as before. */
+            if (errno != ENOENT) {
+                say("minis-chroot: mount target unavailable: %s: %s\n", dst, strerror(errno));
+                continue;
+            }
+            const char *why = NULL;
+            if (mkdir_under_root(rootfs, m->guest.p, &why) != 0) {
+                say("minis-chroot: cannot create mount target %s: %s\n", dst, why ? why : "unknown");
+                continue;
+            }
+            if (lstat(dst, &st) != 0) {
+                say("minis-chroot: mount target missing: %s\n", dst);
+                continue;
+            }
         }
         if (S_ISLNK(st.st_mode)) {
             say("minis-chroot: refusing symlink mount target: %s\n", dst);
@@ -460,9 +545,39 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
     pid_t pid = fork();
     if (pid == 0) {
         /* child */
-        setsid();
+        /* setsid() first, and it must succeed before TIOCSCTTY below: making a
+         * tty the controlling terminal is only legal for a session leader. */
+        if (setsid() < 0) {
+            say("minis-chroot: setsid: %s\n", strerror(errno));
+        }
         dup2(fds[0], 0); dup2(fds[1], 1); dup2(fds[2], 2);
         for (int i = 0; i < 3; i++) if (fds[i] > 2) close(fds[i]);
+        /* [FEAT-261025-CHROOT tty] The client's filedescriptors are the far
+         * end of a bionic forkpty() (or, for non-interactive commands, a
+         * pipe). A session leader that never acquires a controlling terminal
+         * makes bash's tcsetpgrp() fail with ENOTTY:
+         *   "cannot set terminal process group (-1)" / "no job control".
+         * TIOCSCTTY attaches the pty and puts this (the process group leader,
+         * since setsid() made pgid == pid) in the FOREGROUND group, which is
+         * exactly what tcsetpgrp needs. Only done when stdin really is a tty;
+         * a failure is logged and never blocks the command. */
+        int want_ctty = (r.flags & FLAG_TTY) != 0;
+        if (!want_ctty) {
+            int fl = fcntl(0, F_GETFL);
+            want_ctty = fl >= 0 && isatty(0);
+        }
+        if (want_ctty) {
+            if (ioctl(0, TIOCSCTTY, 0) != 0) {
+                say("minis-chroot: TIOCSCTTY: %s\n", strerror(errno));
+            } else {
+                /* A tty inherited from the app process would already be ours;
+                 * this just makes the foreground group explicit. */
+                pid_t pg = getpid();
+                if (tcsetpgrp(0, pg) != 0) {
+                    say("minis-chroot: tcsetpgrp: %s\n", strerror(errno));
+                }
+            }
+        }
         close(conn);
         if (unshare(CLONE_NEWNS) != 0) {
             say("minis-chroot: unshare(CLONE_NEWNS): %s\n", strerror(errno));
