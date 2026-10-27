@@ -57,6 +57,17 @@ class SoulSettingsPageContractTest {
     }
 
     @Test
+    fun `load readiness and save error state remain declared before use`() {
+        val loadDeclaration = "var loaded by remember { mutableStateOf(false) }"
+        val errorDeclaration = "var saveError by remember { mutableStateOf<String?>(null) }"
+        assertTrue("load state must exist", src.contains(loadDeclaration))
+        assertTrue("save errors must have remembered state", src.contains(errorDeclaration))
+        assertTrue(src.indexOf(loadDeclaration) < src.indexOf("loaded = true"))
+        assertTrue(src.indexOf(errorDeclaration) < src.indexOf("saveError = t.message"))
+        assertTrue("failed writes must leave the draft on screen", src.contains("saveError = t.message ?: \"save failed\""))
+    }
+
+    @Test
     fun `save is gated only by dirty and in-flight state`() {
         assertTrue(src.contains("enabled = loaded && isDirty && !saving,"))
         assertFalse("no length gate on Save", src.contains("!bodyLimitCheck.isOverLimit"))

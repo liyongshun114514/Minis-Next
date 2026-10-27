@@ -98,6 +98,10 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // this before the coroutine starts, so a second tap cannot enqueue a
     // second write — and the button below is disabled while it is true.
     var saving by remember { mutableStateOf(false) }
+    // The global editor still needs load readiness and write-error state even
+    // though mode/rule state was removed. Keep drafts visible on save failure.
+    var loaded by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
     // Preserve the raw `emoji` field exactly as it appears in SOUL.md so
     // Save round-trips without clobbering a value the user may have set
     // on another device (or an older build). Not surfaced in the UI —
