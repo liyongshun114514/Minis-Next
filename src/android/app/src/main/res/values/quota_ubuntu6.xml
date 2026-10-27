@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [UBUNTU6] Balance channel names shown in the quota detail sheet header.
+     Kept in this file so the shared strings.xml stays untouched. -->
+<resources>
+    <string name="quota_channel_novita">Novita AI</string>
+    <string name="quota_channel_vercel_gateway">Vercel AI Gateway</string>
+    <string name="quota_channel_litellm">LiteLLM</string>
+</resources>

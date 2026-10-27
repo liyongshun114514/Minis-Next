@@ -13,6 +13,7 @@ import com.openminis.app.offload.RootExecRequest
 import com.openminis.app.offload.RootManager
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
+import java.util.zip.CRC32
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -719,6 +720,13 @@ object ChrootKernel {
         // [FEAT-261025-CHROOT account] Before the first command, not only
         // before the terminal: the agent's warm shell runs `id`/`groups` too.
         GuestAccount.ensureForApp(context)
+        // [T-chroot-offload-client-refresh] Idempotent (content-compared), so a
+        // helper that outlived an app update still serves the client this build
+        // shipped. Without this the first client ever written into a rootfs was
+        // kept forever, and after real-uid0 chroot commands arrived it kept
+        // connecting as uid 0 - refused by NativeOffloadServer, reported as
+        // "malformed reply".
+        installOffloadClient(context)
         val generation = SandboxBackendStore.generation(context)
         if (SandboxBackendStore.chrootGranted(generation)) {
             // [FEAT-261025-CHROOT] The helper enforces its own idle TTL and
@@ -974,35 +982,81 @@ object ChrootKernel {
      * Written to a temp file in the same directory, chmod 0755, then renamed:
      * a partially copied binary is never visible under the final name, which
      * is the difference between "offload blocked" and "execve ENOEXEC" on the
-     * next command. Missing asset is not an error — [offloadRoute] then
-     * reports BLOCKED and the UI says so.
+     * next command. A missing asset is not an error: an already installed,
+     * executable client is kept and [offloadRoute] reports GUEST_CLIENT; only
+     * "no asset and no usable file" reports BLOCKED.
      */
+    @Synchronized
     fun installOffloadClient(context: Context): Boolean {
         val target = offloadClientPath(context)
-        if (target.isFile && target.canExecute()) return true
         val assetName = "chroot/$OFFLOAD_CLIENT_NAME"
         val dir = target.parentFile ?: return false
+        // No asset in this APK: keep a valid client the rootfs already has
+        // instead of reporting BLOCKED for a working binary. Nothing is deleted.
+        val assetInput = runCatching { context.assets.open(assetName) }.getOrNull()
+            ?: run {
+                Log.w(TAG, "guest offload client asset missing ($assetName); keeping the installed copy")
+                return target.isFile && target.canExecute()
+            }
         return runCatching {
             dir.mkdirs()
             val tmp = File(dir, ".$OFFLOAD_CLIENT_NAME.tmp")
-            context.assets.open(assetName).use { input ->
-                tmp.outputStream().use { output -> input.copyTo(output) }
+            val stamp = File(dir, OffloadClientInstall.STAMP_NAME)
+            // Stream the asset to a temp file, hashing it on the way: the copy
+            // and the decision use the same bytes, and nothing is held in memory.
+            val assetCrc = assetInput.use { input ->
+                tmp.outputStream().use { output ->
+                    val crc = CRC32()
+                    val buf = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        crc.update(buf, 0, n)
+                        output.write(buf, 0, n)
+                    }
+                    crc.value
+                }
+            }
+            val targetCrc = if (target.isFile) crcOf(target) else null
+            val stampCrc = runCatching { stamp.readText().trim().toLong() }.getOrNull()
+            if (!OffloadClientInstall.needsRefresh(assetCrc, stampCrc, target.isFile, targetCrc)) {
+                tmp.delete()
+                target.setExecutable(true, false)
+                return@runCatching true
             }
             tmp.setExecutable(true, false)
-            if (!tmp.renameTo(target)) {
-                // rename(2) over an existing file is fine on Linux; a failure
-                // here means a different filesystem, so fall back to delete+move.
-                target.delete()
-                check(tmp.renameTo(target)) { "rename failed" }
-            }
+            // Both files share a directory. If atomic replacement fails, keep
+            // the previous client intact and report failure instead of deleting it.
+            check(tmp.renameTo(target)) { "atomic client replacement failed" }
             target.setExecutable(true, false)
-            Log.i(TAG, "installed guest offload client -> ${target.absolutePath} (${target.length()} bytes)")
+            // Stamp only after the rename: a crash leaves either the old client
+            // with an old stamp, or the new client with no stamp (both refresh
+            // again next boot, never the reverse).
+            runCatching { stamp.writeText(assetCrc.toString()) }
+            Log.i(
+                TAG,
+                "installed guest offload client -> ${target.absolutePath} " +
+                    "(${target.length()} bytes, crc=$assetCrc, replaced=${targetCrc != null})",
+            )
             true
         }.getOrElse {
             Log.w(TAG, "guest offload client not installed ($assetName): ${it.javaClass.simpleName}: ${it.message}")
             File(dir, ".$OFFLOAD_CLIENT_NAME.tmp").delete()
             false
         }
+    }
+
+    private fun crcOf(file: File): Long {
+        val crc = CRC32()
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                crc.update(buf, 0, n)
+            }
+        }
+        return crc.value
     }
 
     fun onRootfsReady(context: Context) {
@@ -1061,4 +1115,39 @@ object ChrootKernel {
     const val DEFAULT_GRANT_REASON =
         "Start the chroot sandbox helper (real chroot, real uid0 command child, private mount namespace). " +
             "The helper itself makes no SELinux, partition or system change; chroot is not a security boundary."
+
+
+}
+
+/**
+ * [T-chroot-offload-client-refresh] When the guest client in the rootfs must be
+ * replaced by the one in the APK.
+ *
+ * Install-once was the bug: the check used to be "the file exists and is
+ * executable", so the first client ever written into a rootfs stayed there
+ * forever. The CHROOT backend then started running commands as REAL uid 0
+ * (FEAT-261027-CHROOT-ROOT) while the stale client still connected to the
+ * offload socket with uid 0. NativeOffloadServer refuses any peer that is not
+ * this app's uid, so every Android/minis tool inside a chroot shell failed -
+ * `status` and `exec` alike - with "malformed reply ... exit 69", and no app
+ * update could repair it.
+ *
+ * Pure (no Android API) so the rule is unit-tested on a plain JVM.
+ */
+internal object OffloadClientInstall {
+    const val STAMP_NAME = ".minis-offload-client.stamp"
+
+    /**
+     * True when the installed bytes are not the APK's bytes.
+     *
+     * A missing target, a missing/corrupt stamp, a stamp from another build, or
+     * a target whose content no longer matches the asset all mean "refresh".
+     * Comparing the target's own CRC as well as the stamp catches a truncated
+     * or half-overwritten client that a stamp alone would call up to date.
+     */
+    fun needsRefresh(assetCrc: Long, stampCrc: Long?, targetExists: Boolean, targetCrc: Long?): Boolean {
+        if (!targetExists || targetCrc == null) return true
+        if (stampCrc == null || stampCrc != assetCrc) return true
+        return targetCrc != assetCrc
+    }
 }

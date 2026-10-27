@@ -165,6 +165,43 @@ PRoot's extension intercepts `execve`; chroot has no ptrace layer, so the
 The client deletes its reply file after copying it; the proot path leaves that
 to the server's age-gated sweep.
 
+### Client refresh (was install-once)
+
+`installOffloadClient` used to return immediately when the target existed and
+was executable, so the first client ever written into a rootfs was kept
+forever. When chroot commands began running as **real uid 0**, that stale
+client still connected to the offload socket as uid 0; `NativeOffloadServer`
+refuses any peer that is not this app's uid, and it used to close the socket
+without a reply — which the client reports as
+`unavailable - malformed reply from the Minis offload service` (exit 69).
+That hit `android-chroot-cli status` and `exec` alike, for every
+Android/minis tool inside a chroot shell, and survived app updates.
+
+Now the copy is content-compared: the asset is streamed once to
+`.minis-offload-client.tmp` while being CRC32-hashed, the installed file and a
+`/.minis-offload-client.stamp` are compared, and the rename happens only when
+they differ (`OffloadClientInstall.needsRefresh`, unit-tested). It runs at
+rootfs boot, before the helper is (re)started, and before a one-shot
+`android-chroot-cli exec`, so an updated APK repairs an existing rootfs.
+
+### Error frames instead of silent closes
+
+The wire format now lives in `OffloadWire.kt` (pure, JVM-tested) and every
+connection is answered:
+
+| case | exit | body |
+| --- | --- | --- |
+| refused peer uid (not this app's uid) | 77 `EX_NOPERM` | names the peer uid, the expected uid and the stale-rootfs-client cause |
+| unparseable / truncated frame | 65 `EX_DATAERR` | names the parse reason; no handler ran |
+| no handler registered | 127 | `no handler for '<name>'` |
+| over 128 calls in flight | 75 `EX_TEMPFAIL` | busy |
+
+A reply always carries a guest path; an empty path with a non-zero code means
+“refused before a body could be written” and the client reports that instead
+of calling it a malformed reply. `scripts/test_offload_client.py` compiles
+`minis_offload_client.c` and drives the real binary through all of these cases
+(host protocol test — not a device, root or chroot test).
+
 ## 6. Package management (real root inside the guest)
 
 Chroot commands run with **real uid 0 inside the guest** when the unified Root

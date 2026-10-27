@@ -115,7 +115,6 @@ object HelperRunner {
      * child, and it is unchanged; this cap is the backstop behind it.
      */
     const val MAX_TURNS = com.openminis.app.agent.AgentLoopLimits.MAX_AGENT_TURNS
-    const val MAX_PER_ASSISTANT_TURN = 3
     const val DEFAULT_MINUTES = 10
     const val MAX_MINUTES = 60
 

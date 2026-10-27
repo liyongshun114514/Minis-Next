@@ -435,6 +435,19 @@ object ScheduledAgentRunner {
      * closes the job when that returns.
      */
     private suspend fun resolveChildOfCurrent(app: MinisApp, task: ScheduledTask, parentSid: String): String? {
+        val registry = com.openminis.app.agent.jobs.AgentJobRegistry
+        val reservation = "scheduled:${task.id}:${java.util.UUID.randomUUID()}"
+        try {
+            if (!registry.awaitReservedChildSlot(parentSid, reservation, CHILD_SLOT_WAIT_MS)) return null
+            return resolveReservedChild(app, task, parentSid, reservation)
+        } finally {
+            registry.releaseChildStart(parentSid, reservation)
+        }
+    }
+
+    private suspend fun resolveReservedChild(
+        app: MinisApp, task: ScheduledTask, parentSid: String, reservation: String,
+    ): String? {
         // [T-tools-granular-switches] A child-of-current task IS a helper: a
         // hidden session with helper config that reports back to the parent.
         // The user who turned Agents off must not keep getting them from a
@@ -474,8 +487,11 @@ object ScheduledAgentRunner {
             trigger = com.openminis.app.agent.jobs.AgentJobTrigger.Immediate,
             target = com.openminis.app.agent.jobs.AgentJobTarget.ChildOfCurrent(parentSid, null),
             prompt = task.prompt, then = com.openminis.app.agent.jobs.AgentJobThen.FollowUpParent(null),
+            startupReservationId = reservation,
+            runSessionId = child.id,
         )
         registry.setTierUsed(job.id, resolution.tierUsed.wire)
+        try {
         withContext(Dispatchers.Main) {
             val parentVm = HeadlessChatRunner.viewModelFor(app, parentSid)
             // [T-android-vm-store-dual-pool] The CHILD is tagged; `parentVm`
@@ -490,6 +506,10 @@ object ScheduledAgentRunner {
                 it.adoptBrowserTabPool(parentVm.browserTabPool)
                 registry.markRunning(job.id, child.id) { if (it.isStreaming.value) it.cancelStream() }
             }
+        }
+        } catch (failure: Throwable) {
+            registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, "Scheduled child startup failed")
+            throw failure
         }
         AppLogger.info(TAG, "task ${task.id}: child ${child.id.take(8)} of ${parentSid.take(8)} job=${job.id.take(8)} tier=${resolution.tierUsed.wire}")
         return child.id

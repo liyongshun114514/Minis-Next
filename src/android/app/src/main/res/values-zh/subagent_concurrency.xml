@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sub_agents_concurrency_title">子代理并发数量</string>
+    <string name="sub_agents_concurrency_count">%1$d 个</string>
+    <string name="sub_agents_concurrency_footer">每个对话可同时运行 1–8 个子代理，多余任务自动排队。调高后启动等待任务；调低后让正在运行的任务正常结束。</string>
+</resources>

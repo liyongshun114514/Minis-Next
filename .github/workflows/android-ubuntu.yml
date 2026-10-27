@@ -161,6 +161,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_build_ubuntu_toolset.py -v
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_workflow_resources.py -v
           python3 scripts/tests/test_native_composer_port.py
+          python3 scripts/test_offload_client.py
       - name: Build APK
         id: build-apk
         working-directory: src/android
@@ -193,7 +194,10 @@ jobs:
             --tests '*ChrootCliTest' --tests '*ChrootCliTriStateTest' \
             --tests '*RootExecPolicyTest' --tests '*RootExecPermissionTest' --tests '*RootExecutionWiringTest' \
             --tests '*ThinkingSliderGeometryTest' --tests '*ComposerPortMathTest' \
-            --tests '*ComposerPermissionMenuTest' --tests '*SoulPrompt*'
+            --tests '*ComposerPermissionMenuTest' --tests '*SoulPrompt*' \
+            --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
+            --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
+            --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

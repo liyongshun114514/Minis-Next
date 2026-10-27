@@ -111,14 +111,29 @@ exactly once, in the composer.
 
 ## 4. Slider implementation notes
 
-The Canvas port keeps the upstream visual constants:
+The Canvas port keeps the upstream visual constants, with a deliberate change to
+the track itself (2026-10-27):
 
 * 22 stars, golden-ratio phase (`0.6180339887498949`), deterministic Y/brightness/spread.
 * Track: 14dp radius, blue `#4D93F8` → violet `#9333EA` → deep `#4C1D95`; flat blue up to the second level.
-* Nebula, diagonal sweep and star layer clipped to the filled segment.
+* **Full-track coloured bed.** The stadium is painted edge to edge at EVERY level
+  (Off and Low included) with `BED_BLUE_ARGB #3F7BE0 → BED_VIOLET_ARGB #7C3AED →
+  BED_DEEP_ARGB #451C86`, plus a light vertical shading pass. There is no neutral
+  grey "empty" remainder any more: the level is read from the brighter sheen that
+  ends exactly at the thumb, the always-on halo, the lit tick/label and the
+  particle density.
+* **Particles run on the first two stops.** `starCount()` is floored at
+  `MIN_PARTICLES = 5` and ramps to 22 with energy; `particleSpeed()` runs
+  0.6x..2x over the track position (the upstream 0.35x crawl is gone), the star
+  field traverses the WHOLE pill (`barWidth`, not the filled segment) and the
+  clock is gated on `enabled` alone, so Off/Low animate instead of freezing.
+  `speedAt()`/`energy()` keep their upstream values for the test contract.
+* Nebula, sweep and star layer are clipped to the stadium; the nebula only warms
+  the reached stretch, while the sweep crosses the full pill at every level
+  (alpha floor) so motion is visible even at Off.
 * Discrete snap on release; a tap commits directly.
 * Labels are drawn with the same `pct()` that positions the ticks, so each label is centred on its own tick.
-* `Settings.Global.ANIMATOR_DURATION_SCALE == 0` disables the sweep and slows star travel.
+* `Settings.Global.ANIMATOR_DURATION_SCALE == 0` disables the sweep and slows star travel (2.6x duration).
 
 `ComposerPortMath` is pure Kotlin (no Compose/Android imports), covered by
 `ComposerPortMathTest` (the CI owner adds that class; this task did not create a

@@ -141,7 +141,7 @@ class SubAgentQueueTest {
         // conversation"; if this constant moves, that text is a lie.
         // [T-new-limits] The 3 is now per parent conversation.
         assertEquals(3, AgentJobRegistry.MAX_CONCURRENT_CHILD_JOBS_PER_PARENT)
-        assertEquals(3, HelperRunner.MAX_PER_ASSISTANT_TURN)
+        assertEquals(8, AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS)
     }
 
     @Test

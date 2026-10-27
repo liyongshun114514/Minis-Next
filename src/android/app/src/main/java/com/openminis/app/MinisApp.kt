@@ -330,6 +330,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         // request-build time — including offload / title-gen calls that
         // never pass through a ViewModel.
         com.openminis.app.data.FastModePrefs.prime(this)
+        com.openminis.app.agent.jobs.SubAgentConcurrencyPrefs.prime(this)
 
         // Warm the auto-compact flag the same way: the pre-send context check
         // and the in-chat one-tap opt-in both read it from places that have no

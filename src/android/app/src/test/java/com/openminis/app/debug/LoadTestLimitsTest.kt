@@ -51,10 +51,9 @@ class LoadTestLimitsTest {
         assertTrue(scm.contains("if (_runningSessions.value.size < maxConcurrent) {"))
         assertTrue(scm.contains("if (!com.openminis.app.BuildConfig.DEV_TOOLS) return maxConcurrent"))
         val reg = ProductionSources.read("agent/jobs/AgentJobRegistry.kt")
-        assertTrue(reg.contains(
-            "fun canStartChildJob(parentSessionId: String): Boolean =\n" +
-                "        runningChildJobCount(parentSessionId) < maxConcurrentChildJobsPerParent",
-        ))
+        assertTrue(reg.contains("@Synchronized\n    fun canStartChildJob(parentSessionId: String): Boolean ="))
+        assertTrue(reg.contains("runningChildJobCount(parentSessionId) +"))
+        assertTrue(reg.contains("< maxConcurrentChildJobsPerParent"))
         assertTrue(reg.contains("if (!com.openminis.app.BuildConfig.DEV_TOOLS) return maxConcurrentChildJobsPerParent"))
         val gst = ProductionSources.read("sandbox/GlobalShellThrottle.kt")
         assertTrue(gst.contains("<= processBudget) return"))

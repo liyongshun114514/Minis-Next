@@ -82,7 +82,11 @@ static int put_u32(int fd, uint32_t v) {
 
 static int get_u32(int fd, uint32_t *v) {
     unsigned char b[4];
-    if (read_full(fd, b, 4) != 0) return -1;
+    int r = read_full(fd, b, 4);
+    /* 1 = clean EOF: the peer hung up without a frame. Callers distinguish it
+     * from an I/O error (errno != 0), so a refused peer never reads as a
+     * protocol bug. */
+    if (r != 0) { if (r == 1) errno = 0; return -1; }
     *v = (uint32_t)b[0] | ((uint32_t)b[1] << 8) | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24);
     return 0;
 }
@@ -143,6 +147,11 @@ static int connect_as_app_identity(const char *name) {
     if (geteuid() != 0) return connect_abstract(name);
     uid_t app = 0;
     if (parse_uid_env(getenv("MINIS_CHROOT_APP_UID"), &app) != 0) {
+        /* The chroot backend always exports this for a uid-0 guest command.
+         * Missing means the environment did not come from this build. */
+        fprintf(stderr,
+                "minis-offload-client: MINIS_CHROOT_APP_UID is missing or invalid for a uid-0 "
+                "command; the guest environment is not from this app build.\n");
         errno = EPERM;
         return -1;
     }
@@ -181,9 +190,18 @@ int main(int argc, char **argv) {
     /* Handler name = basename(argv[0]); the server dispatches on it. */
     int fd = connect_as_app_identity(sock);
     if (fd < 0) {
+        int e = errno;
+        const char *hint = "";
+        if (e == ECONNREFUSED || e == ENOENT) {
+            /* The abstract name carries the app's pid; a shell started by an
+             * earlier app process keeps the old name after a restart. */
+            hint = " (the Minis app restarted since this shell started; open a new shell)";
+        } else if (e == EPERM || e == EACCES) {
+            hint = " (cannot take the app uid for the IPC connect; see MINIS_CHROOT_APP_UID)";
+        }
         fprintf(stderr,
-                "%.*s: unavailable - Minis offload service is not reachable (@%s: %s).\n",
-                (int)strcspn(argv[0], "\0"), argv[0], sock, strerror(errno));
+                "%.*s: unavailable - Minis offload service is not reachable (@%s: %s)%s.\n",
+                (int)strcspn(argv[0], "\0"), argv[0], sock, strerror(e), hint);
         return EX_UNAVAILABLE;
     }
 
@@ -210,21 +228,54 @@ int main(int argc, char **argv) {
     }
 
     uint32_t magic = 0, code = 0, len = 0;
-    if (get_u32(fd, &magic) != 0 || magic != MAGIC_RSP ||
-        get_u32(fd, &code) != 0 || get_u32(fd, &len) != 0 || len > MAX_STR) {
-        fprintf(stderr, "%s: unavailable - malformed reply from the Minis offload service\n", argv[0]);
+    /* Each stage names itself: "malformed reply" used to cover a refused peer
+     * (the server closed without a frame), a truncated frame and a bad magic
+     * alike, which is exactly the report that could not be diagnosed. */
+    if (get_u32(fd, &magic) != 0) {
+        if (errno == 0) {
+            fprintf(stderr,
+                    "%s: unavailable - the Minis offload service closed the connection without "
+                    "a reply frame (peer identity refused, or the app restarted)\n", argv[0]);
+        } else {
+            fprintf(stderr, "%s: unavailable - no reply from the Minis offload service: %s\n",
+                    argv[0], strerror(errno));
+        }
+        close(fd);
+        return EX_UNAVAILABLE;
+    }
+    if (magic != MAGIC_RSP) {
+        fprintf(stderr, "%s: unavailable - malformed reply from the Minis offload service "
+                "(magic 0x%08x, expected 0x%08x)\n", argv[0], magic, MAGIC_RSP);
+        close(fd);
+        return EX_UNAVAILABLE;
+    }
+    if (get_u32(fd, &code) != 0 || get_u32(fd, &len) != 0) {
+        fprintf(stderr, "%s: unavailable - truncated reply frame from the Minis offload service\n", argv[0]);
+        close(fd);
+        return EX_UNAVAILABLE;
+    }
+    if (len > MAX_STR) {
+        fprintf(stderr, "%s: unavailable - malformed reply path length %u\n", argv[0], len);
         close(fd);
         return EX_UNAVAILABLE;
     }
     char *path = calloc(1, (size_t)len + 1);
     if (!path) { close(fd); return EX_UNAVAILABLE; }
     if (len && read_full(fd, path, len) != 0) {
-        fprintf(stderr, "%s: unavailable - truncated reply\n", argv[0]);
+        fprintf(stderr, "%s: unavailable - truncated reply path from the Minis offload service\n", argv[0]);
         free(path);
         close(fd);
         return EX_UNAVAILABLE;
     }
     close(fd);
+    if (len == 0) {
+        /* A frame without a body: the server refused the call before it could
+         * write a reply file (see its log). Keep the code it sent. */
+        fprintf(stderr, "%s: refused by the Minis offload service (exit %d, no reply body)\n",
+                argv[0], (int)code);
+        free(path);
+        return code ? (int)code : EX_UNAVAILABLE;
+    }
 
     /* The server wrote the handler's combined output to a file inside the
      * rootfs (/tmp/.native-offload-*), exactly as it does for proot's

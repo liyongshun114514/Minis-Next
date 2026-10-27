@@ -18,6 +18,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import com.openminis.app.agent.jobs.AgentJobRegistry
+import com.openminis.app.agent.jobs.SubAgentConcurrencyPrefs
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.IconButton
@@ -79,6 +84,36 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     // matching iOS HelperSettingsView: one place to look, no cross-reference to
     // keep in sync with Settings > Tools.
     var agentsEnabled by remember { mutableStateOf(AgentToolSwitch.AGENTS.isEnabled(context)) }
+    var concurrency by remember { mutableStateOf(AgentJobRegistry.maxConcurrentChildJobsPerParent) }
+    var showConcurrency by remember { mutableStateOf(false) }
+    if (showConcurrency) {
+        AlertDialog(
+            onDismissRequest = { showConcurrency = false },
+            title = { Text(stringResource(R.string.sub_agents_concurrency_title)) },
+            text = {
+                Column {
+                    (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).forEach { count ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                SubAgentConcurrencyPrefs.set(context, count)
+                                concurrency = count
+                                showConcurrency = false
+                            }.padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = concurrency == count, onClick = null)
+                            Text(stringResource(R.string.sub_agents_concurrency_count, count))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showConcurrency = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
 
     SettingsScaffold(title = stringResource(R.string.sub_agents_title), onBack = onBack) {
         SettingsSection(footer = stringResource(R.string.agent_settings_allow_footer)) {
@@ -130,6 +165,14 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     },
                 )
             }
+        }
+        SettingsSection(footer = stringResource(R.string.sub_agents_concurrency_footer)) {
+            SettingsValueRow(
+                title = stringResource(R.string.sub_agents_concurrency_title),
+                value = concurrency.toString(),
+                onClick = { showConcurrency = true },
+                showDivider = false,
+            )
         }
         // Dimmed but still editable when the switch is off: off means "not
         // offered to the model", not "cannot be configured" — the same rule the

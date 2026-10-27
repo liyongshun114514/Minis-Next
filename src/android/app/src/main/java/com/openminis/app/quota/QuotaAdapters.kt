@@ -112,6 +112,10 @@ object QuotaVendorDetector {
         "api.minimax.io", "api.minimaxi.com" -> QuotaVendor.miniMax
         "api.x.ai" -> QuotaVendor.xAI
         "api.xiaomimimo.com" -> QuotaVendor.xiaomiMiMo
+        // [UBUNTU6] Official balance endpoints; instances use these hosts as
+        // their normal OpenAI-compatible base URL.
+        "api.novita.ai" -> QuotaVendor.novita
+        "ai-gateway.vercel.sh" -> QuotaVendor.vercelAIGateway
         else -> null
     }
 }
@@ -316,6 +320,8 @@ object QuotaAdapterRegistry {
         QuotaVendor.deepSeek -> DeepSeekQuotaAdapter
         QuotaVendor.moonshot -> MoonshotQuotaAdapter
         QuotaVendor.siliconFlow -> SiliconFlowQuotaAdapter
+        QuotaVendor.novita -> NovitaQuotaAdapter
+        QuotaVendor.vercelAIGateway -> VercelAIGatewayQuotaAdapter
         QuotaVendor.openRouter -> OpenRouterQuotaAdapter
         QuotaVendor.claudeSubscription -> ClaudeSubscriptionQuotaAdapter
         QuotaVendor.codexSubscription -> CodexSubscriptionQuotaAdapter
@@ -542,6 +548,132 @@ object SiliconFlowQuotaAdapter : ProviderQuotaAdapter {
     }
 }
 
+// MARK: - Novita AI
+
+/**
+ * [UBUNTU6] `GET https://api.novita.ai/openapi/v1/billing/balance/detail`
+ * (documented: docs.novita.ai/api-reference/basic-get-user-balance, "User
+ * Balance Info"):
+ * `{"availableBalance":"1000000","cashBalance":"800000","creditLimit":"200000",
+ *   "pendingCharges":"0","outstandingInvoices":"0"}`
+ *
+ * Every amount is a string in 1/10000 USD (10000 = $1.00), so it is divided
+ * exactly (movePointLeft, never a Double). `availableBalance` is the credit
+ * available now, `cashBalance` the unspent top-up and `creditLimit` the
+ * spending line - the latter two are kept as same-unit parts so the headline
+ * can be explained. Outstanding invoices / pending charges are not a component
+ * of that figure and are ignored.
+ *
+ * A body without a readable `availableBalance` is an error: a missing field is
+ * never reported as a $0 balance.
+ */
+object NovitaQuotaAdapter : ProviderQuotaAdapter {
+    override val adapterId = "novita.billing-balance"
+    override val vendor = QuotaVendor.novita
+    val hosts = listOf("api.novita.ai")
+    const val PATH = "/openapi/v1/billing/balance/detail"
+
+    override fun capability(d: QuotaInstanceDescriptor) = QuotaCapability.activeQuery()
+
+    override suspend fun fetch(ctx: QuotaFetchContext): QuotaFetchOutcome {
+        val endpoint = ctx.descriptor.vendorHost(hosts) + PATH
+        val r = ctx.transport.get("https://$endpoint", ctx.credential)
+        QuotaHttp.error(r, endpoint, ctx.now)?.let { throw it }
+        val snap = parse(r.body, endpoint, ctx.subjectId, adapterId, ctx.now, QuotaHttp.clockOffset(r, ctx.now))
+        return QuotaFetchOutcome(snap, isComplete = true)
+    }
+
+    /** The API's unit is 1/10000 USD. */
+    fun fromTenThousandths(raw: BigDecimal): BigDecimal = raw.movePointLeft(4).canonical()
+
+    fun parse(
+        data: ByteArray,
+        endpoint: String = "api.novita.ai$PATH",
+        subjectId: QuotaSubjectID,
+        adapterId: String = "novita.billing-balance",
+        now: Long,
+        clockOffset: Long? = null,
+    ): UpstreamQuotaSnapshot {
+        val obj = QuotaHttp.jsonObject(data, endpoint)
+        val available = obj.dec("availableBalance")
+            ?: throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "missing availableBalance")
+        val parts = mutableListOf<QuotaAmounts.Part>()
+        obj.dec("cashBalance")?.let {
+            parts += QuotaAmounts.Part(QuotaAmounts.Role.ToppedUp, fromTenThousandths(it))
+        }
+        obj.dec("creditLimit")?.let {
+            parts += QuotaAmounts.Part(QuotaAmounts.Role.Other("credit limit"), fromTenThousandths(it))
+        }
+        val key = QuotaPoolKey.of(subjectId, "balance", "USD")
+        val prov = officialProvenance(adapterId, endpoint)
+        val pool = QuotaPool(
+            id = key, subjectId = subjectId, kind = QuotaPool.Kind.prepaidBalance,
+            unit = QuotaUnit.Currency("USD"), vendorLabel = "Novita AI credits",
+            amounts = QuotaAmounts(remaining = fromTenThousandths(available), breakdown = parts),
+            provenance = prov, observedAt = now,
+        )
+        return UpstreamQuotaSnapshot(
+            subjectId = subjectId, provenance = prov, capturedAt = now, serverClockOffset = clockOffset,
+            pools = listOf(pool), bindings = listOf(accountWideBinding(key)),
+        )
+    }
+}
+
+// MARK: - Vercel AI Gateway
+
+/**
+ * [UBUNTU6] `GET https://ai-gateway.vercel.sh/v1/credits` (documented:
+ * vercel.com/docs/ai-gateway/sdks-and-apis/rest-api#check-credit-balance):
+ * `{"balance":"95.50","total_used":"4.50"}` - both USD strings.
+ *
+ * `total_used` is the team's LIFETIME spend, not the used part of `balance`
+ * (top-ups and refunds make the two non-additive), so it is deliberately NOT
+ * written into [QuotaAmounts]: pairing it with the current balance would imply
+ * a total that the vendor never reported. Only the remaining balance is shown.
+ * A body without a readable `balance` is an error, never a $0 balance.
+ */
+object VercelAIGatewayQuotaAdapter : ProviderQuotaAdapter {
+    override val adapterId = "vercel.ai-gateway-credits"
+    override val vendor = QuotaVendor.vercelAIGateway
+    val hosts = listOf("ai-gateway.vercel.sh")
+    const val PATH = "/v1/credits"
+
+    override fun capability(d: QuotaInstanceDescriptor) = QuotaCapability.activeQuery()
+
+    override suspend fun fetch(ctx: QuotaFetchContext): QuotaFetchOutcome {
+        val endpoint = ctx.descriptor.vendorHost(hosts) + PATH
+        val r = ctx.transport.get("https://$endpoint", ctx.credential)
+        QuotaHttp.error(r, endpoint, ctx.now)?.let { throw it }
+        val snap = parse(r.body, endpoint, ctx.subjectId, adapterId, ctx.now, QuotaHttp.clockOffset(r, ctx.now))
+        return QuotaFetchOutcome(snap, isComplete = true)
+    }
+
+    fun parse(
+        data: ByteArray,
+        endpoint: String = "ai-gateway.vercel.sh$PATH",
+        subjectId: QuotaSubjectID,
+        adapterId: String = "vercel.ai-gateway-credits",
+        now: Long,
+        clockOffset: Long? = null,
+    ): UpstreamQuotaSnapshot {
+        val obj = QuotaHttp.jsonObject(data, endpoint)
+        val balance = obj.dec("balance")
+            ?: throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "missing balance")
+        val key = QuotaPoolKey.of(subjectId, "balance", "USD")
+        val prov = officialProvenance(adapterId, endpoint)
+        val pool = QuotaPool(
+            id = key, subjectId = subjectId, kind = QuotaPool.Kind.prepaidBalance,
+            unit = QuotaUnit.Currency("USD"), vendorLabel = "Vercel AI Gateway credits",
+            amounts = QuotaAmounts(remaining = balance),
+            provenance = prov, observedAt = now,
+        )
+        return UpstreamQuotaSnapshot(
+            subjectId = subjectId, provenance = prov, capturedAt = now, serverClockOffset = clockOffset,
+            pools = listOf(pool), bindings = listOf(accountWideBinding(key)),
+        )
+    }
+}
+
 // MARK: - OpenRouter
 
 /**
@@ -692,6 +824,12 @@ object QuotaConsoleLink {
             // shown on the site.
             QuotaVendor.kimiCode -> "https://www.kimi.com/code"
             QuotaVendor.openRouter -> "https://openrouter.ai/settings/credits"
+            // Documented billing page (novita.ai/billing); the balance endpoint
+            // backs the same figure.
+            QuotaVendor.novita -> "https://novita.ai/billing"
+            // The AI Gateway tab of the Vercel dashboard, as linked from the
+            // documented credits API page (team is chosen there).
+            QuotaVendor.vercelAIGateway -> "https://vercel.com/d?to=%2F%5Bteam%5D%2F~%2Fai-gateway"
             QuotaVendor.xiaomiMiMo -> "https://platform.xiaomimimo.com/console/plan-manage"
             // [ISS-031] The pages the official Token Plan FAQ links from "How to
             // check Token Plan usage": Billing > Token Plan (international) and
@@ -1330,13 +1468,23 @@ object QuotaResponseShape {
 /** [T-quota-relay-probe] Which relay family answered, and so which endpoint to use next time. */
 @Suppress("EnumEntryName")
 enum class RelayKind {
-    sub2api, newAPI, openAIBilling;
+    sub2api, newAPI, openAIBilling,
+    /**
+     * [UBUNTU6] LiteLLM Proxy (self-hosted gateway). `GET /key/info` is
+     * documented (docs.litellm.ai/docs/proxy/virtual_keys) and, with no `key`
+     * query parameter, reports the key that made the request: `info.spend`
+     * (USD, the current budget window when budget_duration is set),
+     * `info.max_budget` (USD, null = no cap), `info.budget_duration`,
+     * `info.budget_reset_at`, `info.key_alias`.
+     */
+    liteLLM;
 
     val displayName: String
         get() = when (this) {
             sub2api -> "Sub2API"
             newAPI -> "New API"
             openAIBilling -> "OpenAI-compatible billing"
+            liteLLM -> "LiteLLM"
         }
 
     val path: String
@@ -1344,6 +1492,7 @@ enum class RelayKind {
             sub2api -> "/v1/usage"
             newAPI -> "/api/usage/token"
             openAIBilling -> "/v1/dashboard/billing/subscription"
+            liteLLM -> "/key/info"
         }
 
     val adapterId: String get() = "relay.$name"
@@ -1374,6 +1523,9 @@ enum class RelayKind {
  *    units: the per-dollar rate is a per-site setting, never assumed).
  * 3. OpenAI-compatible `GET /v1/dashboard/billing/subscription` (+ `/usage`):
  *    `hard_limit_usd` (>= 1e8 = unlimited), `total_usage` in cents.
+ * 4. [UBUNTU6] LiteLLM Proxy `GET /key/info` - `info.spend` / `info.max_budget`
+ *    in USD (docs.litellm.ai/docs/proxy/virtual_keys). Detected by the `info`
+ *    object carrying a numeric spend or max_budget.
  * CLIProxyAPI has no endpoint a client key can read, so it probes as "none found".
  *
  * Requests go only to the relay the instance already sends its chats to, with
@@ -1451,6 +1603,7 @@ object RelayQuotaAdapter : ProviderQuotaAdapter {
                 }
                 parseOpenAIBilling(sub, usage, ctx.subjectId, host, ctx.now)
             }
+            RelayKind.liteLLM -> parseLiteLLM(get(kind.path).body, ctx.subjectId, host, ctx.now)
         }
     }
 
@@ -1566,5 +1719,59 @@ object RelayQuotaAdapter : ProviderQuotaAdapter {
             else -> throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "no hard_limit_usd / balance: not a billing API")
         }
         return snapshot(pool, RelayKind.openAIBilling, subjectId, relayHost, now)
+    }
+
+    // LiteLLM
+
+    /**
+     * [UBUNTU6] `GET /key/info` on a LiteLLM Proxy, called WITHOUT a `key`
+     * query parameter: the gateway then reports the key in the Authorization
+     * header (docs.litellm.ai/docs/proxy/virtual_keys).
+     * `{"key":"sk-...","info":{"spend":0.42,"max_budget":10.0,
+     *   "budget_duration":"30d","budget_reset_at":"...","key_alias":"cli",
+     *   "blocked":false,"status":"active"}}`
+     *
+     * `spend` and `max_budget` are USD. When `budget_duration` is set, `spend`
+     * covers the CURRENT budget window and the gateway enforces `max_budget`
+     * against it, so remaining = max_budget - spend is that window's remainder
+     * (the reset time is the documented `budget_reset_at`). A key with no
+     * max_budget has no cap to report: it is shown as unlimited with its
+     * tracked spend, never as a zero balance. The hashed `token` field is never
+     * read.
+     */
+    fun parseLiteLLM(
+        data: ByteArray,
+        subjectId: QuotaSubjectID,
+        relayHost: String,
+        now: Long,
+    ): UpstreamQuotaSnapshot {
+        val o = obj(data, RelayKind.liteLLM)
+        val info = o.obj("info")
+            ?: throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "no info: not LiteLLM")
+        val spend = info.dec("spend")
+        val max = info.dec("max_budget")
+        if (spend == null && max == null) {
+            throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "LiteLLM key info without spend / max_budget")
+        }
+        val alias = info.str("key_alias")?.trim()?.takeIf { it.isNotEmpty() }
+        val status = info.str("status")
+        val rejected = info.bool("blocked") == true || (status != null && status != "active")
+        val key = QuotaPoolKey.of(subjectId, "relay")
+        val pool = QuotaPool(
+            id = key, subjectId = subjectId, kind = QuotaPool.Kind.spendCap, unit = QuotaUnit.Currency("USD"),
+            vendorLabel = alias?.let { "LiteLLM · $it" } ?: "LiteLLM key budget",
+            amounts = if (max != null) {
+                QuotaAmounts(
+                    total = max, used = spend,
+                    remaining = spend?.let { max.subtract(it).max(BigDecimal.ZERO).canonical() },
+                )
+            } else {
+                QuotaAmounts(used = spend)
+            },
+            verdict = if (rejected) QuotaPool.Verdict.rejected else null,
+            unlimited = max == null,
+            provenance = provenance(RelayKind.liteLLM, relayHost), observedAt = now,
+        )
+        return snapshot(pool, RelayKind.liteLLM, subjectId, relayHost, now)
     }
 }

@@ -2686,9 +2686,7 @@ class ChatViewModel(
         if (parentSid.isEmpty()) return false
         // Same registration the delegate path does: only a live view model can
         // re-enter a queued item, and the counter feeds the queue's self-heal.
-        registry.registerQueuedStarter(parentSid) { item ->
-            startQueuedDelegation(item.argsJson, item.toolUseId)
-        }
+        registerDelegationQueue(parentSid)
         registry.registerInterruptedCounter(parentSid) { countInterruptedChildren(parentSid) }
         val args = try {
             JSONObject()
@@ -2769,10 +2767,8 @@ class ChatViewModel(
             wasResumed = true,
         )
         registry.registerInterruptedCounter(parentSid) { countInterruptedChildren(parentSid) }
-        registry.registerQueuedStarter(parentSid) { item ->
-            startQueuedDelegation(item.argsJson, item.toolUseId)
-        }
-        viewModelScope.launch {
+        registerDelegationQueue(parentSid)
+        val resumedLaunch = viewModelScope.launch {
             // A cancelled scope would otherwise skip this body entirely and
             // leave the job PENDING forever — and PENDING holds a slot.
             try {
@@ -2882,7 +2878,12 @@ class ChatViewModel(
                 registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, null)
             }
         }
-        return true
+        resumedLaunch.invokeOnCompletion { cause ->
+            if (cause != null) {
+                registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.CANCELLED, null)
+            }
+        }
+        return !resumedLaunch.isCancelled
     }
 
     /** [T-sub-agents-resume] The child sessions of this conversation the app lost. */
@@ -3026,6 +3027,20 @@ class ChatViewModel(
         return outcome
     }
 
+    private fun registerDelegationQueue(parentSid: String) {
+        val registry = com.openminis.app.agent.jobs.AgentJobRegistry
+        registry.registerQueuedFailureHandler(parentSid) { item, reason ->
+            viewModelScope.launch {
+                val output = com.openminis.app.agent.jobs.HelperRunner.rejectionJson("child_start_failed", reason)
+                writeDelegateBlock(item.toolUseId, output, ToolBlockStatus.FAILED)
+                persistFinalDelegateResult(item.toolUseId, output, false)
+            }
+        }
+        registry.registerQueuedStarter(parentSid) { item ->
+            startQueuedDelegation(item.argsJson, item.toolUseId)
+        }
+    }
+
     fun startQueuedDelegation(argsJson: String, toolUseId: String): Boolean {
         if (activeSessionId.isEmpty()) return false
         // [T-android-subagent-prompt-parity] A queued RESUME re-enters through
@@ -3037,7 +3052,11 @@ class ChatViewModel(
                 .optString(com.openminis.app.agent.jobs.HelperRunner.QUEUED_RESUME_CHILD_KEY, "")
         }.getOrDefault("").ifEmpty { null }
         if (resumeChildId != null) {
-            return resumeInterruptedChild(resumeChildId)
+            return try {
+                resumeInterruptedChild(resumeChildId)
+            } finally {
+                com.openminis.app.agent.jobs.AgentJobRegistry.releaseChildStart(activeSessionId, toolUseId)
+            }
         }
         val args = try {
             JSONObject(argsJson)
@@ -3062,14 +3081,30 @@ class ChatViewModel(
                 toolName = com.openminis.app.agent.jobs.HelperRunner.TOOL_NAME,
             ),
         )
-        viewModelScope.launch {
-            runCatching {
-                executeDelegateTask(args, toolUseId, scratch, "", "")
-            }.onFailure {
-                AppLogger.warning(TAG, "[subagent_task] queued re-entry failed: ${it.message}")
+        val parentSid = activeSessionId
+        val launch = viewModelScope.launch {
+            try {
+                val result = executeDelegateTask(args, toolUseId, scratch, "", "")
+                if (!result.success) {
+                    writeDelegateBlock(toolUseId, result.output, ToolBlockStatus.FAILED)
+                    persistFinalDelegateResult(toolUseId, result.output, false)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLogger.warning(TAG, "[subagent_task] queued re-entry failed: ${failure.message}")
+                val output = com.openminis.app.agent.jobs.HelperRunner.rejectionJson(
+                    "child_start_failed", "Queued helper failed to start: ${failure.message}",
+                )
+                writeDelegateBlock(toolUseId, output, ToolBlockStatus.FAILED)
+                persistFinalDelegateResult(toolUseId, output, false)
             }
         }
-        return true
+        // Even an already-cancelled scope must release its startup reservation.
+        launch.invokeOnCompletion {
+            com.openminis.app.agent.jobs.AgentJobRegistry.releaseChildStart(parentSid, toolUseId)
+        }
+        return !launch.isCancelled
     }
 
     /**
@@ -14459,6 +14494,33 @@ class ChatViewModel(
         assistantId: String,
         currentText: String,
     ): ToolExecutionResult {
+        val parentSid = activeSessionId
+        val registry = com.openminis.app.agent.jobs.AgentJobRegistry
+        try {
+            return executeDelegateTaskReserved(argsJson, toolId, toolBlocks, assistantId, currentText)
+        } catch (failure: Throwable) {
+            // A failure during child VM creation must not strand a PENDING job.
+            registry.list().filter {
+                it.target == com.openminis.app.agent.jobs.AgentJobTarget.ChildOfCurrent(parentSid, toolId) &&
+                    it.state == com.openminis.app.agent.jobs.AgentJobState.PENDING
+            }.forEach {
+                registry.setThen(it.id, com.openminis.app.agent.jobs.AgentJobThen.None)
+                registry.finish(it.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, "Child startup failed")
+            }
+            throw failure
+        } finally {
+            registry.releaseChildStart(parentSid, toolId)
+            registry.drainIfStalled()
+        }
+    }
+
+    private suspend fun executeDelegateTaskReserved(
+        argsJson: String,
+        toolId: String,
+        toolBlocks: MutableList<AssistantBlock>,
+        assistantId: String,
+        currentText: String,
+    ): ToolExecutionResult {
         val hr = com.openminis.app.agent.jobs.HelperRunner
         // [T-stop-choice] A "Stop Current Tool Only" from here on bumps this -
         // also while the call still waits for a sub agent slot - and the wait
@@ -14521,7 +14583,11 @@ class ChatViewModel(
                 it.kind == "tool_use" && hr.isSubAgentToolName(it.toolName) &&
                     !hr.isControlOnly(it.toolArgs.ifEmpty { null }, it.content.ifEmpty { null })
             }
-        val overTurnAllowance = !fromQueue && priorDelegates >= hr.MAX_PER_ASSISTANT_TURN
+        val turnLimit = registry.maxConcurrentChildJobsPerParent
+        val overTurnAllowance = !fromQueue && priorDelegates >= turnLimit
+        if (fromQueue && !registry.hasChildStart(parentSid, toolId)) {
+            return reject("cancelled", "This queued helper was stopped before startup.")
+        }
 
         // [T-sub-agents-queue] Over either limit the call is QUEUED, not
         // refused, and it returns AT ONCE.
@@ -14534,12 +14600,10 @@ class ChatViewModel(
         // which is precisely the case the queue exists for.
         // [T-new-limits] The cap is per parent conversation: only THIS
         // conversation's own running sub agents count.
-        if (overTurnAllowance || !registry.canStartChildJob(parentSid)) {
+        if (overTurnAllowance || !registry.reserveChildStart(parentSid, toolId)) {
             // Only a live view model can re-enter a queued delegation, so
             // register this one as its parent's starter. Removed in onCleared.
-            registry.registerQueuedStarter(parentSid) { item ->
-                startQueuedDelegation(item.argsJson, item.toolUseId)
-            }
+            registerDelegationQueue(parentSid)
             registry.registerInterruptedCounter(parentSid) { countInterruptedChildren(parentSid) }
             val queued = registry.enqueueDelegation(
                 com.openminis.app.agent.jobs.AgentJobRegistry.QueuedDelegation(
@@ -14558,7 +14622,7 @@ class ChatViewModel(
                 )
             }
             val detail = if (overTurnAllowance) {
-                "More than ${hr.MAX_PER_ASSISTANT_TURN} delegations in one turn. This task is QUEUED and will " +
+                "More than $turnLimit delegations in one turn. This task is QUEUED and will " +
                     "start automatically as slots free; its result arrives as a new message like any other. " +
                     "Do not re-delegate it."
             } else {
@@ -14640,6 +14704,9 @@ class ChatViewModel(
             }
         }
 
+        if (!registry.hasChildStart(parentSid, toolId)) {
+            return reject("cancelled", "This helper startup was cancelled before it could run.")
+        }
         val job = registry.register(
             title = title, origin = com.openminis.app.agent.jobs.AgentJobOrigin.TOOL,
             trigger = com.openminis.app.agent.jobs.AgentJobTrigger.Immediate,

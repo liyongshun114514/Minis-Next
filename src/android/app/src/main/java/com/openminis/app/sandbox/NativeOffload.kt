@@ -6,8 +6,6 @@ import android.util.Log
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -67,9 +65,8 @@ object NativeOffloadServer {
      * "native-offload" is what every earlier build bound.
      */
     private const val SOCKET_NAME_PREFIX = "native-offload"
-    private const val MAGIC_REQ = 0x46464F4E  // 'N' 'O' 'F' 'F' little-endian
-    private const val MAGIC_RSP = 0x52464F4E  // 'N' 'O' 'F' 'R'
-    private const val VERSION = 1
+    /** Timeout for the two non-handler replies (busy / refusal). */
+    private const val REPLY_TIMEOUT_MS = 2_000
 
     /** [T-android-offload-tmp-leak] Filename prefix of a handler reply file. */
     private const val REPLY_PREFIX = ".native-offload-"
@@ -415,10 +412,20 @@ object NativeOffloadServer {
             Log.w(TAG, "[GH453] refusing offload call: $MAX_CONCURRENT_CALLS calls in flight ($busy)")
         }
         try {
-            client.soTimeout = 2_000
+            client.soTimeout = REPLY_TIMEOUT_MS
             val peerUid = try { client.peerCredentials.uid } catch (e: Exception) { -1 }
-            if (!PeerCheck.allowed(peerUid, android.os.Process.myUid())) return
-            val request = readRequest(DataInputStream(client.inputStream)) ?: return
+            if (!PeerCheck.allowed(peerUid, android.os.Process.myUid())) {
+                // Same rule as handleClient: refuse, but never silently.
+                replyAndClose(client, OffloadWire.EXIT_DENIED, OffloadWire.deniedMessage(peerUid, android.os.Process.myUid()))
+                return
+            }
+            val request = when (val frame = OffloadWire.readRequest(DataInputStream(client.inputStream))) {
+                is OffloadFrame.Request -> frame
+                is OffloadFrame.Rejected -> {
+                    replyAndClose(DataOutputStream(client.outputStream), OffloadWire.EXIT_BAD_FRAME, OffloadWire.badFrameMessage(frame.reason))
+                    return
+                }
+            }
             writeReply(
                 DataOutputStream(client.outputStream),
                 request.pid,
@@ -451,15 +458,24 @@ object NativeOffloadServer {
         // root only inside the guest). Refuse every other uid.
         val peerUid = try { client.peerCredentials.uid } catch (e: Exception) { -1 }
         if (!PeerCheck.allowed(peerUid, android.os.Process.myUid())) {
-            Log.w(TAG, "refused offload client uid=$peerUid (expected ${android.os.Process.myUid()})")
+            denyPeer(client, peerUid) // [T-offload-peer-refusal] answer, never a silent close
             return
         }
         if (!loggedPeerUid) {
             loggedPeerUid = true
             Log.i(TAG, "offload client uid=$peerUid accepted (app uid)")
         }
-        val request = readRequest(DataInputStream(client.inputStream)) ?: return
+        // [T-offload-wire] Rejected frames are answered, not dropped.
+        val input = DataInputStream(client.inputStream)
         val output = DataOutputStream(client.outputStream)
+        val request = when (val frame = OffloadWire.readRequest(input)) {
+            is OffloadFrame.Request -> frame
+            is OffloadFrame.Rejected -> {
+                Log.w(TAG, "bad request frame from uid=$peerUid: ${frame.reason}")
+                replyAndClose(output, OffloadWire.EXIT_BAD_FRAME, OffloadWire.badFrameMessage(frame.reason))
+                return
+            }
+        }
         val pid = request.pid
         val argv = request.argv
         val env = request.env
@@ -479,7 +495,7 @@ object NativeOffloadServer {
         val result = try {
             if (handler == null) {
                 Log.w(TAG, "no handler registered for '$name' (known=${handlers.keys})")
-                NativeOffloadResult(exitCode = 127, output = "native_offload: no handler for '$name'\n")
+                NativeOffloadResult(exitCode = OffloadWire.EXIT_NO_HANDLER, output = OffloadWire.noHandlerMessage(name))
             } else {
                 try {
                     handler.handle(NativeOffloadRequest(
@@ -492,6 +508,11 @@ object NativeOffloadServer {
                 } catch (e: Exception) {
                     Log.w(TAG, "handler '$name' threw: ${e.message}", e)
                     NativeOffloadResult(exitCode = 1, output = "native_offload: ${e.message}\n")
+                } catch (t: Throwable) {
+                    // A LinkageError/OOM from a handler must still end in a frame,
+                    // not in a silent close ("malformed reply") for the caller.
+                    Log.w(TAG, "handler '$name' threw a non-Exception: $t")
+                    NativeOffloadResult(exitCode = 1, output = "native_offload: ${t.javaClass.simpleName}\n")
                 }
             }
         } finally {
@@ -503,37 +524,46 @@ object NativeOffloadServer {
             "tmpGuest=$tmpGuest elapsed=${elapsedMs}ms")
     }
 
-    private class WireRequest(val pid: Int, val argv: List<String>, val env: Map<String, String>, val cwd: String)
+    /**
+     * [T-offload-peer-refusal] Refuse a peer, but ANSWER it: a silent close is
+     * what the CHROOT guest client reported as "malformed reply" (an outdated
+     * in-rootfs client that connects as uid 0 instead of the app uid).
+     */
+    private fun denyPeer(client: LocalSocket, peerUid: Int) {
+        Log.w(TAG, "refused offload client uid=$peerUid (expected ${android.os.Process.myUid()})")
+        replyAndClose(client, OffloadWire.EXIT_DENIED, OffloadWire.deniedMessage(peerUid, android.os.Process.myUid()))
+    }
 
-    /** The request frame, or null (logged) for a bad magic / version. */
-    private fun readRequest(input: DataInputStream): WireRequest? {
-        val magic = input.readLEInt()
-        if (magic != MAGIC_REQ) {
-            Log.w(TAG, "bad magic: 0x${magic.toUInt().toString(16)}")
-            return null
+    /**
+     * [T-offload-peer-refusal] Write [message] to a reply file and send a normal
+     * response frame carrying [exitCode]. Used for refused peers and malformed
+     * frames, where there is no request pid: the frame does not carry one, so
+     * 0 is used only in the file name.
+     *
+     * A failure here is logged, never propagated: an offload call must not be
+     * able to hurt the server.
+     */
+    private fun replyAndClose(client: LocalSocket, exitCode: Int, message: String) {
+        try {
+            client.soTimeout = REPLY_TIMEOUT_MS
+            replyAndClose(DataOutputStream(client.outputStream), exitCode, message)
+        } catch (e: Exception) {
+            Log.w(TAG, "could not answer offload refusal: ${e.javaClass.simpleName}: ${e.message}")
+        } finally {
+            try { client.close() } catch (_: Exception) {}
         }
-        val version = input.readLEInt()
-        if (version != VERSION) {
-            Log.w(TAG, "unsupported version $version")
-            return null
-        }
+    }
 
-        val pid = input.readLEInt()
-        val argc = input.readLEInt()
-        if (argc < 0 || argc > 256) throw IllegalStateException("bad argc=$argc")
-        val argv = ArrayList<String>(argc)
-        repeat(argc) { argv.add(input.readLEString()) }
-
-        val envc = input.readLEInt()
-        if (envc < 0 || envc > 4096) throw IllegalStateException("bad envc=$envc")
-        val env = LinkedHashMap<String, String>(envc)
-        repeat(envc) {
-            val s = input.readLEString()
-            val eq = s.indexOf('=')
-            if (eq >= 0) env[s.substring(0, eq)] = s.substring(eq + 1) else env[s] = ""
+    private fun replyAndClose(output: DataOutputStream, exitCode: Int, message: String) {
+        try {
+            writeReply(output, 0, NativeOffloadResult(exitCode = exitCode, output = message))
+        } catch (e: Exception) {
+            // No rootfs tmp yet (server not started): send the bare frame with an
+            // empty path, which the client reports as "refused" with the code.
+            Log.w(TAG, "refusal reply file unavailable: ${e.message}")
+            runCatching { OffloadWire.writeReply(output, exitCode, "") }
         }
-        val cwd = input.readLEString()
-        return WireRequest(pid, argv, env, cwd)
+        runCatching { output.flush() }
     }
 
     /** Write [result]'s output to its reply file and send the response frame; returns the guest path. */
@@ -554,38 +584,7 @@ object NativeOffloadServer {
         // touched. Sampled rather than run per reply to keep the hot path cheap.
         if (seq % SWEEP_EVERY_N_REPLIES == 0L) sweepStaleReplies(all = false)
 
-        output.writeLEInt(MAGIC_RSP)
-        output.writeLEInt(result.exitCode)
-        output.writeLEString(tmpGuest)
-        output.flush()
+        OffloadWire.writeReply(output, result.exitCode, tmpGuest)
         return tmpGuest
-    }
-
-    // ---- little-endian helpers ----
-
-    private fun DataInputStream.readLEInt(): Int {
-        val buf = ByteArray(4)
-        readFully(buf)
-        return ByteBuffer.wrap(buf).order(ByteOrder.LITTLE_ENDIAN).int
-    }
-
-    private fun DataInputStream.readLEString(): String {
-        val len = readLEInt()
-        if (len < 0 || len > 1 shl 20) throw IllegalStateException("bad string len $len")
-        if (len == 0) return ""
-        val buf = ByteArray(len)
-        readFully(buf)
-        return String(buf, Charsets.UTF_8)
-    }
-
-    private fun DataOutputStream.writeLEInt(v: Int) {
-        val buf = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(v).array()
-        write(buf)
-    }
-
-    private fun DataOutputStream.writeLEString(s: String) {
-        val bytes = s.toByteArray(Charsets.UTF_8)
-        writeLEInt(bytes.size)
-        if (bytes.isNotEmpty()) write(bytes)
     }
 }

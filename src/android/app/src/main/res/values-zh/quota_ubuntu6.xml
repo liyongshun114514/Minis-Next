@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [UBUNTU6] 余额渠道名称（配额明细面板标题）。中文文件与 values/quota_ubuntu6.xml 对应。 -->
+<resources>
+    <string name="quota_channel_novita">Novita AI</string>
+    <string name="quota_channel_vercel_gateway">Vercel AI Gateway</string>
+    <string name="quota_channel_litellm">LiteLLM 网关</string>
+</resources>

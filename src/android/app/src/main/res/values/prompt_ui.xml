@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings that exist only for the system-prompt UI (global prompt + scoped
+  custom rules). Kept in their own file so strings.xml stays untouched.
+-->
+<resources>
+    <string name="prompt_ui_global_badge">Global</string>
+    <string name="prompt_ui_global_scope">Applies to every chat. Group and model rules are added after it.</string>
+    <string name="prompt_ui_global_saved">Saved</string>
+    <string name="prompt_ui_global_unsaved">Unsaved changes</string>
+    <string name="prompt_ui_global_footer">This prompt is always first. Custom rules append after it: group rules, then model rules.</string>
+    <string name="prompt_ui_rules_summary">%1$d rules · %2$d enabled</string>
+    <string name="prompt_ui_rules_order_hint">Within one scope, the list order is the order appended to the prompt.</string>
+    <string name="prompt_ui_tier_group">Group rules (%1$d)</string>
+    <string name="prompt_ui_tier_model">Model rules (%1$d)</string>
+    <string name="prompt_ui_rule_disabled">Disabled</string>
+    <string name="prompt_ui_rule_no_content">No prompt text</string>
+    <string name="prompt_ui_rule_move_up">Move up</string>
+    <string name="prompt_ui_rule_move_down">Move down</string>
+    <string name="prompt_ui_editor_applies_to">Applies to</string>
+    <string name="prompt_ui_editor_target">Target</string>
+    <string name="prompt_ui_editor_change_target">Change</string>
+    <string name="prompt_ui_editor_target_hint">A rule only applies to the selected group or model. It never applies to every chat.</string>
+    <string name="prompt_ui_editor_enabled_hint">Disabled rules stay saved but are not appended.</string>
+</resources>

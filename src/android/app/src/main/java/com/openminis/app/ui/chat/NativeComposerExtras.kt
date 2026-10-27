@@ -43,7 +43,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -51,7 +53,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -408,10 +409,10 @@ private data class EffortSliderRequest(
  *    dot, via `origin`), and when the level changes elsewhere (ViewModel
  *    clamp). The gesture itself only writes plain state (a restricted
  *    suspension context forbids calling Animatable.snapTo there);
- *  - the particle/sweep clock runs from `snapshotFlow` on the rendered energy,
- *    so it resumes whenever the fill has energy again instead of breaking out
- *    of a loop whose keys never change (the old bug: animation stopped for
- *    good after the first settle).
+ *  - the particle/sweep clock runs from `snapshotFlow` on `enabled`, so the
+ *    field is alive at every level (including Off/Low) instead of waiting for
+ *    the fill to have "energy" — the old bug: animation stopped for good after
+ *    the first settle, and the low stops had zero stars.
  *
  * Interaction stays native-Compose: press anywhere on the track, drag, release
  * to commit exactly one level; a tap also commits. Leaving the sheet without
@@ -506,14 +507,11 @@ internal fun ComposerEffortSlider(
         requestedIndex = selectedIndex
     }
 
-    // Star/sweep clock. Keyed on the rendered energy through snapshotFlow, so it
-    // restarts every time the fill has energy again — the previous version
-    // `break`ed out of this loop while its keys stayed the same and then never
-    // animated again for the rest of the sheet's lifetime.
+    // Star/sweep clock. The bed is coloured at every level, so the field runs
+    // whenever the slider is enabled — including Off and Low, which used to
+    // have no "energy" and therefore a frozen frame.
     LaunchedEffect(enabled, reducedMotion, progress) {
-        snapshotFlow {
-            enabled && ComposerPortMath.energy(dragPosition ?: progress.value) > 0.001f
-        }
+        snapshotFlow { enabled }
             .distinctUntilChanged()
             .collectLatest { active ->
                 if (!active) return@collectLatest
@@ -571,8 +569,8 @@ internal fun ComposerEffortSlider(
         }
     }
 
-    val trackColor = if (dark) Color(0x26FFFFFF) else Color(0x140F1115)
-    val tickColor = if (dark) Color(0x42FFFFFF) else Color(0x420F1115)
+    // Colour is a fixed part of the control now: the bed is the same gradient
+    // at every level, so the theme only tints the thumb shadow and the labels.
     val canvasHeightDp = ThinkingSliderGeometry.TRACK_HEIGHT_DP +
         ThinkingSliderGeometry.LABEL_GAP_DP +
         ThinkingSliderGeometry.LABEL_BAND_DP
@@ -705,57 +703,96 @@ internal fun ComposerEffortSlider(
                 val thumbR = (track.thumbRadiusPx * pressScale)
                     .coerceAtMost(barH / 2f - 0.5f.dp.toPx())
 
-                // Outer glow: stacked strokes rather than BlurMaskFilter.
-                if (energyNow > 0.02f) {
-                    val haloAlpha = (0.5f * energyNow).coerceIn(0f, 0.5f)
-                    for (i in 3 downTo 1) {
-                        drawRoundRect(
-                            color = Color(0xFFA855F7).copy(alpha = haloAlpha / (i * 2f)),
-                            topLeft = Offset(left - i * density * 2f, top - i * density * 2f),
-                            size = Size(
-                                barWidth + i * density * 4f,
-                                barH + i * density * 4f,
-                            ),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                barH / 2f + i * density * 2f,
-                            ),
-                            style = Stroke(width = density * 2f),
-                        )
-                    }
+                // Outer glow: stacked strokes rather than BlurMaskFilter. The
+                // bed is always lit now, so the halo is always on and only
+                // deepens with the selected level.
+                val haloColor = Color(
+                    ComposerPortMath.mixArgb(
+                        ComposerPortMath.fillEndArgb(value),
+                        0xFFFFFFFF.toInt(),
+                        0.35f,
+                    ),
+                )
+                val haloAlpha = 0.14f + 0.30f * energyNow
+                for (i in 3 downTo 1) {
+                    drawRoundRect(
+                        color = haloColor.copy(alpha = haloAlpha / (i * 2f)),
+                        topLeft = Offset(left - i * density * 2f, top - i * density * 2f),
+                        size = Size(
+                            barWidth + i * density * 4f,
+                            barH + i * density * 4f,
+                        ),
+                        cornerRadius = CornerRadius(
+                            barH / 2f + i * density * 2f,
+                        ),
+                        style = Stroke(width = density * 2f),
+                    )
                 }
 
-                // Track.
+                // Coloured bed across the WHOLE pill — Off and Low included.
+                // There is no neutral "empty" track left: progress is read from
+                // the brighter sheen up to the thumb, the halo, the lit tick and
+                // the particle density, never from an unfilled gap.
                 drawRoundRect(
-                    color = trackColor,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(ComposerPortMath.BED_BLUE_ARGB),
+                            Color(ComposerPortMath.BED_VIOLET_ARGB),
+                            Color(ComposerPortMath.BED_DEEP_ARGB),
+                        ),
+                        startX = left,
+                        endX = left + barWidth,
+                    ),
                     topLeft = Offset(left, top),
                     size = Size(barWidth, barH),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barH / 2f),
+                    cornerRadius = CornerRadius(barH / 2f),
+                )
+                // A touch of vertical shading so the stadium reads as glass
+                // rather than a flat rectangle.
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.14f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.14f),
+                        ),
+                    ),
+                    topLeft = Offset(left, top),
+                    size = Size(barWidth, barH),
+                    cornerRadius = CornerRadius(barH / 2f),
                 )
 
-                if (fillWidth > 0.5f) {
-                    val fillPath = Path().apply {
-                        val rad = (barH / 2f).coerceAtMost(fillWidth)
-                        moveTo(left + rad, top)
-                        lineTo(left + fillWidth, top)
-                        lineTo(left + fillWidth, bottom)
-                        lineTo(left + rad, bottom)
-                        quadraticTo(left, bottom, left, bottom - rad)
-                        lineTo(left, top + rad)
-                        quadraticTo(left, top, left + rad, top)
-                        close()
-                    }
-                    val endColor = Color(ComposerPortMath.fillEndArgb(value))
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color(ComposerPortMath.BLUE_ARGB), endColor),
-                            startX = left,
-                            endX = (left + fillWidth).coerceAtLeast(left + 1f),
+                val pillPath = Path().apply {
+                    addRoundRect(
+                        RoundRect(
+                            left = left,
+                            top = top,
+                            right = left + barWidth,
+                            bottom = bottom,
+                            radiusX = barH / 2f,
+                            radiusY = barH / 2f,
                         ),
                     )
+                }
 
-                    clipPath(fillPath) {
-                        // Nebula layer.
+                clipPath(pillPath) {
+                    // Reached stretch: a brighter sheen that ends exactly at
+                    // the thumb, so the level is still readable on the bed.
+                    if (fillWidth > 0.5f) {
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.04f + 0.10f * energyNow),
+                                    Color.White.copy(alpha = 0.16f + 0.20f * energyNow),
+                                ),
+                                startX = left,
+                                endX = (left + fillWidth).coerceAtLeast(left + 1f),
+                            ),
+                            topLeft = Offset(left, top),
+                            size = Size(fillWidth, barH),
+                        )
+                        // Nebula tint, now only warming the reached stretch
+                        // instead of painting the whole bar.
                         drawRect(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
@@ -769,59 +806,60 @@ internal fun ComposerEffortSlider(
                             ),
                             topLeft = Offset(left, top),
                             size = Size(fillWidth, barH),
-                            alpha = energyNow,
+                            alpha = 0.08f + 0.16f * energyNow,
                         )
+                    }
 
-                        // Sweep highlight.
-                        if (!reducedMotion && energyNow > 0.01f) {
-                            val sweepT = (particleClock / 2.4f) % 1f
-                            val shift = fillWidth * (1f - 2f * sweepT)
-                            translate(shift, 0f) {
-                                drawRect(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color.White.copy(alpha = 0.30f),
-                                            Color.Transparent,
-                                        ),
-                                        start = Offset(left, bottom),
-                                        end = Offset(left + fillWidth, top),
-                                    ),
-                                    topLeft = Offset(left, top),
-                                    size = Size(fillWidth, barH),
-                                )
-                            }
-                        }
+                    // Sweep highlight: crosses the WHOLE pill at every level,
+                    // with an alpha floor so Off/Low show motion too.
+                    if (!reducedMotion) {
+                        val sweepT = (particleClock / 3.4f) % 1f
+                        val band = barWidth * 0.5f
+                        val sweepX = left - band + (barWidth + band) * sweepT
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = 0.09f + 0.16f * energyNow),
+                                    Color.Transparent,
+                                ),
+                                startX = sweepX,
+                                endX = sweepX + band,
+                            ),
+                            topLeft = Offset(sweepX, top),
+                            size = Size(band, barH),
+                        )
+                    }
 
-                        // Stars.
-                        val starCount = ComposerPortMath.starCount(energyNow)
-                        val speed = ComposerPortMath.speedAt(value)
-                        val layer = 0.6f + 0.4f * energyNow
-                        for (i in 0 until starCount) {
-                            val spread = ComposerPortMath.starSpread(i) * if (reducedMotion) {
-                                2.6f
-                            } else {
-                                1f
-                            }
-                            val duration = 1.5f * 2f / speed * spread
-                            val starProgress =
-                                ((particleClock / duration) + ComposerPortMath.starPhase(i)) % 1f
-                            val brightness = ComposerPortMath.starBrightness(i)
-                            val alpha = ComposerPortMath.starAlpha(starProgress, brightness, layer)
-                            if (alpha <= 0f) continue
-                            val x = left + fillWidth * (1f - starProgress)
-                            val y = top + ComposerPortMath.starY(i) * barH
-                            drawCircle(
-                                color = Color(0xFFF5F3FF).copy(alpha = alpha * 0.28f),
-                                radius = 4.5f * density * brightness,
-                                center = Offset(x, y),
-                            )
-                            drawCircle(
-                                color = Color.White.copy(alpha = alpha),
-                                radius = 1.5f * density * brightness,
-                                center = Offset(x, y),
-                            )
+                    // Stars: the field drifts across the full pill, so Off and
+                    // Low are genuinely animated instead of a still dot.
+                    val starCount = ComposerPortMath.starCount(energyNow)
+                    val speed = ComposerPortMath.particleSpeed(value)
+                    val layer = 0.75f + 0.25f * energyNow
+                    for (i in 0 until starCount) {
+                        val spread = ComposerPortMath.starSpread(i) * if (reducedMotion) {
+                            2.6f
+                        } else {
+                            1f
                         }
+                        val duration = 1.5f * 2f / speed * spread
+                        val starProgress =
+                            ((particleClock / duration) + ComposerPortMath.starPhase(i)) % 1f
+                        val brightness = ComposerPortMath.starBrightness(i)
+                        val alpha = ComposerPortMath.starAlpha(starProgress, brightness, layer)
+                        if (alpha <= 0f) continue
+                        val x = left + barWidth * (1f - starProgress)
+                        val y = top + barH * (0.18f + 0.64f * ComposerPortMath.starY(i))
+                        drawCircle(
+                            color = Color(0xFFF5F3FF).copy(alpha = alpha * 0.28f),
+                            radius = 4.5f * density * brightness,
+                            center = Offset(x, y),
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = alpha),
+                            radius = 1.5f * density * brightness,
+                            center = Offset(x, y),
+                        )
                     }
                 }
 
@@ -832,11 +870,7 @@ internal fun ComposerEffortSlider(
                     for (i in 0 until count) {
                         val reached = track.pctFor(i) <= value + 0.0005f
                         drawCircle(
-                            color = if (reached) {
-                                Color.White.copy(alpha = 0.9f)
-                            } else {
-                                tickColor
-                            },
+                            color = Color.White.copy(alpha = if (reached) 0.92f else 0.30f),
                             radius = 1.6f * density,
                             center = Offset(track.tickX(i), cy),
                         )

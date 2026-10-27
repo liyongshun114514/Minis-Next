@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 仅用于系统提示词界面（全局提示词 + 分组/模型自定义规则）。 -->
+<resources>
+    <string name="prompt_ui_global_badge">全局</string>
+    <string name="prompt_ui_global_scope">应用于所有对话。分组与模型规则会附加在它之后。</string>
+    <string name="prompt_ui_global_saved">已保存</string>
+    <string name="prompt_ui_global_unsaved">有未保存的更改</string>
+    <string name="prompt_ui_global_footer">这段提示词始终最先注入。自定义规则依次附加：先分组规则，后模型规则。</string>
+    <string name="prompt_ui_rules_summary">%1$d 条规则 · %2$d 条已启用</string>
+    <string name="prompt_ui_rules_order_hint">同一范围内，列表顺序就是附加顺序。</string>
+    <string name="prompt_ui_tier_group">分组规则（%1$d）</string>
+    <string name="prompt_ui_tier_model">模型规则（%1$d）</string>
+    <string name="prompt_ui_rule_disabled">已停用</string>
+    <string name="prompt_ui_rule_no_content">无提示词内容</string>
+    <string name="prompt_ui_rule_move_up">上移</string>
+    <string name="prompt_ui_rule_move_down">下移</string>
+    <string name="prompt_ui_editor_applies_to">适用范围</string>
+    <string name="prompt_ui_editor_target">目标</string>
+    <string name="prompt_ui_editor_change_target">更改</string>
+    <string name="prompt_ui_editor_target_hint">规则只对选中的分组或模型生效，绝不会对所有对话生效。</string>
+    <string name="prompt_ui_editor_enabled_hint">停用后规则仍会保留，但不会被附加。</string>
+</resources>

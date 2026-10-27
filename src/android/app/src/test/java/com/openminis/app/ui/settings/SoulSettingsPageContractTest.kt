@@ -7,16 +7,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [T-android-soul-system-prompt-only] Contract for the reduced Soul page.
+ * [T-android-soul-system-prompt-only] Contract for the reduced Soul page,
+ * extended for the restructured prompt area.
  *
  * The page is the system-prompt setting and nothing else: an editable avatar,
- * a name, and one prompt field. This replaces the former
- * `SoulLangButtonWrapTest`, which asserted the language row that has been
- * removed.
+ * a name, the global prompt, and the scoped custom rules. The layout moved
+ * from two tabs to two stacked sections; the storage, matching and save paths
+ * are unchanged and are pinned below.
  */
 class SoulSettingsPageContractTest {
 
     private val src = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
+    private val section = ProductionSources.read("ui/settings/SoulPromptRulesSection.kt")
+    private val editor = ProductionSources.read("ui/settings/SoulPromptRuleEditor.kt")
+    private val order = ProductionSources.read("ui/settings/SoulPromptRuleUi.kt")
 
     @Test
     fun `the page edits exactly the avatar, the name and the prompt`() {
@@ -86,41 +90,96 @@ class SoulSettingsPageContractTest {
         assertTrue("the menu item still has a title", src.contains("R.string.soul_icon_choose_image"))
     }
 
-    // ── [T-soul-scoped-prompt] Global / Custom pages ─────────────────────
+    // ── Global prompt and custom rules are separate sections ─────────────
 
     @Test
-    fun `the prompt area has global and custom tabs`() {
-        assertTrue(src.contains("soul_tab_global"))
-        assertTrue(src.contains("soul_tab_custom"))
-        assertTrue(src.contains("TabRow(selectedTabIndex = promptTab)"))
-        // Global keeps the original SOUL.md editor and its Save path.
-        assertTrue(src.contains("if (promptTab == 0)"))
-        assertEquals("one global prompt editor", 1, Regex("""DocumentEditorField\(""").findAll(src).count())
+    fun `the prompt area is two stacked sections instead of hidden tabs`() {
+        // A tab row hid one half of the feature and put the global Save in the
+        // app bar, where it looked like it saved the rules too.
+        assertFalse("no tabs", src.contains("TabRow("))
+        assertFalse("no page selector state", src.contains("promptTab"))
+        // Global first, custom rules directly after it.
+        val global = src.indexOf("R.string.soul_section_personality")
+        val custom = src.indexOf("SoulCustomRulesSection(")
+        assertTrue("global section before custom rules", global >= 0 && custom > global)
+        assertTrue(src.contains("prompt_ui_global_badge"))
+        assertTrue(src.contains("prompt_ui_global_footer"))
+    }
+
+    @Test
+    fun `the global prompt keeps its own save, scoped to the prompt`() {
+        // Save moved from the app bar into the global card: it commits
+        // SOUL.md only, while rules persist immediately and have no button.
+        assertTrue(src.contains("MinisButton(\n                        onClick = save,"))
+        assertTrue(src.contains("prompt_ui_global_unsaved"))
+        assertTrue(src.contains("prompt_ui_global_saved"))
+        assertTrue("rules persist on change", src.contains("persistRules("))
     }
 
     @Test
     fun `custom rules can be enabled targeted edited added and deleted`() {
         assertTrue(src.contains("SoulPromptRuleStore.load(context)"))
         assertTrue(src.contains("SoulPromptRuleStore.save(context, next)"))
-        assertTrue(src.contains("SettingsSwitch("))
         assertTrue(src.contains("persistRules("))
         assertTrue(src.contains("SoulPromptRuleEditorDialog("))
-        assertTrue(src.contains("SoulPromptRuleTarget.GROUP"))
-        assertTrue(src.contains("SoulPromptRuleTarget.MODEL"))
         assertTrue(src.contains("rules.filterNot { it.id == pending.id }"))
-        assertTrue(src.contains("soul_custom_rules_add"))
+        // The list itself lives in its own UI-only file.
+        assertTrue(section.contains("SettingsSwitch("))
+        assertTrue(section.contains("SoulPromptRuleTarget.GROUP"))
+        assertTrue(section.contains("SoulPromptRuleTarget.MODEL"))
+        assertTrue(section.contains("R.string.soul_custom_rules_add"))
+    }
+
+    @Test
+    fun `a rule row shows scope target on-off state and a body preview`() {
+        assertTrue(section.contains("R.string.soul_custom_rule_target_group"))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_model"))
+        assertTrue(section.contains("R.string.soul_custom_rule_group_label"))
+        assertTrue(section.contains("R.string.soul_custom_rule_model_label"))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_missing"))
+        assertTrue(section.contains("prompt_ui_rules_summary"))
+        assertTrue(section.contains("SoulPromptRuleUi.preview("))
+        assertTrue(section.contains("prompt_ui_rule_disabled"))
+    }
+
+    @Test
+    fun `reordering is offered inside a scope and persisted in list order`() {
+        assertTrue(section.contains("onMove(rule, -1)"))
+        assertTrue(section.contains("onMove(rule, 1)"))
+        assertTrue(src.contains("SoulPromptRuleUi.moveWithinTier(rules, rule.id, delta)"))
+        assertTrue(src.contains("if (next !== rules) persistRules(next)"))
+        assertTrue(order.contains("fun moveWithinTier("))
+        // No sorting by id/name anywhere: the list order IS the injection
+        // order, so a display sort would silently reorder the prompt.
+        assertFalse(order.contains("sortedBy"))
+        assertFalse(order.contains("sortedWith"))
     }
 
     @Test
     fun `a deleted target is shown as missing and never silently global`() {
-        assertTrue(src.contains("soul_custom_rule_target_missing"))
-        assertTrue(src.contains("soul_custom_rules_intro"))
+        assertTrue(section.contains("SoulPromptRuleUi.targetRef("))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_missing"))
+        assertTrue(section.contains("R.string.soul_custom_rules_intro"))
         // The rule editor offers exactly Group and Model — no "all" scope.
-        val editor = ProductionSources.read("ui/settings/SoulPromptRuleEditor.kt")
         assertTrue(editor.contains("SoulPromptRuleTarget.GROUP"))
         assertTrue(editor.contains("SoulPromptRuleTarget.MODEL"))
         assertFalse("no global target option", editor.contains("SoulPromptRuleTarget.GLOBAL"))
         assertFalse(editor.contains("AllModels"))
+    }
+
+    @Test
+    fun `the editor selects scope and target without nested menus`() {
+        assertFalse("no tab row in the form", editor.contains("TabRow("))
+        assertFalse("no dropdown inside the scrolling form", editor.contains("DropdownMenu("))
+        assertTrue(editor.contains("SingleChoiceSegmentedButtonRow("))
+        assertTrue(editor.contains("SoulPromptTargetPickerDialog("))
+        assertTrue(editor.contains("prompt_ui_editor_applies_to"))
+        assertTrue(editor.contains("prompt_ui_editor_target"))
+        assertTrue(editor.contains("prompt_ui_editor_change_target"))
+        // Missing targets are preserved verbatim and must be re-picked.
+        assertTrue(editor.contains("existing.groupId"))
+        assertTrue(editor.contains("it.providerInstanceId == existing.providerInstanceId &&"))
+        assertTrue(editor.contains("canSave = hasTarget && content.isNotBlank()"))
     }
 
     @Test

@@ -554,12 +554,25 @@ internal fun relaySheetRows(st: QuotaState, instance: ProviderInstance): (@Compo
     }
 }
 
+/** [UBUNTU6] Which added channel a pool's figure comes from; null for every other adapter. */
+@Composable
+private fun channelLabel(adapterId: String): String? = when (adapterId) {
+    "novita.billing-balance" -> stringResource(R.string.quota_channel_novita)
+    "vercel.ai-gateway-credits" -> stringResource(R.string.quota_channel_vercel_gateway)
+    "relay.liteLLM" -> stringResource(R.string.quota_channel_litellm)
+    else -> null
+}
+
 @Composable
 private fun PoolSection(st: QuotaState, pool: QuotaPool) {
     val context = LocalContext.current
     val status = st.poolStatus(pool)
     val scopes = st.bindings.filter { it.poolKey == pool.id }
-    SheetSection(QuotaText.kindName(context, pool.kind)) {
+    val channel = channelLabel(pool.provenance.adapterId)
+    SheetSection(
+        if (channel != null) "${QuotaText.kindName(context, pool.kind)} · $channel"
+        else QuotaText.kindName(context, pool.kind),
+    ) {
         QuotaPoolRow(pool, status, detailed = true, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp))
         QuotaDivider()
         LabeledRow(stringResource(R.string.quota_source)) {

@@ -24,9 +24,24 @@ internal object ComposerPortMath {
     const val PARTICLE_COUNT = 22
     const val GOLDEN_RATIO = 0.6180339887498949
 
+    /**
+     * Particles that keep running at Off: the bed is live at every level, so
+     * the first two stops must still show real movement, not frozen dots.
+     */
+    const val MIN_PARTICLES = 5
+
     const val BLUE_ARGB = 0xFF4D93F8.toInt()
     const val VIOLET_ARGB = 0xFF9333EA.toInt()
     const val DEEP_ARGB = 0xFF4C1D95.toInt()
+
+    /**
+     * Full-track bed. The pill is coloured edge to edge at EVERY level (Off and
+     * Low included), so the bed colours are the vivid ones a little deepened so
+     * the white thumb and the white tick dots keep their contrast.
+     */
+    const val BED_BLUE_ARGB = 0xFF3F7BE0.toInt()
+    const val BED_VIOLET_ARGB = 0xFF7C3AED.toInt()
+    const val BED_DEEP_ARGB = 0xFF451C86.toInt()
     const val LEVEL_VIOLET_ARGB = 0xFF8B5CF6.toInt()
     const val OFF_GREY_ARGB = 0xFF8B9099.toInt()
 
@@ -78,8 +93,21 @@ internal object ComposerPortMath {
         return mixArgb(BLUE_ARGB, LEVEL_VIOLET_ARGB, energy(pct(index, count)))
     }
 
+    /**
+     * Particles rendered for [energy]: never fewer than [MIN_PARTICLES], so Off
+     * and Low have a live field, and [PARTICLE_COUNT] at the far right.
+     */
     fun starCount(energy: Float): Int =
-        (clamp01(energy) * PARTICLE_COUNT).roundToInt().coerceIn(0, PARTICLE_COUNT)
+        MIN_PARTICLES + ((PARTICLE_COUNT - MIN_PARTICLES) * clamp01(energy))
+            .roundToInt()
+            .coerceIn(0, PARTICLE_COUNT - MIN_PARTICLES)
+
+    /**
+     * Travel speed of the particle field for a track position. It keeps the
+     * upstream 1x..2x top end but lifts the Off floor from the upstream 0.35x
+     * crawl to 0.6x, so the low stops visibly drift instead of looking static.
+     */
+    fun particleSpeed(value: Float): Float = 0.6f + 1.4f * clamp01(value)
 
     private fun frac(value: Double): Float {
         val f = value - kotlin.math.floor(value)

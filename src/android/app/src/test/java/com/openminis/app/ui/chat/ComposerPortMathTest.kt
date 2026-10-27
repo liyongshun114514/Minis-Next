@@ -73,12 +73,29 @@ class ComposerPortMathTest {
     }
 
     @Test
-    fun `star count follows energy and never exceeds 22`() {
-        assertEquals(0, ComposerPortMath.starCount(0f))
-        assertEquals(11, ComposerPortMath.starCount(0.5f))
-        assertEquals(22, ComposerPortMath.starCount(1f))
-        assertEquals(0, ComposerPortMath.starCount(-1f))
-        assertEquals(22, ComposerPortMath.starCount(2f))
+    fun `star count keeps the field alive at every level`() {
+        // Off/Low used to render zero stars; the bed is always coloured now, so
+        // the field never drops below MIN_PARTICLES and grows to all 22.
+        assertEquals(ComposerPortMath.MIN_PARTICLES, ComposerPortMath.starCount(0f))
+        assertEquals(ComposerPortMath.MIN_PARTICLES, ComposerPortMath.starCount(-1f))
+        assertEquals(14, ComposerPortMath.starCount(0.5f))
+        assertEquals(ComposerPortMath.PARTICLE_COUNT, ComposerPortMath.starCount(1f))
+        assertEquals(ComposerPortMath.PARTICLE_COUNT, ComposerPortMath.starCount(2f))
+        assertTrue(
+            (0..20).all {
+                val now = ComposerPortMath.starCount(it / 20f)
+                val before = ComposerPortMath.starCount((it - 1) / 20f)
+                now >= before
+            },
+        )
+    }
+
+    @Test
+    fun `particle travel stays visible at off and low`() {
+        assertEquals(0.6f, ComposerPortMath.particleSpeed(0f), 1e-5f)
+        assertEquals(2f, ComposerPortMath.particleSpeed(1f), 1e-5f)
+        assertTrue(ComposerPortMath.particleSpeed(1f / 6f) > 0.8f)
+        assertTrue(ComposerPortMath.particleSpeed(1f / 6f) < ComposerPortMath.particleSpeed(0.5f))
     }
 
     @Test

@@ -39,6 +39,22 @@ enum class QuotaVendor {
     geminiAPIKey, geminiCodeAssist, antigravity,
     xAI, kimiCode, githubCopilot,
 
+    /**
+     * Novita AI. `GET https://api.novita.ai/openapi/v1/billing/balance/detail`
+     * is documented ("User Balance Info") and returns availableBalance /
+     * cashBalance / creditLimit / pendingCharges / outstandingInvoices in
+     * 1/10000 USD units (docs.novita.ai/api-reference/basic-get-user-balance).
+     */
+    novita,
+
+    /**
+     * Vercel AI Gateway. `GET https://ai-gateway.vercel.sh/v1/credits` is
+     * documented ("Check credit balance") and returns `balance` and
+     * `total_used` in USD
+     * (vercel.com/docs/ai-gateway/sdks-and-apis/rest-api#check-credit-balance).
+     */
+    vercelAIGateway,
+
     /** Xiaomi MiMo: its balance is only exposed to the web console's login session. */
     xiaomiMiMo,
 

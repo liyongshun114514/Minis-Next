@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sub_agents_concurrency_title">Simultaneous sub agents</string>
+    <string name="sub_agents_concurrency_count">%1$d agents</string>
+    <string name="sub_agents_concurrency_footer">Choose 1–8 simultaneous sub agents per conversation. Extra tasks queue automatically. Increasing the limit starts waiting tasks; decreasing it lets active tasks finish.</string>
+</resources>

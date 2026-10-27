@@ -182,14 +182,20 @@ object AgentJobRegistry {
      */
     const val MAX_CONCURRENT_CHILD_JOBS_PER_PARENT = 3
 
-    /**
-     * [T-loadtest-limits] The per-parent cap admission uses:
-     * [MAX_CONCURRENT_CHILD_JOBS_PER_PARENT] unless a DEV_TOOLS build
-     * overrides it for a load test. In memory only.
-     */
+    /** Highest user-selectable simultaneous helper count per conversation. */
+    const val MAX_USER_CONCURRENT_CHILD_JOBS = 8
+
+    /** The persisted user preference is restored at startup. Debug builds may override it. */
     @Volatile
     var maxConcurrentChildJobsPerParent: Int = MAX_CONCURRENT_CHILD_JOBS_PER_PARENT
         private set
+
+    /** Raising the limit drains eligible queues; lowering never cancels existing work. */
+    fun setUserMaxConcurrentChildJobs(n: Int): Int {
+        maxConcurrentChildJobsPerParent = n.coerceIn(1, MAX_USER_CONCURRENT_CHILD_JOBS)
+        drainIfStalled()
+        return maxConcurrentChildJobsPerParent
+    }
 
     /**
      * [T-loadtest-limits] DEV_TOOLS only: set the PER-PARENT child cap (null =
@@ -247,6 +253,7 @@ object AgentJobRegistry {
         runSessionId: String? = null,
         /** [T-android-subagent-prompt-parity] See [AgentJob.wasResumed]. */
         wasResumed: Boolean = false,
+        startupReservationId: String? = null,
     ): AgentJob {
         val resolvedThen = then ?: if (target.isChildOfCurrent) AgentJobThen.FollowUpParent(null) else AgentJobThen.None
         val job = AgentJob(
@@ -254,7 +261,14 @@ object AgentJobRegistry {
             trigger = trigger, target = target, prompt = prompt, then = resolvedThen,
             agentName = agentName, runSessionId = runSessionId, wasResumed = wasResumed,
         )
-        _jobs.value = _jobs.value + (job.id to job)
+        synchronized(this) {
+            _jobs.value = _jobs.value + (job.id to job)
+            (target as? AgentJobTarget.ChildOfCurrent)?.let { child ->
+                (startupReservationId ?: child.parentToolUseId)?.let {
+                    startingChildren.remove(child.parentSessionId to it)
+                }
+            }
+        }
         AppLogger.info(TAG, "REGISTER ${job.logLabel} then=$resolvedThen")
         return job
     }
@@ -292,9 +306,36 @@ object AgentJobRegistry {
         _jobs.value.values.filter { it.isActive }.mapNotNull { it.target.parentSessionIdOrNull }
             .groupingBy { it }.eachCount()
 
-    /** [T-new-limits] Whether [parentSessionId] may start one more child job now. */
+    // Child-session creation suspends before register(). Reserve that gap so parallel
+    // requests and queue drains cannot all observe the same free slot.
+    private val startingChildren = mutableMapOf<Pair<String, String>, Unit>()
+
+    @Synchronized
     fun canStartChildJob(parentSessionId: String): Boolean =
-        runningChildJobCount(parentSessionId) < maxConcurrentChildJobsPerParent
+        runningChildJobCount(parentSessionId) +
+            startingChildren.keys.count { it.first == parentSessionId } < maxConcurrentChildJobsPerParent
+
+    @Synchronized
+    fun reserveChildStart(parentSessionId: String, toolUseId: String): Boolean {
+        val key = parentSessionId to toolUseId
+        if (key in startingChildren) return true
+        if (!canStartChildJob(parentSessionId)) return false
+        startingChildren[key] = Unit
+        queueRevision.value++
+        return true
+    }
+
+    @Synchronized
+    fun hasChildStart(parentSessionId: String, toolUseId: String): Boolean =
+        (parentSessionId to toolUseId) in startingChildren
+
+    fun releaseChildStart(parentSessionId: String, toolUseId: String) {
+        val removed = synchronized(this) { startingChildren.remove(parentSessionId to toolUseId) != null }
+        if (removed) {
+            queueRevision.value++
+            drainIfStalled()
+        }
+    }
 
     /**
      * [T-new-limits] Wait until [parentSessionId] has a free child slot, at most
@@ -305,7 +346,18 @@ object AgentJobRegistry {
     suspend fun awaitChildSlot(parentSessionId: String, timeoutMs: Long): Boolean {
         if (canStartChildJob(parentSessionId)) return true
         return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
-            jobs.first { canStartChildJob(parentSessionId) }
+            combine(jobs, queueRevision) { _, _ -> canStartChildJob(parentSessionId) }.first { it }
+            true
+        } ?: false
+    }
+
+    /** Atomically wait-and-reserve for producers outside the delegation queue. */
+    suspend fun awaitReservedChildSlot(parentSessionId: String, key: String, timeoutMs: Long): Boolean {
+        if (reserveChildStart(parentSessionId, key)) return true
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            combine(jobs, queueRevision) { _, _ -> Unit }.first {
+                reserveChildStart(parentSessionId, key)
+            }
             true
         } ?: false
     }
@@ -376,7 +428,8 @@ object AgentJobRegistry {
     private fun computeParentsWithAgentWork(jobs: Map<String, AgentJob>): Set<String> {
         val running = jobs.values.filter { it.isActive }.mapNotNull { it.target.parentSessionIdOrNull }
         val queued = synchronized(queuedDelegations) { queuedDelegations.map { it.parentSessionId } }
-        return (running + queued).toSet()
+        val starting = synchronized(this) { startingChildren.keys.map { it.first } }
+        return (running + queued + starting).toSet()
     }
 
     /**
@@ -397,14 +450,21 @@ object AgentJobRegistry {
      * already released.
      */
     private val queuedStarters = java.util.concurrent.ConcurrentHashMap<String, (QueuedDelegation) -> Boolean>()
+    private val queuedFailureHandlers = java.util.concurrent.ConcurrentHashMap<String, (QueuedDelegation, String) -> Unit>()
+
+    fun registerQueuedFailureHandler(parentSessionId: String, handler: (QueuedDelegation, String) -> Unit) {
+        queuedFailureHandlers[parentSessionId] = handler
+    }
 
     fun registerQueuedStarter(parentSessionId: String, starter: (QueuedDelegation) -> Boolean) {
         if (parentSessionId.isEmpty()) return
         queuedStarters[parentSessionId] = starter
+        drainIfStalled()
     }
 
     fun unregisterQueuedStarter(parentSessionId: String) {
         queuedStarters.remove(parentSessionId)
+        queuedFailureHandlers.remove(parentSessionId)
     }
 
     fun enqueueDelegation(item: QueuedDelegation): Boolean = synchronized(queuedDelegations) {
@@ -435,6 +495,7 @@ object AgentJobRegistry {
      * the user had already ended.
      */
     fun dropQueuedDelegations(parentSessionId: String, reason: String) {
+        synchronized(this) { startingChildren.keys.removeAll { it.first == parentSessionId } }
         val removed = synchronized(queuedDelegations) {
             val hit = queuedDelegations.filter { it.parentSessionId == parentSessionId }
             queuedDelegations.removeAll(hit)
@@ -451,17 +512,26 @@ object AgentJobRegistry {
      * head of the queue: a parent that is full must not block the entries of
      * other parents behind it (head-of-line blocking).
      *
-     * At most ONE per parent per call, on purpose: a fresh delegation only
-     * occupies its slot once it registers (asynchronously, on its parent's
-     * view model), so draining a parent's whole backlog here would blow past
-     * its cap. The next `finish` of that parent's job drains its next one.
+     * Startup reservations let a single drain fill every available slot, even
+     * though session creation is asynchronous. Re-entrant drains are coalesced.
      */
+    private val drainRequests = java.util.concurrent.atomic.AtomicInteger(0)
     private fun drainQueuedDelegations() {
-        val startedFor = HashSet<String>()
+        // Work-in-progress counter retains a finish/release racing with the
+        // end of a drain. No dropped wakeups and no polling/timer are needed.
+        if (drainRequests.getAndIncrement() != 0) return
+        var consumed = 1
+        do {
+            drainQueuedPass()
+            consumed = drainRequests.addAndGet(-consumed)
+        } while (consumed != 0)
+    }
+
+    private fun drainQueuedPass() {
         while (true) {
             val next = synchronized(queuedDelegations) {
                 val i = queuedDelegations.indexOfFirst {
-                    it.parentSessionId !in startedFor && canStartChildJob(it.parentSessionId)
+                    canStartChildJob(it.parentSessionId)
                 }
                 if (i < 0) null else queuedDelegations.removeAt(i).also { queueRevision.value++ }
             } ?: return
@@ -477,14 +547,21 @@ object AgentJobRegistry {
                 )
                 continue
             }
+            if (!reserveChildStart(next.parentSessionId, next.toolUseId)) {
+                synchronized(queuedDelegations) { queuedDelegations.add(0, next); queueRevision.value++ }
+                return
+            }
             val started = runCatching { starter(next) }.getOrElse { e ->
                 AppLogger.warning(TAG, "QUEUE start failed for ${next.toolUseId.take(12)}: ${e.message}")
                 false
             }
             AppLogger.info(TAG, "QUEUE - tool=${next.toolUseId.take(12)} parent=${next.parentSessionId.take(8)} started=$started")
-            // A parent that no longer exists takes its queued work with it;
-            // move on to the next rather than stalling the whole backlog.
-            if (started) startedFor.add(next.parentSessionId)
+            if (!started) {
+                runCatching {
+                    queuedFailureHandlers[next.parentSessionId]?.invoke(next, "Queued helper could not start.")
+                }.onFailure { AppLogger.warning(TAG, "QUEUE failure delivery: ${it.message}") }
+                releaseChildStart(next.parentSessionId, next.toolUseId)
+            }
         }
     }
 
@@ -560,6 +637,12 @@ object AgentJobRegistry {
 
     /** The producer has started the run in [sessionId]. [onCancel] stops it. */
     fun markRunning(jobId: String, sessionId: String?, onCancel: (() -> Unit)? = null) {
+        if (_jobs.value[jobId]?.isActive != true) {
+            // Stop may arrive while the child VM is still being constructed.
+            // Termination is sticky: stop that late child instead of reviving it.
+            runCatching { onCancel?.invoke() }
+            return
+        }
         val job = update(jobId) {
             it.copy(
                 state = AgentJobState.RUNNING,
@@ -784,6 +867,8 @@ object AgentJobRegistry {
 
     /** Test hook. */
     internal fun resetForTest() {
+        maxConcurrentChildJobsPerParent = MAX_CONCURRENT_CHILD_JOBS_PER_PARENT
+        synchronized(this) { startingChildren.clear() }
         _jobs.value = emptyMap(); cancelHooks.clear(); completionHooks.clear()
         AppLogger.info(TAG, "[stop-diag] mute CLEAR-ALL (test reset) set=${mutedSnapshot()}")
         followUpDispatcher = null; mutedParents.clear()
