@@ -85,4 +85,54 @@ class SoulSettingsPageContractTest {
         assertFalse("hint line removed", src.contains("R.string.soul_icon_image_hint"))
         assertTrue("the menu item still has a title", src.contains("R.string.soul_icon_choose_image"))
     }
+
+    // ── [T-soul-scoped-prompt] Global / Custom pages ─────────────────────
+
+    @Test
+    fun `the prompt area has global and custom tabs`() {
+        assertTrue(src.contains("soul_tab_global"))
+        assertTrue(src.contains("soul_tab_custom"))
+        assertTrue(src.contains("TabRow(selectedTabIndex = promptTab)"))
+        // Global keeps the original SOUL.md editor and its Save path.
+        assertTrue(src.contains("if (promptTab == 0)"))
+        assertEquals("one global prompt editor", 1, Regex("""DocumentEditorField\(""").findAll(src).count())
+    }
+
+    @Test
+    fun `custom rules can be enabled targeted edited added and deleted`() {
+        assertTrue(src.contains("SoulPromptRuleStore.load(context)"))
+        assertTrue(src.contains("SoulPromptRuleStore.save(context, next)"))
+        assertTrue(src.contains("SettingsSwitch("))
+        assertTrue(src.contains("persistRules("))
+        assertTrue(src.contains("SoulPromptRuleEditorDialog("))
+        assertTrue(src.contains("SoulPromptRuleTarget.GROUP"))
+        assertTrue(src.contains("SoulPromptRuleTarget.MODEL"))
+        assertTrue(src.contains("rules.filterNot { it.id == pending.id }"))
+        assertTrue(src.contains("soul_custom_rules_add"))
+    }
+
+    @Test
+    fun `a deleted target is shown as missing and never silently global`() {
+        assertTrue(src.contains("soul_custom_rule_target_missing"))
+        assertTrue(src.contains("soul_custom_rules_intro"))
+        // The rule editor offers exactly Group and Model — no "all" scope.
+        val editor = ProductionSources.read("ui/settings/SoulPromptRuleEditor.kt")
+        assertTrue(editor.contains("SoulPromptRuleTarget.GROUP"))
+        assertTrue(editor.contains("SoulPromptRuleTarget.MODEL"))
+        assertFalse("no global target option", editor.contains("SoulPromptRuleTarget.GLOBAL"))
+        assertFalse(editor.contains("AllModels"))
+    }
+
+    @Test
+    fun `the runtime resolves rules per request and snapshots them per turn`() {
+        // Grep guard for the wiring that cannot be constructed in a JVM test:
+        // turn-level snapshot + per-request selection. If ChatViewModel drops
+        // either half, this fails instead of the UI silently doing nothing.
+        val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
+        assertTrue(vm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
+        assertTrue(vm.contains("applicationPromptForSelection("))
+        assertTrue(vm.contains("THE per-request application point"))
+        assertTrue(vm.contains("entry?.baseModel?.id"))
+        assertTrue(vm.contains("SystemPromptBuilder.applicationPrompt("))
+    }
 }

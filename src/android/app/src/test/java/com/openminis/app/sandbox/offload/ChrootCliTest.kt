@@ -245,13 +245,16 @@ class ChrootCliTest {
         assertTrue(text.contains("30 秒"))
         assertTrue(text.contains("uid=10379"))
         assertTrue(text.contains("gid=10379"))
-        assertTrue(text.contains("CapEff=0"))
         assertTrue(text.contains("PR_SET_NO_NEW_PRIVS"))
+        // [FEAT-261027-CHROOT-ROOT] The command child is a REAL uid0 when the
+        // tri-state allows it; a refusal is never an app-uid downgrade.
+        assertTrue(text.contains("uid0"))
+        assertTrue(text.contains("不会静默降级为 app uid"))
         assertTrue(text.contains("私有挂载命名空间"))
         assertTrue(text.contains("unshare(CLONE_NEWNS)"))
         assertTrue(text.contains("临时 helper"))
         assertTrue(text.contains("minis-chroot-gabcdef"))
-        assertTrue(text.contains("RootManager 调用 su"))
+        assertTrue(text.contains("root token"))
         assertTrue(text.contains("永远不会出现在 su 的命令行中"))
         assertTrue(text.contains("拒绝、取消或确认超时"))
         assertFalse(text.contains("BYPASS"))
@@ -260,7 +263,9 @@ class ChrootCliTest {
     @Test
     fun helpAdvertisesThePerCallConfirmationAndTimeoutBounds() {
         val help = ChrootCliPresentation.help()
-        assertTrue(help.contains("每次执行都要用户在应用内确认"))
+        // [FEAT-261027-CHROOT-ROOT] The CLI follows the unified tri-state.
+        assertTrue(help.contains("原生 Root 三态"))
+        assertTrue(help.contains("每次询问"))
         assertTrue(help.contains("--timeout 60"))
         assertTrue(help.contains("1..600"))
         assertTrue(help.contains("不调用 su"))

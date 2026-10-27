@@ -242,6 +242,7 @@ object SandboxBackendStore {
     private const val KEY_SELECTED = "selected"
     private const val KEY_AUTHORIZED_AT = "chroot_authorized_at"
     private const val KEY_GENERATION = "chroot_generation"
+    private const val KEY_GENERATION_PID = "chroot_generation_pid"
     private const val KEY_LAST_ERROR = "chroot_last_error"
 
     /**
@@ -293,22 +294,40 @@ object SandboxBackendStore {
     }
 
     /**
-     * The helper's socket name / challenge nonce. Regenerated on every helper
-     * start so a stale process can never be mistaken for the live one, and so
-     * nobody can connect to a name learned from an earlier run. Persisted only
-     * for diagnostics.
+     * The helper's socket nonce, unique to the CURRENT app process.
+     *
+     * The root token exists only in this process's memory, so a restarted app
+     * must never address the previous helper's socket: [generation] mints a
+     * fresh nonce when the persisted owner pid differs. The old helper exits
+     * on its own idle TTL. Persisted only so a diagnostics read can name it.
      */
+    @Synchronized
     fun generation(context: Context): String {
         val existing = prefs(context).getString(KEY_GENERATION, null)
-        if (!existing.isNullOrEmpty()) return existing
+        val ownerPid = prefs(context).getInt(KEY_GENERATION_PID, -1)
+        val pid = android.os.Process.myPid()
+        // [FEAT-261027-CHROOT-ROOT] A helper is bound to ONE app process: the
+        // root token lives only in that process's memory. Reusing the socket
+        // name after a restart would address a helper whose token we lost.
+        // A new process mints a new generation (and socket name); the old
+        // helper exits on its own idle TTL and is never killed by name. This
+        // store only ever names this app's own helper.
+        if (!existing.isNullOrEmpty() && ownerPid == pid) return existing
         val fresh = ChrootKernel.newGeneration()
-        prefs(context).edit().putString(KEY_GENERATION, fresh).apply()
+        prefs(context).edit()
+            .putString(KEY_GENERATION, fresh)
+            .putInt(KEY_GENERATION_PID, pid)
+            .apply()
         return fresh
     }
 
+    @Synchronized
     fun rotateGeneration(context: Context): String {
         val fresh = ChrootKernel.newGeneration()
-        prefs(context).edit().putString(KEY_GENERATION, fresh).apply()
+        prefs(context).edit()
+            .putString(KEY_GENERATION, fresh)
+            .putInt(KEY_GENERATION_PID, android.os.Process.myPid())
+            .apply()
         return fresh
     }
 
@@ -417,6 +436,12 @@ data class SandboxSpawn(
      * nothing is wrong; callers prepend it to the command output.
      */
     val warning: String? = null,
+    /**
+     * [FEAT-261027-CHROOT-ROOT] True when this spawn runs as uid 0 inside the
+     * chroot (the unified Root tri-state allowed it). Always false for PRoot:
+     * PRoot keeps its own fake root inside its tracer.
+     */
+    val rootExec: Boolean = false,
 )
 
 /** [FEAT-261025-CHROOT] What a spawn site asks for. */
@@ -441,6 +466,20 @@ data class SandboxCommandSpec(
      * non-null map is the session's merged table (see `SessionMounts`).
      */
     val sessionMounts: Map<String, String>? = null,
+    /**
+     * [FEAT-261027-CHROOT-ROOT] CHROOT only: this spawn asks for real uid 0.
+     * The chroot backend defaults to TRUE — inside the Ubuntu container the
+     * whole point is a real root that `apt`/`dpkg` can use, and the unified
+     * tri-state (not the backend) decides whether that is allowed. PRoot
+     * ignores this field entirely.
+     */
+    val rootPreferred: Boolean = true,
+    /**
+     * [FEAT-261027-CHROOT-ROOT] Explicit requirement (`android-chroot-cli`):
+     * only recorded for the audit trail/reason text; the chroot backend never
+     * downgrades to the app uid, so refusal is the same either way.
+     */
+    val rootRequired: Boolean = false,
 )
 
 /**
@@ -637,7 +676,12 @@ object SandboxSwitchController {
                     // this can take a while. Keep the old backend selected
                     // until the helper is ready: a refused/failed grant must
                     // leave the previous backend fully usable.
-                    val started = runCatching { ChrootKernel.ensureServer(context) }
+                    // An explicit switch the user just pressed: under 每次询问
+                    // it may raise ONE launch approval. Automatic restarts
+                    // never pass this and therefore never run su.
+                    val started = runCatching {
+                        ChrootKernel.ensureServer(context, "user switched the backend to chroot", userInitiated = true)
+                    }
                         .getOrElse { Result.failure(it) }
                     if (started.isFailure) {
                         val reason = started.exceptionOrNull()?.message ?: "chroot helper failed to start"

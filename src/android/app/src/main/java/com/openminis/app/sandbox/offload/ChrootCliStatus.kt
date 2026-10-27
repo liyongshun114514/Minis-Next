@@ -110,7 +110,8 @@ internal object ChrootCliStatus {
                     "helper_liveness=${ChrootCliHelperStatus.HELPER_NOT_PROBED}，grant_may_be_expired 只是可能过期的下界。",
                 "exec 每次都需用户在应用内单次确认，Root BYPASS/会话授权不会跳过。",
                 "prerequisites_met 只是文件与开关前置条件；status 不探测 su 可用性，也不保证 helper 能启动。",
-                "helper 本身是 uid0 的特权进程；只有它 fork 的 guest child 降为 app uid（CapEff=0, NoNewPrivs=1）。",
+                "helper 本身是 uid0 的特权进程；当前入口一律请求 guest 内真实 uid0，" +
+                    "不会静默降级为 app uid；命令始终处于私有 mount 命名空间且 NoNewPrivs=1。",
             ),
         )
     }

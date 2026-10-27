@@ -153,7 +153,17 @@ object ShellExecutor {
         // [FEAT-261025-CHROOT] Backend routing lives in one place. PRoot's
         // argv is unchanged (buildProotCommand, global mount table); chroot
         // returns the unprivileged client argv instead.
-        val spawn = SandboxRouter.build(context, SandboxCommandSpec(command = command))
+        val spawn = try {
+            SandboxRouter.build(context, SandboxCommandSpec(command = command))
+        } catch (e: ChrootKernel.RootExecRefusedException) {
+            // Refusal is a normal permission outcome, not a spawn crash and
+            // never a reason to retry through another backend.
+            return@withContext ShellResult(
+                output = e.message ?: "Root 权限拒绝：命令未执行。",
+                exitCode = 126,
+                durationMs = 0L,
+            )
+        }
         if (spawn.warning != null) Log.w(TAG, "bootstrap: ${spawn.warning}")
 
         Log.d(TAG, "Executing: $command (backend=${spawn.backend}, offload=${spawn.offload})")

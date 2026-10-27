@@ -91,6 +91,13 @@ internal class FreshProcessShell(
         statusHandle = statusFile
         val process = try {
             spawn(command, envVars, "/$EXIT_DIR_NAME/$token")
+        } catch (e: ChrootKernel.RootExecRefusedException) {
+            // [FEAT-261027-CHROOT-ROOT] A refusal/revocation is FINAL: it is
+            // not a transient start failure, and retrying would either prompt
+            // the user again or run a command they did not authorise. Nothing
+            // was spawned (no su, no helper, no chroot client).
+            Log.i(TAG, "[$sessionId] root exec refused: ${e.message}")
+            return@withContext Pair("$ROOT_REFUSED_PREFIX ${e.message}]", ROOT_REFUSED_EXIT)
         } catch (e: Exception) {
             Log.e(TAG, "[$sessionId] spawn failed: ${e.message}")
             return@withContext Pair("$SPAWN_FAILED_PREFIX ${e.message}]", -1)
@@ -575,6 +582,16 @@ internal class FreshProcessShell(
          * may queue the command and retry it.
          */
         const val SPAWN_FAILED_PREFIX = "[Failed to start shell:"
+
+        /**
+         * [FEAT-261027-CHROOT-ROOT] Leads the output when the Root tri-state
+         * refused this spawn. Nothing ran, but this is a final answer, not a
+         * transient start failure: GlobalShellThrottle must not retry it.
+         */
+        const val ROOT_REFUSED_PREFIX = "[Root 未授权，命令未执行："
+
+        /** Distinct from -1 so [ExecutionCoordinator.isStartFailure] is false. */
+        const val ROOT_REFUSED_EXIT = -2
 
         /**
          * [T-android-parity-fixes] stdin reads /dev/null, so a command that

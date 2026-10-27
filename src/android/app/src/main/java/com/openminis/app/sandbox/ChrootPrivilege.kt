@@ -12,12 +12,14 @@ import kotlinx.coroutines.withContext
  * [FEAT-261025-CHROOT] The ONE place the chroot backend asks for privilege.
  *
  * It delegates to the root bridge the native-port agent landed:
- * [com.openminis.app.offload.RootManager.runProcess]. Chroot does NOT show a
- * per-command Root prompt: the persistent Root grant (Settings → Permissions →
- * Native Root) is the authorisation, and without it the switch refuses with a
- * settings hint instead of enabling anything. RootManager still refuses custom
- * environments and main-thread callers, and the device su manager keeps its
- * own prompt.
+ * [com.openminis.app.offload.RootManager.runProcess]. The authorization itself
+ * is the unified Root tri-state (设置 → 权限 → 原生 Root): 完全允许 launches
+ * directly, 每次询问 needs ONE approval for an explicit user action (a switch,
+ * or a command/session the user just confirmed), 不允许 refuses with a settings
+ * hint. An automatic restart never runs su under 每次询问, and a per-command
+ * approval is passed in as a [RootManager.AccessTicket] so the launch does not
+ * prompt a second time. RootManager still refuses custom environments and
+ * main-thread callers, and the device su manager keeps its own prompt.
  *
  * ## Why a helper process instead of one root call per command
  *
@@ -60,14 +62,18 @@ internal object ChrootPrivilege {
     }
 
     /**
-     * Whether a Chroot switch may proceed under the current tri-state level:
-     * 允许 runs directly; 询问 asks ONCE per switch (the user's answer covers
-     * this switch only); 不允许 refuses with the settings hint.
+     * Whether the chroot backend may be used at all under the current level:
+     * 完全允许 runs directly; 每次询问 asks ONCE for the action that needs the
+     * helper; 不允许 refuses with the settings hint (chroot never downgrades to
+     * an unprivileged spawn either — see RootExecPolicy).
      */
     fun switchAllowed(): Boolean = when (RootManager.accessLevel()) {
         RootAccess.BYPASS, RootAccess.ASK_ONCE -> true
         RootAccess.NOT_ALLOWED -> false
     }
+
+    /** True only when a helper launch may execute without any approval. */
+    fun silentLaunchAllowed(): Boolean = RootManager.accessLevel() == RootAccess.BYPASS
 
     /** Human-readable bridge state, for the settings row. */
     fun bridgeState(): String = RootManager.snapshot.value.let { "${it.state}: ${it.message}" }
@@ -84,7 +90,27 @@ internal object ChrootPrivilege {
         argv: List<String>,
         reason: String,
         timeoutMs: Long = LAUNCH_TIMEOUT_MS,
+        /**
+         * True only for an explicit in-app action (the settings switch, the
+         * CLI's own confirmed command). Under 每次询问 it may raise ONE
+         * launch approval. Automatic restart passes false and therefore never
+         * runs su without permission.
+         */
+        userInitiated: Boolean = false,
+        /**
+         * A ticket for an approval the caller already obtained for this exact
+         * action (the chroot CLI's single-use confirmation), so the launch
+         * does not prompt a second time under 每次询问.
+         */
+        ticket: RootManager.AccessTicket? = null,
     ): Outcome = withContext(Dispatchers.IO) {
+        // Defence in depth: under 每次询问 an automatic caller with no ticket
+        // must not even reach RootManager (which would report a settings hint
+        // after a pointless call). A user-initiated launch without a ticket is
+        // still allowed to ask once.
+        if (RootManager.accessLevel() == RootAccess.ASK_ONCE && !userInitiated && ticket == null) {
+            return@withContext Outcome(126, "", com.openminis.app.offload.ROOT_DISABLED_FOR_SYSTEM)
+        }
         if (!switchAllowed()) {
             // 不允许: switching backends must never enable Root or pop a Root
             // dialog; the Chroot row reports the settings hint instead.
@@ -102,15 +128,22 @@ internal object ChrootPrivilege {
                 env = null,
                 cwd = null,
                 timeoutMs = timeoutMs,
-                // Tri-state: 允许 executes directly; 询问 raises ONE
-                // confirmable request for this switch (never enabling Root,
-                // never changing the level); 不允许 is refused above.
-                caller = RootCaller.SYSTEM,
+                // Tri-state: 完全允许 executes directly. 每次询问 raises ONE
+                // approval only for an explicit user action and never changes
+                // the level; an automatic restart is refused without su.
+                caller = if (userInitiated) RootCaller.USER else RootCaller.SYSTEM,
+                ticket = ticket,
             )
         }.getOrElse { t ->
             return@withContext Outcome(-1, "", "root bridge threw: ${t.javaClass.simpleName}: ${t.message}")
         }
-        Log.i(TAG, "root grant result exit=${result.exitCode} out=${result.stdout.take(120)}")
+        // Never log the raw stdout: it carries the helper's per-helper root
+        // token. Only the exit code and whether a handshake line exists.
+        Log.i(
+            TAG,
+            "root grant result exit=${result.exitCode} " +
+                "handshake=${result.stdout.contains("MINIS-CHROOT-READY")}",
+        )
         Outcome(result.exitCode, result.stdout, result.stderr)
     }
 }

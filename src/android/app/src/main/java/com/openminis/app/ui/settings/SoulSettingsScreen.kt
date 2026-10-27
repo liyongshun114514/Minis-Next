@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,9 +73,15 @@ import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulFile
 import com.openminis.app.agent.SoulMDParser
 import com.openminis.app.agent.SoulMetadata
+import com.openminis.app.agent.SoulPromptRule
+import com.openminis.app.agent.SoulPromptRuleStore
+import com.openminis.app.agent.SoulPromptRuleTarget
 import com.openminis.app.agent.SoulStore
+import com.openminis.app.data.model.ProviderConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
 
@@ -126,6 +134,43 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     var showIconMenu by remember { mutableStateOf(false) }
     var showEmojiSheet by remember { mutableStateOf(false) }
     var iconError by remember { mutableStateOf<String?>(null) }
+
+    // [T-soul-scoped-prompt] Global / Custom page selection.
+    var promptTab by remember { mutableStateOf(0) }
+
+    // Custom rules are persisted independently of the global Save button, so
+    // toggling a switch or deleting a row is immediate. Editing the global body
+    // still uses the app-bar Save (it is a SOUL.md write).
+    var rules by remember { mutableStateOf<List<SoulPromptRule>>(emptyList()) }
+    var rulesError by remember { mutableStateOf<String?>(null) }
+    var ruleEditorOpen by remember { mutableStateOf(false) }
+    var ruleBeingEdited by remember { mutableStateOf<SoulPromptRule?>(null) }
+    var rulePendingDelete by remember { mutableStateOf<SoulPromptRule?>(null) }
+
+    // The group / model lists shown by the rule editor. Read from the same
+    // ProviderRepository the chat uses, so the ids stored by a rule are the
+    // ids the runtime will compare against. null repository (safe mode) simply
+    // yields empty pickers instead of crashing.
+    val app = remember(context) { context.applicationContext as? com.openminis.app.MinisApp }
+    val providerRepository = remember(app) { app?.providerRepositoryOrNull }
+    val emptyConfig = remember { MutableStateFlow(ProviderConfig()) }
+    val providerConfig by (providerRepository?.config ?: emptyConfig).collectAsState()
+    val groupOptions = providerConfig.modelGroups.map { group ->
+        SoulPromptGroupOption(group.id, group.name.ifBlank { group.id })
+    }
+    val modelOptions = providerConfig.modelEntries
+        .filter { !it.isHidden }
+        .mapNotNull { entry ->
+            val instance = providerConfig.instances.firstOrNull { it.id == entry.providerInstanceId }
+                ?: return@mapNotNull null
+            SoulPromptModelOption(
+                providerInstanceId = entry.providerInstanceId,
+                modelId = entry.model.id,
+                label = entry.model.displayName + " · " +
+                    instance.label.ifBlank { entry.model.provider },
+            )
+        }
+        .distinctBy { it.providerInstanceId + "\u0000" + it.modelId }
 
     // [T-android-soul-save-in-appbar] What was loaded from disk, kept so
     // "has the user changed anything" is a comparison rather than a flag.
@@ -181,6 +226,9 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             SoulStore.ensureExists(context)
             SoulStore.load(context) ?: SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)
         }
+        rules = withContext(Dispatchers.IO) {
+            runCatching { SoulPromptRuleStore.load(context) }.getOrDefault(emptyList())
+        }
         name = parsed.metadata.name
         preservedEmoji = parsed.metadata.emoji
         icon = parsed.metadata.icon
@@ -234,6 +282,25 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     val isDirty = loaded && baseline != null && currentFile != baseline
     var showDiscardDialog by remember { mutableStateOf(false) }
 
+    // [T-soul-scoped-prompt] Rule writes are serialized: rapid switch flips
+    // launch several saves, and without a mutex an older snapshot could land
+    // after a newer one. A failure reports itself but never rolls the UI back
+    // — that would discard a newer change the user already made.
+    val persistMutex = remember { kotlinx.coroutines.sync.Mutex() }
+    val persistRules: (List<SoulPromptRule>) -> Unit = { next ->
+        rules = next
+        scope.launch {
+            persistMutex.withLock {
+                runCatching {
+                    withContext(Dispatchers.IO) { SoulPromptRuleStore.save(context, next) }
+                }.onFailure { t ->
+                    rulesError = t.message ?: "save failed"
+                }
+            }
+        }
+        Unit
+    }
+
     val save: () -> Unit = {
         scope.launch {
             try {
@@ -260,11 +327,15 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         actions = {
             // Save lives in the app bar, where a top-level commit action
             // belongs and where it stays reachable without scrolling the
-            // prompt editor to the bottom.
-            MinisTextButton(
-                onClick = save,
-                enabled = loaded && isDirty && !bodyLimitCheck.isOverLimit,
-            ) { Text(stringResource(R.string.soul_save)) }
+            // prompt editor to the bottom. It commits SOUL.md (global prompt)
+            // only; custom rules persist as they are edited and therefore do
+            // not participate in the dirty/undo guard.
+            if (promptTab == 0) {
+                MinisTextButton(
+                    onClick = save,
+                    enabled = loaded && isDirty && !bodyLimitCheck.isOverLimit,
+                ) { Text(stringResource(R.string.soul_save)) }
+            }
         },
     ) {
         // Identity: the avatar and the name, and nothing else. Tapping the
@@ -342,6 +413,26 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             }
         }
 
+        // [T-soul-scoped-prompt] Two pages over one identity header. The
+        // avatar/name row above is shared and untouched; only the prompt area
+        // switches. "Global" is the pre-existing SOUL.md editor, so an
+        // existing user lands on exactly what they had before.
+        TabRow(selectedTabIndex = promptTab) {
+            Tab(selected = promptTab == 0, onClick = { promptTab = 0 }) {
+                Text(
+                    stringResource(R.string.soul_tab_global),
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            }
+            Tab(selected = promptTab == 1, onClick = { promptTab = 1 }) {
+                Text(
+                    stringResource(R.string.soul_tab_custom),
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            }
+        }
+
+        if (promptTab == 0) {
         // The system prompt: the SOUL.md body, unchanged in meaning and in
         // how it is saved.
         SettingsSection(
@@ -402,6 +493,119 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                         fontSize = 12.sp,
                         color = Color(0xFFFF3B30),
                     )
+                }
+            }
+        }
+        } else {
+            // [T-soul-scoped-prompt] Custom rules. Every control writes
+            // through SoulPromptRuleStore immediately; there is no draft
+            // state to lose, and the runtime snapshot is refreshed by the
+            // store on save.
+            SettingsSection(
+                header = stringResource(R.string.soul_custom_rules_header),
+                footer = stringResource(R.string.soul_custom_rules_intro),
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        stringResource(R.string.soul_custom_rules_saved_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (rules.isEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            stringResource(R.string.soul_custom_rules_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    rules.forEach { rule ->
+                        Spacer(Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = rule.name.ifBlank { unnamedRuleLabel },
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                val targetLabel = when (rule.target) {
+                                    SoulPromptRuleTarget.GROUP -> {
+                                        val found = groupOptions.firstOrNull { it.id == rule.groupId }
+                                        if (found != null) {
+                                            stringResource(R.string.soul_custom_rule_group_label, found.label)
+                                        } else {
+                                            stringResource(R.string.soul_custom_rule_target_missing)
+                                        }
+                                    }
+                                    SoulPromptRuleTarget.MODEL -> {
+                                        val found = modelOptions.firstOrNull {
+                                            it.providerInstanceId == rule.providerInstanceId &&
+                                                it.modelId == rule.modelId
+                                        }
+                                        if (found != null) {
+                                            stringResource(R.string.soul_custom_rule_model_label, found.label)
+                                        } else {
+                                            stringResource(R.string.soul_custom_rule_target_missing)
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = targetLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            SettingsSwitch(
+                                checked = rule.enabled,
+                                onCheckedChange = { checked ->
+                                    persistRules(
+                                        rules.map {
+                                            if (it.id == rule.id) it.copy(enabled = checked) else it
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                        Text(
+                            text = rule.content,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            MinisTextButton(onClick = {
+                                ruleBeingEdited = rule
+                                ruleEditorOpen = true
+                            }) { Text(stringResource(R.string.soul_custom_rule_edit)) }
+                            MinisTextButton(onClick = { rulePendingDelete = rule }) {
+                                Text(stringResource(R.string.soul_custom_rule_delete))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    MinisButton(
+                        onClick = {
+                            ruleBeingEdited = null
+                            ruleEditorOpen = true
+                        },
+                        enabled = groupOptions.isNotEmpty() || modelOptions.isNotEmpty(),
+                    ) { Text(stringResource(R.string.soul_custom_rules_add)) }
                 }
             }
         }
@@ -469,6 +673,71 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             current = if (SoulIcon.isDataUri(icon)) "" else icon,
             onDismiss = { showEmojiSheet = false },
             onPick = { chosen -> icon = chosen; showEmojiSheet = false },
+        )
+    }
+
+    // [T-soul-scoped-prompt] Add / edit one custom rule. Saving writes through
+    // the same immediate-persist path as the switch and delete controls.
+    if (ruleEditorOpen) {
+        SoulPromptRuleEditorDialog(
+            existing = ruleBeingEdited,
+            groups = groupOptions,
+            models = modelOptions,
+            onDismiss = {
+                ruleEditorOpen = false
+                ruleBeingEdited = null
+            },
+            onSave = { saved ->
+                val index = rules.indexOfFirst { it.id == saved.id }
+                val next = if (index >= 0) {
+                    rules.toMutableList().also { it[index] = saved }
+                } else {
+                    rules + saved
+                }
+                persistRules(next)
+                ruleEditorOpen = false
+                ruleBeingEdited = null
+            },
+        )
+    }
+
+    rulePendingDelete?.let { pending ->
+        val unnamedRule = stringResource(R.string.soul_custom_rule_unnamed)
+        AlertDialog(
+            onDismissRequest = { rulePendingDelete = null },
+            title = { Text(stringResource(R.string.soul_custom_rule_delete_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.soul_custom_rule_delete_body,
+                        pending.name.ifBlank { unnamedRule },
+                    ),
+                )
+            },
+            confirmButton = {
+                MinisTextButton(onClick = {
+                    persistRules(rules.filterNot { it.id == pending.id })
+                    rulePendingDelete = null
+                }) { Text(stringResource(R.string.soul_custom_rule_delete)) }
+            },
+            dismissButton = {
+                MinisTextButton(onClick = { rulePendingDelete = null }) {
+                    Text(stringResource(R.string.soul_cancel))
+                }
+            },
+        )
+    }
+
+    rulesError?.let { err ->
+        AlertDialog(
+            onDismissRequest = { rulesError = null },
+            title = { Text(stringResource(R.string.soul_save_error_title)) },
+            text = { Text(stringResource(R.string.soul_custom_rules_save_error, err)) },
+            confirmButton = {
+                MinisButton(onClick = { rulesError = null }) {
+                    Text(stringResource(R.string.soul_ok))
+                }
+            },
         )
     }
 }

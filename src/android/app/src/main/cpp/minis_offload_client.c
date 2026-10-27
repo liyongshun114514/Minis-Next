@@ -9,6 +9,11 @@
  * NativeOffloadServer over the SAME abstract socket, as the app's own uid —
  * which is exactly what NativeOffloadServer's peer-uid check requires.
  *
+ * [FEAT-261027-CHROOT-ROOT] When the guest command is a REAL uid 0, the
+ * offload client still connects as the app uid: it switches euid only for the
+ * connect(2), then restores uid 0. The server's check is unchanged (only the
+ * app uid is accepted); the guest command itself never drops to the app uid.
+ *
  * BUILD (main agent integrates; NOT part of the shared CMakeLists):
  *   aarch64-linux-gnu-gcc -static -O2 -s -o minis-offload-client \
  *       minis_offload_client.c
@@ -109,6 +114,53 @@ static int connect_abstract(const char *name) {
     return fd;
 }
 
+static int parse_uid_env(const char *s, uid_t *out) {
+    if (!s || !*s) return -1;
+    char *end = NULL;
+    errno = 0;
+    unsigned long v = strtoul(s, &end, 10);
+    if (errno != 0 || !end || *end != '\0' || v == 0 || v > 0x7fffffffUL) return -1;
+    *out = (uid_t)v;
+    return 0;
+}
+
+/*
+ * Connect to NativeOffloadServer with the IPC TRANSFER identity only.
+ *
+ * A uid-0 guest command is intentional (apt/dpkg need real root), but
+ * NativeOffloadServer deliberately accepts ONLY this app's uid: abstract
+ * sockets have no filesystem permissions, so widening that check to "uid 0 is
+ * fine too" would let any root process on the device drive contacts/photos/
+ * model calls. Instead this client - and only this short connect step - uses
+ * the app uid that ChrootKernel exported in MINIS_CHROOT_APP_UID, then
+ * restores euid 0 before it does anything else. The guest command itself NEVER
+ * runs with the app uid, and the server still performs its unchanged check.
+ *
+ * A non-uid0 caller ignores the variable: it already is the app uid. A uid0
+ * caller with no valid variable fails loudly instead of connecting as 0.
+ */
+static int connect_as_app_identity(const char *name) {
+    if (geteuid() != 0) return connect_abstract(name);
+    uid_t app = 0;
+    if (parse_uid_env(getenv("MINIS_CHROOT_APP_UID"), &app) != 0) {
+        errno = EPERM;
+        return -1;
+    }
+    if (seteuid(app) != 0) return -1;
+    int fd = connect_abstract(name);
+    int e = errno;
+    if (seteuid(0) != 0) {
+        fprintf(stderr,
+                "minis-offload-client: cannot restore uid 0 after the IPC connect (%s)\n",
+                strerror(errno));
+        if (fd >= 0) close(fd);
+        errno = EPERM;
+        return -1;
+    }
+    errno = e;
+    return fd;
+}
+
 int main(int argc, char **argv) {
     /* Wrapper invokes: client <original tool path> <tool arguments...>.
      * NativeOffloadServer dispatches by request argv[0], not this executable. */
@@ -127,7 +179,7 @@ int main(int argc, char **argv) {
         return EX_UNAVAILABLE;
     }
     /* Handler name = basename(argv[0]); the server dispatches on it. */
-    int fd = connect_abstract(sock);
+    int fd = connect_as_app_identity(sock);
     if (fd < 0) {
         fprintf(stderr,
                 "%.*s: unavailable - Minis offload service is not reachable (@%s: %s).\n",

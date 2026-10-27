@@ -390,7 +390,7 @@ private fun AgentPolicyRow(
 ) {
     var currentLevel by remember { mutableStateOf(currentRootLevel(toolName)) }
     var expanded by remember { mutableStateOf(false) }
-
+    val displayedLevel = permissionLevelDisplayName(toolName, currentLevel)
     Box {
         SettingsRow(
             title = stringResource(R.string.perm_agent_policy),
@@ -406,7 +406,7 @@ private fun AgentPolicyRow(
             showDivider = showDivider,
             trailing = {
                 Text(
-                    text = levelDisplayName(currentLevel),
+                    text = displayedLevel,
                     style = MaterialTheme.typography.labelLarge,
                     color = levelColor(currentLevel),
                 )
@@ -421,7 +421,7 @@ private fun AgentPolicyRow(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            levelDisplayName(level),
+                            permissionLevelDisplayName(toolName, level),
                             color = levelColor(level),
                         )
                     },
@@ -533,6 +533,16 @@ private fun toolTitleRes(toolName: String): Int = when (toolName) {
     "shizuku_cli" -> R.string.perm_tool_shizuku_cli
     else -> 0
 }
+
+@Composable
+private fun permissionLevelDisplayName(
+    toolName: String,
+    level: OffloadPermissionManager.PermissionLevel,
+): String = if (toolName == ROOT_TOOL) {
+    com.openminis.app.offload.RootGrantPolicy.label(
+        com.openminis.app.offload.RootGrantPolicy.levelOf(level),
+    )
+} else levelDisplayName(level)
 
 @Composable
 private fun levelDisplayName(level: OffloadPermissionManager.PermissionLevel): String = stringResource(

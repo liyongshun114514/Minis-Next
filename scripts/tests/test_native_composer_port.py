@@ -267,6 +267,26 @@ def main() -> int:
     ok("viewModel.modelName.collectAsState()" in chat,
        "model-name state is not observed")
     ok("ComposerPortMath.energy(" in extras, "slider does not use the shared math")
+    # Root permissions are the same persisted gate as Settings, below Add File.
+    plus = chat[chat.index("// Button row below text field"):call_at]
+    ok(plus.index("R.string.chat_attach_add_file") < plus.index("ComposerPermissionMenuItem(")
+       < plus.index("ComposerCommandMenuRows("), "permission item is not below Add File")
+    ok("ComposerPermissionDialog(onDismiss = { showComposerPermission = false })" in chat,
+       "composer permission item has no dialog")
+    slider_code = strip_kotlin(extras[extras.index("internal fun ComposerEffortSlider("):])
+    slider_sheet = chat[chat.index("private fun ThinkingLevelSheet("):]
+    ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
+       and 'text = if (rows.size > 1)' not in slider_sheet,
+       "redundant drag/release hint still rendered")
+    ok("it.effortSliderLabel()" in extras and "displayName.lowercase()" in extras,
+       "slider modes do not use English names")
+    ok("ThinkingSliderGeometry.track(" in extras and "track.labelX(i)" in extras
+       and "track.tickX(i)" in extras and "track.valueForX(" in extras,
+       "drawing, labels and hit testing do not share geometry")
+    ok("snapshotFlow" in slider_code and "collectLatest" in slider_code,
+       "animation restart is not driven by state changes")
+    ok("releaseSerial += 1" in extras,
+       "same-level release cannot restart the settle animation")
 
     # --- Slider math -----------------------------------------------------
     for token in (

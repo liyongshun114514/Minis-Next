@@ -78,8 +78,8 @@ class RootLevelGateTest {
 
     @Test
     fun levelLabelsMatchTheTriStateRow() {
-        assertEquals("允许", RootGrantPolicy.label(RootAccess.BYPASS))
-        assertEquals("询问", RootGrantPolicy.label(RootAccess.ASK_ONCE))
+        assertEquals("完全允许", RootGrantPolicy.label(RootAccess.BYPASS))
+        assertEquals("每次询问", RootGrantPolicy.label(RootAccess.ASK_ONCE))
         assertEquals("不允许", RootGrantPolicy.label(RootAccess.NOT_ALLOWED))
     }
 
@@ -156,35 +156,32 @@ class RootLevelGateTest {
     }
 
     @Test
-    fun detectedRootPromotesToAllowedExactlyOnceAndPersists() {
+    fun detectedRootNeverPromotesTheLevel() {
         val store = FakePrefs()
         installPermissionPrefs(store)
         assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
 
-        assertTrue("first successful probe writes the default", OffloadPermissionManager.applyDetectedRootDefault(true))
-        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
-        assertTrue(OffloadPermissionManager.isRootGranted())
-        assertEquals(OffloadPermissionManager.PermissionLevel.BYPASS.name, store.values["level_root_cli"])
-        assertEquals(1, store.levelWrites)
+        // A successful probe is a FACT for the status line. It must not write
+        // 完全允许 and must not persist a level.
+        assertFalse("detection is not permission", OffloadPermissionManager.applyDetectedRootDefault(true))
+        assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
+        assertFalse(OffloadPermissionManager.isRootGranted())
+        assertNull(store.values["level_root_cli"])
+        assertEquals(0, store.levelWrites)
+        assertTrue(OffloadPermissionManager.rootDetectedCached() == true)
 
-        // A second probe in the same process writes nothing.
-        assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
-        assertEquals(1, store.levelWrites)
-
-        // Process restart / settings page re-entry: the stored level is read
-        // back without any further probe, so the user is not asked again.
+        // Re-entry / restart: still 每次询问, no write.
         val restarted = store.restart()
         installPermissionPrefs(restarted)
-        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
-        assertTrue(OffloadPermissionManager.rootDefaultApplied())
-        assertFalse("re-entry must not re-probe or rewrite", OffloadPermissionManager.applyDetectedRootDefault(true))
+        assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
+        assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
         assertEquals(0, restarted.levelWrites)
     }
 
     @Test
     fun explicitNotAllowedIsTheOnlyAnswerDetectionCannotOverride() {
         installPermissionPrefs(FakePrefs())
-        // The user deliberately says 不允许 (e.g. after a previous 允许).
+        // The user deliberately says 不允许 (e.g. after a previous 完全允许).
         OffloadPermissionManager.setRootLevel(RootAccess.NOT_ALLOWED)
         assertTrue(OffloadPermissionManager.isRootLevelUserChosen())
         assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
@@ -193,27 +190,24 @@ class RootLevelGateTest {
     }
 
     @Test
-    fun askOnceIsPromotedOnceRootIsProven() {
-        // 原生 Root 只验证一次: a stored 询问 (the default older builds wrote)
-        // must not turn into a permanent per-call prompt on a rooted device.
+    fun askOnceStaysAskOnceAfterAProbe() {
+        // 检测到 Root 可用 != 完全允许. The user must pick that level.
         installPermissionPrefs(FakePrefs())
         OffloadPermissionManager.setRootLevel(RootAccess.ASK_ONCE)
-        assertTrue(OffloadPermissionManager.applyDetectedRootDefault(true))
-        assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
-        assertTrue(OffloadPermissionManager.rootDetectedOnce())
-        assertTrue(OffloadPermissionManager.isRootGranted())
+        assertFalse(OffloadPermissionManager.applyDetectedRootDefault(true))
+        assertEquals(RootAccess.ASK_ONCE, OffloadPermissionManager.rootLevel())
+        assertFalse(OffloadPermissionManager.rootDetectedOnce())
+        assertFalse(OffloadPermissionManager.isRootGranted())
     }
 
     @Test
-    fun detectedGrantIsStickyAcrossRestartsAndRevocableByTheUser() {
+    fun explicitBypassSurvivesRestartsAndIsRevocableByTheUser() {
         installPermissionPrefs(FakePrefs())
-        assertTrue(OffloadPermissionManager.applyDetectedRootDefault(true))
+        OffloadPermissionManager.setRootLevel(RootAccess.BYPASS)
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
         restartPermissionPrefs()
-        // No second probe, no dialog: straight back to 允许.
-        assertTrue(OffloadPermissionManager.rootDetectedOnce())
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
-        assertFalse("already proven; nothing left to detect",
+        assertFalse("detection must not change an explicit choice",
             OffloadPermissionManager.applyDetectedRootDefault(true))
 
         // 不允许 is how the user revokes it, and it clears the marker.
@@ -225,9 +219,9 @@ class RootLevelGateTest {
     }
 
     @Test
-    fun promotionAndExplicitChoiceSurviveARestart() {
+    fun explicitChoiceSurvivesARestart() {
         installPermissionPrefs(FakePrefs())
-        OffloadPermissionManager.applyDetectedRootDefault(true)
+        OffloadPermissionManager.setRootLevel(RootAccess.BYPASS)
         restartPermissionPrefs()
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
         // Now the user downgrades; the choice survives a restart too.
@@ -252,7 +246,7 @@ class RootLevelGateTest {
     @Test
     fun resetAllReturnsToTheUndecidedDefaultAndDropsApprovals() {
         installPermissionPrefs(FakePrefs())
-        OffloadPermissionManager.applyDetectedRootDefault(true)
+        OffloadPermissionManager.setRootLevel(RootAccess.BYPASS)
         assertEquals(RootAccess.BYPASS, OffloadPermissionManager.rootLevel())
         val epoch = OffloadPermissionManager.rootAuthorizationEpoch()
 
@@ -270,7 +264,7 @@ class RootLevelGateTest {
     @Test
     fun revokingAllowedInvalidatesTheOldTicket() {
         installPermissionPrefs(FakePrefs())
-        OffloadPermissionManager.applyDetectedRootDefault(true)
+        OffloadPermissionManager.setRootLevel(RootAccess.BYPASS)
         val ticketEpoch = OffloadPermissionManager.rootAuthorizationEpoch()
         assertEquals(
             RootDecision.EXECUTE,
@@ -313,7 +307,7 @@ class RootLevelGateTest {
         // The hint text points at the permission page, never at a Root dialog.
         assertTrue(ROOT_DISABLED_FOR_SYSTEM.contains("设置 → 权限 → 原生 Root"))
         assertTrue(ROOT_DISABLED_FOR_SYSTEM.contains("允许"))
-        assertFalse(ROOT_DISABLED_FOR_SYSTEM.contains("确认"))
+        assertTrue(ROOT_DISABLED_FOR_SYSTEM.contains("不会静默执行 su"))
     }
 
     @Test
@@ -342,19 +336,19 @@ class RootLevelGateTest {
 
     @Test
     fun copyDescribesTheTriStateAccurately() {
-        assertTrue(ROOT_TRI_STATE_FOOTER.contains("允许"))
-        assertTrue(ROOT_TRI_STATE_FOOTER.contains("询问"))
+        assertTrue(ROOT_TRI_STATE_FOOTER.contains("完全允许"))
+        assertTrue(ROOT_TRI_STATE_FOOTER.contains("每次询问"))
         assertTrue(ROOT_TRI_STATE_FOOTER.contains("不允许"))
         assertTrue(ROOT_TRI_STATE_FOOTER.contains("su 管理器"))
-        assertTrue(ROOT_TRI_STATE_FOOTER.contains("默认允许"))
-        assertTrue(ROOT_TRI_STATE_FOOTER.contains("可随时更改"))
+        assertTrue(ROOT_TRI_STATE_FOOTER.contains("不会自动把“每次询问”升级为“完全允许”"))
         for (level in RootAccess.entries) assertTrue(rootLevelNote(level).isNotEmpty())
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
-        assertTrue(request.contains("之后直接用，不再逐次询问"))
+        assertTrue(request.contains("只授权本次调用"))
+        assertTrue(request.contains("下一次调用会再次询问"))
         assertTrue(request.contains("超时"))
         assertTrue(request.contains("关键风险："))
         val switch = rootChrootSwitchRequest(20)
-        assertTrue(switch.contains("保持“询问”"))
+        assertTrue(switch.contains("权限级别保持不变"))
         assertTrue(ROOT_AGENT_REQUEST_DENIED.contains("未执行"))
     }
 

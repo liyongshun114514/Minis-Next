@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Process
 import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.RootAccess
+import com.openminis.app.offload.RootExecPermission
+import com.openminis.app.offload.RootExecRequest
+import com.openminis.app.offload.RootManager
 import com.openminis.app.sandbox.ChrootKernel
 import com.openminis.app.sandbox.ActiveSandboxTask
 import com.openminis.app.sandbox.ChrootPrivilege
@@ -97,9 +100,15 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
                 .put("uid", s.uid)
                 .put("gid", s.gid)
                 .put("guest_user", "minis")
-                .put("scope", "command child (helper itself is uid0)")
-                .put("non_root", true)
-                .put("cap_eff", 0)
+                // The command child is a REAL uid 0 whenever it is allowed to
+                // run (完全允许, or one approval per 每次询问). At 不允许 it is
+                // refused outright - never an app-uid downgrade. `app_uid` is
+                // only this app's numeric id, not the command's identity.
+                .put("scope", "command child; real uid0, refusal runs nothing")
+                .put("command_uid", 0)
+                .put("app_uid", s.uid)
+                .put("refusal_never_downgrades", true)
+                .put("root_level", s.rootLevel)
                 .put("no_new_privs", true),
         )
         .put(
@@ -152,7 +161,10 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
             JSONObject()
                 .put("default_timeout_seconds", CHROOT_CLI_DEFAULT_TIMEOUT_SECONDS)
                 .put("max_timeout_seconds", CHROOT_CLI_MAX_TIMEOUT_SECONDS)
-                .put("requires_confirmation_each_call", true),
+                .put("requires_confirmation_each_call", s.rootLevel != RootAccess.BYPASS.name)
+                // Every frame that runs is uid0; 不允许 runs no frame at all.
+                .put("runs_as_uid0", true)
+                .put("refusal_never_downgrades", true),
         )
         .put(
             "notes",
@@ -230,26 +242,72 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
             idleTtlSeconds = ChrootKernel.DEFAULT_IDLE_TTL_SECONDS,
         )
 
+        // The identity the approval (and the later spawn) is bound to: exact
+        // command + session. A grant for another command can never match it.
+        // Must be byte-identical to the RootExecRequest ChrootKernel.spawn
+        // builds from the SandboxCommandSpec below (required = spec.rootRequired,
+        // i.e. false): the grant and the helper ticket are keyed by this
+        // fingerprint, and any difference would ask the user a second time.
+        fun rootRequestFor(req: ChrootCliExecRequest) = RootExecRequest(
+            command = req.command,
+            interactive = false,
+            sessionId = req.sessionId,
+            required = false,
+        )
         val coordinator = ChrootCliCoordinator(
             rootSwitchAllowed = { ChrootPrivilege.switchAllowed() },
+            level = { OffloadPermissionManager.rootLevel() },
+            epoch = { OffloadPermissionManager.rootAuthorizationEpoch() },
             confirm = { req ->
-                // Always a fresh single-use dialog. confirmPrivilegedOperation
-                // ignores BYPASS and session grants by construction.
-                OffloadPermissionManager.confirmPrivilegedOperation(
+                // ONE fresh single-use dialog under 每次询问 (完全允许 skips it
+                // by explicit user choice). confirmPrivilegedOperation ignores
+                // session grants by construction.
+                val levelBefore = OffloadPermissionManager.rootLevel()
+                val epochBefore = OffloadPermissionManager.rootAuthorizationEpoch()
+                val allowed = OffloadPermissionManager.confirmPrivilegedOperation(
                     ChrootCliPresentation.TOOL_NAME,
                     ChrootCliPresentation.title(req),
                     ChrootCliPresentation.describe(req, identity),
                 )
+                if (!allowed) {
+                    false
+                } else if (OffloadPermissionManager.rootLevel() == RootAccess.BYPASS) {
+                    // The user upgraded to 完全允许 while the dialog was open;
+                    // no grant is needed and none may be minted under the new
+                    // level for a request that was confirmed under 询问.
+                    true
+                } else if (OffloadPermissionManager.rootLevel() != RootAccess.ASK_ONCE ||
+                    OffloadPermissionManager.rootAuthorizationEpoch() != epochBefore
+                ) {
+                    // Revoked/downgraded during the dialog. Do NOT stash under
+                    // the current (new) epoch: that would mint a valid grant
+                    // for a request the user has already revoked.
+                    false
+                } else {
+                    // Hand the SAME approval to the spawn (single-use, exact
+                    // command, epoch it was granted under) and to the helper
+                    // launch (ticket), so the user is never asked twice.
+                    val rootRequest = rootRequestFor(req)
+                    RootExecPermission.stash(rootRequest, epoch = epochBefore)
+                    RootManager.recordConfirmedAction(rootRequest.fingerprint, epoch = epochBefore)
+                    true
+                }
             },
             ensureServer = {
                 // [FEAT-261027-CHROOT-CLI] One-shot: never persist the
                 // restart-time autostart decision from an explicit CLI call.
                 // ChrootKernel skips the write when this is false, so a
                 // concurrent settings change is never overwritten.
+                val rootRequest = rootRequestFor(request)
                 ChrootKernel.ensureServer(
                     context,
-                    "android-chroot-cli: one-shot chroot command (app uid, private mount namespace)",
+                    "android-chroot-cli: one-shot chroot command (uid0 per the Root tri-state, private mount namespace)",
                     persistAutostart = false,
+                    // This is an explicit, already-confirmed action. Under
+                    // 每次询问 the ticket (from that same answer) suppresses a
+                    // second prompt; 完全允许 launches directly.
+                    userInitiated = true,
+                    launchTicket = RootManager.ticketForConfirmedAction(rootRequest.fingerprint),
                 )
             },
             execute = { req ->
@@ -258,14 +316,20 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
         )
 
         return when (val outcome = runBlocking { coordinator.exec(request) }) {
-            is ChrootCliOutcome.Refused -> refusal(outcome.reason, outcome.message)
-            is ChrootCliOutcome.Completed -> NativeOffloadResult(
-                outcome.run.exitCode,
-                render(outcome.run, request),
-            )
+            is ChrootCliOutcome.Refused -> {
+                // A confirmation that never reached a command must not leave a
+                // single-use grant behind for a later identical invocation.
+                RootExecPermission.discard(rootRequestFor(request))
+                refusal(outcome.reason, outcome.message)
+            }
+            is ChrootCliOutcome.Completed -> {
+                if (outcome.run.exitCode == 125) {
+                    RootExecPermission.discard(rootRequestFor(request))
+                }
+                NativeOffloadResult(outcome.run.exitCode, render(outcome.run, request))
+            }
         }
     }
-
     /**
      * The command itself: build the CHROOT spec, ask ChrootKernel directly
      * (never SandboxRouter), then run the app-uid client with a hard timeout
@@ -327,7 +391,7 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
             }
             if (!offloadClient) {
                 notes += "guest offload client 未安装（assets 缺失或写入失败）：" +
-                    "chroot 内 Android/Minix 工具为 BLOCKED；命令本身仍按 app uid 执行。"
+                    "chroot 内 Android/Minix 工具为 BLOCKED；命令本身仍以真实 uid0 执行。"
             }
             if (backendBefore == SandboxBackend.PROOT) {
                 notes += "本次未改变全局 selected backend（仍为 PRoot）；仅这一条命令走 chroot。"
@@ -342,7 +406,7 @@ class ChrootOffloadHandler(private val context: Context) : NativeOffloadHandler 
                 // and revoke the grant, which would break a CHROOT session
                 // another task may have started while this command ran.
                 notes += "本次按需启动了临时 chroot helper（未切换后端）。特权 helper 保留至空闲 " +
-                    "${identity.idleTtlSeconds}s 后自退（helper 本身为 uid0，仅命令子进程降为 app uid）；" +
+                    "${identity.idleTtlSeconds}s 后自退（helper 本身为 uid0；命令子进程同样是真实 uid0，不降权）；" +
                     "为不打断并发 CHROOT 会话，本命令不调用 shutdown。"
             }
             return run.copy(notes = notes.distinct())

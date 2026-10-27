@@ -1009,6 +1009,7 @@ fun ChatScreen(
     // AIChatView.showThinkingLevelSheet.
     var showThinkingLevelSheet by remember { mutableStateOf(false) }
     var showAttachMenu by remember { mutableStateOf(false) }
+    var showComposerPermission by remember { mutableStateOf(false) }
     var showChatMenu by remember { mutableStateOf(false) }
     // [T-speed-tier] The "Speed ›" submenu, opened from the chat menu.
     var showSpeedMenu by remember { mutableStateOf(false) }
@@ -7183,6 +7184,11 @@ fun ChatScreen(
                                         filePickerLauncher.safeLaunchPicker(arrayOf("*/*"), context, "ChatScreen")
                                     },
                                 )
+                                // Same Root/chroot tri-state as Settings, below Add File.
+                                ComposerPermissionMenuItem(onClick = {
+                                    showAttachMenu = false
+                                    showComposerPermission = true
+                                })
 
                                 MinisMenuDivider()
                                 ComposerMenuHeader("命令")
@@ -8133,6 +8139,10 @@ fun ChatScreen(
         )
     }
 
+    if (showComposerPermission) {
+        ComposerPermissionDialog(onDismiss = { showComposerPermission = false })
+    }
+
     // Model Picker bottom sheet
     if (showModelPicker) {
         val config by providerRepository.config.collectAsState()
@@ -8449,11 +8459,12 @@ private fun ThinkingLevelBadge(
 
 /**
  * [T-android-thinking-badge-navbar] Bottom-sheet thinking-level selector opened
- * from [ThinkingLevelBadge]. Mirrors iOS ThinkingLevelSheetView: an Off row
- * followed by every level the current model supports; the active level shows a
- * trailing check. Selecting a slider position calls [onSelect] without
- * dismissing, so several levels can be compared; the explicit OK button
- * closes the sheet.
+ * from [ThinkingLevelBadge]. Hosts the particle effort slider with one stop per
+ * level the current model really supports, preceded by Off; each stop is
+ * labelled with its English mode name (off / low / medium / high / xhigh / max /
+ * ultra). Releasing the slider calls [onSelect] without dismissing, so several
+ * levels can be compared; the explicit OK button closes the sheet and the sheet
+ * can still be dismissed by swipe/back/outside tap.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -8495,16 +8506,19 @@ private fun ThinkingLevelSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
             )
-            Text(
-                text = if (rows.size > 1) {
-                    "Drag to choose · release to apply"
-                } else {
-                    "This model does not support reasoning levels"
-                },
-                fontSize = 11.sp,
-                color = ChatColors.secondaryText,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
-            )
+            // No gesture hint: the slider is direct manipulation (press, drag,
+            // release) and the English mode names under its dots name every
+            // stop. The old "Drag to choose · release to apply" line only
+            // repeated that and stole a row from the sheet. Keep copy solely
+            // for the genuinely non-interactive case.
+            if (rows.size <= 1) {
+                Text(
+                    text = "This model does not support reasoning levels",
+                    fontSize = 11.sp,
+                    color = ChatColors.secondaryText,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                )
+            }
             // Selecting a slider position no longer dismisses the sheet, so
             // the user can compare levels; this explicit action closes it.
             MinisTextButton(

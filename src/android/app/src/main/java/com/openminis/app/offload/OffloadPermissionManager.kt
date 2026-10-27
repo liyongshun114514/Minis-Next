@@ -435,17 +435,15 @@ object OffloadPermissionManager {
      */
     fun rootLevel(): RootAccess {
         if (!isInitialized()) return RootAccess.ASK_ONCE
-        val stored = storedLevel()
-        // [FEAT-261027-ROOT sticky] 原生 Root 只验证一次。
-        // An explicit 不允许 is the user's decision and always wins;
-        // otherwise, once `su` has been proven usable, the level IS 允许 — no
-        // second probe, no per-call dialog, across restarts.
-        if (stored == PermissionLevel.NOT_ALLOWED) return RootAccess.NOT_ALLOWED
-        if (rootDetectedOnce()) return RootAccess.BYPASS
+        // [FEAT-261027-ROOT explicit] ONLY an explicitly stored level counts.
+        // Availability probing (rootDetectedOnce / KEY_DEFAULT_APPLIED) is
+        // reported to the UI but NEVER turns 询问 into 完全允许: that
+        // promotion was both surprising and unsafe, because a background
+        // probe could silently grant persistent uid-0 execution.
         return RootDefaultPolicy.effectiveLevel(
-            stored = stored,
+            stored = storedLevel(),
             userChosen = isRootLevelUserChosen(),
-            rootDetected = prefs.getBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, false),
+            rootDetected = rootDetectedOnce(),
         )
     }
 
@@ -488,10 +486,14 @@ object OffloadPermissionManager {
             // 不允许 revokes the sticky "su works" grant; 允许 may write it
             // (the user just confirmed Root is fine), 询问 leaves it alone so a
             // later probe can promote instead of asking forever.
+            // The tri-state is now the only writer of the level. A user who
+            // picks 完全允许 records that Root is usable; picking 每次询问 or
+            // 不允许 clears it so no stale "verified" badge outlives the
+            // grant. None of these markers can change the stored level.
             when (level) {
-                RootAccess.NOT_ALLOWED -> editor.remove(RootDefaultPolicy.KEY_DETECTED_ONCE)
                 RootAccess.BYPASS -> editor.putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
-                RootAccess.ASK_ONCE -> Unit
+                RootAccess.ASK_ONCE, RootAccess.NOT_ALLOWED ->
+                    editor.remove(RootDefaultPolicy.KEY_DETECTED_ONCE)
             }
             editor.apply()
         }
@@ -515,20 +517,12 @@ object OffloadPermissionManager {
      */
     fun applyDetectedRootDefault(detected: Boolean): Boolean {
         if (!isInitialized()) return false
+        // [FEAT-261027-ROOT explicit] A successful probe is a FACT ("su is
+        // usable"), not a permission decision. It is cached for the status
+        // line and never writes level_root_cli: 完全允许 is only ever
+        // persisted by an explicit user selection.
         recordRootProbe(detected)
-        if (!detected) return false
-        // 不允许 is the one answer detection must never override: it is how a
-        // user turns Root off on purpose. 询问 does NOT block the promotion —
-        // a level that an older build stored as its default must not keep
-        // asking once Root is known to work.
-        if (isRootLevelUserChosen() && storedLevel() == PermissionLevel.NOT_ALLOWED) return false
-        if (rootDetectedOnce() && storedLevel() == PermissionLevel.BYPASS) return false
-        prefs.edit()
-            .putString("level_$ROOT_TOOL", PermissionLevel.BYPASS.name)
-            .putBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, true)
-            .putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
-            .apply()
-        return true
+        return false
     }
 
     /**
@@ -538,14 +532,15 @@ object OffloadPermissionManager {
      * 再回设置里点一次。写入的标记与一次成功的检测相同，所以它同样会跳过后续
      * 探测；用户显式改回“不允许”仍会覆盖并清掉它。
      */
+    /**
+     * Kept as a no-op for source compatibility. A single per-command approval
+     * must NOT become a persistent 完全允许; the caller now records the
+     * approval for that one command instead (see RootExecPolicy).
+     */
+    @Deprecated("one-off approvals no longer promote the level; pick 完全允许 explicitly")
     fun promoteRootToPersistentAllow() {
-        if (!isInitialized()) return
-        prefs.edit()
-            .putString("level_$ROOT_TOOL", PermissionLevel.BYPASS.name)
-            .putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true)
-            .putBoolean(RootDefaultPolicy.KEY_DEFAULT_APPLIED, true)
-            .putBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, true)
-            .apply()
+        // Intentionally empty: only RootManager.setAccessLevel(..., byUser=true)
+        // (or the tri-state UI) may persist 完全允许.
     }
 
     /**
@@ -570,6 +565,19 @@ object OffloadPermissionManager {
             // (only 允许/不允许 were offered), i.e. by the user: mark it as an
             // explicit choice so detection never overwrites it.
             prefs.edit().putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, true).apply()
+        }
+        // [FEAT-261027-ROOT explicit] Upgrades from builds that auto-promoted
+        // BYPASS after a probe (KEY_DETECTED_ONCE without an explicit choice)
+        // are downgraded once to 每次询问. No su is run here.
+        if (stored == PermissionLevel.BYPASS.name &&
+            !prefs.getBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, false) &&
+            prefs.getBoolean(RootDefaultPolicy.KEY_DETECTED_ONCE, false)
+        ) {
+            prefs.edit()
+                .putString("level_$ROOT_TOOL", PermissionLevel.ASK_ONCE.name)
+                .putBoolean(RootDefaultPolicy.KEY_USER_CHOSEN, false)
+                .remove(RootDefaultPolicy.KEY_DETECTED_ONCE)
+                .apply()
         }
         // Old builds migrated a stored ASK_ONCE to NOT_ALLOWED; ASK_ONCE is a
         // first-class level now, so the stored value is used as-is.

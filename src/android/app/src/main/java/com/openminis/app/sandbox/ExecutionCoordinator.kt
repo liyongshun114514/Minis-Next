@@ -334,6 +334,19 @@ object ExecutionCoordinator {
         // used to wait out the Stop and then run anyway. The watcher cancels
         // that wait as soon as this session is stopped, as long as nothing
         // has been spawned yet; once it has, the ordinary group kill applies.
+        // [FEAT-261027-CHROOT-ROOT] A warm shell is a LONG-LIVED root `/bin/sh`:
+        // later commands are written to its stdin and would bypass the
+        // per-command Root confirmation entirely. For the chroot backend the
+        // fresh path is therefore mandatory, whatever the (debug/rollback)
+        // strategy says. Only a real interactive TerminalSession keeps a
+        // session-scoped process, and that one is authorised once per session.
+        val strategy = if (::appContext.isInitialized &&
+            SandboxBackendStore.selected(appContext) == SandboxBackend.CHROOT
+        ) {
+            ShellExecutionStrategy.FRESH_PROCESS
+        } else {
+            executionStrategy
+        }
         val spawned = java.util.concurrent.atomic.AtomicBoolean(false)
         val outcome = try {
             kotlinx.coroutines.coroutineScope {
@@ -344,7 +357,7 @@ object ExecutionCoordinator {
                     ) {
                         if (stoppedSince(sessionId, epoch)) {
                             CommandResult(output = NOT_STARTED_OUTPUT, exitCode = FreshProcessShell.CANCELLED_EXIT, durationMs = 0L)
-                        } else if (executionStrategy == ShellExecutionStrategy.FRESH_PROCESS) {
+                        } else if (strategy == ShellExecutionStrategy.FRESH_PROCESS) {
                             executeFresh(sessionId, command, timeout, lineCallback, fsSessionId, epoch, spawned)
                         } else {
                             spawned.set(true)

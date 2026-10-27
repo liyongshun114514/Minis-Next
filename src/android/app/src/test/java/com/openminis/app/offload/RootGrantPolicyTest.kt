@@ -92,14 +92,14 @@ class RootGrantPolicyTest {
     }
 
     @Test
-    fun detectedDefaultIsAllowedOnlyWhileUndecided() {
-        // Undecided + detected → 允许 ...
-        assertEquals(RootAccess.BYPASS, RootDefaultPolicy.defaultLevel(userChosen = false, rootDetected = true))
-        // ... and 询问 otherwise (a failed probe never means 允许).
+    fun detectionNeverPromotesTheDefault() {
+        // A successful probe is a FACT for the status line, never permission:
+        // the undecided default is always 每次询问.
+        assertEquals(RootAccess.ASK_ONCE, RootDefaultPolicy.defaultLevel(userChosen = false, rootDetected = true))
         assertEquals(RootAccess.ASK_ONCE, RootDefaultPolicy.defaultLevel(userChosen = false, rootDetected = false))
         assertEquals(RootAccess.ASK_ONCE, RootDefaultPolicy.defaultLevel(userChosen = true, rootDetected = true))
-        assertTrue(RootDefaultPolicy.shouldPromote(true, false, false) == false)
-        assertTrue(RootDefaultPolicy.shouldPromote(false, false, true))
+        assertFalse(RootDefaultPolicy.shouldPromote(true, false, false))
+        assertFalse(RootDefaultPolicy.shouldPromote(false, false, true))
         assertFalse(RootDefaultPolicy.shouldPromote(false, true, true))
         assertFalse(RootDefaultPolicy.shouldPromote(true, false, true))
     }
@@ -127,8 +127,9 @@ class RootGrantPolicyTest {
         assertFalse(ROOT_ENABLE_MESSAGE.contains("每条命令仍须"))
 
         val request = rootAgentAccessRequest("/data/local/tmp", 5)
-        assertTrue(request.contains("之后直接用，不再逐次询问"))
-        assertTrue(request.contains("拒绝、取消或超时则只跳过本次"))
+        assertTrue(request.contains("只授权本次调用"))
+        assertTrue(request.contains("下一次调用会再次询问"))
+        assertTrue(request.contains("只跳过本次"))
         assertTrue(request.contains("设置 → 权限 → 原生 Root"))
         assertTrue(request.contains("关键风险："))
         assertTrue(request.contains("5s"))

@@ -159,25 +159,27 @@ internal object ChrootCliPresentation {
             appendLine()
             appendLine("    ${request.command}")
             appendLine()
-            appendLine("超时：${request.timeoutSeconds} 秒；超时只终止本次命令的 app-uid chroot 客户端进程，返回退出码 124。")
+            appendLine("超时：${request.timeoutSeconds} 秒；超时只终止本次命令的 chroot 客户端进程，返回退出码 124。")
             appendLine(
-                "运行身份：Android app uid=${identity.uid} gid=${identity.gid}" +
-                    "（guest 账号 minis，HOME=/home/minis；命令子进程非 root；" +
-                    "helper 执行 setgroups(0) + PR_SET_NO_NEW_PRIVS + setgid/setuid，CapEff=0）。",
+                "运行身份：按原生 Root 三态决定。完全允许或本次已确认时，命令在 guest 内为真实 uid0" +
+                    "（apt/dpkg 可写 /var/lib/dpkg）；helper 仍执行 setgroups(0) + PR_SET_NO_NEW_PRIVS，" +
+                    "并处于私有 mount 命名空间。每次询问下拒绝、取消或超时不会执行任何进程，" +
+                    "不会静默降级为 app uid（app uid=${identity.uid} gid=${identity.gid}）。",
             )
             appendLine("文件系统：rootfs=${identity.rootfs}；每条命令一个私有挂载命名空间" +
-                "（unshare(CLONE_NEWNS)），随进程消失，不改 SELinux、分区或系统设置。")
+                "（unshare(CLONE_NEWNS)），随进程消失。helper 自身不会主动改 SELinux、分区或系统设置；" +
+                "但这条 uid0 命令仍可能修改容器内文件或共享挂载，chroot 不是安全边界。")
             appendLine(
-                "临时 helper：已有则复用，否则按现有 Root 授权启动 libminis-chroot.so" +
+                "临时 helper：已有则复用，否则按本次确认启动 libminis-chroot.so" +
                     "（helper 本身为 uid0 特权进程；抽象 socket ${identity.socketName}，" +
-                    "空闲 ${identity.idleTtlSeconds}s 自退）。只有 helper 启动这一动作可能经 RootManager " +
-                    "调用 su；你的命令经本地 socket 以 app uid 交给 helper，永远不会出现在 su 的命令行中。",
+                    "空闲 ${identity.idleTtlSeconds}s 自退）。你的命令经本地 socket 交给 helper，" +
+                    "并使用 helper 在握手中生成、只存在于内存的 root token；命令永远不会出现在 su 的命令行中。",
             )
-            appendLine("本次确认只对这一次执行有效。拒绝、取消或确认超时都不会启动 helper 或任何进程。")
+            appendLine("本次确认只对这一次执行有效，不会把级别改成“完全允许”。拒绝、取消或确认超时都不会启动 helper 或任何进程。")
         }.trimEnd()
 
     fun help(): String = """
-        android-chroot-cli — 在现有 chroot 后端里执行一条命令（每次执行都要用户在应用内确认）
+        android-chroot-cli — 在现有 chroot 后端里执行一条命令（按原生 Root 三态授权）
 
         用法：
           android-chroot-cli --help
@@ -187,8 +189,10 @@ internal object ChrootCliPresentation {
         说明：
           --help, status   只读文件/内存状态（launcher、rootfs、grant、Root 级别、最近错误）。
                            不调用 su，不启动 helper，不执行任何进程。
-          exec             每次都调用一次单次确认（ALLOW_ONCE）；Root 的 BYPASS/会话授权不会跳过它。
-                           确认后才按现有 Root 授权确保 helper，再直接走 ChrootKernel 生成 CHROOT argv。
+          exec             完全允许 → 不弹应用内确认，直接以 uid0 执行；
+                           每次询问 → 每条命令一次单次确认（ALLOW_ONCE），确认后才确保 helper 并走
+                           ChrootKernel 生成 CHROOT argv；拒绝/取消/超时不执行任何进程；
+                           不允许 → 直接拒绝，不弹确认、不启动 helper。
                            不改全局 selected backend，不影响当前 shell/终端。
           --command        原样传给 chroot 内的 /bin/sh -c；不要在这里再套 su。
           --timeout        1..$CHROOT_CLI_MAX_TIMEOUT_SECONDS 秒，默认 $CHROOT_CLI_DEFAULT_TIMEOUT_SECONDS。
@@ -196,9 +200,11 @@ internal object ChrootCliPresentation {
           stdout/stderr    并行读取，各自上限 256 KiB（超出截断并注明）。
 
         运行身份：
-          app uid（非 root，CapEff=0，NoNewPrivs=1），私有 mount 命名空间；命令不会进入 su argv。
+          三态允许时为 guest 内真实 uid0（apt/dpkg 可用），始终处于私有 mount 命名空间、
+          NoNewPrivs=1；helper 只接受带本次 root token 的帧，命令不会进入 su argv。
 
         退出码：
           命令真实退出码；126 = 拒绝/取消/未授权/helper 失败；124 = 超时；130 = 被停止；2 = 参数错误。
+          三态为“不允许”时同样返回 126（JSON error=root_not_allowed），不执行任何进程。
     """.trimIndent()
 }

@@ -6,10 +6,10 @@ package com.openminis.app.offload
  * Root is one of the integration CLIs, so it carries the SAME tri-state as
  * `android-shizuku-cli` (`Settings → Permissions → 原生 Root`):
  *
- *   BYPASS      允许    → run directly, no per-call dialog (su manager still asks)
- *   ASK_ONCE    询问    → one confirmable request per invocation; refusal,
- *                         cancel or timeout runs nothing and never flips the level
- *   NOT_ALLOWED 不允许  → refuse every call, with a settings hint for the
+ *   BYPASS      完全允许 → run directly, no per-call dialog (su manager still asks)
+ *   ASK_ONCE    每次询问 → one confirmable request per invocation; refusal,
+ *                         cancel or timeout runs nothing and never changes the level
+ *   NOT_ALLOWED 不允许   → refuse every call, with a settings hint for the
  *                         system paths (Chroot switch, settings probe)
  *
  * Everything Android-specific (prefs, su discovery, the dialog) lives in
@@ -18,12 +18,22 @@ package com.openminis.app.offload
  */
 enum class RootAccess { BYPASS, ASK_ONCE, NOT_ALLOWED }
 
-/** Who asked for Root: the agent's `android-root-cli`, or a system path. */
+/** Who asked for Root: the agent, an explicit in-app user action, or an automatic path. */
 enum class RootCaller {
-    /** `android-root-cli` — the only caller allowed to raise a request dialog. */
+    /** `android-root-cli` / `android-chroot-cli` — may raise one request dialog. */
     AGENT,
 
-    /** Chroot helper launch / settings probe — never prompts. */
+    /**
+     * An EXPLICIT in-app user action (Settings → 原生 Root tri-state, the
+     * chroot switch the user just pressed). Under 询问 it raises ONE request
+     * for that action; it never changes the stored level.
+     */
+    USER,
+
+    /**
+     * Automatic work: helper auto-restart, liveness probe, settings status.
+     * Never prompts and never runs su under 询问.
+     */
     SYSTEM,
 }
 
@@ -43,10 +53,10 @@ enum class RootDecision {
 }
 
 object RootGrantPolicy {
-    /** One-line label per level, matching R.string.perm_level_* (允许 / 询问 / 不允许). */
+    /** One-line label per level, matching the tri-state row (完全允许 / 每次询问 / 不允许). */
     fun label(level: RootAccess): String = when (level) {
-        RootAccess.BYPASS -> "允许"
-        RootAccess.ASK_ONCE -> "询问"
+        RootAccess.BYPASS -> "完全允许"
+        RootAccess.ASK_ONCE -> "每次询问"
         RootAccess.NOT_ALLOWED -> "不允许"
     }
 
@@ -74,12 +84,13 @@ object RootGrantPolicy {
             ticketEpoch != null && ticketEpoch == currentEpoch -> RootDecision.EXECUTE
             // A stale approval is dead: it never becomes a dialog, never runs.
             ticketEpoch != null -> RootDecision.DENY
-            caller == RootCaller.AGENT -> RootDecision.REQUEST_ONCE
-            // Chroot NEVER pops a Root prompt: it reports the settings hint.
+            // The agent CLI and an explicit user action may ask once.
+            caller == RootCaller.AGENT || caller == RootCaller.USER -> RootDecision.REQUEST_ONCE
+            // Automatic paths (autostart/probes) NEVER run su unpermitted.
             else -> RootDecision.SETTINGS_HINT
         }
         RootAccess.NOT_ALLOWED -> when (caller) {
-            RootCaller.AGENT -> RootDecision.DENY
+            RootCaller.AGENT, RootCaller.USER -> RootDecision.DENY
             RootCaller.SYSTEM -> RootDecision.SETTINGS_HINT
         }
     }
@@ -107,54 +118,52 @@ object RootGrantPolicy {
 }
 
 /**
- * "Default 允许 once root is actually available" — and only ever once, and
- * only while the user has never chosen a level themselves.
+ * Root availability is a FACT, not a permission decision.
  *
- * Two independent facts decide the stored default:
+ * A successful probe (an executable `su` was resolved, or `id` came back uid 0)
+ * is recorded for the status line only. It NEVER writes 完全允许: that level is
+ * persisted exclusively by an explicit user selection. The undecided default is
+ * always 每次询问, so a background probe cannot silently grant persistent uid-0
+ * execution.
  *
- *  - [rootDetected]: the existing probe succeeded (an executable `su` was
- *    resolved, or `id` came back uid 0). A failed probe changes nothing, so a
- *    device without Root stays on 询问 instead of silently becoming 允许.
- *  - [userChosen]: the user touched the tri-state row / the one-off request
- *    auto-enabled. Once true, detection is never consulted again — a later
- *    reboot with su present must not override an explicit 不允许.
- *
- * [alreadyApplied] makes the write idempotent and one-shot: the promotion is
- * persisted by [OffloadPermissionManager.applyDetectedRootDefault] so that a
- * process restart, a fresh settings page or an app relaunch reads 允许 back
- * from prefs instead of probing again.
+ * [KEY_USER_CHOSEN] marks an explicit selection; [KEY_DETECTED_ONCE] marks a
+ * probe result. Only the tri-state row / [OffloadPermissionManager.setRootLevel]
+ * writes the former and the level.
  */
 object RootDefaultPolicy {
     /** Persisted marker: the user picked a level explicitly. Never cleared. */
     const val KEY_USER_CHOSEN = "root_level_user_chosen"
 
-    /** Persisted marker: the detection-driven default was already written. */
+    /** Persisted marker from older builds; no longer written by detection. */
     const val KEY_DEFAULT_APPLIED = "root_level_default_applied"
 
     /**
-     * Persisted marker: Root was PROVEN usable at least once (an executable
-     * `su` was resolved and `id` came back uid 0).
+     * Persisted marker: Root was PROVEN usable at least once.
      *
-     * While it is set the level is 允许 without any further probing or
-     * confirmation: 检测到一次就长期有效. Only an explicit 不允许 clears it,
-     * because that is the one answer the user gives on purpose.
+     * Used only to describe the bridge status. It is cleared on an explicit
+     * 每次询问 or 不允许 so no "verified" badge outlives that choice; it never
+     * changes the level by itself.
      */
     const val KEY_DETECTED_ONCE = "root_detected_once"
 
-    fun defaultLevel(userChosen: Boolean, rootDetected: Boolean): RootAccess =
-        if (!userChosen && rootDetected) RootAccess.BYPASS else RootAccess.ASK_ONCE
-
     /**
-     * Should the detected-Root default be written right now?
+     * The undecided default is ALWAYS 每次询问.
      *
-     * False when the user has ever chosen, or when it was already written
-     * (so a later 允许 → 询问 downgrade is not undone by the next probe).
+     * [rootDetected] is accepted for source compatibility but deliberately
+     * ignored: a successful probe only records that su is usable, it must
+     * never turn 每次询问 (or a fresh install) into a persisted 完全允许. Only
+     * the user's own selection writes that level.
      */
+    @Suppress("UNUSED_PARAMETER")
+    fun defaultLevel(userChosen: Boolean, rootDetected: Boolean): RootAccess = RootAccess.ASK_ONCE
+
+    /** Detection never promotes a level. Kept for older callers. */
+    @Suppress("UNUSED_PARAMETER")
     fun shouldPromote(
         userChosen: Boolean,
         alreadyApplied: Boolean,
         rootDetected: Boolean,
-    ): Boolean = rootDetected && !userChosen && !alreadyApplied
+    ): Boolean = false
 
     /**
      * Read the level a caller must honour for one invocation.

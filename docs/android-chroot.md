@@ -29,9 +29,9 @@ SandboxRouter │  SandboxBackendStore.selected(context)                        
                                     ▼
                          ┌──────────────────────────────────────────┐
                          │ libminis-chroot.so --serve   (uid 0)     │  started once per app run
-                         │  • bound socket @minis-chroot-<gen>      │  through RootManager
+                         │  • bound socket @minis-chroot-v2-<gen>   │  through RootManager
                          │  • per request: fork → unshare(NEWNS)    │  (per-invocation confirm)
-                         │    → mounts → chroot → setuid(app) → exec│
+                         │    → mounts → chroot → setuid(0) → exec  │
                          └──────────────────────────────────────────┘
                                     │
                                     ▼  command runs as the APP uid inside the private namespace
@@ -71,32 +71,65 @@ LAST. A failed handshake therefore leaves the previous backend selected.
 
 ## 4. Grant model
 
-The selected shell backend and an explicitly requested chroot command are
-separate operations:
+Chroot is a **real uid-0 backend**. Inside the guest, commands run as root so
+`apt`/`dpkg` can chown files and write `/var/lib/dpkg`; the helper still runs in
+a private mount namespace with `setgroups(0)` / `NoNewPrivs`, and the socket
+still authenticates the app uid for the offload socket (via the client's
+temporary euid switch), while the command itself keeps real uid 0. Chroot is
+not a security boundary and the docs say so.
 
-* **Settings backend selection** retains its own switch policy and risk
-  acknowledgement. Native Root permission controls launching the helper.
-  The existing `chrootAutostart` preference may restore a previously enabled
-  backend; an in-memory generation grant is only a record of a handshake,
-  not proof that its helper is still alive.
-* **Explicit agent execution** is exposed as `android-chroot-cli`. Its `status`
-  and `--help` paths perform no Root execution and do not start a helper.
-  `exec --command '<command>' --timeout 60` must request a fresh single-use
-  approval of that exact command before starting either the helper or command,
-  even when Native Root is persistently allowed. Refusal, cancellation and an
-  unanswered request do not execute anything. A disabled Native Root permission
-  is not changed implicitly.
+Every spawn (shell_execute, warm/fresh shell, terminal, `android-chroot-cli`)
+is decided by the ONE unified Root tri-state (设置 → 权限 → 原生 Root) at
+`ChrootKernel.spawn`, before any helper or `su` runs:
 
-The explicit CLI targets `ChrootKernel` rather than switching the global backend:
-existing PRoot/Chroot shells and terminals keep their selected routing. Approval
-covers that command as the app uid, not an unrestricted Android Root shell or
-unrelated host operations. A helper may be reused; helper lifetime and permission
-are distinct from each CLI command's mandatory single-use confirmation.
+| Level | Chroot command / interactive session | Helper launch |
+|---|---|---|
+| 完全允许 | uid 0 directly, no app dialog | direct |
+| 每次询问 | one explicit confirmation per command / per terminal session; refusal, cancel and the 120 s timeout execute **nothing** (no app-uid downgrade) | reuses the same approval via a single-use ticket — no second dialog |
+| 不允许 | refused with a settings hint, no `su`, no dialog | not started |
 
-The helper launch itself goes through `RootManager.runProcess`. The user's shell
-command is **never** part of the privileged launcher argv: it travels later over
-the existing app-uid-checked socket protocol. Existing mount allowlists, uid drop,
-capability drop and `NoNewPrivs` remain unchanged.
+The approval is a `RootExecGrant`, never a boolean: it is bound to
+SHA-256(command, interactive, sessionId, required), to the Root authorization
+epoch (a revoke/downgrade bumps it) and to a 120 s TTL, and `RootExecPermission`
+consumes it exactly once. A cached "approved" flag can therefore not authorise
+a different command, a warm shell's next stdin line, or a second terminal.
+
+Consequences that are enforced in code:
+
+* A successful `su` probe only records "Root is usable" for the status line. It
+  never promotes 每次询问 to 完全允许; old builds that auto-promoted are migrated
+  once to 每次询问.
+* Automatic paths (startup, autostart, liveness probes, settings status) never
+  run `su` under 每次询问; they report the settings hint.
+* `ExecutionCoordinator` forces the FRESH_PROCESS strategy for chroot even when
+  the debug/rollback setting says WARM_SHELL: a long-lived root `/bin/sh` would
+  let later commands bypass the per-command confirmation. Only a real terminal
+  keeps a session-scoped process, authorised once per session.
+* Downgrading/revoking stops controllable sandbox activity and clears the
+  in-memory helper grant; a running interactive terminal must be stopped by the
+  user (the UI says so).
+
+### Helper capability and token
+
+The helper accepts uid-0 frames only when it was started with `--root-exec`,
+and only from a frame that echoes the 32-byte token the helper itself generated
+and printed on its handshake line (`MINIS-CHROOT-READY <socket> <pid> <token>`).
+The token is kept in app memory; it is never in the helper argv (root can read
+root argv), never logged (logs redact it) and stripped from the environment the
+client forwards to the guest command. Without `--root-exec` (level 不允许) the
+helper can never serve root, and an upgrade relaunches it with a fresh token.
+
+The client option is `--root-user`; `--root DIR` remains the rootfs option.
+
+### Explicit CLI
+
+`android-chroot-cli status` / `--help` execute nothing. `exec` obeys the same
+tri-state: 完全允许 runs without a dialog, 每次询问 shows ONE dialog for that
+exact command, 不允许 refuses. The single answer is turned into a single-use
+grant for the spawn and a single-use ticket for the helper launch, so one
+confirmation never produces two prompts. The command string is never part of
+the privileged launcher argv; it travels in a length-prefixed frame over the
+socket.
 
 ### Operit reference and intentional differences
 
@@ -107,9 +140,9 @@ Its `TerminalManager.generateStartScript` selects PRoot/chroot from the persiste
 show the mount/Root requirements. This is a backend-setting design, not a
 dedicated model-visible chroot approval API.
 
-Minis retains its existing app-uid helper architecture rather than copying
-Operit's privileged guest execution or broad host mounts. The new part is the
-explicit CLI + per-command approval card and honest status output. `status`
+Minis keeps its own helper and narrow host-mount allowlist rather than copying
+Operit's broad host mounts. The uid-0 execution it does add is gated by the
+unified tri-state on every spawn, not only by the CLI. `status`
 reports prerequisites and recorded grants, not a fabricated liveness result.
 The model prompt advertises this interface rather than insisting chroot is
 already active or inferring host Root from a guest `id` result.
@@ -132,22 +165,31 @@ PRoot's extension intercepts `execve`; chroot has no ptrace layer, so the
 The client deletes its reply file after copying it; the proot path leaves that
 to the server's age-gated sweep.
 
-## 6. Package management (honest limitation)
+## 6. Package management (real root inside the guest)
 
-Commands run as the **app uid**, not root — that is the security boundary and it
-is not negotiable for the sake of convenience. Consequences a user will notice
-inside the rootfs:
+Chroot commands run with **real uid 0 inside the guest** when the unified Root
+tri-state allows it (完全允许, or one approved command under 每次询问). That is
+the point of this backend: `apt-get install`, `dpkg -i`, `adduser` and anything
+else that checks `geteuid() == 0` work, and `/var/lib/dpkg` can be written.
 
-* `apt-get install`, `dpkg -i`, `adduser`, `systemctl`, `chown root:root` and
-  anything else that checks `geteuid() == 0` **will refuse** or fail. This is
-  reported truthfully: the package manager prints its own error.
-* Files created by the chroot backend are owned by the app uid; the PRoot
-  backend's fake root (`-0`) sees them as root, so switching back is harmless.
-* To install system packages, switch to PRoot (default), install, switch back.
-  The rootfs is shared, so the packages are there afterwards.
+What still bounds it:
 
-The backend does not fake root inside the guest and does not silently claim
-package management works.
+* the child lives in a **private mount namespace** — mounts it creates are not
+  visible to Android or to later commands, and host paths outside the allowlist
+  are never mounted;
+* `setgroups(0)` and `NoNewPrivs` are set before `exec`, so a setuid binary in
+  the guest cannot gain host credentials it did not already have;
+* the helper is only reachable through an abstract socket whose peer must be
+  this app's uid, and it only accepts a uid-0 frame when it was started with
+  `--root-exec` **and** the frame echoes its per-helper token;
+* at 不允许 nothing runs at all (no app-uid fallback), and at 每次询问 a refused
+  or timed-out confirmation runs nothing.
+
+Practical consequences: files created by an approved root command are owned by
+uid 0 inside the guest (the same numeric uid as host root). Mounts under
+`/var/minis` are still the app's files; a root command can rewrite them into
+ownership the app can no longer read, so prefer root for package management
+rather than for editing shared workspace files.
 
 ## 7. Mounts and namespace policy
 
@@ -166,12 +208,18 @@ Per command, in the forked child, before `execve`:
    volumes, no `..`, no control chars, no `:`), then the C helper re-checks with
    `realpath()` against its `--allow-root` list. Read-only mounts (from
    `MountedFoldersStore.effectiveWritable`) get `MS_REMOUNT|MS_RDONLY`.
-6. `chroot(rootfs)`, `chdir(cwd)`, `umask(022)`, `setgroups(0)`, `setgid/setuid`
-   to the **app uid**, `setsid()`, `execvpe`.
+6. `chroot(rootfs)`, `chdir(cwd)`, `umask(022)`, `setgroups(0)`. Then
+   `setgid/setuid(0)` for the frames the Kotlin tri-state authorised; the frame
+   carries the helper's root token. (The protocol still understands an
+   app-uid frame for wire compatibility, but **no current entry point requests
+   one**: every chroot spawn is real uid 0 and a refusal runs nothing rather
+   than downgrading.) Then `setsid()`, `execvpe`. `NoNewPrivs` is set.
 
-Explicitly **not** done: `setenforce`, any SELinux policy change, any remount of
-a real filesystem, any change to init/partitions/boot, any mount of `/`,
-`/data`, `/system`. Teardown is namespace death; the helper’s exit, the idle
+The helper itself performs no `setenforce`, no SELinux policy change, no
+remount of a real filesystem, no change to init/partitions/boot, and mounts
+neither `/`, `/data` nor `/system`. The **user's uid-0 command is not sandboxed
+by this list** and may still modify container files or shared mounts. Teardown
+is namespace death; the helper’s exit, the idle
 TTL (15 min default) or `--control stop` removes the only persistent artefact —
 an abstract socket name, which is not a file.
 
@@ -248,7 +296,7 @@ Applied after the main agent's review, no vulnerability reproduction performed:
 2. `argv`/`envp` are allocated with `count + 1` and a NULL terminator; every
    allocation and read failure frees and aborts the request. Embedded NUL in a
    frame string is refused.
-3. SIGCHLD stays at its default — `SIG_IGN` makes `waitpid()` return `ECHILD`
+3. SIGCHLD stays at its default — `SIG_IGN` takes `waitpid()` return `ECHILD`
    and a killed command would read as success.
 4. Daemon fork failure is an error (exit 1, no handshake); the handshake names
    the **daemon** pid; fd 0 is `/dev/null` and 1/2 go to `helper.log`; the stop
@@ -289,5 +337,8 @@ NOT verified (needs a rooted device):
 * `devpts` fallback on older kernels.
 
 Any failure is designed to surface as: exit 97 (helper not running), 98
+(rejected request), 126 (setup/drop failed), 127 (exec failed) — never as a
+silent success.
+nning), 98
 (rejected request), 126 (setup/drop failed), 127 (exec failed) — never as a
 silent success.

@@ -24,16 +24,17 @@ import kotlinx.coroutines.sync.withLock
  *    it directly, no per-command app dialog. The device's su manager keeps its
  *    own prompt; this object never tries to bypass it.
  *  - 询问 ([RootAccess.ASK_ONCE]) — one confirmable request per invocation. An
- *    [RootCaller.AGENT] call raises the dialog (decision made for THIS call
- *    only); a [RootCaller.SYSTEM] path (Chroot switch) raises exactly one
- *    confirmable request per switch and otherwise reports the settings hint.
- *    Refusal, cancel or timeout runs nothing and never changes the level.
+ *    [RootCaller.AGENT] call (agent CLI) or an explicit [RootCaller.USER]
+ *    action (the chroot switch the user pressed) raises the dialog, and the
+ *    answer covers THAT call only; an automatic [RootCaller.SYSTEM] path
+ *    (autostart, probe) never prompts and never runs su. Refusal, cancel or
+ *    timeout runs nothing and never changes the level.
  *  - 不允许 ([RootAccess.NOT_ALLOWED]) — everything is refused, with a settings
  *    hint for the system paths; no Root dialog is ever shown.
  *
- * Default: on a device where Root is actually available the level becomes 允许
- * once and is persisted ([applyDetectedRootDefault]); a level the user picked
- * is never overridden by detection.
+ * Default: 每次询问, always. A successful su probe only records that Root is
+ * usable (status text); it never promotes the level. 完全允许 is persisted only
+ * by an explicit user selection.
  */
 object RootManager {
     enum class State { DISABLED, NOT_FOUND, NEED_PERMISSION, READY, DENIED }
@@ -87,9 +88,18 @@ object RootManager {
     fun setAccessLevel(level: RootAccess, byUser: Boolean = true) {
         OffloadPermissionManager.setRootLevel(level, byUser = byUser)
         if (level != RootAccess.BYPASS) {
-            // The in-process chroot grant was authorized by 允许; drop it so a
-            // later switch has to go through the gate again.
+            // The in-process chroot grant was authorized by 完全允许; drop it so
+            // a later switch has to go through the gate again.
             runCatching { com.openminis.app.sandbox.SandboxBackendStore.revokeChrootGrant() }
+            // A downgrade must not leave a long-lived uid-0 shell or a running
+            // chroot command behind. Stopping is best effort: a process that
+            // cannot be reached still cannot be used for NEW dispatches, which
+            // re-check the level in ChrootKernel.spawn.
+            runCatching { com.openminis.app.sandbox.ExecutionCoordinator.stopCurrentCommand() }
+            runCatching { RootExecPermission.clear() }
+            // The helper may outlive this process; its root token must not.
+            // A later authorised spawn replaces the helper.
+            runCatching { com.openminis.app.sandbox.ChrootKernel.forgetRootTokens() }
             // 不允许 also means "stop bringing the helper back by itself".
             appContext?.let {
                 runCatching { com.openminis.app.sandbox.SandboxBackendStore.setChrootAutostart(it, false) }
@@ -114,9 +124,9 @@ object RootManager {
         if (level != RootAccess.BYPASS) {
             _snapshot.value = Snapshot(State.DISABLED, message = when (level) {
                 RootAccess.ASK_ONCE ->
-                    "为“询问”；android-root-cli 每次调用询问一次，切换 Chroot 时询问一次。"
+                    "为“每次询问”；android-root-cli 每次调用、chroot 每条命令/每个终端都各询问一次。"
                 else ->
-                    "为“不允许”；Root 操作会被拒绝，可在 设置 → 权限 → 原生 Root 中改为“允许”。"
+                    "为“不允许”；Root 操作会被拒绝，可在 设置 → 权限 → 原生 Root 中改为“完全允许”。"
             })
             return
         }
@@ -131,7 +141,7 @@ object RootManager {
                 State.READY,
                 path,
                 -1,
-                "Root verified earlier; commands run directly",
+                "Root 已验证可用；完全允许，命令直接执行",
             )
             previous.suPath == path && previous.state in setOf(State.READY, State.DENIED) -> previous
             else -> Snapshot(State.NEED_PERMISSION, path)
@@ -188,7 +198,9 @@ object RootManager {
                 val timeoutSec = ((timeoutMs + 999) / 1000).coerceIn(1, 900).toInt()
                 val body = when (caller) {
                     RootCaller.AGENT -> rootAgentAccessRequest(cwd.orEmpty(), timeoutSec)
-                    RootCaller.SYSTEM -> rootChrootSwitchRequest(timeoutSec)
+                    // An explicit in-app action (chroot switch). One launch
+                    // approval for that action; the level is not changed.
+                    else -> rootChrootSwitchRequest(timeoutSec)
                 }
                 val allowed = OffloadPermissionManager.confirmPrivilegedOperation(
                     "root_cli",
@@ -200,12 +212,10 @@ object RootManager {
                 // Refuse an approval the user invalidated while the dialog was
                 // open (they revoked, downgraded or reset permissions).
                 if (current != now && accessLevel() != RootAccess.BYPASS) return@withLock null
-                // 点一次“允许”就是长期允许：记下来，后面直接执行，不再把用户
-                // 送回设置页重新授权。显式改“不允许”仍会覆盖。
-                if (caller == RootCaller.AGENT) {
-                    OffloadPermissionManager.promoteRootToPersistentAllow()
-                    refresh()
-                }
+                // [FEAT-261027-ROOT explicit] A single approval authorises this
+                // call only. It does NOT persist 完全允许: that level is
+                // written exclusively by an explicit user selection.
+                if (caller == RootCaller.USER) refresh()
                 AccessTicket(current)
             }
         }
@@ -299,17 +309,17 @@ object RootManager {
         val result = ShizukuManager.ProcessResult(exit, stdout.toString("UTF-8"), stderrText)
         if (argv.contentEquals(arrayOf("/system/bin/id")) || argv.contentEquals(arrayOf("id"))) {
             val uid = if (exit == 0) ShellCommand.parseUid(result.stdout) else -1
-            // A real Root capability was just proven: this is where the
-            // "detected → 允许, recorded once" default is written.
+            // A real Root capability was just proven. Detection only records
+            // the fact for the status line; it never promotes the level.
             val detected = uid == 0
             OffloadPermissionManager.applyDetectedRootDefault(detected)
             if (detected) {
-                _snapshot.value = Snapshot(
-                    State.READY,
-                    executor.resolveSu(),
-                    uid,
-                    "Root verified; commands use the stored 允许 level directly",
-                )
+                val label = when (accessLevel()) {
+                    RootAccess.BYPASS -> "完全允许，命令直接执行"
+                    RootAccess.ASK_ONCE -> "每次询问：每条命令/每个终端仍会各确认一次"
+                    RootAccess.NOT_ALLOWED -> "当前为不允许，实际执行会被拒绝"
+                }
+                _snapshot.value = Snapshot(State.READY, executor.resolveSu(), uid, "Root 已验证；$label")
             } else {
                 _snapshot.value = Snapshot(State.DENIED, executor.resolveSu(), uid, result.combined)
             }
@@ -335,6 +345,18 @@ object RootManager {
      * @return true when this call wrote the 允许 default.
      */
     fun ensureDetectedDefault(): Boolean {
+        val ctx = appContext ?: return false
+        // [FEAT-261027-ROOT explicit] Detection no longer runs su on its own:
+        // under 每次询问 that would either prompt from a background thread or
+        // execute silently, and both are wrong. The settings page's 验证 Root
+        //（id） is the one place that may execute `id`, and only as an explicit
+        // user action. This keeps the refresh for the status line.
+        refresh()
+        return false
+    }
+
+    /** Old body kept out of the build path; see [ensureDetectedDefault]. */
+    private fun ensureDetectedDefaultLegacy(): Boolean {
         val ctx = appContext ?: return false
         // 原生 Root 只验证一次：su was already proven usable on this install,
         // so there is nothing left to detect and nothing to ask again — but the
@@ -386,11 +408,62 @@ object RootManager {
         }
     }
 
-    /** Fire-and-forget wrapper; the probe forks `su`, never the main thread. */
+    /**
+     * Fire-and-forget wrapper kept for startup callers. It no longer runs su:
+     * [ensureDetectedDefault] only refreshes the status snapshot.
+     */
     fun startDetectedDefaultProbe() {
-        Thread({ runCatching { ensureDetectedDefault() } }, "minis-root-detect")
+        Thread({ runCatching { ensureDetectedDefault() } }, "minis-root-status")
             .apply { isDaemon = true }
             .start()
+    }
+
+    /**
+     * A ticket for an action the caller has ALREADY shown the user and the
+     * user approved (the chroot CLI's own confirmation / the per-command Root
+     * dialog). It authorises only this epoch; it does not change the stored
+     * level.
+     *
+     * [actionKey] is the [RootExecRequest.fingerprint] of the approved action.
+     * A ticket is only minted while a confirmation for exactly that key is on
+     * record, so no caller can conjure one out of the current level.
+     */
+    private data class ConfirmedAction(val key: String, val epoch: Long, val atMs: Long)
+
+    private val lastConfirmedAction =
+        java.util.concurrent.atomic.AtomicReference<ConfirmedAction?>(null)
+
+    /** Remember an approval JUST obtained from the user for [actionKey]. */
+    internal fun recordConfirmedAction(
+        actionKey: String,
+        epoch: Long = OffloadPermissionManager.rootAuthorizationEpoch(),
+        atMs: Long = android.os.SystemClock.elapsedRealtime(),
+    ) {
+        lastConfirmedAction.set(ConfirmedAction(actionKey, epoch, atMs))
+    }
+
+    /**
+     * Ticket for launching the helper as part of an action the user just
+     * approved (one dialog covers both the su launch and the command).
+     *
+     * Returns null unless a fresh confirmation for [actionKey] exists under
+     * the current epoch and the level is not 不允许.
+     */
+    fun ticketForConfirmedAction(
+        actionKey: String,
+        maxAgeMs: Long = RootExecPolicy.GRANT_TTL_MS,
+        nowMs: Long = android.os.SystemClock.elapsedRealtime(),
+    ): AccessTicket? {
+        if (accessLevel() == RootAccess.NOT_ALLOWED) return null
+        val recorded = lastConfirmedAction.get() ?: return null
+        if (recorded.key != actionKey) return null
+        if (nowMs - recorded.atMs !in 0..maxAgeMs) return null
+        val epoch = OffloadPermissionManager.rootAuthorizationEpoch()
+        if (recorded.epoch != epoch) return null
+        // SINGLE USE: the confirmation covers one helper launch. A later caller
+        // must not re-mint from the same answer (that would be a cache).
+        if (!lastConfirmedAction.compareAndSet(recorded, null)) return null
+        return AccessTicket(epoch)
     }
 
     /** One `su -c id`, captured like a normal command but with no gate. */

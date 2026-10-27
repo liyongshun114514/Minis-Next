@@ -697,6 +697,9 @@ class BackupImporter(
             report.filesWritten += 1
             report.bytesWritten += file.length()
         }
+        // Custom prompt rules are backed by a memory file too. Do not keep
+        // serving the pre-restore snapshot after SOUL_PROMPT_RULES.json changed.
+        com.openminis.app.agent.SoulPromptRuleStore.invalidate()
         return report
     }
 

@@ -7498,6 +7498,47 @@ class ChatViewModel(
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
+    /**
+     * [T-soul-scoped-prompt] Resolve the application prompt for the selection
+     * that is active RIGHT NOW.
+     *
+     * `entryId` is the provider identity the caller is about to use (the
+     * loop's `currentIdentity.entryId`, which follows fallbacks and mid-turn
+     * switches). Null falls back to [_activeEntryId]. The entry is looked up
+     * again rather than trusting a cached model name: [ModelEntry] carries
+     * both `providerInstanceId` and `baseModel.id`, which is the only pair
+     * that makes a model rule provider-specific. A rule recorded for the same
+     * model name under a different provider therefore does not match.
+     *
+     * A deleted/unknown entry resolves to null model scope, and a stale/
+     * deleted group id simply fails exact equality — neither can degrade into
+     * "apply globally". A helper returns null unconditionally.
+     */
+    private fun applicationPromptForSelection(
+        soul: com.openminis.app.agent.SoulFile?,
+        rules: List<com.openminis.app.agent.SoulPromptRule>,
+        entryId: String?,
+    ): String? {
+        if (helperConfig != null) return null
+        if (soul == null && rules.isEmpty()) return null
+        val effectiveEntryId = entryId ?: _activeEntryId.value
+        val entry = effectiveEntryId?.let { id ->
+            providerRepository.config.value.modelEntries.firstOrNull { it.id == id }
+        }
+        val selection = com.openminis.app.agent.SoulPromptSelection(
+            groupId = _selectedGroupId.value,
+            providerInstanceId = entry?.providerInstanceId,
+            modelId = entry?.baseModel?.id,
+        )
+        return runCatching {
+            com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
+                soul,
+                rules,
+                selection,
+            )
+        }.getOrNull()
+    }
+
     private fun isBoundToAbandonedModel(): Boolean =
         _autoRetryAttempt.value > 0 || _autoRetryCountdown.value > 0
 
@@ -11155,16 +11196,32 @@ class ChatViewModel(
         var loopSystemPrompt = systemPrompt
         // [T-soul-prompt-supreme] Settings → System Prompt rides in its own
         // provider field, AHEAD of loopSystemPrompt in each provider's native
-        // system channel (see LLMProvider.applicationSystemPrompt). Resolved
-        // ONCE per turn from the same SOUL.md snapshot the loop was built from
-        // — not re-read per request, so editing Settings mid-turn cannot make
-        // one turn's requests disagree. Null for a sub agent: it has its own
-        // identity text and no Settings page (see applyApplicationSystemPrompt).
-        val applicationPromptForTurn = if (helperConfig == null) {
-            runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
+        // system channel (see LLMProvider.applicationSystemPrompt).
+        //
+        // [T-soul-scoped-prompt] Two different lifetimes here, on purpose:
+        //  - the GLOBAL body + the rule list are snapshotted once per turn
+        //    (SoulStore.load / SoulPromptRuleStore.cachedOrLoad), so a
+        //    Settings save mid-turn cannot make one turn's requests disagree;
+        //  - the SELECTION (group id + active entry) is read at every request,
+        //    so switching the group or model takes effect on the next request,
+        //    not only on the next turn. A sub agent gets null at every step:
+        //    it has its own identity text and no Settings page.
+        val soulFileForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
         } else {
             null
         }
+        val promptRulesForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulPromptRuleStore.cachedOrLoad(context) }
+                .getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+        val applicationPromptForTurn = applicationPromptForSelection(
+            soulFileForTurn,
+            promptRulesForTurn,
+            _activeEntryId.value,
+        )
         applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
         // A flag left over from a turn that ended before it could be applied
         // is stale once this turn starts on the class-level provider; a switch
@@ -11355,7 +11412,14 @@ class ChatViewModel(
                     // [T-soul-prompt-supreme] The new provider has its own
                     // `applicationSystemPrompt` field; without this the user's
                     // prompt would vanish for the rest of the turn.
-                    applyApplicationSystemPrompt(chosen, applicationPromptForTurn)
+                    applyApplicationSystemPrompt(
+                        chosen,
+                        applicationPromptForSelection(
+                            soulFileForTurn,
+                            promptRulesForTurn,
+                            currentIdentity?.entryId,
+                        ),
+                    )
                     AppLogger.info(
                         TAG_STREAM,
                         "[SwitchModel] applied at next request: $from → ${chosen.model.displayName} turn=${turn + 1}",
@@ -11813,6 +11877,22 @@ class ChatViewModel(
             // text. See QueuedCallbackReminder.
             var callbackReminder: QueuedCallbackReminder.Plan? = null
             while (!collectDone) {
+                // [T-soul-scoped-prompt] THE per-request application point.
+                // `currentIdentity` follows fallbacks and mid-turn switches,
+                // and the group id is read live, so a switch made after the
+                // turn started is reflected in the very next request. The
+                // global body and rule list stay the turn snapshot above;
+                // only the selection is re-resolved. A helper keeps null.
+                if (helperConfig == null) {
+                    applyApplicationSystemPrompt(
+                        currentProvider,
+                        applicationPromptForSelection(
+                            soulFileForTurn,
+                            promptRulesForTurn,
+                            currentIdentity?.entryId,
+                        ),
+                    )
+                }
                 // [ISS-036, T-provider-live-check] Before every request: is the
                 // provider this turn is about to use still there and enabled?
                 // A stream already open is never interrupted - this only runs
@@ -13256,7 +13336,10 @@ class ChatViewModel(
                         currentProvider = next
                         currentIdentity = providerIdentity(emptyNext.entryId)
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
-                        applyApplicationSystemPrompt(next, applicationPromptForTurn)  // [T-soul-prompt-supreme]
+                        applyApplicationSystemPrompt(
+                            next,
+                            applicationPromptForSelection(soulFileForTurn, promptRulesForTurn, currentIdentity?.entryId),
+                        )  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }
                         if (adoptLoopFallbackBinding(emptyNext, classProviderAtSend, isRealModelChange)) {
@@ -16519,8 +16602,8 @@ CLI tools at /usr/local/bin with the `android-` prefix give you access to Androi
 - android-speak — device TTS (`<text> [--rate F] [--pitch F] [--volume F]`; `--stop | --status`).
 - android-speech — speech transcription (`transcribe [--engine system|provider|auto] [--source mic|<file>] [--language BCP47] [--duration SEC, max 60] [--max N] [--on-device]`; `listen` is an alias). `--engine provider` uses the Voice Input model instead (audio is uploaded to that service; also takes `--source <audio file>`), `--engine auto` falls back to it when the system recognizer cannot be reached and says `audio_sent_to`; default `--engine system`. Default is the regular recognizer; `--on-device` prefers the on-device one; either falls back to the other once and the result names `recognizer` / `fallback_used`. `languages` lists what the recognizer reports (error `unavailable` when it reports nothing); `status [--probe]` says whether recognition can work and why not. JSON envelope {ok, data|error{code,message}}; non-zero exit on failure. Requires RECORD_AUDIO.
 - android-weather <latitude> <longitude> — Open-Meteo forecast (current + hourly + daily). No API key needed.
-- android-chroot-cli — discover and explicitly use the real chroot backend against the shared Ubuntu rootfs. `status` and `--help` do not execute Root or start a helper. Use `exec --command '<command>' --timeout 60` to request execution: the app shows the exact command and waits for single-use user approval EVERY time, including when Native Root is already allowed. Refusal, cancellation or an unanswered request starts nothing; do not retry to evade the decision. Approved execution remains the app uid (CapEff=0, NoNewPrivs=1), does not switch the global backend, and does not authorize unrelated Android Root commands. If Native Root is disabled, report the settings hint rather than changing it. Run --help for limits and output details.
-- android-root-cli — native su backend with the same grouped CLI as android-shizuku-cli. The stored Native Root permission controls access: Not allowed refuses, Ask requests approval, and Allow uses the persistent grant until revoked. Accepting an agent Root request currently remembers Allow; do not describe it as single-use or infer permission from a guest uid. The device's su manager separately controls actual Root access. It does not need Xposed or a running Shizuku service. For an explicitly confirmed, non-root command inside the Ubuntu chroot, use android-chroot-cli instead.
+- android-chroot-cli — real Root chroot against the shared Ubuntu rootfs; every chroot command runs as real Root (uid 0), gated by the stored Native Root tri-state: 不允许 refuses; 询问 asks for approval of that exact command (or of creating an interactive session) every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 is a persistent grant only the user can select explicitly, never an automatic promotion. The device's su manager may still prompt separately. `status` and `--help` are read-only (no helper start, not a liveness proof). `exec --command '<command>' --timeout 60` runs in the same rootfs under that gate without switching the global backend. Do not retry to evade a refusal. Chroot approval does not authorize unrelated Android Root commands. Run --help for limits and output details.
+- android-root-cli — native su backend with the same grouped CLI as android-shizuku-cli. The stored Native Root permission is a strict tri-state: 不允许 refuses; 询问 asks for approval of the current request every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 uses the persistent grant until revoked and is selectable only by the user, never promoted automatically. Do not infer permission from a guest uid; an 询问 approval covers only the current request and never changes the stored level. The device's su manager separately controls actual Root access. It does not need Xposed or a running Shizuku service. For a command inside the Ubuntu chroot under the same tri-state (real Root chroot, uid 0), use android-chroot-cli instead.
 - android-shizuku-cli — invoke privileged Android system APIs (package management, settings, system commands) via Shizuku when granted. Curated subcommands return structured JSON; for anything not covered, fall back to `android-shizuku-cli exec <any shell command>` which runs the command via `sh -c` with Shizuku privilege (same surface as `adb shell`). Run with no args (or --help) for the subcommand list.
 - android-a11y-cli — drive system UI (read screen, tap, type, swipe, scroll) via the Android AccessibilityService when enabled. Run with no args (or --help) for the subcommand list.
 - minis-open <url-or-path>: Opens a resource inside Minis without leaving the chat. Accepts http/https URLs (→ built-in WebKit preview) and chat-resource file paths under /var/minis/** (→ built-in file preview, routed by extension: images to the image viewer, .md to markdown preview, .html to HTML preview, .pdf/office docs to QuickLook, audio/video to the media player, else share sheet). Examples: minis-open https://example.com, minis-open /var/minis/workspace/report.md, minis-open /var/minis/attachments/chart.png. Prefer this over android-open for anything that can be previewed in-app so the user doesn't lose conversation context. Run android-open via shell_execute for non-web schemes (tel:, mailto:, geo:, intent:, etc.) or when the user explicitly wants the system handler.
@@ -16608,7 +16691,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             append("\n- Selected Linux backend: ").append(
                 com.openminis.app.sandbox.SandboxBackendStore.selected(context).name,
             )
-            append("\n- Explicit chroot execution: android-chroot-cli exec; single-use user approval required for every call. Use status for availability; selection is not proof of a live helper.")
+            append("\n- Explicit chroot execution: android-chroot-cli exec runs as real Root (uid 0) under the Native Root tri-state (不允许 refuse / 询问 ask for that exact command every time / 完全允许 persistent, user-selected only); status is read-only and not proof of a live helper.")
         }
     }
 
