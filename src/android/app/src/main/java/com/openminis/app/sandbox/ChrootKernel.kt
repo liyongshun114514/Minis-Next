@@ -328,6 +328,11 @@ object ChrootKernel {
      * one failure mode worse than a loud error.
      */
     fun spawn(context: Context, spec: SandboxCommandSpec): SandboxSpawn {
+        // [FEAT-261027-CHROOT-autostart] The helper is a detached root process:
+        // it can die with the app (or on its idle TTL) while the backend is
+        // still CHROOT. Without this, every later command failed with "helper
+        // is not running" until the user re-enabled chroot by hand.
+        maybeRestartHelper(context)
         val generation = SandboxBackendStore.generation(context)
         // [FEAT-261025-CHROOT account] The guest must be able to name the uid
         // it runs as (otherwise bash prints "I have no name!" and `groups`
@@ -382,7 +387,9 @@ object ChrootKernel {
         }
         val notes = mutableListOf<String>()
         if (!SandboxBackendStore.chrootGranted(generation)) {
-            notes += "no runtime root grant for generation=$generation; client will exit $EXIT_NO_HELPER"
+            notes += "chroot helper 未运行（generation=$generation）：已尝试自动重启，" +
+                "若命令仍失败请到 设置 → Shell 容器 执行后端 里点一次启用 chroot。" +
+                "最近错误：" + (SandboxBackendStore.lastError(context) ?: "无")
         } else if (SandboxBackendStore.chrootGrantMayBeExpired(generation)) {
             // The command still gets the real client argv; if the helper's
             // idle TTL already fired it exits EXIT_NO_HELPER and the user is
@@ -510,10 +517,36 @@ object ChrootKernel {
             )
         }
         SandboxBackendStore.grantChrootForProcess(generation)
+        // [FEAT-261027-CHROOT-autostart] Remember that chroot is wanted, so a
+        // restart relaunches the helper instead of failing every command.
+        SandboxBackendStore.setChrootAutostart(context, true)
         SandboxBackendStore.setLastError(context, null)
         writeStateMarker(context, generation, pid)
         Log.i(TAG, "chroot helper ready generation=$generation pid=$pid")
         return Result.success(Unit)
+    }
+
+    /**
+     * [FEAT-261027-CHROOT-autostart] Bring a dead helper back, once.
+     *
+     * Runs only when the user already allowed chroot (persisted flag), the Root
+     * level still permits it (允许), and the caller is not the UI thread — the
+     * restart blocks on `su`. Throttled so a permanently failing helper costs
+     * one attempt per 30 s instead of one per command.
+     */
+    private fun maybeRestartHelper(context: Context) {
+        val generation = SandboxBackendStore.generation(context)
+        if (SandboxBackendStore.chrootGranted(generation)) return
+        if (!SandboxBackendStore.chrootAutostart(context)) return
+        if (!ChrootPrivilege.switchAllowed()) return
+        val onMain = runCatching {
+            android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+        }.getOrDefault(false)
+        if (onMain) return
+        if (!SandboxBackendStore.beginHelperRestart()) return
+        runCatching {
+            kotlinx.coroutines.runBlocking { ensureServer(context, "auto-restart") }
+        }.onFailure { Log.i(TAG, "auto restart failed: ${it.message}") }
     }
 
     /**

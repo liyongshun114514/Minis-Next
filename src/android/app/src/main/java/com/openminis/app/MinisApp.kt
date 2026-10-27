@@ -1023,6 +1023,24 @@ class MinisApp : Application(), ImageLoaderFactory {
         // thread and is a no-op once a level exists or the user chose one.
         com.openminis.app.offload.RootManager.startDetectedDefaultProbe()
 
+        // [FEAT-261027-CHROOT-autostart] 后端是 Chroot 且用户允许过：重启后自己把
+        // helper 拉起来。helper 是脱离 App 的 root 进程，会随 App 被杀或空闲 TTL
+        // 退出；不自动恢复的话，之后每条命令都是 “helper is not running”。
+        if (com.openminis.app.sandbox.SandboxBackendStore.selected(this) ==
+            com.openminis.app.sandbox.SandboxBackend.CHROOT &&
+            com.openminis.app.sandbox.SandboxBackendStore.chrootAutostart(this) &&
+            com.openminis.app.offload.RootManager.accessLevel() ==
+            com.openminis.app.offload.RootAccess.BYPASS
+        ) {
+            Thread({
+                runCatching {
+                    kotlinx.coroutines.runBlocking {
+                        com.openminis.app.sandbox.ChrootKernel.ensureServer(this, "startup")
+                    }
+                }
+            }, "minis-chroot-autostart").apply { isDaemon = true }.start()
+        }
+
         // Initialize speech-recognition adapter layer (system + provider engines).
         com.openminis.app.speech.SpeechRecognitionManager.init(this)
 

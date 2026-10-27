@@ -244,6 +244,17 @@ object SandboxBackendStore {
     private const val KEY_GENERATION = "chroot_generation"
     private const val KEY_LAST_ERROR = "chroot_last_error"
 
+    /**
+     * [FEAT-261027-CHROOT-autostart] "The user has allowed chroot" — persisted.
+     *
+     * The runtime grant stays in memory on purpose (it describes a live helper
+     * handshake). What a restart must NOT lose is the user's decision: once they
+     * have enabled chroot, the app may bring the helper back by itself instead
+     * of showing "chroot 不可用" on every command until they press the button
+     * again. Cleared when 不允许 / the helper is stopped on purpose.
+     */
+    private const val KEY_AUTOSTART = "chroot_autostart"
+
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -332,6 +343,27 @@ object SandboxBackendStore {
     private fun monotonicMs(): Long = System.nanoTime() / 1_000_000L
 
     fun chrootGranted(generation: String): Boolean = grantedGeneration == generation
+
+    /** True when chroot was enabled before and may be auto-started after a restart. */
+    fun chrootAutostart(context: Context): Boolean = prefs(context).getBoolean(KEY_AUTOSTART, false)
+
+    fun setChrootAutostart(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_AUTOSTART, on).apply()
+    }
+
+    /**
+     * Throttles automatic helper restarts so one dead helper cannot turn into a
+     * `su` call per shell command.
+     */
+    @Volatile
+    private var lastRestartAttemptMs: Long = 0L
+
+    fun beginHelperRestart(minGapMs: Long = 30_000L): Boolean {
+        val now = monotonicMs()
+        if (now - lastRestartAttemptMs < minGapMs) return false
+        lastRestartAttemptMs = now
+        return true
+    }
 
     /**
      * [FEAT-261025-CHROOT] True when the helper may have exited on its idle

@@ -90,6 +90,10 @@ object RootManager {
             // The in-process chroot grant was authorized by 允许; drop it so a
             // later switch has to go through the gate again.
             runCatching { com.openminis.app.sandbox.SandboxBackendStore.revokeChrootGrant() }
+            // 不允许 also means "stop bringing the helper back by itself".
+            appContext?.let {
+                runCatching { com.openminis.app.sandbox.SandboxBackendStore.setChrootAutostart(it, false) }
+            }
         }
         refresh()
     }
