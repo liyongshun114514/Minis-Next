@@ -320,8 +320,11 @@ object SoulIcon {
      * can decode the format. [open] must return a FRESH stream on every call
      * (a `content://` URI can be opened repeatedly; a one-shot stream cannot).
      *
-     * Failure is reserved for real defects: an unreadable/unrecognised file,
-     * a truncated stream, or an I/O error while reading it. Those surface as
+     * Failure is reserved for inputs the platform cannot decode: an
+     * unreadable/unrecognised file or an I/O error while reading it. Some
+     * partial images are recoverable by the platform decoder; this importer
+     * accepts that decoded result rather than pretending to validate the
+     * entire source format. Unrecoverable read failures surface as
      * [Rejection.UNREADABLE] — the "can't read your file" verdict, never
      * "your file is too big".
      */

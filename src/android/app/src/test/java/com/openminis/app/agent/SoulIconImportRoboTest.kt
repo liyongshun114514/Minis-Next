@@ -122,9 +122,25 @@ class SoulIconImportRoboTest {
     }
 
     @Test
-    fun `a truncated stream is unreadable`() {
-        val truncated = bigPng().copyOfRange(0, 64)
-        val result = SoulIcon.importFrom { ByteArrayInputStream(truncated) }
+    fun `an incomplete png header is unreadable`() {
+        // Stop before IHDR dimensions are complete. A 64-byte prefix already
+        // contains a full header: Skia may recover that partial image, so it
+        // is not a portable example of an undecodable input.
+        val incompleteHeader = bigPng().copyOfRange(0, 16)
+        val result = SoulIcon.importFrom { ByteArrayInputStream(incompleteHeader) }
+        assertEquals(SoulIcon.EncodeResult.Failure(SoulIcon.Rejection.UNREADABLE), result)
+    }
+
+    @Test
+    fun `an io failure on the pixel decode pass is unreadable`() {
+        val png = bigPng()
+        var opens = 0
+        val result = SoulIcon.importFrom {
+            opens++
+            if (opens == 1) ByteArrayInputStream(png)
+            else throw java.io.IOException("pixel stream unavailable")
+        }
+        assertEquals("bounds pass must succeed before the read fails", 2, opens)
         assertEquals(SoulIcon.EncodeResult.Failure(SoulIcon.Rejection.UNREADABLE), result)
     }
 
