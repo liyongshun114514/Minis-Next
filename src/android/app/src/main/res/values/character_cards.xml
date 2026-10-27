@@ -8,7 +8,7 @@
     <string name="character_cards_subtitle">Global and per-model personas for chats.</string>
     <string name="character_cards_tab_global">Global</string>
     <string name="character_cards_tab_custom">Custom</string>
-    <string name="character_cards_tab_global_hint">Used when no custom card matches the current model.</string>
+    <string name="character_cards_tab_global_hint">Applies to all models. Matching custom cards are appended after these global cards.</string>
     <string name="character_cards_tab_custom_hint">Bound to a model group or to one provider instance + model.</string>
     <string name="character_cards_count">%1$d global · %2$d custom</string>
     <string name="character_cards_loading">Loading character cards…</string>
@@ -87,7 +87,7 @@
     <string name="character_card_editor_scope_global">Global</string>
     <string name="character_card_editor_scope_group">Group</string>
     <string name="character_card_editor_scope_model">Model</string>
-    <string name="character_card_editor_scope_global_hint">Used when no custom card matches the model.</string>
+    <string name="character_card_editor_scope_global_hint">Applies to every model; matching group and model cards add their settings afterward.</string>
     <string name="character_card_editor_bind_group">Bound group</string>
     <string name="character_card_editor_bind_model">Bound model</string>
     <string name="character_card_editor_bind_none">Not selected</string>

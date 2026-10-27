@@ -5,7 +5,7 @@
     <string name="character_cards_subtitle">为对话设置全局与按模型绑定的角色。</string>
     <string name="character_cards_tab_global">全局</string>
     <string name="character_cards_tab_custom">自定义</string>
-    <string name="character_cards_tab_global_hint">没有自定义角色卡匹配当前模型时使用。</string>
+    <string name="character_cards_tab_global_hint">对所有模型生效；匹配的自定义角色卡会追加在全局卡之后。</string>
     <string name="character_cards_tab_custom_hint">按模型分组或“提供方实例 + 模型”精确绑定。</string>
     <string name="character_cards_count">全局 %1$d · 自定义 %2$d</string>
     <string name="character_cards_loading">正在读取角色卡…</string>
@@ -84,7 +84,7 @@
     <string name="character_card_editor_scope_global">全局</string>
     <string name="character_card_editor_scope_group">分组</string>
     <string name="character_card_editor_scope_model">模型</string>
-    <string name="character_card_editor_scope_global_hint">没有自定义角色卡匹配该模型时使用。</string>
+    <string name="character_card_editor_scope_global_hint">对所有模型生效；分组和模型卡的设定按顺序追加。</string>
     <string name="character_card_editor_bind_group">绑定分组</string>
     <string name="character_card_editor_bind_model">绑定模型</string>
     <string name="character_card_editor_bind_none">未选择</string>

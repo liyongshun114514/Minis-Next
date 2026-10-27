@@ -330,7 +330,32 @@ object CharacterCardStore {
 
     // -- Import / export (fixed API) ----------------------------------
 
-    fun importCard(bytes: ByteArray): CharacterCard = CharacterCardImport.import(bytes)
+    fun importCard(bytes: ByteArray): CharacterCard {
+        val card = CharacterCardImport.import(bytes)
+        if (!CharacterCardImport.isPng(bytes)) return card
+        // A Tavern PNG commonly exceeds the inline avatar limit because it
+        // contains the complete card metadata. Decode only a sampled thumbnail
+        // and re-encode through the same avatar policy as the native picker.
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return card
+        var sample = 1
+        while (bounds.outWidth / sample > SoulIcon.STORED_PIXELS * 2 ||
+            bounds.outHeight / sample > SoulIcon.STORED_PIXELS * 2) {
+            sample *= 2
+        }
+        val options = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            ?: return card
+        return try {
+            when (val encoded = SoulIcon.encode(bitmap)) {
+                is SoulIcon.EncodeResult.Success -> card.copy(icon = encoded.dataUri)
+                is SoulIcon.EncodeResult.Failure -> card
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
 
     fun exportCard(card: CharacterCard): String = CharacterCardExport.encode(card)
 

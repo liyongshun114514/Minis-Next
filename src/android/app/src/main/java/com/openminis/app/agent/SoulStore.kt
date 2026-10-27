@@ -818,7 +818,10 @@ object SystemPromptBuilder {
     fun identitySection(context: Context): String {
         SoulBodyLimitPolicy.ensureLoaded(context)
         val cards = CharacterCardStore.load(context)
-        return renderCards(cards.filter { it.enabled && it.isGlobal })
+        val primary = CharacterCardStore.primaryGlobal(cards)
+        // Card content travels exactly once in applicationSystemPrompt.
+        // This separate app-generated section owns identity/style/hints only.
+        return renderResolved(rawName = primary?.name, rawStyle = primary?.style, body = null)
     }
 
     /**

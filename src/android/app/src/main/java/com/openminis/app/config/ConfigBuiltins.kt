@@ -1490,7 +1490,7 @@ internal object ConfigBuiltins {
                     // [T-soul-avatar-fill] No square crop: the image keeps its
                     // aspect ratio, its longest edge is bounded, and the avatar
                     // frame fills (ContentScale.Crop) at draw time.
-                    "PROCESSING — identical to picking an image in Settings → System Prompt: the " +
+                    "PROCESSING — identical to picking an image in Settings → Character Cards: the " +
                     "aspect ratio is preserved, the longest edge is downscaled to at most " +
                     "${com.openminis.app.agent.SoulIcon.STORED_PIXELS}px, then it is re-encoded as " +
                     "PNG and stored inline. Nothing is cropped on save; the avatar fills its " +

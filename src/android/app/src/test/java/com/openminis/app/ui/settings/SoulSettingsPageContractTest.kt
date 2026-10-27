@@ -172,7 +172,7 @@ class SoulSettingsPageContractTest {
     @Test
     fun `a failed write keeps the editor open and prevents double submit`() {
         assertTrue(editor.contains("var saving by remember { mutableStateOf(false) }"))
-        assertTrue(editor.contains("if (nameError || groupMissing || modelMissing || tooLong || saving) return"))
+        assertTrue(editor.contains("if (nameError || groupMissing || modelMissing || targetBlocksEnable || tooLong || saving) return"))
         assertTrue(editor.contains("onSave: suspend (CharacterCard) -> Result<Unit>"))
         assertTrue(editor.contains(".onFailure"))
         assertTrue(editor.contains("R.string.character_card_editor_save_error_title"))
