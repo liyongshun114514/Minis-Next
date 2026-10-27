@@ -18,9 +18,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.agent.jobs.AgentJobRegistry
 import com.openminis.app.agent.jobs.SubAgentConcurrencyPrefs
 import androidx.compose.ui.text.PlatformTextStyle
@@ -70,6 +74,7 @@ internal const val DRAFT_AGENT_ID = "__new__"
  * can never be empty — `subagent_task.agent` always has at least one valid
  * value.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val context = LocalContext.current
@@ -87,32 +92,46 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     var concurrency by remember { mutableStateOf(AgentJobRegistry.maxConcurrentChildJobsPerParent) }
     var showConcurrency by remember { mutableStateOf(false) }
     if (showConcurrency) {
-        AlertDialog(
-            onDismissRequest = { showConcurrency = false },
-            title = { Text(stringResource(R.string.sub_agents_concurrency_title)) },
-            text = {
-                Column {
+        ModalBottomSheet(onDismissRequest = { showConcurrency = false }) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.sub_agents_concurrency_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                )
+                Text(
+                    stringResource(R.string.sub_agents_concurrency_footer),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+                SettingsSection {
                     (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).forEach { count ->
-                        Row(
-                            Modifier.fillMaxWidth().clickable {
+                        SettingsChoiceRow(
+                            title = stringResource(R.string.sub_agents_concurrency_count, count),
+                            selected = concurrency == count,
+                            onSelect = {
                                 SubAgentConcurrencyPrefs.set(context, count)
                                 concurrency = count
                                 showConcurrency = false
-                            }.padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = concurrency == count, onClick = null)
-                            Text(stringResource(R.string.sub_agents_concurrency_count, count))
-                        }
+                            },
+                            showDivider = count < AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS,
+                        )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showConcurrency = false }) {
+                MinisTextButton(
+                    onClick = { showConcurrency = false },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                ) {
                     Text(stringResource(android.R.string.cancel))
                 }
-            },
-        )
+            }
+        }
     }
 
     SettingsScaffold(title = stringResource(R.string.sub_agents_title), onBack = onBack) {
@@ -167,10 +186,12 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             }
         }
         SettingsSection(footer = stringResource(R.string.sub_agents_concurrency_footer)) {
-            SettingsValueRow(
+            SettingsRow(
                 title = stringResource(R.string.sub_agents_concurrency_title),
-                value = concurrency.toString(),
+                subtitle = stringResource(R.string.sub_agents_concurrency_count, concurrency),
+                icon = Icons.Default.Groups,
                 onClick = { showConcurrency = true },
+                minHeight = 72.dp,
                 showDivider = false,
             )
         }
@@ -183,8 +204,8 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             footer = stringResource(R.string.sub_agents_list_footer),
         ) {
             roster.forEachIndexed { i, def ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) {
+                Column(Modifier.fillMaxWidth()) {
+                    Box(Modifier.fillMaxWidth()) {
                         SubAgentRosterRow(
                             name = def.displayName(context),
                             isBuiltIn = def.isBuiltIn,
@@ -192,7 +213,7 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                             modelLabel = def.modelGroupId?.let { repo.group(it)?.name }
                                 ?: stringResource(R.string.sub_agent_model_auto),
                             onClick = { onOpen(def.id) },
-                            showDivider = i < roster.lastIndex,
+                            showDivider = false,
                         )
                     }
                     // [T-android-subagent-settings-parity] Order IS meaningful:
@@ -206,6 +227,10 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     // The built-in is pinned to index 0 by normalize(), so it
                     // can neither move nor be displaced by the row below it.
                     if (roster.size > 1 && !def.isBuiltIn) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
                         IconButton(
                             onClick = { move(repo, roster, i, i - 1); generation++ },
                             enabled = i > 1,
@@ -224,6 +249,13 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                                 contentDescription = stringResource(R.string.sub_agents_move_down),
                             )
                         }
+                        }
+                    }
+                    if (i < roster.lastIndex) {
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        )
                     }
                 }
             }
@@ -613,7 +645,7 @@ private fun SubAgentRosterRow(
                 name,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
@@ -647,17 +679,18 @@ private fun SubAgentRosterRow(
                 description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 32.dp, top = 2.dp),
+                modifier = Modifier.padding(start = 32.dp, top = 4.dp),
             )
         }
         Text(
             modelLabel,
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            maxLines = 1,
-            modifier = Modifier.padding(start = 32.dp, top = 2.dp),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 32.dp, top = 4.dp),
         )
     }
     if (showDivider) {

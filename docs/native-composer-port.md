@@ -111,33 +111,102 @@ exactly once, in the composer.
 
 ## 4. Slider implementation notes
 
-The Canvas port keeps the upstream visual constants, with a deliberate change to
-the track itself (2026-10-27):
+The Canvas port is now a **one-to-one transcription of the upstream web
+component**, not of the old Xposed `EffortSlider.java`.
 
-* 22 stars, golden-ratio phase (`0.6180339887498949`), deterministic Y/brightness/spread.
-* Track: 14dp radius, blue `#4D93F8` → violet `#9333EA` → deep `#4C1D95`; flat blue up to the second level.
-* **Full-track coloured bed.** The stadium is painted edge to edge at EVERY level
-  (Off and Low included) with `BED_BLUE_ARGB #3F7BE0 → BED_VIOLET_ARGB #7C3AED →
-  BED_DEEP_ARGB #451C86`, plus a light vertical shading pass. There is no neutral
-  grey "empty" remainder any more: the level is read from the brighter sheen that
-  ends exactly at the thumb, the always-on halo, the lit tick/label and the
-  particle density.
-* **Particles run on the first two stops.** `starCount()` is floored at
-  `MIN_PARTICLES = 5` and ramps to 22 with energy; `particleSpeed()` runs
-  0.6x..2x over the track position (the upstream 0.35x crawl is gone), the star
-  field traverses the WHOLE pill (`barWidth`, not the filled segment) and the
-  clock is gated on `enabled` alone, so Off/Low animate instead of freezing.
-  `speedAt()`/`energy()` keep their upstream values for the test contract.
-* Nebula, sweep and star layer are clipped to the stadium; the nebula only warms
-  the reached stretch, while the sweep crosses the full pill at every level
-  (alpha floor) so motion is visible even at Off.
-* Discrete snap on release; a tap commits directly.
-* Labels are drawn with the same `pct()` that positions the ticks, so each label is centred on its own tick.
-* `Settings.Global.ANIMATOR_DURATION_SCALE == 0` disables the sweep and slows star travel (2.6x duration).
+### 4.1 Upstream basis (read, not guessed)
 
-`ComposerPortMath` is pure Kotlin (no Compose/Android imports), covered by
-`ComposerPortMathTest` (the CI owner adds that class; this task did not create a
-new test class).
+* Repository: `https://github.com/Bai-2008/dsh-better-panel`
+* Commit: `4f798ffcecf17d52cd15aaa617124c21b9784c12` (2026-10-25)
+* File: `lib/client.js`
+* Component: `CodexEffortSlider` (l.1913), stylesheet `CSS` (l.470-560),
+  pure helpers (l.662-900), pointer maths (l.2253-2315), render tree
+  (l.2400-2510)
+
+The values below are copied from that file, not inferred from screenshots:
+
+| Item | Upstream | Native port |
+| --- | --- | --- |
+| Track height | `TRACK_HEIGHT = 20` (l.195) | `TRACK_HEIGHT_DP = 20f` |
+| Knob diameter | `KNOB_SIZE = 28` (l.194) | `KNOB_SIZE_DP = 28f` |
+| End inset | `TRACK_RADIUS = 10` (l.204) | `Track.endInset = barHeight / 2` |
+| Stop offset | `calc(10px + pct*(100% - 20px))` (l.896) | `Track.tickX` |
+| Fill cap | `10px 0 0 10px` (l.501) | rounded left, square right path |
+| Fill colours | `#4D93F8 / #9333EA / #4C1D95` (l.456-458) | same ARGB |
+| Energy window | `ENERGY_START = 1/3`, `ENERGY_END = 2/3` | same |
+| Nebula | `#3B1178 0% / #6D28D9 30% / #9333EA 62% / #C084FC 100%` (l.512) | same stops |
+| Sweep | 2.4s linear, `translateX(100% -> -100%)` | same clock |
+| Stars | 22, golden-ratio phase, slot-searched Y, ±8% duration spread | `ComposerPortMath.PARTICLES` |
+| Star duration | `1.5 * 2 / speed` (l.853) | same |
+| Star count | `round(energy * 22)` (l.876) | same |
+| Star layer opacity | `0.6 + 0.4 * energy` (l.888) | same |
+| Speed | `clamp(3p - 1, 0.35, 2)` (l.821) | same |
+| Detent | `floor(u - 1/3) + 1` (l.2288) | `ComposerPortMath.detentIndex` |
+| Press | nearest stop, dead-zone only on a nearest/detent conflict | same |
+| Slide | `.16s cubic-bezier(.2,.9,.3,1)` / `.34s cubic-bezier(.45,.05,.35,1)` | `tween(160/340, CubicBezierEasing)` |
+| Slow/fast rule | gap since last step, 320ms in / 200ms out hysteresis | same |
+
+Every layer (fill width, energy width, star clip, knob x) is driven by a single
+`Animatable` in percent space, so they cannot separate — the native equivalent
+of the shared `--ces-slide` CSS variable.
+
+### 4.2 Deliberate deviations (and why)
+
+* **Off/Low particles — upstream conflict, reported.** Upstream stars are gated
+  by `energyFor(pct)`, which is exactly 0 for every `pct <= 1/3`; with
+  off/low/high/max that means **zero stars and no nebula at Off and Low**. The
+  previous native port overrode this with a floor of 5 stars (and dropped the
+  nebula entirely). A one-to-one replica cannot keep that floor: the two
+  requirements are mutually exclusive. Upstream wins here — stars appear at
+  6 (pct 0.5), 11 (high, pct 2/3) and 22 (max). If a live field at Off/Low is
+  required later, the single hook is `ComposerPortMath.starCountFor`; it would
+  be a documented divergence from `4f798ffc`, not part of this replica.
+* **Labels stay.** The upstream slider has no mode names — the host row shows
+  only the current value. The native sheet keeps its eight names under the
+  stops (peripheral layout preserved), centred on `track.tickX`, so the name of
+  every stop still lines up with its dot.
+* **Knob overhang + canvas gutter.** Upstream puts the 28px knob on a 20px
+  track; at the end stops it deliberately overhangs the pill by 4dp. Compose
+  canvases clip, so the canvas reserves a gutter of at least 4dp (plus the
+  label gutter): the knob still overhangs the pill by 4dp but never leaves the
+  composable, including at 90dp width.
+* **Vertical slot unchanged.** The 20dp pill is centred in the previous 30dp
+  band (top 5dp), so the label band, gap and the sheet's total height do not
+  move; the knob (28dp) exactly fits the slot.
+* **Release-only commit.** The sheet persists through `setThinkingLevel` once
+  per completed gesture, as before. Upstream additionally debounces a write
+  after 260ms of stillness while dragging; the native control keeps the
+  release commit the task preserves (same final `reasoningEffort`).
+* **Menu-level chrome not ported.** The upstream row glow, seat-button colour,
+  provider badge and API note live in the host menu, not in the slider body;
+  the native sheet has no equivalent row, so none of those DOM decorations
+  apply.
+* **No press scale.** Upstream has no thumb growth; the old 1.10 scale was
+  removed rather than kept as decoration.
+* Single level: `pct(0, 1) = 0` (upstream `pctFromIndex`), so the disabled
+  single-stop control rests on the left cap instead of the old right edge.
+
+### 4.3 Verification
+
+* `python3 scripts/tests/test_native_composer_port.py` — 123/123 PASS
+  (contract unchanged).
+* `ComposerPortMath.kt` and `ThinkingSliderGeometry.kt` compiled with the
+  cached Kotlin 2.0.21 compiler (`/opt/gradle-8.13/lib`, no Gradle run).
+* `ComposerPortMathTest` + `ThinkingSliderGeometryTest`: **27 tests, OK**
+  (JUnit 4.13.2 from the cached distribution). Golden numbers were produced by
+  running the upstream functions from `lib/client.js` in Node, e.g. stars at
+  pct 0.5/2/3/1 = 6/11/22, `fillEnd(0.5) = #7063F1`, particle Y table
+  `52,84,64,16,...`, `starDelay(0, 3s) = -1.87579`.
+* SVG preview rebuilt from the **Kotlin** dump of the same six positions:
+  `/var/minis/workspace/tmp/ubuntu7-slider/preview.html` (visual aid only, not
+  device acceptance).
+* Not verified: on-device rendering/gesture feel, and
+  `:app:compileGithubDebugKotlin` (needs the full Compose/Android classpath;
+  the sandbox does not build Gradle).
+
+`ComposerPortMath` stays pure Kotlin (no Compose/Android imports), covered by
+`ComposerPortMathTest`; `ThinkingSliderGeometry` stays pure as well, covered by
+`ThinkingSliderGeometryTest`.
 
 ## 5. Soul length policy
 

@@ -197,7 +197,8 @@ jobs:
             --tests '*ComposerPermissionMenuTest' --tests '*SoulPrompt*' \
             --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
-            --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest'
+            --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
+            --tests '*CharacterCard*' --tests '*Ubuntu7IntegrationTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

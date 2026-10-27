@@ -8,8 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [T-soul-prompt-supreme] The application system prompt (Settings → System
- * Prompt, backed by SOUL.md) must be (a) FIRST in whatever string the app
+ * [T-character-cards] The application system prompt (Settings → Character
+ * Cards, backed by CHARACTER_CARDS.json) must be (a) FIRST in whatever string the app
  * sends and (b) stated to outrank everything after it.
  *
  * "First" is asserted against the app-generated text that follows it in the
@@ -21,7 +21,7 @@ class ApplicationSystemPromptTest {
     @Test fun configuredPromptOpensTheSystemMessage() {
         val prompt = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT.copy(name = "Nova"), "Respond concisely in Chinese."))
         assertTrue(prompt.contains("You are Nova,"))
-        assertTrue(prompt.contains("Application system prompt (configured in Settings → System Prompt"))
+        assertTrue(prompt.contains("Application system prompt (configured in Settings → Character Cards"))
         assertTrue(prompt.contains("Respond concisely in Chinese."))
 
         // The application prompt precedes the identity sentence: it is the
@@ -36,7 +36,7 @@ class ApplicationSystemPromptTest {
         assertTrue(prompt.startsWith(SystemPromptBuilder.SUPREME_PREAMBLE))
         assertTrue(prompt.contains("highest priority"))
         assertTrue(prompt.contains("不得覆盖"))
-        assertTrue(prompt.contains("Settings → System Prompt (系统提示词)"))
+        assertTrue(prompt.contains("Settings → Character Cards (角色卡)"))
     }
 
     @Test fun supremePreambleIsTheTaskText() {
@@ -50,7 +50,7 @@ class ApplicationSystemPromptTest {
     @Test fun emptyPromptKeepsIdentityAndSettingsGuidance() {
         val prompt = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT, "  \n"))
         assertTrue(prompt.startsWith("You are Minis,"))
-        assertTrue(prompt.contains("Settings → System Prompt"))
+        assertTrue(prompt.contains("Settings → Character Cards"))
         assertFalse(prompt.contains("Application system prompt (configured"))
         assertFalse("no empty priority banner", prompt.contains(SystemPromptBuilder.SUPREME_PREAMBLE))
     }

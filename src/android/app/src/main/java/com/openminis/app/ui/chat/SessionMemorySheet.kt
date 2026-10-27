@@ -157,14 +157,6 @@ fun SessionMemorySheet(
                     onSave = {
                         try {
                             memoryRepository.saveFile(m.name, editedContent)
-                            // SOUL.md drives [SoulStore.cachedMetadata] which
-                            // backs the chat-bubble header name. The raw
-                            // saveFile() path here bypasses SoulStore.save(),
-                            // so refresh the cache manually to keep readers
-                            // in sync after an in-sheet edit.
-                            if (m.name == "SOUL.md") {
-                                com.openminis.app.agent.SoulStore.refreshCache(context)
-                            }
                             mode = MemorySheetMode.AutoFile(m.name, editedContent, m.editable)
                             isEditing = false
                             savedToastVisible = true
@@ -454,27 +446,8 @@ internal data class AutoItem(
 private fun buildAutoInjectedItems(context: Context, memoryRepository: MemoryRepository): List<AutoItem> {
     val items = mutableListOf<AutoItem>()
 
-    // SOUL.md — persona / identity. Lives in the same memory dir as
-    // GLOBAL.md and is auto-injected into the system prompt by
-    // SystemPromptBuilder.identitySection(). Surfaced here so the user
-    // can see + edit the same file the model sees, mirroring GLOBAL.md.
-    val soulContent = memoryRepository.readFile("SOUL.md")
-    if (soulContent.isNotBlank()) {
-        val lineCount = soulContent.lines().size
-        items.add(AutoItem(
-            name = "SOUL.md",
-            detail = "$lineCount lines (full)",
-            fileName = "SOUL.md",
-            content = soulContent,
-        ))
-    } else {
-        items.add(AutoItem(
-            name = "SOUL.md",
-            detail = context.getString(R.string.memory_file_empty),
-            fileName = "SOUL.md",
-            content = "",
-        ))
-    }
+    // Character cards are managed in Settings → Character Cards, not as
+    // editable memory files. GLOBAL.md and daily logs remain independent.
 
     // GLOBAL.md
     val globalContent = memoryRepository.loadGlobalMd()

@@ -226,8 +226,8 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
                     iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.settings_soul),
-                    subtitle = stringResource(R.string.settings_soul_subtitle),
+                    title = stringResource(R.string.character_cards_title),
+                    subtitle = stringResource(R.string.character_cards_subtitle),
                     onClick = onSoulClick,
                 )
                 SettingsItem(

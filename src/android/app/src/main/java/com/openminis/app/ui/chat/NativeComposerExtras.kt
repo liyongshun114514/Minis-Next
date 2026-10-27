@@ -3,7 +3,8 @@ package com.openminis.app.ui.chat
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -74,15 +76,15 @@ import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.ui.theme.ChatColors
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.roundToInt
 
 /**
  * Native Compose port of the Composer UI that used to live in the Xposed
  * module `MinisAllInOne` (Composer 1.9.19-test).
  *
  * What is ported here:
- *  - the particle effort slider (originally `EffortSlider.java`, a custom
- *    Android View), now drawn with Compose Canvas;
+ *  - the particle effort slider, now a Compose Canvas transcription of the
+ *    `CodexEffortSlider` in `Bai-2008/dsh-better-panel` @ `4f798ffc`
+ *    (`lib/client.js`), not the old Xposed `EffortSlider.java`;
  *  - the merged "+" menu rows (attachments stay native, slash commands are
  *    appended below them) — see [ComposerCommandMenuRows];
  *  - small menu headings used by the merged menu.
@@ -376,51 +378,58 @@ internal fun ComposerCommandMenuRows(
 }
 
 /**
- * One animation request for the effort slider: the level the thumb must rest
- * on, a serial that changes on every completed gesture (so a release always
- * replays the animation even when the level did not change), and the finger
- * position the settle animation starts from.
+ * One animation request for the effort slider: the stop the thumb must rest on,
+ * a serial that changes on every completed gesture, and the slide speed picked
+ * by the upstream fast/slow hysteresis.
  */
 private data class EffortSliderRequest(
     val index: Int,
     val serial: Int,
-    val origin: Float?,
+    val slow: Boolean,
 )
 
 /**
- * Discrete particle slider for thinking effort.
+ * Discrete particle slider for thinking effort — a native-Compose transcription
+ * of upstream `CodexEffortSlider` (`Bai-2008/dsh-better-panel` @
+ * `4f798ffc`, `lib/client.js` l.1913-2520 and the stylesheet at l.470-560).
  *
- * The visual model is a faithful port of the upstream Android View: a pill
- * track, a white round thumb that sits INSIDE the pill, blue -> violet ->
- * deep-purple fill, nebula + sweeping highlight + 22 deterministic stars, and
- * one dot per level with its English mode name centred underneath it.
+ * Visual model, one-to-one with the upstream DOM:
+ *  - a 20dp neutral stadium (`--dsw-alias-border-l1`, 8% label ink) as the
+ *    track, with a 28dp white knob floating on top of it (upstream: 28 / 20);
+ *  - the fill starts at the pill's left edge, ends exactly at the **knob
+ *    centre**, has a 10dp rounded left cap and a square right cap, and is a
+ *    horizontal gradient from `#4D93F8` to the colour of the current position
+ *    (`#4D93F8` up to 1/3, `#9333EA` at 2/3, `#4C1D95` at the end);
+ *  - the purple energy layer (nebula + 2.4s linear sweep) is clipped to the
+ *    same filled segment and fades in with `energy = (pct - 1/3) / (2/3)`;
+ *  - the star layer is also clipped to the filled segment and carries
+ *    `0.6 + 0.4 * energy` opacity; `round(energy * 22)` of the 22 deterministic
+ *    stars are drawn, each travelling right -> left over 1.5 * 2 / speed
+ *    seconds with a golden-ratio phase and a ±8% duration spread;
+ *  - one 3dp tick per stop at the same x as the knob centre (white at 50% when
+ *    reached, label ink at 26% otherwise); at the last stop every tick except
+ *    the current one is hidden, exactly like upstream `data-max`;
+ *  - the knob is a plain white circle with the upstream 1px bottom shadow and
+ *    a 5% ring — no press scale (upstream has none).
  *
- * Geometry (track inset, dot positions, thumb radius, x -> level mapping) comes
- * from [ThinkingSliderGeometry] — the SAME [ThinkingSliderGeometry.Track] drives
- * the Canvas and the pointer handler, so what is drawn and what is hit-tested
- * cannot drift apart. The symmetric inset is derived from the widest label,
- * which keeps the first/last labels from being clipped while every dot keeps an
- * identical spacing.
+ * Animation maths: every layer is driven by one [Animatable] in **percent
+ * space**, so fill width, energy width, star clip and knob x can never separate.
+ * The transition is the upstream CSS pair — `.16s cubic-bezier(.2,.9,.3,1)`
+ * (fast) and `.34s cubic-bezier(.45,.05,.35,1)` (slow) — selected by the same
+ * 320/200ms hysteresis on the interval between steps. A drag is a detent
+ * machine, not finger-following: a press jumps to the **nearest** stop, then
+ * every `1/3` of a pitch (`floor(u - 1/3) + 1`) moves exactly one stop, with
+ * the upstream press dead-zone only when the nearest stop and the detent
+ * disagree.
  *
- * Animation is state driven, never per-recomposition:
- *  - a single [Animatable] (`progress`) is driven by
- *    `snapshotFlow { EffortSliderRequest(...) }`, so it plays on open
- *    (0 -> current), after a tap, after a drag (finger position -> committed
- *    dot, via `origin`), and when the level changes elsewhere (ViewModel
- *    clamp). The gesture itself only writes plain state (a restricted
- *    suspension context forbids calling Animatable.snapTo there);
- *  - the particle/sweep clock runs from `snapshotFlow` on `enabled`, so the
- *    field is alive at every level (including Off/Low) instead of waiting for
- *    the fill to have "energy" — the old bug: animation stopped for good after
- *    the first settle, and the low stops had zero stars.
+ * Interaction stays native: press, drag, release commits exactly one level
+ * through [onSelect]; a cancelled gesture (sheet dismissed) commits nothing and
+ * the thumb animates back to the committed level. Geometry comes from
+ * [ThinkingSliderGeometry], whose [ThinkingSliderGeometry.Track] drives both the
+ * Canvas and the pointer handler.
  *
- * Interaction stays native-Compose: press anywhere on the track, drag, release
- * to commit exactly one level; a tap also commits. Leaving the sheet without
- * releasing (gesture cancelled) commits nothing and the thumb returns to the
- * committed level.
- *
- * [levels] must include OFF as the first entry (the sheet builds that list).
- * [onSelect] is called once per completed gesture with a level from [levels].
+ * [levels] must include OFF as the first entry. [onSelect] is called once per
+ * completed gesture with a level from [levels].
  */
 @Composable
 internal fun ComposerEffortSlider(
@@ -444,11 +453,8 @@ internal fun ComposerEffortSlider(
         }.getOrDefault(false)
     }
 
-    // Mode names are the wire values in English (off / low / medium / high /
-    // xhigh / max / ultra) for exactly the levels this model supports. They are
-    // deliberately NOT localised: they are what the request carries, they match
-    // the compact chip, and seven short names are what lets every dot own a
-    // readable label without squeezing the first/last one.
+    // Wire values in English (off / low / medium / high / xhigh / max / ultra):
+    // they are what the request carries and they match the compact chip.
     val labels = remember(levels) { levels.map { it.effortSliderLabel() } }
     val count = levels.size
 
@@ -461,85 +467,72 @@ internal fun ComposerEffortSlider(
         }
     }
 
-    // The level the thumb should rest on. Written by the gesture on release and
-    // by the ViewModel's truth whenever `current` changes, so an out-of-range or
-    // clamped request animates back onto a level that really is selected.
+    // The stop the thumb must rest on. Written by the gesture (detent target)
+    // and by the ViewModel's truth whenever `current` changes.
     var requestedIndex by remember(levels) { mutableIntStateOf(selectedIndex) }
     var releaseSerial by remember(levels) { mutableIntStateOf(0) }
-    var releaseOrigin by remember(levels) { mutableStateOf<Float?>(null) }
-    // Non-null only while a gesture is in flight: the thumb follows the finger
-    // without touching the animatable, so the settle animation can start from
-    // exactly where the finger left off.
-    var dragPosition by remember(levels) { mutableStateOf<Float?>(null) }
-    var dragging by remember { mutableStateOf(false) }
+    var slideSlow by remember(levels) { mutableStateOf(false) }
+    var lastStepAtMs by remember(levels) { mutableLongStateOf(0L) }
     var particleClock by remember { mutableFloatStateOf(0f) }
 
-    // Starts at Off so opening the sheet animates the fill in, then follows the
-    // committed level. `progress` is written ONLY by the effect below.
-    val progress = remember(levels) { Animatable(0f) }
+    // Upstream mounts the knob on its stop (CSS transitions do not run on the
+    // first layout), so the initial value is the committed stop, not 0.
+    val progress = remember(levels) {
+        Animatable(ComposerPortMath.pct(selectedIndex, count))
+    }
+
+    val fastEase = remember { CubicBezierEasing(0.2f, 0.9f, 0.3f, 1f) }
+    val slowEase = remember { CubicBezierEasing(0.45f, 0.05f, 0.35f, 1f) }
 
     // Keyed on the animatable itself: a model switch can rebuild the level
-    // list (new `remember(levels)` state) without changing its size, and the
-    // pipeline must follow the NEW animatable rather than the dead one.
-    LaunchedEffect(progress, count) {
+    // list without changing its size, and the pipeline must follow the new one.
+    LaunchedEffect(progress, count, reducedMotion, fastEase, slowEase) {
         var lastSerial = -1
-        snapshotFlow { EffortSliderRequest(requestedIndex, releaseSerial, releaseOrigin) }
+        snapshotFlow { EffortSliderRequest(requestedIndex, releaseSerial, slideSlow) }
             .distinctUntilChanged()
             .collectLatest { request ->
-                if (request.serial != lastSerial) {
-                    lastSerial = request.serial
-                    // The animatable takes over at the finger's position, so
-                    // dropping the drag value is invisible and the settle
-                    // animation plays from there.
-                    dragPosition = null
-                    request.origin?.let { progress.snapTo(it) }
-                }
+                if (request.serial != lastSerial) lastSerial = request.serial
                 progress.animateTo(
                     targetValue = ComposerPortMath.pct(request.index, count),
-                    animationSpec = spring(dampingRatio = 0.86f, stiffness = 520f),
+                    animationSpec = if (reducedMotion) {
+                        tween(durationMillis = 1)
+                    } else if (request.slow) {
+                        tween(durationMillis = 340, easing = slowEase)
+                    } else {
+                        tween(durationMillis = 160, easing = fastEase)
+                    },
                 )
             }
     }
 
     // External truth wins: opening the sheet, another surface changing the
-    // level, or setThinkingLevel clamping a request all land here.
+    // level, or setThinkingLevel clamping all land here.
     LaunchedEffect(levels, current) {
         requestedIndex = selectedIndex
     }
 
-    // Star/sweep clock. The bed is coloured at every level, so the field runs
-    // whenever the slider is enabled — including Off and Low, which used to
-    // have no "energy" and therefore a frozen frame.
+    // One clock for the sweep and the stars. The upstream CSS pauses the
+    // animations whenever energy is 0; here the loop simply runs while the
+    // slider is enabled, and the drawing skips the layers at Off/Low anyway.
     LaunchedEffect(enabled, reducedMotion, progress) {
-        snapshotFlow { enabled }
-            .distinctUntilChanged()
-            .collectLatest { active ->
-                if (!active) return@collectLatest
-                var last = 0L
-                while (true) {
-                    val now = withFrameNanos { it }
-                    if (last != 0L) {
-                        particleClock += ((now - last) / 1_000_000_000f).coerceIn(0f, 0.05f)
-                    }
-                    last = now
-                }
+        if (!enabled) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            val now = withFrameNanos { it }
+            if (last != 0L) {
+                particleClock += ((now - last) / 1_000_000_000f).coerceIn(0f, 0.05f)
             }
+            last = now
+        }
     }
 
-    val pressScale by animateFloatAsState(
-        targetValue = if (dragging) ThinkingSliderGeometry.PRESSED_SCALE else 1f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 900f),
-        label = "effortThumbPress",
-    )
-
     val labelSizePx = with(localDensity) { ThinkingSliderGeometry.LABEL_SIZE_SP.sp.toPx() }
+    val slotHeightPx = with(localDensity) { ThinkingSliderGeometry.SLOT_HEIGHT_DP.dp.toPx() }
     val barHeightPx = with(localDensity) { ThinkingSliderGeometry.TRACK_HEIGHT_DP.dp.toPx() }
+    val knobRadiusPx = with(localDensity) {
+        ThinkingSliderGeometry.knobRadiusPx(ThinkingSliderGeometry.KNOB_SIZE_DP.dp.toPx())
+    }
     val edgePadPx = with(localDensity) { ThinkingSliderGeometry.TRACK_EDGE_PAD_DP.dp.toPx() }
-    val thumbRadiusPx = ThinkingSliderGeometry.thumbRadiusPx(
-        barHeightPx = barHeightPx,
-        insetPx = with(localDensity) { ThinkingSliderGeometry.THUMB_INSET_DP.dp.toPx() },
-        minRadiusPx = with(localDensity) { ThinkingSliderGeometry.MIN_THUMB_RADIUS_DP.dp.toPx() },
-    )
 
     val labelPaint = remember(labelSizePx, dark) {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -556,8 +549,8 @@ internal fun ComposerEffortSlider(
             isSubpixelText = true
         }
     }
-    // Widest half-label: this is what sets the symmetric gutter, so the first
-    // and last names are never clipped and every dot stays equally spaced.
+    // Widest half-label: this sets the symmetric gutter, so the first and last
+    // names are never clipped while every stop keeps an identical pitch.
     val labelHalfWidthPx = remember(labels, labelSizePx) {
         if (labels.isEmpty()) {
             0f
@@ -569,11 +562,43 @@ internal fun ComposerEffortSlider(
         }
     }
 
-    // Colour is a fixed part of the control now: the bed is the same gradient
-    // at every level, so the theme only tints the thumb shadow and the labels.
-    val canvasHeightDp = ThinkingSliderGeometry.TRACK_HEIGHT_DP +
+    // The vertical slot is unchanged (30dp) and the 20dp pill is centred in
+    // it, so this total stays at the old 30 + 5 + 17 = 52dp.
+    val canvasHeightDp = ThinkingSliderGeometry.SLOT_HEIGHT_DP +
         ThinkingSliderGeometry.LABEL_GAP_DP +
         ThinkingSliderGeometry.LABEL_BAND_DP
+
+    // Upstream fast/slow decision: gap since the previous step, with a 120ms
+    // hysteresis so a speed sitting on the threshold cannot flap.
+    fun noteStepTiming() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val gap = now - lastStepAtMs
+        lastStepAtMs = now
+        slideSlow = if (slideSlow) {
+            gap >= 200L
+        } else {
+            gap > 320L
+        }
+    }
+
+    val primaryInk = ChatColors.primaryText
+    // Upstream drives the fill colour, energy value and star set from the
+    // target stop (`shownPct`), while only the geometry (width / knob x)
+    // transitions. The energy layer alone has a 0.2s opacity transition.
+    val shownIndexForColor = if (count > 1) requestedIndex.coerceIn(0, count - 1) else 0
+    val shownPct = ComposerPortMath.pct(shownIndexForColor, count)
+    val energyTarget = ComposerPortMath.energy(shownPct)
+    val energyAlpha by animateFloatAsState(
+        targetValue = energyTarget,
+        animationSpec = tween(durationMillis = if (reducedMotion) 1 else 200),
+        label = "effortEnergy",
+    )
+
+    val trackBack = if (dark) {
+        Color.White.copy(alpha = 0.10f)
+    } else {
+        Color(0xFF0F1115).copy(alpha = 0.08f)
+    }
 
     Column(modifier = modifier.alpha(if (enabled) 1f else 0.45f)) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -586,14 +611,16 @@ internal fun ComposerEffortSlider(
                 layoutWidthPx,
                 count,
                 labelHalfWidthPx,
+                slotHeightPx,
                 barHeightPx,
-                thumbRadiusPx,
+                knobRadiusPx,
                 edgePadPx,
             ) {
                 ThinkingSliderGeometry.track(
                     widthPx = layoutWidthPx,
+                    slotHeightPx = slotHeightPx,
                     barHeightPx = barHeightPx,
-                    thumbRadiusPx = thumbRadiusPx,
+                    knobRadiusPx = knobRadiusPx,
                     labelHalfWidthPx = labelHalfWidthPx,
                     edgePadPx = edgePadPx,
                     count = count,
@@ -639,11 +666,24 @@ internal fun ComposerEffortSlider(
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             down.consume()
-                            dragging = true
-                            dragPosition = track.valueForX(down.position.x)
+                            val downUnit = track.unitForX(down.position.x)
+                            // Press = "tap where you mean": nearest stop, even
+                            // when the 1/3 detent would say otherwise. The
+                            // dead-zone below only matters in that conflict.
+                            val pressUnit = downUnit
+                            val pressIndex = ComposerPortMath.nearestIndex(
+                                track.valueForX(down.position.x),
+                                count,
+                            )
+                            val pressConflict =
+                                ComposerPortMath.detentIndex(downUnit, count) != pressIndex
+                            var pressActive = true
+                            lastStepAtMs = android.os.SystemClock.uptimeMillis()
+                            if (pressIndex != requestedIndex) {
+                                noteStepTiming()
+                                requestedIndex = pressIndex
+                            }
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            var lastX = down.position.x
-                            var lastIndex = track.indexForX(lastX)
                             var completed = false
                             try {
                                 while (true) {
@@ -655,250 +695,221 @@ internal fun ComposerEffortSlider(
                                         completed = true
                                         break
                                     }
-                                    lastX = change.position.x
-                                    dragPosition = track.valueForX(lastX)
-                                    val index = track.indexForX(lastX)
-                                    if (index != lastIndex) {
-                                        lastIndex = index
+                                    val unit = track.unitForX(change.position.x)
+                                    val mapped = ComposerPortMath.detentIndex(unit, count)
+                                    val held = ComposerPortMath.deadzoneHolds(
+                                        unit = unit,
+                                        pressUnit = pressUnit,
+                                        mapped = mapped,
+                                        pressIndex = pressIndex,
+                                        conflict = pressConflict,
+                                        active = pressActive,
+                                    )
+                                    val target = if (held) pressIndex else mapped
+                                    if (!held) pressActive = false
+                                    if (target != requestedIndex) {
+                                        noteStepTiming()
+                                        requestedIndex = target
                                         haptics.performHapticFeedback(
                                             HapticFeedbackType.TextHandleMove,
                                         )
                                     }
                                 }
-                            } finally {
-                                // A cancelled gesture (sheet dismissed) leaves
-                                // the thumb unpressed, back on the committed
-                                // level, and commits nothing.
-                                dragging = false
+                            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                                // A cancelled gesture (sheet dismissed, another
+                                // pointer took over) commits nothing and must
+                                // not leave the thumb on an uncommitted stop.
+                                requestedIndex = selectedIndex
+                                throw cancel
                             }
                             if (!completed) {
-                                dragPosition = null
+                                // Cancelled (sheet dismissed): commit nothing,
+                                // animate back to the level the host owns.
+                                requestedIndex = selectedIndex
                                 return@awaitEachGesture
                             }
-                            val released = track.indexForX(lastX)
-                            releaseOrigin = track.valueForX(lastX)
-                            requestedIndex = released
-                            // Bumped even when the level is unchanged so the
-                            // settle animation always plays after a release.
+                            // Release commits exactly one level; the serial
+                            // makes the settle request observable even when the
+                            // stop did not change.
                             releaseSerial += 1
-                            onSelect(levels[released])
+                            onSelect(levels[requestedIndex])
                         }
                     },
             ) {
-                // Inside DrawScope `density` is the Float pixel density and
-                // Dp.toPx() is available directly (DrawScope : Density).
+                val pctNow = progress.value
+                val shownIndex = if (count > 0) requestedIndex.coerceIn(0, count - 1) else 0
+                val knobX = track.xForValue(pctNow)
+                val fillWidth = (knobX - track.barLeft).coerceAtLeast(0f)
+                val top = track.barTop
                 val barH = track.barHeightPx
-                val cy = track.cy
-                // The pill and the tick span are different x ranges: the pill
-                // starts at barLeft, while the first dot sits pillRadius inside
-                // it, so the round thumb never hangs over the rounded end.
-                val left = track.barLeft
-                val barWidth = track.barWidth
-                val value = dragPosition ?: progress.value
-                val energyNow = ComposerPortMath.energy(value)
-                val thumbX = track.xForValue(value)
-                val fillWidth = (thumbX - left).coerceAtLeast(0f)
-                val top = 0f
-                val bottom = barH
-                val thumbR = (track.thumbRadiusPx * pressScale)
-                    .coerceAtMost(barH / 2f - 0.5f.dp.toPx())
+                val radius = track.trackRadius
+                val px = 1.dp.toPx()
 
-                // Outer glow: stacked strokes rather than BlurMaskFilter. The
-                // bed is always lit now, so the halo is always on and only
-                // deepens with the selected level.
-                val haloColor = Color(
-                    ComposerPortMath.mixArgb(
-                        ComposerPortMath.fillEndArgb(value),
-                        0xFFFFFFFF.toInt(),
-                        0.35f,
-                    ),
-                )
-                val haloAlpha = 0.14f + 0.30f * energyNow
-                for (i in 3 downTo 1) {
-                    drawRoundRect(
-                        color = haloColor.copy(alpha = haloAlpha / (i * 2f)),
-                        topLeft = Offset(left - i * density * 2f, top - i * density * 2f),
-                        size = Size(
-                            barWidth + i * density * 4f,
-                            barH + i * density * 4f,
-                        ),
-                        cornerRadius = CornerRadius(
-                            barH / 2f + i * density * 2f,
-                        ),
-                        style = Stroke(width = density * 2f),
-                    )
-                }
-
-                // Coloured bed across the WHOLE pill — Off and Low included.
-                // There is no neutral "empty" track left: progress is read from
-                // the brighter sheen up to the thumb, the halo, the lit tick and
-                // the particle density, never from an unfilled gap.
+                // Track: neutral stadium, no coloured bed (upstream `.ces-track`).
                 drawRoundRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(ComposerPortMath.BED_BLUE_ARGB),
-                            Color(ComposerPortMath.BED_VIOLET_ARGB),
-                            Color(ComposerPortMath.BED_DEEP_ARGB),
-                        ),
-                        startX = left,
-                        endX = left + barWidth,
-                    ),
-                    topLeft = Offset(left, top),
-                    size = Size(barWidth, barH),
-                    cornerRadius = CornerRadius(barH / 2f),
-                )
-                // A touch of vertical shading so the stadium reads as glass
-                // rather than a flat rectangle.
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.14f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.14f),
-                        ),
-                    ),
-                    topLeft = Offset(left, top),
-                    size = Size(barWidth, barH),
-                    cornerRadius = CornerRadius(barH / 2f),
+                    color = trackBack,
+                    topLeft = Offset(track.barLeft, top),
+                    size = Size(track.barWidth, barH),
+                    cornerRadius = CornerRadius(radius),
                 )
 
-                val pillPath = Path().apply {
-                    addRoundRect(
-                        RoundRect(
-                            left = left,
-                            top = top,
-                            right = left + barWidth,
-                            bottom = bottom,
-                            radiusX = barH / 2f,
-                            radiusY = barH / 2f,
-                        ),
-                    )
-                }
-
-                clipPath(pillPath) {
-                    // Reached stretch: a brighter sheen that ends exactly at
-                    // the thumb, so the level is still readable on the bed.
-                    if (fillWidth > 0.5f) {
-                        drawRect(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.04f + 0.10f * energyNow),
-                                    Color.White.copy(alpha = 0.16f + 0.20f * energyNow),
-                                ),
-                                startX = left,
-                                endX = (left + fillWidth).coerceAtLeast(left + 1f),
+                if (fillWidth > 0.5f) {
+                    // Fill: 10dp rounded left cap, square right cap, ending at
+                    // the knob centre; left anchor blue -> position colour.
+                    val fillPath = Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                left = track.barLeft,
+                                top = top,
+                                right = track.barLeft + fillWidth,
+                                bottom = top + barH,
+                                topLeftCornerRadius = CornerRadius(radius),
+                                topRightCornerRadius = CornerRadius(0f),
+                                bottomRightCornerRadius = CornerRadius(0f),
+                                bottomLeftCornerRadius = CornerRadius(radius),
                             ),
-                            topLeft = Offset(left, top),
-                            size = Size(fillWidth, barH),
-                        )
-                        // Nebula tint, now only warming the reached stretch
-                        // instead of painting the whole bar.
-                        drawRect(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF3B1178),
-                                    Color(0xFF6D28D9),
-                                    Color(0xFF9333EA),
-                                    Color(0xFFC084FC),
-                                ),
-                                startX = left,
-                                endX = (left + fillWidth).coerceAtLeast(left + 1f),
-                            ),
-                            topLeft = Offset(left, top),
-                            size = Size(fillWidth, barH),
-                            alpha = 0.08f + 0.16f * energyNow,
                         )
                     }
-
-                    // Sweep highlight: crosses the WHOLE pill at every level,
-                    // with an alpha floor so Off/Low show motion too.
-                    if (!reducedMotion) {
-                        val sweepT = (particleClock / 3.4f) % 1f
-                        val band = barWidth * 0.5f
-                        val sweepX = left - band + (barWidth + band) * sweepT
-                        drawRect(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.White.copy(alpha = 0.09f + 0.16f * energyNow),
-                                    Color.Transparent,
-                                ),
-                                startX = sweepX,
-                                endX = sweepX + band,
+                    drawPath(
+                        path = fillPath,
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(ComposerPortMath.FILL_START_ARGB),
+                                Color(ComposerPortMath.fillEndArgb(shownPct)),
                             ),
-                            topLeft = Offset(sweepX, top),
-                            size = Size(band, barH),
-                        )
-                    }
+                            startX = track.barLeft,
+                            endX = (track.barLeft + fillWidth).coerceAtLeast(track.barLeft + 1f),
+                        ),
+                    )
 
-                    // Stars: the field drifts across the full pill, so Off and
-                    // Low are genuinely animated instead of a still dot.
-                    val starCount = ComposerPortMath.starCount(energyNow)
-                    val speed = ComposerPortMath.particleSpeed(value)
-                    val layer = 0.75f + 0.25f * energyNow
-                    for (i in 0 until starCount) {
-                        val spread = ComposerPortMath.starSpread(i) * if (reducedMotion) {
-                            2.6f
-                        } else {
-                            1f
+                    clipPath(fillPath) {
+                        if (energyAlpha > 0.001f) {
+                            // Nebula: fixed 4-stop gradient at layer opacity
+                            // energy (upstream `--ces-energy`).
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    0f to Color(ComposerPortMath.NEBULA_START_ARGB),
+                                    0.30f to Color(ComposerPortMath.NEBULA_MID_ARGB),
+                                    0.62f to Color(ComposerPortMath.NEBULA_HIGH_ARGB),
+                                    1f to Color(ComposerPortMath.NEBULA_END_ARGB),
+                                    startX = track.barLeft,
+                                    endX = (track.barLeft + fillWidth).coerceAtLeast(track.barLeft + 1f),
+                                ),
+                                topLeft = Offset(track.barLeft, top),
+                                size = Size(fillWidth, barH),
+                                alpha = energyAlpha,
+                            )
+                            // Sweep: 2.4s linear, translateX(100% -> -100%) of
+                            // the filled width, display:none under reduced motion.
+                            if (!reducedMotion) {
+                                val sweepT = (particleClock / 2.4f) % 1f
+                                val sweepX = track.barLeft + fillWidth * (1f - 2f * sweepT)
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        0f to Color.Transparent,
+                                        0.32f to Color.White.copy(alpha = 0.30f),
+                                        0.68f to Color.White.copy(alpha = 0.30f),
+                                        1f to Color.Transparent,
+                                        startX = sweepX,
+                                        endX = sweepX + fillWidth,
+                                    ),
+                                    topLeft = Offset(sweepX, top),
+                                    size = Size(fillWidth, barH),
+                                    alpha = energyAlpha,
+                                )
+                            }
                         }
-                        val duration = 1.5f * 2f / speed * spread
-                        val starProgress =
-                            ((particleClock / duration) + ComposerPortMath.starPhase(i)) % 1f
-                        val brightness = ComposerPortMath.starBrightness(i)
-                        val alpha = ComposerPortMath.starAlpha(starProgress, brightness, layer)
-                        if (alpha <= 0f) continue
-                        val x = left + barWidth * (1f - starProgress)
-                        val y = top + barH * (0.18f + 0.64f * ComposerPortMath.starY(i))
-                        drawCircle(
-                            color = Color(0xFFF5F3FF).copy(alpha = alpha * 0.28f),
-                            radius = 4.5f * density * brightness,
-                            center = Offset(x, y),
-                        )
-                        drawCircle(
-                            color = Color.White.copy(alpha = alpha),
-                            radius = 1.5f * density * brightness,
-                            center = Offset(x, y),
-                        )
+
+                        // Stars: clipped to the filled segment (upstream layer
+                        // width = knobOffset), so they cross exactly that span.
+                        val starCount = ComposerPortMath.starCountFor(shownPct)
+                        if (starCount > 0) {
+                            val speed = ComposerPortMath.speedFor(shownPct)
+                            val layer = ComposerPortMath.starLayerOpacityFor(shownPct)
+                            for (i in 0 until starCount) {
+                                val duration = ComposerPortMath.starDurationFor(i, speed) *
+                                    if (reducedMotion) {
+                                        ComposerPortMath.REDUCED_MOTION_SLOWDOWN
+                                    } else {
+                                        1f
+                                    }
+                                val starProgress =
+                                    (particleClock / duration + ComposerPortMath.starPhase(i)) % 1f
+                                val brightness = ComposerPortMath.starBrightnessFor(i)
+                                val alpha = ComposerPortMath.starAlpha(
+                                    starProgress,
+                                    brightness,
+                                    layer,
+                                )
+                                if (alpha <= 0.002f) continue
+                                val x = track.barLeft + fillWidth * (1f - starProgress)
+                                val y = top + barH * (ComposerPortMath.PARTICLES[i].yPercent / 100f)
+                                val starColor = if (dark) Color(0xFFF5F3FF) else Color.White
+                                drawCircle(
+                                    color = starColor.copy(alpha = alpha * 0.22f),
+                                    radius = 2f * px * brightness,
+                                    center = Offset(x, y),
+                                )
+                                drawCircle(
+                                    color = starColor.copy(alpha = alpha),
+                                    radius = 1.5f * px * brightness,
+                                    center = Offset(x, y),
+                                )
+                            }
+                        }
                     }
                 }
 
-                // One dot per level. All of them are drawn (reached = light,
-                // unreached = faint) so each dot lines up with the mode name
-                // centred under it; the thumb rests exactly on its own dot.
+                // Ticks: 3dp dots on every stop, at the knob centre's x.
+                // At the last stop only the current dot stays (hidden under the
+                // knob), the rest fade out (upstream `data-max` rule).
                 if (count > 1) {
+                    val atMax = shownIndex >= count - 1
                     for (i in 0 until count) {
-                        val reached = track.pctFor(i) <= value + 0.0005f
+                        val current = i == shownIndex
+                        if (atMax && !current) continue
+                        val reached = i <= shownIndex
+                        val tickColor = if (reached) {
+                            Color.White.copy(alpha = 0.50f)
+                        } else {
+                            primaryInk.copy(alpha = 0.26f)
+                        }
                         drawCircle(
-                            color = Color.White.copy(alpha = if (reached) 0.92f else 0.30f),
-                            radius = 1.6f * density,
-                            center = Offset(track.tickX(i), cy),
+                            color = tickColor,
+                            radius = 1.5f * px,
+                            center = Offset(track.tickX(i), track.cy),
                         )
                     }
                 }
 
-                // Thumb: a circle strictly inside the pill (radius derived from
-                // the bar height minus the inset), with a soft contact shadow.
+                // Knob: plain white circle, 1px bottom shadow + 5% ring,
+                // overhanging the pill ends by 4dp exactly like upstream.
                 drawCircle(
-                    color = Color.Black.copy(alpha = if (dark) 0.32f else 0.12f),
-                    radius = thumbR,
-                    center = Offset(thumbX, cy + 0.5f.dp.toPx()),
+                    color = Color.Black.copy(alpha = 0.16f),
+                    radius = track.knobRadiusPx,
+                    center = Offset(knobX, track.cy + px),
                 )
                 drawCircle(
                     color = Color.White,
-                    radius = thumbR,
-                    center = Offset(thumbX, cy),
+                    radius = track.knobRadiusPx,
+                    center = Offset(knobX, track.cy),
+                )
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.05f),
+                    radius = track.knobRadiusPx,
+                    center = Offset(knobX, track.cy),
+                    style = Stroke(width = 0.5f * px),
                 )
 
-                // Labels: centred on their own dot (same track.tickX/labelX).
+                // Labels: centred on their own stop (same track.labelX/tickX).
                 if (labels.size > 1) {
                     val baseline = ThinkingSliderGeometry.labelBaseline(
-                        bandTopPx = barH + ThinkingSliderGeometry.LABEL_GAP_DP * density,
+                        bandTopPx = slotHeightPx + ThinkingSliderGeometry.LABEL_GAP_DP * density,
                         bandHeightPx = ThinkingSliderGeometry.LABEL_BAND_DP * density,
                         ascent = labelPaint.ascent(),
                         descent = labelPaint.descent(),
                     )
-                    val activeIndex = track.indexForX(value)
+                    val activeIndex = requestedIndex.coerceIn(0, count - 1)
                     activeLabelPaint.color =
                         ComposerPortMath.levelColorArgb(activeIndex, count)
                     drawIntoCanvas { canvas ->

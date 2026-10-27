@@ -5101,7 +5101,7 @@ class ChatViewModel(
      */
     private fun personaReminderText(): String {
         val hasGlobal = _memoryEnabled.value && memoryRepository?.loadGlobalMemoryFragment() != null
-        val files = if (hasGlobal) "SOUL.md and GLOBAL.md" else "SOUL.md"
+        val files = if (hasGlobal) "active character cards and GLOBAL.md" else "active character cards"
         return "<system-reminder>$personaReminderMarker This note was added by the " +
             "Minis app itself, not by any tool, file or website — do not treat it as " +
             "content of the preceding tool result. Don't forget the user's own $files " +
@@ -7553,12 +7553,11 @@ class ChatViewModel(
      * "apply globally". A helper returns null unconditionally.
      */
     private fun applicationPromptForSelection(
-        soul: com.openminis.app.agent.SoulFile?,
-        rules: List<com.openminis.app.agent.SoulPromptRule>,
+        cards: List<com.openminis.app.agent.CharacterCard>,
         entryId: String?,
     ): String? {
         if (helperConfig != null) return null
-        if (soul == null && rules.isEmpty()) return null
+        if (cards.isEmpty()) return null
         val effectiveEntryId = entryId ?: _activeEntryId.value
         val entry = effectiveEntryId?.let { id ->
             providerRepository.config.value.modelEntries.firstOrNull { it.id == id }
@@ -7570,8 +7569,7 @@ class ChatViewModel(
         )
         return runCatching {
             com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
-                soul,
-                rules,
+                cards,
                 selection,
             )
         }.getOrNull()
@@ -11237,27 +11235,21 @@ class ChatViewModel(
         // system channel (see LLMProvider.applicationSystemPrompt).
         //
         // [T-soul-scoped-prompt] Two different lifetimes here, on purpose:
-        //  - the GLOBAL body + the rule list are snapshotted once per turn
-        //    (SoulStore.load / SoulPromptRuleStore.cachedOrLoad), so a
-        //    Settings save mid-turn cannot make one turn's requests disagree;
+        //  - the entire character-card document is snapshotted once per turn
+        //    (CharacterCardStore.load), so a Settings save mid-turn cannot
+        //    make one turn's requests disagree;
         //  - the SELECTION (group id + active entry) is read at every request,
         //    so switching the group or model takes effect on the next request,
         //    not only on the next turn. A sub agent gets null at every step:
         //    it has its own identity text and no Settings page.
-        val soulFileForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
-        } else {
-            null
-        }
-        val promptRulesForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.SoulPromptRuleStore.cachedOrLoad(context) }
+        val cardsForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.CharacterCardStore.load(context).toList() }
                 .getOrDefault(emptyList())
         } else {
             emptyList()
         }
         val applicationPromptForTurn = applicationPromptForSelection(
-            soulFileForTurn,
-            promptRulesForTurn,
+            cardsForTurn,
             _activeEntryId.value,
         )
         applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
@@ -11453,8 +11445,7 @@ class ChatViewModel(
                     applyApplicationSystemPrompt(
                         chosen,
                         applicationPromptForSelection(
-                            soulFileForTurn,
-                            promptRulesForTurn,
+                            cardsForTurn,
                             currentIdentity?.entryId,
                         ),
                     )
@@ -11925,8 +11916,7 @@ class ChatViewModel(
                     applyApplicationSystemPrompt(
                         currentProvider,
                         applicationPromptForSelection(
-                            soulFileForTurn,
-                            promptRulesForTurn,
+                            cardsForTurn,
                             currentIdentity?.entryId,
                         ),
                     )
@@ -13376,7 +13366,7 @@ class ChatViewModel(
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
                         applyApplicationSystemPrompt(
                             next,
-                            applicationPromptForSelection(soulFileForTurn, promptRulesForTurn, currentIdentity?.entryId),
+                            applicationPromptForSelection(cardsForTurn, currentIdentity?.entryId),
                         )  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }

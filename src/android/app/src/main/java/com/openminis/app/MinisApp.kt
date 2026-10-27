@@ -619,13 +619,18 @@ class MinisApp : Application(), ImageLoaderFactory {
             return
         }
 
-        // [T-soul-md] Seed SOUL.md with the default content on first launch
-        // so the Soul settings page and chat bubble identity have a real
-        // file to read. Safe no-op on subsequent launches — never
-        // overwrites existing user edits. Cache refresh primes the
-        // synchronous metadata read-path (chat header / system prompt).
-        com.openminis.app.agent.SoulStore.ensureExists(this)
-        com.openminis.app.agent.SoulStore.refreshCache(this)
+        // [T-character-cards] One-time, idempotent, lossless hand-over from the
+        // legacy SOUL files to the card store:
+        //   1. merge SOUL.md + SOUL.icon.png + SOUL_PROMPT_RULES.json into
+        //      CHARACTER_CARDS.json (existing cards are never modified),
+        //   2. verify the merged document by reading it back,
+        //   3. only then move the old files into memory/legacy-soul-archive/
+        //      (inactive, still backed up).
+        // Then seed the default GLOBAL card on a truly fresh install and prime
+        // the runtime snapshot (chat header + system prompt read it without a
+        // Context). Every step is independently guarded: a damaged document is
+        // reported and left untouched instead of blocking startup.
+        com.openminis.app.agent.CharacterCardStore.initialize(this)
 
         // T-config: minis-config CLI surface — registry / audit log /
         // master-switch store. Initialized eagerly here so

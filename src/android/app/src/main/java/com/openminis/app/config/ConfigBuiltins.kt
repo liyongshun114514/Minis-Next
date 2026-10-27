@@ -60,6 +60,15 @@ internal object ConfigBuiltins {
         registerProviderCollections(r, context, providerRepo, envVarRepo)
         registerDefaults(r, providerRepo)
         registerSoul(r, context)
+        // Scalar compatibility API edits the primary global character card,
+        // never a second primary global character card source. New callers use character.*.
+        r.fields("soul").forEach { legacy ->
+            r.register(object : ConfigField by legacy {
+                override val path = legacy.path.replaceFirst("soul.", "character.")
+                override val description = "Primary global character card. " + legacy.description
+            })
+        }
+        r.register(com.openminis.app.config.collections.CharacterCardsCollection(context, providerRepo))
         registerMemory(r, context)
         registerNetwork(r, context, envVarRepo)
         registerAgentTools(r, context)
@@ -1292,16 +1301,16 @@ internal object ConfigBuiltins {
         )
     }
 
-    // -- Soul (SOUL.md personality) --
+    // -- Soul (primary global character card personality) --
     //
-    // [T-soul-md-minisconfig] Exposes the editable subset of SOUL.md
+    // [T-soul-md-minisconfig] Exposes the editable subset of primary global character card
     // (name / style / lang / body) as `soul.*` config paths. The on-disk
     // YAML emoji field is intentionally NOT registered — matches the
     // iOS rollback where ✨ is locked as the identity icon.
     //
     // Writes go through the standard PendingConfigChange / user-confirm
     // gate (registered with [ConfigRisk.SENSITIVE]); only the *approved*
-    // writer touches disk. Each writer reads the current SOUL.md so
+    // writer touches disk. Each writer reads the current primary global character card so
     // unrelated fields (incl. the on-disk `emoji` value that survives
     // for round-trip) are preserved when one field changes.
 
@@ -1383,18 +1392,31 @@ internal object ConfigBuiltins {
         // for either language. The writer below rejects over-limit with a
         // precise [ConfigError.InvalidValue].
 
-        // Re-read SOUL.md every call so concurrent writes from Settings
+        // Re-read primary global character card every call so concurrent writes from Settings
         // UI don't race with minis-config writes. Parse falls back to
         // the canonical default content if the file was somehow deleted
         // between launches — same behavior as the Settings page.
-        fun loadCurrent(): com.openminis.app.agent.SoulFile =
-            com.openminis.app.agent.SoulStore.load(context)
-                ?: com.openminis.app.agent.SoulMDParser.parse(
-                    com.openminis.app.agent.SoulStore.DEFAULT_CONTENT
-                )
+        fun loadCurrent(): com.openminis.app.agent.SoulFile {
+            val card = com.openminis.app.agent.CharacterCardStore.editableGlobal(
+                com.openminis.app.agent.CharacterCardStore.load(context),
+            )
+            return card?.let { com.openminis.app.agent.SoulFile(it.toSoulMetadata(), it.personality) }
+                ?: com.openminis.app.agent.SoulMDParser.parse(com.openminis.app.agent.SoulStore.DEFAULT_CONTENT)
+        }
 
-        fun saveCurrent(file: com.openminis.app.agent.SoulFile) {
-            com.openminis.app.agent.SoulStore.save(context, file)
+        fun updateCurrent(change: (com.openminis.app.agent.SoulFile) -> com.openminis.app.agent.SoulFile) {
+            com.openminis.app.agent.CharacterCardStore.update(context) { cards ->
+                val target = com.openminis.app.agent.CharacterCardStore.editableGlobal(cards)
+                val old = target?.let { com.openminis.app.agent.SoulFile(it.toSoulMetadata(), it.personality) }
+                    ?: com.openminis.app.agent.SoulMDParser.parse(com.openminis.app.agent.SoulStore.DEFAULT_CONTENT)
+                val file = change(old)
+                val next = (target ?: com.openminis.app.agent.CharacterCard()).copy(
+                    name = file.metadata.name, icon = file.metadata.icon, style = file.metadata.style,
+                    lang = file.metadata.lang, legacyEmoji = file.metadata.emoji, personality = file.body,
+                )
+                if (target == null) cards + next else cards.map { if (it.id == target.id) next else it }
+            }
+            com.openminis.app.agent.SoulStore.refreshCache(context)
         }
 
         r.register(
@@ -1416,8 +1438,7 @@ internal object ConfigBuiltins {
                     val name = raw.trim().ifBlank {
                         com.openminis.app.agent.SoulMetadata.DEFAULT.name
                     }
-                    val cur = loadCurrent()
-                    saveCurrent(cur.copy(metadata = cur.metadata.copy(name = name)))
+                    updateCurrent { cur -> cur.copy(metadata = cur.metadata.copy(name = name)) }
                 },
             )
         )
@@ -1498,7 +1519,6 @@ internal object ConfigBuiltins {
                     val raw = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
                     val trimmed = raw.trim()
-                    val cur = loadCurrent()
                     val next = when {
                         // Empty clears back to the default sparkle.
                         trimmed.isEmpty() -> ""
@@ -1509,7 +1529,7 @@ internal object ConfigBuiltins {
 
                         else -> resolveSoulIconImage(context, trimmed)
                     }
-                    saveCurrent(cur.copy(metadata = cur.metadata.copy(icon = next)))
+                    updateCurrent { cur -> cur.copy(metadata = cur.metadata.copy(icon = next)) }
                 },
             )
         )
@@ -1531,8 +1551,7 @@ internal object ConfigBuiltins {
                     val raw = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
                     val style = raw.trim()
-                    val cur = loadCurrent()
-                    saveCurrent(cur.copy(metadata = cur.metadata.copy(style = style)))
+                    updateCurrent { cur -> cur.copy(metadata = cur.metadata.copy(style = style)) }
                 },
             )
         )
@@ -1541,7 +1560,7 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.lang",
                 displayName = "Soul language",
-                description = "Preferred response language: auto / zh / en. Older SOUL.md files missing the field are upgraded on first write.",
+                description = "Preferred response language: auto / zh / en. Older primary global character card files missing the field are upgraded on first write.",
                 valueSchema = ConfigSchema.StrEnum(listOf("auto", "zh", "en")),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,
@@ -1563,8 +1582,7 @@ internal object ConfigBuiltins {
                     val raw = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
                     val lang = raw.trim()
-                    val cur = loadCurrent()
-                    saveCurrent(cur.copy(metadata = cur.metadata.copy(lang = lang)))
+                    updateCurrent { cur -> cur.copy(metadata = cur.metadata.copy(lang = lang)) }
                 },
             )
         )
@@ -1573,7 +1591,7 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.body",
                 displayName = "Soul personality prompt",
-                description = "Personality / voice instructions injected as a block in the system prompt. Length follows Settings → Soul: native language-aware caps, custom caps, or unlimited. Unlimited changes application length handling only, not provider context limits. The writer also rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
+                description = "Personality / voice instructions injected as a block in the system prompt. Length follows Settings → Character Cards: native language-aware caps, custom caps, or unlimited. Unlimited changes application length handling only, not provider context limits. The writer also rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
                 // No schema maxLength because either character or word
                 // count is wrong for the *other* language. Both checks
                 // (length + injection) run in the writer below.
@@ -1591,7 +1609,7 @@ internal object ConfigBuiltins {
                             .containsInjectionPattern(raw)
                     ) {
                         throw ConfigError.InvalidValue(
-                            "Body contains a prompt-injection pattern (\"ignore/disregard/forget … previous/prior instructions\"). SOUL.md is for personality, not instructions to the model."
+                            "Body contains a prompt-injection pattern (\"ignore/disregard/forget … previous/prior instructions\"). primary global character card is for personality, not instructions to the model."
                         )
                     }
                     val check = com.openminis.app.agent.SoulStore.isOverLimit(raw)
@@ -1606,8 +1624,7 @@ internal object ConfigBuiltins {
                                 "Over limit: ${check.words} English words exceeds cap of ${check.cap}. Either trim to ≤ ${check.cap} words, or rewrite mostly in Chinese to use the ≤ ${com.openminis.app.agent.SoulStore.CHINESE_CHAR_LIMIT}-char cap."
                             )
                     }
-                    val cur = loadCurrent()
-                    saveCurrent(cur.copy(body = raw))
+                    updateCurrent { cur -> cur.copy(body = raw) }
                 },
             )
         )

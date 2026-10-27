@@ -1,7 +1,6 @@
 package com.openminis.app.agent
 
 import android.content.Context
-import com.openminis.app.logging.AppLogger
 import java.io.File
 import java.util.UUID
 import kotlinx.serialization.Serializable
@@ -11,11 +10,10 @@ import kotlinx.serialization.json.Json
 /**
  * [T-soul-scoped-prompt] Per-group / per-model append-only system prompt rules.
  *
- * The global prompt stays exactly where it always was: the Markdown body of
- * `SOUL.md`, rendered by [SystemPromptBuilder]. This file does NOT migrate,
- * rewrite or replace it — a rule can only ADD text after the global block, so
- * an old install (no `SOUL_PROMPT_RULES.json`) behaves exactly as before and
- * a downgrade simply ignores the extra file.
+ * [T-character-cards] The persisted form is now a GROUP/MODEL [CharacterCard]
+ * (see [SoulPromptRuleStore]); these classes remain as the pure resolver and as
+ * the legacy in-memory shape the old Settings page still speaks. A rule can
+ * only ADD text after the global card — it never replaces it.
  *
  * Identity is deliberately explicit:
  *  - a GROUP rule names `modelGroups[].id`;
@@ -153,27 +151,28 @@ data class SoulPromptRulesDocument(
 }
 
 /**
- * File-backed store for [SoulPromptRule]s.
+ * [T-character-cards] COMPATIBILITY view of the scoped character cards.
  *
- * Location: `<filesDir>/minis-global/memory/SOUL_PROMPT_RULES.json`, beside
- * `SOUL.md`. The memory directory is already what backup export walks, so the
- * rules travel with a backup without a second integration.
+ * There is no `SOUL_PROMPT_RULES.json` any more: a GROUP/MODEL rule is the
+ * projection of a GROUP/MODEL [CharacterCard] and [CharacterCardStore] is the
+ * only thing that touches disk. Both directions deliberately reuse the rule id
+ * as the card id, so the legacy Settings page can edit a scoped card without
+ * ever duplicating it or wiping its non-rule fields.
  *
- * Threading: the public methods are synchronized; the runtime cache is
- * volatile. [cachedOrLoad] does file I/O only on the first call after process
- * start / [invalidate], so a per-request read in the agent loop is a list
- * read, not a disk read.
+ * Mapping contract (see [SoulPromptRuleCardMapping]):
+ *  - rule.content <-> card.systemPrompt (append-only instruction text);
+ *  - rule.target/group/provider/model <-> card.scope/ids;
+ *  - every other card field is preserved by an edit.
  *
- * Failure policy: reads NEVER throw — a missing, truncated or unreadable file
- * yields an empty list, i.e. the shipped global-prompt-only behaviour. Writes
- * DO throw so the Settings screen can show the user why a change did not
- * stick.
+ * Failure policy is inherited from the card store: reads never throw (a
+ * damaged document reads as "no rules"), writes throw so the UI can explain
+ * itself, and a corrupt document is never silently replaced.
  */
 object SoulPromptRuleStore {
 
     private const val TAG = "SoulPromptRules"
     private const val MEMORY_SUBDIR = "minis-global/memory"
-    private const val FILE_NAME = "SOUL_PROMPT_RULES.json"
+    private const val LEGACY_FILE_NAME = "SOUL_PROMPT_RULES.json"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -181,71 +180,55 @@ object SoulPromptRuleStore {
         prettyPrint = true
     }
 
-    @Volatile
-    private var cached: List<SoulPromptRule>? = null
-
     /**
-     * Fingerprint of the file the cache was built from. A backup restore (or
-     * any other writer outside this process) replaces the file without going
-     * through [save], so a pure in-memory cache would keep serving the old
-     * rules until the next process start. `lastModified + length` is cheap to
-     * check per turn and changes on every rewrite; [invalidate] remains for
-     * callers that want an explicit drop.
+     * The pre-card file, kept ONLY so callers/tools that ask where the legacy
+     * rules lived get an answer. Runtime never reads or writes it; it is
+     * archived by [CharacterCardStore.importLegacy].
      */
-    @Volatile
-    private var cachedFingerprint: String? = null
-
     fun fileLocation(context: Context): File =
-        File(File(context.filesDir, MEMORY_SUBDIR), FILE_NAME)
+        File(File(context.filesDir, MEMORY_SUBDIR), LEGACY_FILE_NAME)
 
     @Synchronized
-    fun load(context: Context): List<SoulPromptRule> = readFromDisk(context)
+    fun load(context: Context): List<SoulPromptRule> =
+        CharacterCardStore.load(context)
+            .filter { !it.isGlobal }
+            .map { SoulPromptRuleCardMapping.toRule(it) }
+
+    /** Runtime accessor. The card store already caches, so this is a list read. */
+    @Synchronized
+    fun cachedOrLoad(context: Context): List<SoulPromptRule> = load(context)
 
     /**
-     * Runtime accessor: serve the in-process snapshot when present, otherwise
-     * read the file once. Used by the agent loop at turn start.
+     * Drop every cache. Called after a backup restore; it now also clears the
+     * card snapshot, which is what makes a restored SOUL/rules/card document
+     * visible to the next turn.
      */
-    @Synchronized
-    fun cachedOrLoad(context: Context): List<SoulPromptRule> {
-        val file = fileLocation(context)
-        val fingerprint = fingerprintOf(file)
-        val hit = cached
-        if (hit != null && fingerprint == cachedFingerprint) return hit
-        return readFromDisk(context)
-    }
-
-    /** Drop the runtime snapshot (e.g. after an external restore/import). */
     @Synchronized
     fun invalidate() {
-        cached = null
-        cachedFingerprint = null
+        CharacterCardStore.invalidate()
     }
 
+    /**
+     * Persist [rules] by rewriting the SCOPED cards.
+     *
+     * The supplied list is the complete projection of every scoped card, so a
+     * card that is no longer in it is deleted (that is how a rule delete works)
+     * and a card that is stays intact apart from the fields a rule owns.
+     * GLOBAL cards are never touched.
+     */
     @Synchronized
     fun save(context: Context, rules: List<SoulPromptRule>) {
         val normalized = normalize(rules)
-        val target = fileLocation(context)
-        target.parentFile?.mkdirs()
-        val text = encode(normalized)
-        val tmp = File(target.parentFile, "${target.name}.tmp")
-        try {
-            tmp.writeText(text)
-            if (!tmp.renameTo(target)) {
-                // Same defensive fallback as SoulStore.save: keep a filesystem
-                // that rejects this rename from losing the write.
-                target.writeText(text)
-                tmp.delete()
+        CharacterCardStore.update(context) { cards ->
+            val existing = cards.filter { !it.isGlobal }.associateBy { it.id }
+            val globals = cards.filter { it.isGlobal }
+            globals + normalized.map { rule ->
+                SoulPromptRuleCardMapping.toCard(rule, existing[rule.id])
             }
-            cached = normalized
-            cachedFingerprint = fingerprintOf(target)
-        } catch (t: Throwable) {
-            runCatching { tmp.delete() }
-            AppLogger.warning(TAG, "save failed: ${t.message}")
-            throw t
         }
     }
 
-    /** Pure encoder (tests use this without a Context). */
+    /** Pure encoder for the legacy document shape (tests / export). */
     fun encode(rules: List<SoulPromptRule>): String =
         json.encodeToString(
             SoulPromptRulesDocument.serializer(),
@@ -253,9 +236,9 @@ object SoulPromptRuleStore {
         )
 
     /**
-     * Pure decoder. Accepts the current object envelope and, defensively, a
-     * bare JSON array (a hand-written/third-party file). Any parse failure
-     * returns an empty list instead of throwing into the prompt path.
+     * Pure decoder for the legacy document. Still used by
+     * [CharacterCardLegacyMerge] to read a pre-card file during migration, and
+     * by the compatibility UI while it still speaks this shape.
      */
     fun decode(text: String): List<SoulPromptRule> {
         val trimmed = text.trim()
@@ -271,6 +254,25 @@ object SoulPromptRuleStore {
     }
 
     /**
+     * Strict legacy decode. Migration uses this so a malformed file is REPORTED
+     * and kept on disk rather than silently read as an empty rule list.
+     */
+    fun decodeStrict(text: String): List<SoulPromptRule> {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        val parsed = try {
+            if (trimmed.startsWith("[")) {
+                json.decodeFromString(ListSerializer(SoulPromptRule.serializer()), trimmed)
+            } else {
+                json.decodeFromString(SoulPromptRulesDocument.serializer(), trimmed).rules
+            }
+        } catch (t: Throwable) {
+            throw CharacterCardImportException("SOUL_PROMPT_RULES.json is malformed", t)
+        }
+        return normalize(parsed)
+    }
+
+    /**
      * Fill in a missing id and otherwise keep the list untouched — including
      * rules whose target no longer exists. Keeping an orphaned rule lets the
      * user repair it; it cannot match, so it has no runtime effect.
@@ -279,22 +281,4 @@ object SoulPromptRuleStore {
         rules.map { rule ->
             if (rule.id.isBlank()) rule.copy(id = UUID.randomUUID().toString()) else rule
         }
-
-    private fun readFromDisk(context: Context): List<SoulPromptRule> {
-        val file = fileLocation(context)
-        val rules = if (!file.exists()) {
-            emptyList()
-        } else {
-            runCatching { decode(file.readText()) }.getOrElse {
-                AppLogger.warning(TAG, "read failed: ${it.message}")
-                emptyList()
-            }
-        }
-        cached = rules
-        cachedFingerprint = fingerprintOf(file)
-        return rules
-    }
-
-    private fun fingerprintOf(file: File): String =
-        if (file.isFile) "${file.lastModified()}:${file.length()}" else "missing"
 }

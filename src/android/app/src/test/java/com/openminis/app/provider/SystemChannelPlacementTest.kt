@@ -111,8 +111,9 @@ class SystemChannelPlacementTest {
         }
         // Text is snapshotted per turn; group/model identity is resolved for
         // every request and after a switch/fallback. Helpers keep isolation.
-        assertTrue(chatVm.contains("val soulFileForTurn = if (helperConfig == null)"))
-        assertTrue(chatVm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
+        assertTrue(chatVm.contains("val cardsForTurn = if (helperConfig == null)"))
+        assertTrue(chatVm.contains("CharacterCardStore.load(context).toList()"))
+        assertFalse(chatVm.contains("soulFileForTurn"))
         assertTrue(chatVm.contains("if (helperConfig != null) return null"))
         val requestLoop = chatVm.indexOf("while (!collectDone)")
         val inject = chatVm.indexOf("applicationPromptForSelection(", requestLoop)
