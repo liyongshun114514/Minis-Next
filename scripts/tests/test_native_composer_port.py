@@ -158,6 +158,17 @@ def main() -> int:
     # The + button keeps every action; "/" and the mic button are gone.
     ok("compact = true" in chat,
        "chips are laid out full-width instead of inline on the + row")
+    # Thinking level: English labels, in the slot the mic button used to hold.
+    ok("showLevel = false" in chat,
+       "the + row still draws the level chip next to the model name")
+    ok("ComposerThinkingChip(" in chat and chat.count("ComposerThinkingChip(") == 1,
+       "the level chip is not rendered exactly once")
+    ok(chat.index("ComposerThinkingChip(") < chat.index("// Right: 3-state Send"),
+       "the level chip is not in the mic/send slot")
+    ok("internal fun ComposerThinkingChip(" in extras,
+       "ComposerThinkingChip is not defined")
+    ok("level.displayName.lowercase()" in extras,
+       "the level chip is not labelled with the English level name")
     ok("Icons.Default.Add" in chat, "+ button lost its icon")
     ok("showAttachMenu = true" in chat, "+ button no longer opens the merged menu")
     ok("MicButton(" not in chat, "mic button is still rendered in the composer")

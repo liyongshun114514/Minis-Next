@@ -732,6 +732,34 @@ object SystemPromptBuilder {
         "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). "
 
     /**
+     * [T-sandbox-prompt-facts] App-owned statement of what the Linux
+     * environment IS and what it deliberately is not.
+     *
+     * The model kept reading the sandbox's by-design non-root state as a
+     * failure — "chroot 不可用", "没有 root，做不了" — and spent turns probing
+     * `chroot(2)`, `sudo` and capability bits. Those probes fail ON PURPOSE:
+     * the helper already performed chroot(2) into the rootfs, then dropped to
+     * the app's uid with no capabilities and NoNewPrivs=1. Saying so once here
+     * is cheaper than a wrong conclusion in every session.
+     */
+    private const val SANDBOX_FACTS =
+        "Environment facts (app-owned, always true): the Linux environment is " +
+            "already set up — the shell runs inside the Ubuntu 24.04 rootfs, " +
+            "either through chroot (the app's root helper has already performed " +
+            "chroot(2)) or through PRoot. Inside it the process intentionally runs " +
+            "as the app's own non-root uid, with no Linux capabilities (CapEff=0) " +
+            "and NoNewPrivs=1. That is the sandbox working as designed, NOT a " +
+            "fault: `id` printing a uid like 10369, `chroot …` / `mount …` / " +
+            "`sudo …` failing with EPERM, and an empty capability set are all " +
+            "expected there. Never describe this as \"chroot unavailable\", " +
+            "\"no root\" or a broken container, and never try to escalate " +
+            "(sudo, su, setuid binaries, nested chroot) — the failure carries no " +
+            "information about the device. apt, gcc, python, git and ordinary " +
+            "services work without root because the rootfs belongs to that uid. " +
+            "If a task genuinely needs root, use the android-root-cli tool, " +
+            "which asks the user first."
+
+    /**
      * The header that introduces the user-authored body. Says plainly that the
      * block outranks everything that follows it in the same system message
      * (the app's own tool / skill / memory / environment text), rather than
@@ -836,7 +864,7 @@ object SystemPromptBuilder {
         val body = file?.body
         val trimmed = body?.trim().orEmpty()
         if (trimmed.isEmpty()) {
-            return identityTrimmed + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
+            return identityTrimmed + "\n\n" + SANDBOX_FACTS + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
         }
 
         // Reject (NOT truncate) bodies that exceed the then-active length
@@ -848,7 +876,7 @@ object SystemPromptBuilder {
         val check = SoulStore.isOverLimit(trimmed)
         if (check.isOverLimit) {
             AppLogger.warning(TAG, "personality body is over the configured length limit ($check) — falling back to identity-only system prompt.")
-            return identityTrimmed + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
+            return identityTrimmed + "\n\n" + SANDBOX_FACTS + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
         }
 
         val personality = scrubInjections(trimmed)
@@ -865,6 +893,8 @@ object SystemPromptBuilder {
             personality +
             "\n\n" +
             identityTrimmed +
+            "\n\n" +
+            SANDBOX_FACTS +
             styleBlock(style) +
             "\n\n" +
             soulEditHint +

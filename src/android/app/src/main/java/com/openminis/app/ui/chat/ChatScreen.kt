@@ -7240,6 +7240,7 @@ fun ChatScreen(
                             onLevelClick = { showThinkingLevelSheet = true },
                             modelInteractionSource = modelPickerInteraction,
                             compact = true,
+                            showLevel = false,
                             modifier = Modifier.padding(start = 2.dp),
                         )
 
@@ -7653,6 +7654,16 @@ fun ChatScreen(
                             // trailing (keyboard, mic/send) button groups.
                             Spacer(modifier = Modifier.weight(1f))
                         }
+
+                        // [T-composer-thinking-inline] 思考等级使用英文档位
+                        // （low / medium / high…），位置就是原先语音键的地方：
+                        // 发送键左边。
+                        ComposerThinkingChip(
+                            level = thinkingBarLevel,
+                            availableLevels = viewModel.availableThinkingLevels,
+                            reasoningSupported = viewModel.currentModelSupportsReasoning,
+                            onClick = { showThinkingLevelSheet = true },
+                        )
 
                         Spacer(modifier = Modifier.width(8.dp))
 

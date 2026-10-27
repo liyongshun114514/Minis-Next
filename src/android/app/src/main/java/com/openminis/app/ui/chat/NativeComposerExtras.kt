@@ -159,6 +159,9 @@ internal fun ComposerModelThinkingBar(
     // row through `weight(1f)` was what squeezed the name down to a single
     // ellipsis dot on a normal-width phone.
     compact: Boolean = false,
+    // [T-composer-thinking-inline] When false the bar draws only the model
+    // name; the level chip is rendered separately, in the old mic slot.
+    showLevel: Boolean = true,
 ) {
     val context = LocalContext.current
     // OFF is always offered (it switches thinking off); availableLevels never
@@ -252,6 +255,7 @@ internal fun ComposerModelThinkingBar(
                 },
         )
 
+        if (showLevel) {
         Spacer(modifier = Modifier.width(8.dp))
 
         Box(
@@ -281,8 +285,69 @@ internal fun ComposerModelThinkingBar(
                 },
             )
         }
+        }
 
         if (!compact) Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * [T-composer-thinking-inline] The thinking-level chip on its own.
+ *
+ * It used to live inside [ComposerModelThinkingBar]; it now sits in the slot the
+ * microphone button used to occupy, immediately left of send, so the two
+ * controls the user actually reaches for (model, effort) are at opposite ends
+ * of the row instead of crowded together.
+ *
+ * Labels are the English level names (`low` / `medium` / `high` / `xhigh` /
+ * `max` / `ultra` / `off`), not the Chinese translations: the value is sent to
+ * the model as-is (reasoning effort), and matching that spelling keeps the chip
+ * and the request readable together.
+ */
+@Composable
+internal fun ComposerThinkingChip(
+    level: ThinkingLevel,
+    availableLevels: List<ThinkingLevel>,
+    reasoningSupported: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val rows = remember(availableLevels) {
+        listOf(ThinkingLevel.OFF) + availableLevels.filter { it != ThinkingLevel.OFF }
+    }
+    val selectedIndex = remember(rows, level) { rows.indexOf(level).coerceAtLeast(0) }
+    val enabled = reasoningSupported && rows.size > 1
+    val color = if (enabled) {
+        Color(ComposerPortMath.levelColorArgb(selectedIndex, rows.size))
+    } else {
+        ChatColors.secondaryText
+    }
+    val label = level.displayName.lowercase()
+    Box(
+        modifier = modifier
+            .height(30.dp)
+            .alpha(if (enabled) 1f else 0.45f)
+            .clip(RoundedCornerShape(15.dp))
+            .background(color.copy(alpha = 0.13f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 10.dp)
+            .semantics {
+                contentDescription = if (enabled) {
+                    "思考等级 $label，点击选择"
+                } else {
+                    "当前模型不支持推理等级"
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = color,
+            maxLines = 1,
+        )
     }
 }
 
