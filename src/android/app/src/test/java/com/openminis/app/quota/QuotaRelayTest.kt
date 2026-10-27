@@ -87,9 +87,11 @@ class QuotaRelayTest {
     @Test fun `nothing answers, every family refuses, hints and path prefixes`() {
         val none = run(RouteTransport(emptyMap())).exceptionOrNull() as QuotaFetchError
         assertTrue(none.kind == QuotaError.Kind.notFound && none.detail.contains("/v1/usage") &&
-            none.detail.contains("/api/usage/token") && none.detail.contains("/v1/dashboard/billing/subscription"))
+            none.detail.contains("/api/usage/token") && none.detail.contains("/v1/dashboard/billing/subscription") &&
+            none.detail.contains("/key/info"))
         val all401 = run(RouteTransport(mapOf(
             "/v1/usage" to (401 to "{}"), "/api/usage/token" to (401 to "{}"), "/v1/dashboard/billing/subscription" to (401 to "{}"),
+            "/key/info" to (401 to "{}"),
         ))).exceptionOrNull() as QuotaFetchError
         assertEquals("the key, not a missing endpoint", QuotaError.Kind.unauthorized, all401.kind)
 
