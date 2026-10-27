@@ -181,9 +181,8 @@ object Routes {
     const val AGENT_TOOLS = "agent_tools"
     /** [T-mcp-integration-android] MCP Integrations management screen. */
     const val MCP = "mcp"
-    /** Character-card manager. Keep the legacy route as an alias for restored navigation. */
-    const val CHARACTER_CARDS = "soul"
-    const val SOUL = CHARACTER_CARDS
+    /** [T-soul-md] SOUL.md editor. */
+    const val SOUL = "soul"
     const val MEMORY_FILE_EDIT = "memory_file/{fileName}/{isGlobal}"
     const val PERMISSIONS = "permissions"
     /**
@@ -662,7 +661,7 @@ fun AppNavigation(
                 onAgentsClick = { navController.safeNavigate(Routes.AGENTS) },
                 onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
                 onMcpClick = { navController.safeNavigate(Routes.MCP) },
-                onSoulClick = { navController.safeNavigate(Routes.CHARACTER_CARDS) },
+                onSoulClick = { navController.safeNavigate(Routes.SOUL) },
                 onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
                 onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
                 onAppearanceClick = { navController.safeNavigate(Routes.APPEARANCE) },
@@ -1429,8 +1428,8 @@ fun AppNavigation(
             }
         }
 
-        // Character cards replace the former SOUL.md editor.
-        composable(Routes.CHARACTER_CARDS) {
+        // [T-soul-md] SOUL.md editor.
+        composable(Routes.SOUL) {
             com.openminis.app.ui.settings.SoulSettingsScreen(
                 onBack = { navController.safePopBackStack() },
             )

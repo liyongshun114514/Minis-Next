@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 系统提示词页面的范围切换：全局 / 自定义两个分段按钮，以及保存中的状态。 -->
+<resources>
+    <string name="system_prompt_scope_global">全局</string>
+    <string name="system_prompt_scope_custom">自定义</string>
+    <string name="system_prompt_saving">正在保存…</string>
+</resources>

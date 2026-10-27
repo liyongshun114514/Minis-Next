@@ -5,251 +5,279 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
- * Contract for the character-card settings page that replaced the old SOUL
- * editor surface.
+ * [T-android-soul-system-prompt-only] Contract for the reduced Soul page,
+ * extended for the restructured prompt area and the two-scope switch.
  *
- * The class name is intentionally kept: the Android workflow and review
- * scripts run this test by name. The assertions are the NEW behaviour — there
- * is no "still edits SOUL.md", "no tabs" or old prompt-body contract left.
- *
- * Storage, parsing and prompt assembly are owned by the agent layer
- * (`CharacterCardStore` + the other agent's backend); this test pins the UI to
- * that fixed API and pins the safety properties that a refactor could silently
- * lose (draft-only import, no auto-enable, read-modify-write merges, unsaved
- * guard, required binding).
+ * The page is the system-prompt setting and nothing else: an editable avatar,
+ * a name, the global prompt, and the scoped custom rules. Two segmented
+ * buttons at the top choose which half is on screen — the global page (avatar,
+ * name, body, its own Save) or the custom rules page. Storage, matching and
+ * save paths are unchanged and are pinned below.
  */
 class SoulSettingsPageContractTest {
 
-    private val wrapper = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
-    private val screen = ProductionSources.read("ui/settings/CharacterCardsScreen.kt")
-    private val editor = ProductionSources.read("ui/settings/CharacterCardEditorScreen.kt")
-    private val importSheet = ProductionSources.read("ui/settings/CharacterCardImportSheet.kt")
-    private val picker = ProductionSources.read("ui/settings/CharacterCardTargetPicker.kt")
+    private val src = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
+    private val section = ProductionSources.read("ui/settings/SoulPromptRulesSection.kt")
+    private val editor = ProductionSources.read("ui/settings/SoulPromptRuleEditor.kt")
+    private val order = ProductionSources.read("ui/settings/SoulPromptRuleUi.kt")
 
-    @Test
-    fun `the old soul route is a thin wrapper over the card page`() {
-        assertTrue(wrapper.contains("fun SoulSettingsScreen(onBack: () -> Unit)"))
-        assertTrue(wrapper.contains("CharacterCardsScreen(onBack = onBack)"))
-        // The old page is gone from the wrapper; no SOUL.md body editing here.
-        assertFalse(wrapper.contains("SoulStore.save"))
-        assertFalse(wrapper.contains("DocumentEditorField"))
-        assertFalse(wrapper.contains("SoulPromptRuleStore"))
+    /** A file under `src/main/res`, resolved from the production source root. */
+    private fun res(path: String): String {
+        val root = ProductionSources.mainRoot() ?: error("production source root not found")
+        // mainRoot() is src/main/java/com/openminis/app; res is src/main/res,
+        // four levels up (app → com/openminis → com → java → main).
+        val f = File(root, "../../../../res/$path")
+        assertTrue("missing resource file: ${f.absolutePath}", f.isFile)
+        return f.readText()
     }
 
     @Test
-    fun `the shared glyph keeps its exact call signature and fill behaviour`() {
-        // ChatExportHeader, ChatAssistantMessageUI and the overlay controller
-        // call this symbol by name; the signature is load-bearing.
-        assertTrue(
-            wrapper.contains(
-                "internal fun SoulIconGlyph(\n" +
-                    "    icon: String,\n" +
-                    "    sizeDp: Dp,\n" +
-                    "    emojiSp: TextUnit,\n" +
-                    "    sparkleTint: Brush? = null,\n" +
-                    ")",
-            ),
-        )
-        assertTrue(wrapper.contains("contentScale = ContentScale.Crop"))
-        assertTrue(wrapper.contains("RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)"))
-        assertTrue(wrapper.contains("SoulIcon.decode(icon)"))
+    fun `the page edits exactly the avatar, the name and the prompt`() {
+        // One multiline editor, labelled as the system prompt.
+        assertEquals("one prompt editor", 1, Regex("""DocumentEditorField\(""").findAll(src).count())
+        assertTrue(src.contains("R.string.soul_section_personality"))
+        assertTrue("name field", src.contains("R.string.soul_field_name"))
+        // The avatar still opens the emoji / image picker menu.
+        assertTrue(src.contains("showIconMenu = true"))
+        assertTrue(src.contains("imagePicker.safeLaunchPicker("))
+        // Save still goes through the SOUL.md store.
+        assertTrue(src.contains("SoulStore.save(context, currentFile)"))
     }
 
     @Test
-    fun `the page is a two segment global custom switch and defaults to global`() {
-        assertTrue(screen.contains("SingleChoiceSegmentedButtonRow("))
-        assertTrue(screen.contains("R.string.character_cards_tab_global"))
-        assertTrue(screen.contains("R.string.character_cards_tab_custom"))
-        assertTrue(screen.contains("mutableStateOf(CharacterCardTab.GLOBAL)"))
-        assertFalse("no TabRow page selector", screen.contains("TabRow("))
-        // The custom tab owns GROUP and MODEL cards; global only owns GLOBAL.
-        assertTrue(screen.contains("it.scope == CharacterCardScope.GLOBAL"))
-        assertTrue(screen.contains("it.scope != CharacterCardScope.GLOBAL"))
-    }
-
-    @Test
-    fun `cards can be created edited toggled deleted imported and exported`() {
-        assertTrue(screen.contains("CharacterCard(scope = CharacterCardScope.GLOBAL)"))
-        assertTrue(screen.contains("CharacterCard(scope = CharacterCardScope.MODEL)"))
-        assertTrue(screen.contains("CharacterCardEditorScreen("))
-        assertTrue(screen.contains("setEnabled("))
-        assertTrue(screen.contains("pendingDelete = card"))
-        assertTrue(screen.contains("R.string.character_cards_delete_title"))
-        assertTrue(screen.contains("R.string.character_cards_delete_body"))
-        assertTrue(screen.contains("CharacterCardStore.loadReporting(context)"))
-        assertTrue(screen.contains("loadError = report.issue"))
-        assertTrue(screen.contains("CharacterCardStore.save(context, latest)"))
-        assertTrue(screen.contains("CharacterCardStore.importCard(read.bytes)"))
-        assertTrue(screen.contains("CharacterCardStore.exportCard(card)"))
-        assertTrue(screen.contains("ActivityResultContracts.OpenDocument()"))
-        assertTrue(screen.contains("ActivityResultContracts.CreateDocument(\"application/json\")"))
-    }
-
-    @Test
-    fun `writes merge with the latest file under the store monitor`() {
-        // The config CLI and backup restore can edit cards while this screen is
-        // open. An in-memory list save would silently drop those edits.
-        assertTrue(screen.contains("synchronized(CharacterCardStore)"))
-        assertTrue(screen.contains("val latest = CharacterCardStore.load(context).toMutableList()"))
-        assertTrue(screen.contains("transform(latest)"))
-        assertTrue(screen.contains("CharacterCardStore.save(context, latest)"))
-        assertTrue("writes happen off the main thread", screen.contains("withContext(Dispatchers.IO)"))
-        // No card operation may go back to saving a stale snapshot.
-        assertFalse(screen.contains("persist(next)"))
-    }
-
-    @Test
-    fun `import reads a bounded file and only creates a disabled draft`() {
-        assertTrue(screen.contains("MAX_IMPORT_BYTES = CharacterCardImport.MAX_INPUT_BYTES"))
-        assertTrue(screen.contains("if (total > MAX_IMPORT_BYTES) return CardFileRead.TooLarge"))
-        assertTrue(screen.contains("CardFileRead.Ok(output.toByteArray())"))
-        assertTrue(screen.contains("importDraft = it"))
-        assertTrue(screen.contains("enabled = false"))
-        assertTrue(importSheet.contains("R.string.character_cards_import_preview_body"))
-        assertTrue(importSheet.contains("R.string.character_cards_import_add"))
-        // A colliding id from a concurrent CLI import is replaced, not merged
-        // over the existing card.
-        assertTrue(screen.contains("java.util.UUID.randomUUID().toString()"))
-        assertTrue(screen.contains("latest.any { it.id == candidate.id }"))
-    }
-
-    @Test
-    fun `the editor groups every card field`() {
-        for (fieldRes in listOf(
-            "character_card_editor_description",
-            "character_card_editor_personality",
-            "character_card_editor_scenario",
-            "character_card_editor_first_message",
-            "character_card_editor_message_examples",
-            "character_card_editor_system_prompt",
-            "character_card_editor_post_history",
-            "character_card_editor_creator_notes",
-            "character_card_editor_tags",
+    fun `the removed controls stay removed`() {
+        for (gone in listOf(
+            "LangPicker",
+            "LANG_BUTTON_SIDE_PADDING",
+            "SoulBodyLimitControls",
+            "R.string.soul_field_style",
+            "R.string.soul_field_lang",
+            "R.string.soul_lang_",
+            "R.string.soul_restore_default",
         )) {
-            assertTrue("missing editor field $fieldRes", editor.contains(fieldRes))
+            assertFalse("$gone must not come back", src.contains(gone))
         }
-        assertTrue(editor.contains("R.string.character_card_editor_section_basic"))
-        assertTrue(editor.contains("R.string.character_card_editor_section_character"))
-        assertTrue(editor.contains("R.string.character_card_editor_section_dialogue"))
-        assertTrue(editor.contains("R.string.character_card_editor_section_prompt"))
-        assertTrue(editor.contains("R.string.character_card_editor_section_notes"))
-        // Avatar is editable through the same glyph used everywhere.
-        assertTrue(editor.contains("SoulIconGlyph(icon = icon"))
-        assertTrue(editor.contains("SoulIcon.encode(bitmap)"))
     }
 
     @Test
-    fun `custom cards must name a real binding and names cannot be blank`() {
-        assertTrue(editor.contains("val nameError = draft.name.isBlank()"))
-        assertTrue(editor.contains("groupMissing"))
-        assertTrue(editor.contains("modelMissing"))
-        assertTrue(editor.contains("CHARACTER_CARD_MAX_FIELD_CHARS = 100_000"))
-        assertTrue(editor.contains("character_card_editor_field_too_long"))
-        assertTrue(editor.contains("R.string.character_card_editor_name_required"))
-        assertTrue(editor.contains("R.string.character_card_editor_bind_required_group"))
-        assertTrue(editor.contains("R.string.character_card_editor_bind_required_model"))
-        assertTrue(editor.contains("val targetBlocksEnable = targetMissing && enabled"))
-        assertTrue(editor.contains("targetBlocksEnable || tooLong"))
-        // The pair is the identity; the builder clears the irrelevant target
-        // fields so a GROUP card cannot keep a stale model binding.
-        assertTrue(editor.contains("providerInstanceId = if (cardScope == CharacterCardScope.MODEL)"))
-        assertTrue(editor.contains("groupId = if (cardScope == CharacterCardScope.GROUP)"))
-        assertTrue(picker.contains("it.providerInstanceId + \"\\u0000\" + it.modelId"))
+    fun `metadata the page does not show is still written back`() {
+        // style / lang / emoji are preserved verbatim so a save from this page
+        // cannot reset values set by an older build or another device.
+        assertTrue("emoji preserved", src.contains("preservedEmoji"))
+        assertTrue("style round-trips", src.contains("style = style,"))
+        assertTrue("lang round-trips", src.contains("lang = lang.ifBlank"))
     }
 
     @Test
-    fun `leaving an edited card asks before discarding`() {
-        assertTrue(editor.contains("BackHandler { attemptCancel() }"))
-        assertTrue(editor.contains("if (saving) return"))
-        assertTrue(editor.contains("if (isDirty) showDiscard = true else onCancel()"))
-        assertTrue(editor.contains("R.string.character_card_editor_unsaved_title"))
-        assertTrue(editor.contains("R.string.character_card_editor_discard"))
-        assertTrue(editor.contains("R.string.character_card_editor_keep_editing"))
+    fun `the length gate still guards save`() {
+        // [T-soul-unlimited-default] The gate stays wired to the same
+        // classifier SoulStore.save() enforces — it is simply Ok by default
+        // now (mode UNLIMITED), so it never blocks a save.
+        assertTrue(src.contains("SoulStore.isOverLimit(body, limitSettings)"))
+        assertTrue(src.contains("!bodyLimitCheck.isOverLimit"))
     }
 
     @Test
-    fun `a failed write keeps the editor open and prevents double submit`() {
-        assertTrue(editor.contains("var saving by remember { mutableStateOf(false) }"))
-        assertTrue(editor.contains("if (nameError || groupMissing || modelMissing || targetBlocksEnable || tooLong || saving) return"))
-        assertTrue(editor.contains("onSave: suspend (CharacterCard) -> Result<Unit>"))
-        assertTrue(editor.contains(".onFailure"))
-        assertTrue(editor.contains("R.string.character_card_editor_save_error_title"))
-        assertTrue(screen.contains("busyCardIds"))
-        assertTrue(screen.contains("enabled = !busy"))
-        assertTrue(importSheet.contains("enabled = !saving && !missingBinding"))
+    fun `the over-limit banner cannot fire under the default policy`() {
+        // It is gated on the MODE as well as the result: only CUSTOM (which this
+        // page cannot reach) can report OverLimit*.
+        assertTrue(src.contains("!limitSettings.mode.isUnlimited"))
+        assertFalse("no unconditional red banner", src.contains("val overLimit = bodyLimitCheck\n                if (overLimit is"))
     }
 
     @Test
-    fun `legacy group rules are migrated cards and stay visible and editable`() {
-        // CharacterCardStore.importLegacy projects SOUL_PROMPT_RULES.json into
-        // GROUP/MODEL cards carrying legacyRuleDerived. The UI must show them
-        // in the normal custom list, keep the marker when saving, and must not
-        // write the retired rules file.
-        assertTrue(screen.contains("legacyRuleDerived"))
-        assertTrue(screen.contains("R.string.character_cards_badge_legacy"))
-        assertTrue(screen.contains("R.string.character_cards_legacy_migrated_note"))
-        assertTrue(editor.contains("initial.copy("))
-        assertFalse(screen.contains("SoulPromptRuleStore"))
-        assertFalse(screen.contains("SoulPromptRuleEditorDialog"))
+    fun `the avatar fills its frame instead of letterboxing`() {
+        // [T-soul-avatar-fill] Default ContentScale.Fit left blank bands on the
+        // two short sides of a non-square image.
+        assertTrue("avatar image must Crop", src.contains("contentScale = ContentScale.Crop"))
+        assertTrue(src.contains("RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)"))
     }
 
     @Test
-    fun `card content is treated as data and safety priority is stated`() {
-        assertTrue(editor.contains("R.string.character_card_editor_notes_footer"))
-        // No new "system" bypass: the UI never writes prompt priority or the
-        // safety layer, it only stores text fields.
-        assertFalse(editor.contains("SystemPromptBuilder"))
-        assertFalse(editor.contains("SafetyPolicy"))
+    fun `the square crop hint is gone from the menu`() {
+        assertFalse("hint line removed", src.contains("R.string.soul_icon_image_hint"))
+        assertTrue("the menu item still has a title", src.contains("R.string.soul_icon_choose_image"))
+    }
+
+    // ── Two scope buttons: global page / custom rules page ────────────────
+
+    @Test
+    fun `two scope buttons choose the global page and the custom rules`() {
+        // The switch is the same Material3 segmented control the rest of
+        // Settings uses — NOT a TabRow, which used to hide one half of the
+        // page and made the app-bar Save look like it saved the rules too.
+        assertTrue(src.contains("SoulPromptScopeSwitch("))
+        assertTrue(src.contains("SingleChoiceSegmentedButtonRow("))
+        assertTrue(src.contains("SegmentedButton("))
+        assertTrue(src.contains("SegmentedButtonDefaults.itemShape("))
+        assertTrue(src.contains("SoulPromptScope.GLOBAL to R.string.system_prompt_scope_global"))
+        assertTrue(src.contains("SoulPromptScope.CUSTOM to R.string.system_prompt_scope_custom"))
+        assertTrue("the switch is state, not a tab index", src.contains("when (promptScope)"))
+        assertFalse("no tabs", src.contains("TabRow("))
+        assertFalse("no page selector state", src.contains("promptTab"))
+        // Two buttons and two pages, one of each.
+        assertEquals("two segments", 2, Regex("""SoulPromptScope\.(GLOBAL|CUSTOM) to R\.string""").findAll(src).count())
+        assertTrue(src.contains("private fun SoulPromptScopeSwitch("))
+        assertEquals("one switch call site", 2, Regex("""SoulPromptScopeSwitch\(""").findAll(src).count())
     }
 
     @Test
-    fun `runtime freezes character cards per turn from the card store`() {
-        // VM correction: one turn snapshots CharacterCardStore.load(context).
+    fun `the global page owns the identity, the editor and the save`() {
+        val switchCall = src.indexOf("SoulPromptScopeSwitch(\n")
+        val globalBranch = src.indexOf("SoulPromptScope.GLOBAL -> {")
+        val customBranch = src.indexOf("SoulPromptScope.CUSTOM -> {")
+        val avatar = src.indexOf("showIconMenu = true")
+        val editorField = src.indexOf("DocumentEditorField(")
+        val saveButton = src.indexOf("onClick = save,")
+        val saveStatus = src.indexOf("R.string.system_prompt_saving")
+        val rules = src.indexOf("SoulCustomRulesSection(")
+
+        assertTrue("switch on top", switchCall in 0 until globalBranch)
+        assertTrue("two ordered branches", customBranch > globalBranch)
+        // Avatar + name, body editor and its own Save/status are on the GLOBAL
+        // page; the rules section is on the CUSTOM page (and nowhere else).
+        for ((name, at) in listOf(
+            "avatar" to avatar,
+            "editor" to editorField,
+            "save button" to saveButton,
+            "save status" to saveStatus,
+        )) {
+            assertTrue("$name on the global page", at in (globalBranch + 1) until customBranch)
+        }
+        assertTrue("rules on the custom page", rules > customBranch)
+        assertEquals("exactly one rules section", 1, Regex("""SoulCustomRulesSection\(""").findAll(src).count())
+    }
+
+    @Test
+    fun `the scope labels are localized in their own resource files`() {
+        val en = res("values/system_prompt_ui.xml")
+        val zh = res("values-zh/system_prompt_ui.xml")
+        for (name in listOf(
+            "system_prompt_scope_global",
+            "system_prompt_scope_custom",
+            "system_prompt_saving",
+        )) {
+            assertTrue("$name missing in values", en.contains("name=\"$name\""))
+            assertTrue("$name missing in values-zh", zh.contains("name=\"$name\""))
+        }
+        assertTrue("English labels", en.contains(">Global<") && en.contains(">Custom<"))
+        assertTrue("Chinese labels", zh.contains(">全局<") && zh.contains(">自定义<"))
+    }
+
+    @Test
+    fun `switching scope keeps the global draft and leaving asks first`() {
+        // The draft is screen-level state ABOVE the switch, so hiding the
+        // editor cannot drop it; the switch only chooses what is composed.
+        assertTrue("body draft is hoisted", src.contains("var body by remember"))
+        assertTrue(src.contains("onValueChange = { body = it }"))
+        assertTrue(src.contains("var promptScope by rememberSaveable"))
+        assertTrue(src.contains("onSelect = { promptScope = it }"))
+        // Leaving with unsaved edits still asks, on either page.
+        assertTrue(src.contains("val attemptBack"))
+        assertTrue(src.contains("if (isDirty) showDiscardDialog = true else onBack()"))
+        assertTrue(src.contains("BackHandler(enabled = isDirty)"))
+        assertTrue(src.contains("R.string.soul_discard_confirm_title"))
+        // The dirty comparison is still against what was loaded.
+        assertTrue(src.contains("val isDirty = loaded && baseline != null && currentFile != baseline"))
+    }
+
+    @Test
+    fun `save is one-shot and a failure keeps the draft`() {
+        // The tap is guarded synchronously, so it cannot enqueue a second write
+        // before the first lands, and the button is disabled from the same flag.
+        assertTrue(src.contains("val save: () -> Unit = {\n        if (!saving) {"))
+        assertTrue(src.contains("saving = true"))
+        assertTrue(src.contains("enabled = loaded && isDirty && !saving &&"))
+        assertTrue(src.contains("R.string.system_prompt_saving"))
+        // The global Save commits SOUL.md only; rules persist on change.
+        assertTrue(src.contains("MinisButton(\n                                onClick = save,"))
+        assertTrue(src.contains("R.string.prompt_ui_global_unsaved"))
+        assertTrue(src.contains("R.string.prompt_ui_global_saved"))
+        assertTrue("rules persist on change", src.contains("persistRules("))
+        // A failed write reports and keeps the draft: nothing resets `body`.
+        assertTrue(src.contains("saveError = t.message ?: \"save failed\""))
+        assertFalse("failure must not clear the draft", src.contains("body = \"\""))
+    }
+
+    @Test
+    fun `custom rules can be enabled targeted edited added and deleted`() {
+        assertTrue(src.contains("SoulPromptRuleStore.load(context)"))
+        assertTrue(src.contains("SoulPromptRuleStore.save(context, next)"))
+        assertTrue(src.contains("persistRules("))
+        assertTrue(src.contains("SoulPromptRuleEditorDialog("))
+        assertTrue(src.contains("rules.filterNot { it.id == pending.id }"))
+        // The list itself lives in its own UI-only file.
+        assertTrue(section.contains("SettingsSwitch("))
+        assertTrue(section.contains("SoulPromptRuleTarget.GROUP"))
+        assertTrue(section.contains("SoulPromptRuleTarget.MODEL"))
+        assertTrue(section.contains("R.string.soul_custom_rules_add"))
+    }
+
+    @Test
+    fun `a rule row shows scope target on-off state and a body preview`() {
+        assertTrue(section.contains("R.string.soul_custom_rule_target_group"))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_model"))
+        assertTrue(section.contains("R.string.soul_custom_rule_group_label"))
+        assertTrue(section.contains("R.string.soul_custom_rule_model_label"))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_missing"))
+        assertTrue(section.contains("prompt_ui_rules_summary"))
+        assertTrue(section.contains("SoulPromptRuleUi.preview("))
+        assertTrue(section.contains("prompt_ui_rule_disabled"))
+    }
+
+    @Test
+    fun `reordering is offered inside a scope and persisted in list order`() {
+        assertTrue(section.contains("onMove(rule, -1)"))
+        assertTrue(section.contains("onMove(rule, 1)"))
+        assertTrue(src.contains("SoulPromptRuleUi.moveWithinTier(rules, rule.id, delta)"))
+        assertTrue(src.contains("if (next !== rules) persistRules(next)"))
+        assertTrue(order.contains("fun moveWithinTier("))
+        // No sorting by id/name anywhere: the list order IS the injection
+        // order, so a display sort would silently reorder the prompt.
+        assertFalse(order.contains("sortedBy"))
+        assertFalse(order.contains("sortedWith"))
+    }
+
+    @Test
+    fun `a deleted target is shown as missing and never silently global`() {
+        assertTrue(section.contains("SoulPromptRuleUi.targetRef("))
+        assertTrue(section.contains("R.string.soul_custom_rule_target_missing"))
+        assertTrue(section.contains("R.string.soul_custom_rules_intro"))
+        // The rule editor offers exactly Group and Model — no "all" scope.
+        assertTrue(editor.contains("SoulPromptRuleTarget.GROUP"))
+        assertTrue(editor.contains("SoulPromptRuleTarget.MODEL"))
+        assertFalse("no global target option", editor.contains("SoulPromptRuleTarget.GLOBAL"))
+        assertFalse(editor.contains("AllModels"))
+    }
+
+    @Test
+    fun `the editor selects scope and target without nested menus`() {
+        assertFalse("no tab row in the form", editor.contains("TabRow("))
+        assertFalse("no dropdown inside the scrolling form", editor.contains("DropdownMenu("))
+        assertTrue(editor.contains("SingleChoiceSegmentedButtonRow("))
+        assertTrue(editor.contains("SoulPromptTargetPickerDialog("))
+        assertTrue(editor.contains("prompt_ui_editor_applies_to"))
+        assertTrue(editor.contains("prompt_ui_editor_target"))
+        assertTrue(editor.contains("prompt_ui_editor_change_target"))
+        // Missing targets are preserved verbatim and must be re-picked.
+        assertTrue(editor.contains("existing.groupId"))
+        assertTrue(editor.contains("it.providerInstanceId == existing.providerInstanceId &&"))
+        assertTrue(editor.contains("canSave = hasTarget && content.isNotBlank()"))
+    }
+
+    @Test
+    fun `the runtime resolves rules per request and snapshots them per turn`() {
+        // Grep guard for the wiring that cannot be constructed in a JVM test:
+        // turn-level snapshot + per-request selection. If ChatViewModel drops
+        // either half, this fails instead of the UI silently doing nothing.
         val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
-        assertTrue(vm.contains("val cardsForTurn = if (helperConfig == null) {"))
-        assertTrue(vm.contains("CharacterCardStore.load(context).toList()"))
-        assertTrue(vm.contains("val applicationPromptForTurn = applicationPromptForSelection("))
-        assertTrue(vm.contains("cardsForTurn,"))
-        assertFalse("legacy rule cache is no longer the application point", vm.contains("SoulPromptRuleStore.cachedOrLoad"))
+        assertTrue(vm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
+        assertTrue(vm.contains("applicationPromptForSelection("))
+        assertTrue(vm.contains("THE per-request application point"))
+        assertTrue(vm.contains("entry?.baseModel?.id"))
+        assertTrue(vm.contains("SystemPromptBuilder.applicationPrompt("))
     }
-
-    @Test
-    fun `resources are paired and every referenced key exists`() {
-        val en = readResource("values/character_cards.xml")
-        val zh = readResource("values-zh/character_cards.xml")
-        val enKeys = stringKeys(en)
-        val zhKeys = stringKeys(zh)
-        assertEquals("zh must mirror en exactly", enKeys, zhKeys)
-        assertTrue(enKeys.contains("character_cards_title"))
-        assertTrue(enKeys.contains("character_cards_subtitle"))
-        assertTrue(zhKeys.contains("character_cards_subtitle"))
-        val referenced = Regex("""R\.string\.(character_card_[A-Za-z0-9_]+)""")
-            .findAll(wrapper + screen + editor + importSheet + picker)
-            .map { it.groupValues[1] }
-            .toSet()
-        for (key in referenced) {
-            assertTrue("missing EN string $key", enKeys.contains(key))
-            assertTrue("missing ZH string $key", zhKeys.contains(key))
-        }
-    }
-
-    private fun readResource(rel: String): String {
-        var dir: java.io.File? = java.io.File("").absoluteFile
-        while (dir != null) {
-            for (candidate in listOf(
-                java.io.File(dir, "src/main/res/$rel"),
-                java.io.File(dir, "src/android/app/src/main/res/$rel"),
-                java.io.File(dir, "app/src/main/res/$rel"),
-            )) {
-                if (candidate.isFile) return candidate.readText()
-            }
-            dir = dir.parentFile
-        }
-        error("resource not found: $rel from ${java.io.File("").absolutePath}")
-    }
-
-    private fun stringKeys(xml: String): Set<String> =
-        Regex("""<string name="([^"]+)"""").findAll(xml).map { it.groupValues[1] }.toSet()
 }

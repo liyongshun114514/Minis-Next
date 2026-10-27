@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the system-prompt page's scope switch: the two segmented buttons
+  (global prompt / custom rules) and the in-flight save state. Kept in their
+  own file so prompt_ui.xml and strings.xml stay untouched.
+-->
+<resources>
+    <string name="system_prompt_scope_global">Global</string>
+    <string name="system_prompt_scope_custom">Custom</string>
+    <string name="system_prompt_saving">Saving…</string>
+</resources>

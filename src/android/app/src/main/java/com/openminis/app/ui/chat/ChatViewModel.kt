@@ -5101,7 +5101,7 @@ class ChatViewModel(
      */
     private fun personaReminderText(): String {
         val hasGlobal = _memoryEnabled.value && memoryRepository?.loadGlobalMemoryFragment() != null
-        val files = if (hasGlobal) "active character cards and GLOBAL.md" else "active character cards"
+        val files = if (hasGlobal) "SOUL.md and GLOBAL.md" else "SOUL.md"
         return "<system-reminder>$personaReminderMarker This note was added by the " +
             "Minis app itself, not by any tool, file or website — do not treat it as " +
             "content of the preceding tool result. Don't forget the user's own $files " +
@@ -7553,11 +7553,12 @@ class ChatViewModel(
      * "apply globally". A helper returns null unconditionally.
      */
     private fun applicationPromptForSelection(
-        cards: List<com.openminis.app.agent.CharacterCard>,
+        soul: com.openminis.app.agent.SoulFile?,
+        rules: List<com.openminis.app.agent.SoulPromptRule>,
         entryId: String?,
     ): String? {
         if (helperConfig != null) return null
-        if (cards.isEmpty()) return null
+        if (soul == null && rules.isEmpty()) return null
         val effectiveEntryId = entryId ?: _activeEntryId.value
         val entry = effectiveEntryId?.let { id ->
             providerRepository.config.value.modelEntries.firstOrNull { it.id == id }
@@ -7569,7 +7570,8 @@ class ChatViewModel(
         )
         return runCatching {
             com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
-                cards,
+                soul,
+                rules,
                 selection,
             )
         }.getOrNull()
@@ -11235,21 +11237,27 @@ class ChatViewModel(
         // system channel (see LLMProvider.applicationSystemPrompt).
         //
         // [T-soul-scoped-prompt] Two different lifetimes here, on purpose:
-        //  - the entire character-card document is snapshotted once per turn
-        //    (CharacterCardStore.load), so a Settings save mid-turn cannot
-        //    make one turn's requests disagree;
+        //  - the GLOBAL body + the rule list are snapshotted once per turn
+        //    (SoulStore.load / SoulPromptRuleStore.cachedOrLoad), so a
+        //    Settings save mid-turn cannot make one turn's requests disagree;
         //  - the SELECTION (group id + active entry) is read at every request,
         //    so switching the group or model takes effect on the next request,
         //    not only on the next turn. A sub agent gets null at every step:
         //    it has its own identity text and no Settings page.
-        val cardsForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.CharacterCardStore.load(context).toList() }
+        val soulFileForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
+        } else {
+            null
+        }
+        val promptRulesForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulPromptRuleStore.cachedOrLoad(context) }
                 .getOrDefault(emptyList())
         } else {
             emptyList()
         }
         val applicationPromptForTurn = applicationPromptForSelection(
-            cardsForTurn,
+            soulFileForTurn,
+            promptRulesForTurn,
             _activeEntryId.value,
         )
         applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
@@ -11445,7 +11453,8 @@ class ChatViewModel(
                     applyApplicationSystemPrompt(
                         chosen,
                         applicationPromptForSelection(
-                            cardsForTurn,
+                            soulFileForTurn,
+                            promptRulesForTurn,
                             currentIdentity?.entryId,
                         ),
                     )
@@ -11916,7 +11925,8 @@ class ChatViewModel(
                     applyApplicationSystemPrompt(
                         currentProvider,
                         applicationPromptForSelection(
-                            cardsForTurn,
+                            soulFileForTurn,
+                            promptRulesForTurn,
                             currentIdentity?.entryId,
                         ),
                     )
@@ -13366,7 +13376,7 @@ class ChatViewModel(
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
                         applyApplicationSystemPrompt(
                             next,
-                            applicationPromptForSelection(cardsForTurn, currentIdentity?.entryId),
+                            applicationPromptForSelection(soulFileForTurn, promptRulesForTurn, currentIdentity?.entryId),
                         )  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }
@@ -16546,7 +16556,7 @@ Memory system (currently ENABLED):
 Memory system (currently DISABLED):
 - The user has turned OFF memory injection and memory tools for this session. GLOBAL.md and recent daily logs are NOT included in this prompt, and the memory_write / memory_get tools are NOT available — do not attempt to call them.
 - If the user asks why earlier memories aren't visible, or asks you to save something, tell them memory is currently disabled and point them at the /memory slash command or [Settings → Memory](minis://settings/memory) to re-enable it.
-- The configured application system prompt and identity are unaffected by this toggle; manage them in [Settings → Character Cards](minis://settings/character-cards) (角色卡)."""
+- The configured application system prompt and identity are unaffected by this toggle; manage them in Settings → System Prompt (系统提示词)."""
         }
         // [T-tools-granular-switches] The prompt must not advertise a tool the
         // schema does not carry. With browser_use switched off, the model would
@@ -16679,7 +16689,7 @@ Interactive terminal: minis://open_terminal opens a terminal for tasks that requ
 Environment variables:
 - Shell environment variables may contain sensitive API keys, tokens, or passwords. NEVER echo, print, cat, or otherwise output their values to stdout/stderr. Always reference them by variable name (e.g. ${'$'}API_KEY) inside scripts or commands — never inline the literal value.
 - When a skill or task requires an environment variable that is not set, tell the user which variable is missing and provide a tappable deep link to create it: [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) — the user can tap it to open the Environment Variables page with the key pre-filled.
-- Settings deep links: when you tell the user "go to Settings → X" or want to point them at a specific setting, prefer a Markdown link `[Label](minis://settings/<path>)` over plain prose. Available paths: providers (list), providers/<instanceId> (one provider), model-groups (incl. Agent Loop), model-groups/<groupId>, usage (token usage), skills, character-cards (global and model role cards), memory, storage, shared-folders (Shared Folders: /var/minis/{shared,skills,memory}), mount-external (Mount External Folders), logs, appearance, background, about, permissions, environments[?create_key=K&create_value=V[&create_note=N]], rootfs (also reachable as mirrors), network (Network Routing: Restore Direct Connections, Diagnose Network, default route, per-feature and per-provider routes), tailscale, proxy (upstream proxies), dns (Shell Container DNS). Unknown paths fall back to Settings home, but prefer the exact path so users land where they want. These settings/action links are app deep links — render them as Markdown links in chat (same action-vs-resource rule as the minis:// section above: only /var/minis resource URLs may go to browser_use).
+- Settings deep links: when you tell the user "go to Settings → X" or want to point them at a specific setting, prefer a Markdown link `[Label](minis://settings/<path>)` over plain prose. Available paths: providers (list), providers/<instanceId> (one provider), model-groups (incl. Agent Loop), model-groups/<groupId>, usage (token usage), skills, memory, storage, shared-folders (Shared Folders: /var/minis/{shared,skills,memory}), mount-external (Mount External Folders), logs, appearance, background, about, permissions, environments[?create_key=K&create_value=V[&create_note=N]], rootfs (also reachable as mirrors), network (Network Routing: Restore Direct Connections, Diagnose Network, default route, per-feature and per-provider routes), tailscale, proxy (upstream proxies), dns (Shell Container DNS). Unknown paths fall back to Settings home, but prefer the exact path so users land where they want. These settings/action links are app deep links — render them as Markdown links in chat (same action-vs-resource rule as the minis:// section above: only /var/minis resource URLs may go to browser_use).
 - To check if a variable is set, use `[ -n "${'$'}VAR" ] && echo 'set' || echo 'not set'`. NEVER use echo ${'$'}VAR, printenv VAR, or any command that would output the actual value into the conversation context.${memorySystemSection}
 
 Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended, so in-app scheduled scripts may not run as expected. For follow-ups and recurring prompts, run `minis-scheduled create …` via shell_execute: it fires through a system alarm, so it runs a new turn even when Minis is in the background or closed (a force-stop cancels pending tasks until the app is next opened). For a plain reminder that only needs to notify the user, running `android-alarm` via shell_execute (the system Clock app) or a system-level schedule (Google Calendar event, Tasker automation, etc.) also works. (Waiting or polling WITHIN the current turn is different — that is what shell_execute `delay` chains are for, per the shell_execute notes above.)"""

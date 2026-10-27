@@ -697,12 +697,9 @@ class BackupImporter(
             report.filesWritten += 1
             report.bytesWritten += file.length()
         }
-        // Card documents travel in the memory backup without being treated
-        // as memory text. Refresh both compatibility snapshots after restore.
-        com.openminis.app.agent.CharacterCardStore.invalidate()
-        com.openminis.app.agent.CharacterCardStore.importLegacy(context)
+        // Custom prompt rules are backed by a memory file too. Do not keep
+        // serving the pre-restore snapshot after SOUL_PROMPT_RULES.json changed.
         com.openminis.app.agent.SoulPromptRuleStore.invalidate()
-        com.openminis.app.agent.SoulStore.refreshCache(context)
         return report
     }
 
