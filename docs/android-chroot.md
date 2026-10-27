@@ -71,20 +71,48 @@ LAST. A failed handshake therefore leaves the previous backend selected.
 
 ## 4. Grant model
 
-Two separate gates, both required:
+The selected shell backend and an explicitly requested chroot command are
+separate operations:
 
-1. **Persisted risk acknowledgement** (`SandboxBackendStore.authorizedAt`),
-   written only by the settings dialog that lists what chroot does and does not
-   change. Persisted so the UI can show “you enabled this on …”.
-2. **Runtime grant** (`grantChrootForProcess`), in memory only, valid for one
-   helper generation in one app process. Restart, process death, or a switch
-   back to PRoot (`revokeChrootGrant`) drops it. Enabling chroot can never mean
-   “root forever”, and nothing outside the settings UI can set either gate: no
-   shell, tool, offload handler or guest program exposes a path to it.
+* **Settings backend selection** retains its own switch policy and risk
+  acknowledgement. Native Root permission controls launching the helper.
+  The existing `chrootAutostart` preference may restore a previously enabled
+  backend; an in-memory generation grant is only a record of a handshake,
+  not proof that its helper is still alive.
+* **Explicit agent execution** is exposed as `android-chroot-cli`. Its `status`
+  and `--help` paths perform no Root execution and do not start a helper.
+  `exec --command '<command>' --timeout 60` must request a fresh single-use
+  approval of that exact command before starting either the helper or command,
+  even when Native Root is persistently allowed. Refusal, cancellation and an
+  unanswered request do not execute anything. A disabled Native Root permission
+  is not changed implicitly.
 
-The helper launch itself goes through `RootManager.runProcess`, which shows the
-exact argv with a fresh per-invocation confirmation. The user's command is
-**never** part of that argv — that is the whole point of the socket protocol.
+The explicit CLI targets `ChrootKernel` rather than switching the global backend:
+existing PRoot/Chroot shells and terminals keep their selected routing. Approval
+covers that command as the app uid, not an unrestricted Android Root shell or
+unrelated host operations. A helper may be reused; helper lifetime and permission
+are distinct from each CLI command's mandatory single-use confirmation.
+
+The helper launch itself goes through `RootManager.runProcess`. The user's shell
+command is **never** part of the privileged launcher argv: it travels later over
+the existing app-uid-checked socket protocol. Existing mount allowlists, uid drop,
+capability drop and `NoNewPrivs` remain unchanged.
+
+### Operit reference and intentional differences
+
+Reference: [Operit](https://github.com/AAswordman/Operit), whose `terminal`
+submodule points at [OperitTerminalCore](https://github.com/AAswordman/OperitTerminalCore).
+Its `TerminalManager.generateStartScript` selects PRoot/chroot from the persisted
+`chroot_enabled` setting and starts chroot through `su`; its terminal settings
+show the mount/Root requirements. This is a backend-setting design, not a
+dedicated model-visible chroot approval API.
+
+Minis retains its existing app-uid helper architecture rather than copying
+Operit's privileged guest execution or broad host mounts. The new part is the
+explicit CLI + per-command approval card and honest status output. `status`
+reports prerequisites and recorded grants, not a fabricated liveness result.
+The model prompt advertises this interface rather than insisting chroot is
+already active or inferring host Root from a guest `id` result.
 
 ## 5. Native offload under chroot
 

@@ -189,7 +189,8 @@ jobs:
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
             --tests '*SystemChannelPlacementTest' --tests '*SoulIconAspectRatioTest' \
-            --tests '*SoulBodyLimitPolicyTest'
+            --tests '*SoulBodyLimitPolicyTest' --tests '*HandlerStubRoutingTest' \
+            --tests '*ChrootCliTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

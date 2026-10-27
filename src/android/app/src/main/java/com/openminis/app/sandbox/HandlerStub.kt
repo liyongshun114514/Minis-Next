@@ -18,9 +18,22 @@ internal object HandlerStub {
     /** sysexits EX_UNAVAILABLE. */
     const val EXIT_UNAVAILABLE = 69
 
-    fun content(name: String): String =
+    /** Recognize the previous app-owned error stub without replacing user files. */
+    fun previousContent(name: String): String =
         "#!/bin/sh\n" +
             "echo \"$name: unavailable - Minis could not start its native offload service. " +
             "Restart the Minis app and try again.\" >&2\n" +
             "exit $EXIT_UNAVAILABLE\n"
+
+    fun content(name: String): String =
+        "#!/bin/sh\n" +
+            // An explicitly confirmed chroot command can coexist with PRoot.
+            // Its tools must work without globally rewriting the shared stubs.
+            // Routing to the native client grants no permission: peer uid and
+            // each handler's approval gate remain enforced by the host.
+            "if [ \"\${MINIS_SANDBOX_BACKEND:-}\" = CHROOT ] && " +
+            "[ -x /usr/local/lib/minis/minis-offload-client ]; then\n" +
+            "    exec /usr/local/lib/minis/minis-offload-client \"\$0\" \"\$@\"\n" +
+            "fi\n" +
+            previousContent(name).removePrefix("#!/bin/sh\n")
 }

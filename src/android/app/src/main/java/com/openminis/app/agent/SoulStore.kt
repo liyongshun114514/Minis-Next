@@ -732,32 +732,35 @@ object SystemPromptBuilder {
         "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). "
 
     /**
-     * [T-sandbox-prompt-facts] App-owned statement of what the Linux
-     * environment IS and what it deliberately is not.
-     *
-     * The model kept reading the sandbox's by-design non-root state as a
-     * failure — "chroot 不可用", "没有 root，做不了" — and spent turns probing
-     * `chroot(2)`, `sudo` and capability bits. Those probes fail ON PURPOSE:
-     * the helper already performed chroot(2) into the rootfs, then dropped to
-     * the app's uid with no capabilities and NoNewPrivs=1. Saying so once here
-     * is cheaper than a wrong conclusion in every session.
+     * [T-sandbox-prompt-facts] Discoverable backend capabilities, not a claim
+     * that a privileged helper is running. PRoot's emulated uid 0 and chroot's
+     * app uid describe different execution modes; neither proves host Root.
+     * The dedicated CLI confirms each explicit chroot invocation with the user.
      */
     private const val SANDBOX_FACTS =
-        "Environment facts (app-owned, always true): the Linux environment is " +
-            "already set up — the shell runs inside the Ubuntu 24.04 rootfs, " +
-            "either through chroot (the app's root helper has already performed " +
-            "chroot(2)) or through PRoot. Inside it the process intentionally runs " +
-            "as the app's own non-root uid, with no Linux capabilities (CapEff=0) " +
-            "and NoNewPrivs=1. That is the sandbox working as designed, NOT a " +
-            "fault: `id` printing a uid like 10369, `chroot …` / `mount …` / " +
-            "`sudo …` failing with EPERM, and an empty capability set are all " +
-            "expected there. Never describe this as \"chroot unavailable\", " +
-            "\"no root\" or a broken container, and never try to escalate " +
-            "(sudo, su, setuid binaries, nested chroot) — the failure carries no " +
-            "information about the device. apt, gcc, python, git and ordinary " +
-            "services work without root because the rootfs belongs to that uid. " +
-            "If a task genuinely needs root, use the android-root-cli tool, " +
-            "which asks the user first."
+        "Linux environment and chroot capability: ordinary shell_execute runs " +
+            "inside the shared Ubuntu 24.04 rootfs using the selected PRoot or " +
+            "Chroot backend. PRoot can emulate uid 0; Chroot commands run as the " +
+            "app's non-root uid with CapEff=0 and NoNewPrivs=1. Neither a guest " +
+            "uid nor EPERM from nested chroot, mount or sudo proves whether " +
+            "Android Root or the chroot helper is available. Report actual " +
+            "failures truthfully rather than claiming a helper is already running. " +
+            "A dedicated android-chroot-cli is available on PATH: use " +
+            "`android-chroot-cli status` to discover its current state without " +
+            "Root execution, and `android-chroot-cli --help` for exact syntax. " +
+            "When real chroot execution is useful, invoke " +
+            "`android-chroot-cli exec --command '<command>' --timeout 60`. " +
+            "This submits a user approval request for that exact command BEFORE " +
+            "starting the helper or command, even when Native Root has a persistent " +
+            "grant. Denial, cancellation or an unanswered request executes nothing; " +
+            "do not retry to evade the decision. The call uses the same rootfs " +
+            "without switching the global backend or interrupting existing sessions. " +
+            "Chroot is not a privileged shell: gcc, python, git and user services " +
+            "run as the app uid. Package operations that require uid 0 can fail " +
+            "there; use the PRoot backend for package installation, not an " +
+            "unapproved sudo/su workaround. Actual Android Root operations use " +
+            "android-root-cli under its separate permission policy; chroot " +
+            "approval does not authorize unrelated host Root commands."
 
     /**
      * The header that introduces the user-authored body. Says plainly that the

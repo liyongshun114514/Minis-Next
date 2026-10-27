@@ -75,7 +75,8 @@ only after shipping.
 | Upstream module | Native implementation | State |
 |---|---|---|
 | `PlusMenu` merged `+` menu (camera / photos / files + every slash command) | `ChatScreen.kt` `showAttachMenu` menu + `ComposerMenuHeader` / `ComposerCommandMenuRows` in `NativeComposerExtras.kt`; dispatch still `ChatViewModel.executeSlashCommand` | Ported |
-| `ComposerViews.Toolbar` bottom row: model name, then thinking-level chip, then flexible space | `ComposerModelThinkingBar` (`NativeComposerExtras.kt:143`), called once in the composer (`ChatScreen.kt:7177`) | **Ported (was missing)** |
+| `ComposerViews.Toolbar` bottom row: model name, then thinking-level chip, then flexible space | `ComposerModelThinkingBar` (`NativeComposerExtras.kt:157`), called once in the composer (`ChatScreen.kt:7242`); the chip is drawn **inside** the bar, immediately after the model name (`compact = true`, `showLevel = true`) | **Ported (was missing)** |
+| Level chip follows the model name instead of sitting at the right edge | bar takes `Modifier.weight(1f)` on the `+` row; name is `weight(1f, fill = false)` and the chip is the non-weighted sibling measured before it, so a short name keeps the chip beside it and a long name expands until the chip meets the send button | **2026-10-27** |
 | Group binding visible (top bar's Layers icon + group name) | short auxiliary label at the start of the bottom bar (`groupLabel`), only while a group is actually bound | **Preserved (relocated)** |
 | Toolbar model click opens model picker | `onModelClick = { showModelPicker = true }` (native sheet) | Ported |
 | Toolbar thinking chip opens level selector | `onLevelClick = { showThinkingLevelSheet = true }` (native sheet hosting the slider) | Ported |
@@ -138,7 +139,7 @@ app-generated instruction — see `docs/soul-system-prompt-only.md`.
 
 ```sh
 python3 scripts/tests/test_native_composer_port.py
-# Native composer/Soul static checks: 98/98 PASS
+# Native composer/Soul static checks: 116/116 PASS
 # exit=0
 ```
 
@@ -151,8 +152,13 @@ New checks that would have caught the previous gap:
   `showThinkingLevelSheet` callbacks;
 * the removed top-bar model row (`"$providerName · $modelName"`) and the
   `ThinkingLevelBadge` call must be absent (no duplicate model/thinking);
-* narrow-screen contract: `weight(1f, fill = false)`, `widthIn(min = 64.dp)`,
-  ellipsis, disabled alpha;
+* narrow-screen contract: `weight(1f, fill = false)` on the name, chip as the
+  non-weighted sibling, `widthIn(min = 0.dp)` when compact, ellipsis, disabled
+  alpha;
+* flow contract (2026-10-27): the composer row has exactly ONE `Modifier.weight(1f)`
+  (the model bar) and no `Spacer(modifier = Modifier.weight(1f))`; the bar has no
+  trailing weight spacer and no `widthIn(max = 150.dp)` cap; `showLevel = true`
+  in the call and no standalone `ComposerThinkingChip` anywhere;
 * group binding visibility: `groupLabel` is passed from a `bottomGroupLabel`
   fallback chain (`selectedGroupName` → default primary group → localized
   "Default") that only runs while `selectedGroupId != null`, drawn with
@@ -181,6 +187,20 @@ instruction, the full build is left to cloud CI. Therefore **the changed
 Kotlin has not been compiler-verified end-to-end in this environment**; the
 syntax/delimiter contract and the static call-chain checks above are what was
 run locally.
+
+2026-10-27 follow-up: the user builds on GitHub Actions, so no Gradle/APK run
+was attempted locally for this layout change. Instead both edited Kotlin files
+were parsed with the Kotlin 2.2.21 compiler front end already present in the
+Gradle cache (`K2JVMCompiler -no-stdlib`, no dependency install):
+
+```sh
+java -cp <kotlin-compiler-embeddable + stdlib/reflect/trove/coroutines> \
+  org.jetbrains.kotlin.cli.jvm.K2JVMCompiler -no-stdlib -d /tmp/kc-out \
+  .../ChatScreen.kt .../NativeComposerExtras.kt
+# exit=1 — only "unresolved reference"/"cannot access built-in declaration"
+# (missing Compose/Android classpath). Zero "expecting", "unexpected token"
+# or other parse errors: both files parse cleanly.
+```
 
 ### 6.3 Not run
 
@@ -224,3 +244,45 @@ commit/push. Temporary helper script lived only under
 - 顶栏只保留当前对话标题，Soul/分类副标题行删除。
 - 模型名 + 思考等级并入 `+` 这一行：`+`（附件 + 全部斜杠命令）→ 模型名（点开模型选择）→ 思考等级（点开档位面板）→ 发送。
 - 独立的 `/` 按钮删除（命令已在 `+` 菜单里）；语音按钮删除；速度徽标、配额点、分组标签不再显示。
+
+## 2026-10-27 模型名 + 思考等级流动布局（本仓库）
+
+用户要求：思考等级必须紧跟模型名右侧；短模型名时不能把等级固定在最右；长模型名尽量完整显示并
+把等级往右挤，右边界到原语音输入键位置（发送键左侧），再长才省略模型名并保留等级与发送。
+
+实现（只改 Compose 布局，无交互/状态变更）：
+
+- `ChatScreen.kt` 的 `+` 行给 `ComposerModelThinkingBar` 传
+  `modifier = Modifier.weight(1f)`，`compact = true`、`showLevel = true`。该行**只有这一个**
+  加权槽位：编辑退出 pill、语言 pill、朗读 pill、发送键都是非加权子项，Row 先测量它们，条本身
+  只拿到剩余宽度。
+- `NativeComposerExtras.kt` 的 `ComposerModelThinkingBar` 内部：模型名 `Text` 用
+  `weight(1f, fill = false)`，等级 chip 是非加权兄弟且排在名称之后 —— Row 先按固有宽度测量
+  chip（宽度被预留，永不被名字挤出），再给名字分配余量；`fill = false` 让短名保持固有宽度，
+  chip 紧贴其后（Row 默认 `Arrangement.Start`），多余空间留在 chip 右侧而不是把 chip 推到最右。
+  长名则一路扩展到 chip 左侧边界后才出现省略号。
+- 删除了原先把 chip 固定到语音键槽位的独立 `ComposerThinkingChip` 组件与调用；同时删除条内
+  末尾的 `Spacer(weight(1f))` 和 compact 模式的 `widthIn(max = 150.dp)` 硬上限（长名会被截在
+  150dp，等级无法被挤到右边界）。
+- 等级文案：compact 模式显示英文档位 `level.displayName.lowercase()`（off/low/medium/high/
+  xhigh/max/ultra），与请求里的 reasoning effort 一致；无障碍描述仍是中文
+  `当前思考等级 <本地化名>，点击选择`，点击仍打开 `showThinkingLevelSheet`。
+- 动态控件：编辑退出 pill 只在 `editingMessageId != null` 时出现，朗读 pill 只在语音面板且非
+  编辑态出现（二者互斥），语言 pill 只在录音/启动识别时出现；它们都在 bar 之后、以固定间距
+  排列，先于 bar 被测量，因此不会与等级 chip 重叠，只会压缩模型名。
+
+静态契约（`scripts/tests/test_native_composer_port.py`，116 项全过）：
+
+- `+` 行中 `Modifier.weight(1f)` 恰好出现一次，且不存在
+  `Spacer(modifier = Modifier.weight(1f))`；
+- 调用参数 `showLevel = true`、`modifier = Modifier.weight(1f).padding(start = 2.dp)`；
+- 全文不再出现 `ComposerThinkingChip`（ChatScreen 与 NativeComposerExtras 都没有）；
+- bar 内不再有 `Spacer(modifier = Modifier.weight(1f))` 与 `widthIn(max = 150.dp)`；
+- bar 内 `.weight(1f, fill = false)` 恰好一次，等级 chip 代码块不含 `Modifier.weight(`；
+- bar 内不出现 `horizontalArrangement` / `Arrangement.SpaceBetween` / `Arrangement.End`
+  （否则短名场景会把 chip 重新推到最右）；
+- 英文档位表达式与 `widthIn(min = 0.dp)` 仍在。
+
+未做：本地 Gradle/APK（用户走 GitHub Actions 云端构建）；无真机/模拟器视觉验证。真机需重点看
+360dp 宽 + 编辑 pill 或语音朗读 pill + 长模型名（如 `claude-sonnet-4-5-20250929`）组合下等级
+chip 是否停在发送键左侧而不是被裁切，以及 TalkBack 读取顺序（模型名 → 等级）。

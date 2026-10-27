@@ -7229,6 +7229,15 @@ fun ChatScreen(
                         // thinking level (tap = sheet), then send. Provider,
                         // group, speed tier and quota moved off this row: the
                         // bar is the composer, not a status bar.
+                        //
+                        // [T-composer-level-follows-model] The bar takes
+                        // weight(1f) and the level chip lives INSIDE it, right
+                        // after the name. Giving the bar the row's slack (and
+                        // removing the old trailing weight spacer) is what lets
+                        // a long name expand until the chip reaches the send
+                        // button before the name ellipsises, while a short name
+                        // leaves the chip next to it instead of at the far
+                        // right.
                         val thinkingBarLevel by viewModel.thinkingLevel.collectAsState()
                         ComposerModelThinkingBar(
                             modelName = modelName,
@@ -7240,8 +7249,8 @@ fun ChatScreen(
                             onLevelClick = { showThinkingLevelSheet = true },
                             modelInteractionSource = modelPickerInteraction,
                             compact = true,
-                            showLevel = false,
-                            modifier = Modifier.padding(start = 2.dp),
+                            showLevel = true,
+                            modifier = Modifier.weight(1f).padding(start = 2.dp),
                         )
 
                         // T187: Exit Edit Mode pill, only while editingMessageId
@@ -7268,8 +7277,12 @@ fun ChatScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.weight(1f))
-
+                        // Fixed gap, not weight(1f): the model bar above already
+                        // owns the row's only weighted slot, so a second weight
+                        // would split the slack and cap a long model name at
+                        // part of the row instead of letting it run up to the
+                        // send button.
+                        Spacer(modifier = Modifier.width(8.dp))
                         // Right: Mic button — only renders when a speech engine
                         // is actually available on this device (handles the
                         // AOSP / HarmonyOS / GMS-free case).
@@ -7424,15 +7437,23 @@ fun ChatScreen(
                             // Two Compose-specific corrections are needed to land
                             // on the same result:
                             //  • wrapContentWidth() + centered arrangement — this
-                            //    pill sits between weight(1f) spacers, so without
-                            //    hugging it absorbs slack and the un-arranged Row
-                            //    packed icon+text against the start edge, which is
-                            //    what read as "not horizontally centered".
+                            //    pill must hug its content; without it the
+                            //    un-arranged Row packs icon+text against the
+                            //    start edge, which is what read as "not
+                            //    horizontally centered" inside the capsule.
                             //  • the label's line height is pinned to the font size
                             //    and its font padding disabled. Compose Text
                             //    otherwise reserves the font's full ascent/descent
                             //    leading on top of the 6dp padding, making the pill
                             //    visibly taller than iOS's for the same numbers.
+                            //
+                            // [T-composer-level-follows-model] No weight spacers
+                            // around this pill any more: the model bar owns the
+                            // row's only weighted slot. A fixed gap keeps the
+                            // pill clear of the level chip and lets the bar
+                            // shrink the model name instead of letting the two
+                            // collide when both are present.
+                            Spacer(modifier = Modifier.width(6.dp))
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
@@ -7644,26 +7665,12 @@ fun ChatScreen(
                                     if (!streamingNow && live == null) replyTts.flush()
                                 }
                             }
-                            // [T-android-read-replies-pill-metrics] Balancing
-                            // spacer. There is a weight(1f) spacer BEFORE the
-                            // pill but the trailing side only had a fixed 8dp,
-                            // so all the row's slack collected on the left and
-                            // pushed the pill right of the bar's centre (measured
-                            // +59px on a 1080px screen). Matching weights on both
-                            // sides centre it between the leading (+, /) and
-                            // trailing (keyboard, mic/send) button groups.
-                            Spacer(modifier = Modifier.weight(1f))
+                            // [T-composer-level-follows-model] Fixed gap, and
+                            // the level chip moved into the model bar. Nothing
+                            // on this row is weighted except the bar, so the
+                            // name keeps every pixel the chip and buttons leave.
+                            Spacer(modifier = Modifier.width(6.dp))
                         }
-
-                        // [T-composer-thinking-inline] 思考等级使用英文档位
-                        // （low / medium / high…），位置就是原先语音键的地方：
-                        // 发送键左边。
-                        ComposerThinkingChip(
-                            level = thinkingBarLevel,
-                            availableLevels = viewModel.availableThinkingLevels,
-                            reasoningSupported = viewModel.currentModelSupportsReasoning,
-                            onClick = { showThinkingLevelSheet = true },
-                        )
 
                         Spacer(modifier = Modifier.width(8.dp))
 

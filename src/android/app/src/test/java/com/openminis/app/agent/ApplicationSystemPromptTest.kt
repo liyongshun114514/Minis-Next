@@ -55,6 +55,20 @@ class ApplicationSystemPromptTest {
         assertFalse("no empty priority banner", prompt.contains(SystemPromptBuilder.SUPREME_PREAMBLE))
     }
 
+    @Test fun chrootIsDiscoverableWithoutInventingCurrentRootState() {
+        val prompt = SystemPromptBuilder.render(null)
+        assertTrue(prompt.contains("android-chroot-cli status"))
+        assertTrue(prompt.contains("android-chroot-cli exec --command"))
+        assertTrue(prompt.contains("approval request for that exact command BEFORE"))
+        assertTrue(prompt.contains("even when Native Root has a persistent"))
+        assertTrue(prompt.contains("Denial, cancellation or an unanswered request executes nothing"))
+        assertTrue(prompt.contains("CapEff=0 and NoNewPrivs=1"))
+        assertTrue(prompt.contains("PRoot can emulate uid 0"))
+        assertFalse(prompt.contains("Environment facts (app-owned, always true)"))
+        assertFalse(prompt.contains("the app's root helper has already performed"))
+        assertFalse(prompt.contains("apt, gcc, python, git and ordinary services work without root"))
+    }
+
     @Test fun legacyMetadataRemainsCompatible() {
         val prompt = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT.copy(style = "Use short paragraphs.", lang = "zh"), "Explain clearly."))
         assertTrue(prompt.contains("Explain clearly."))

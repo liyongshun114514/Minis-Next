@@ -7,6 +7,8 @@ import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * [FEAT-261025-CHROOT] The chroot backend: command lines, mount policy,
@@ -50,6 +52,9 @@ import kotlinx.coroutines.withContext
  */
 object ChrootKernel {
     private const val TAG = "ChrootKernel"
+    // Several confirmed CLI calls, startup and settings can arrive together.
+    // Serialize handshake/stop so one launch cannot stop another fresh helper.
+    private val lifecycleLock = Mutex()
 
     /** Packaged helper; `--client` and `--serve` live in the same binary. */
     const val LAUNCHER_NAME = "libminis-chroot.so"
@@ -435,7 +440,22 @@ object ChrootKernel {
      * with a settings hint. A switch never enables Root by itself. On success
      * the handshake's nonce is checked before the in-memory grant is recorded.
      */
-    suspend fun ensureServer(context: Context, reason: String = DEFAULT_GRANT_REASON): Result<Unit> {
+    suspend fun ensureServer(
+        context: Context,
+        reason: String = DEFAULT_GRANT_REASON,
+        // Explicit one-shot CLI calls do not opt the user into restart-time
+        // background work. Never snapshot/restore this preference: a settings
+        // change made concurrently must not be overwritten by a finishing CLI.
+        persistAutostart: Boolean = true,
+    ): Result<Unit> = lifecycleLock.withLock {
+        ensureServerLocked(context, reason, persistAutostart)
+    }
+
+    private suspend fun ensureServerLocked(
+        context: Context,
+        reason: String,
+        persistAutostart: Boolean,
+    ): Result<Unit> {
         if (!com.openminis.app.sandbox.ChrootPrivilege.switchAllowed()) {
             // 不允许: no implicit enable and no Root dialog from a switch.
             return Result.failure(
@@ -519,7 +539,7 @@ object ChrootKernel {
         SandboxBackendStore.grantChrootForProcess(generation)
         // [FEAT-261027-CHROOT-autostart] Remember that chroot is wanted, so a
         // restart relaunches the helper instead of failing every command.
-        SandboxBackendStore.setChrootAutostart(context, true)
+        if (persistAutostart) SandboxBackendStore.setChrootAutostart(context, true)
         SandboxBackendStore.setLastError(context, null)
         writeStateMarker(context, generation, pid)
         Log.i(TAG, "chroot helper ready generation=$generation pid=$pid")
@@ -658,7 +678,11 @@ object ChrootKernel {
      * confirm the stop, the generation is deliberately NOT rotated — rotating
      * would make a still-running helper unreachable forever.
      */
-    suspend fun shutdown(context: Context): Boolean {
+    suspend fun shutdown(context: Context): Boolean = lifecycleLock.withLock {
+        shutdownLocked(context)
+    }
+
+    private suspend fun shutdownLocked(context: Context): Boolean {
         val generation = SandboxBackendStore.generation(context)
         val stopExit = stopServer(context, generation)
         val stopped = stopExit == 0

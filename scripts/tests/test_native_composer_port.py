@@ -158,17 +158,34 @@ def main() -> int:
     # The + button keeps every action; "/" and the mic button are gone.
     ok("compact = true" in chat,
        "chips are laid out full-width instead of inline on the + row")
-    # Thinking level: English labels, in the slot the mic button used to hold.
-    ok("showLevel = false" in chat,
-       "the + row still draws the level chip next to the model name")
-    ok("ComposerThinkingChip(" in chat and chat.count("ComposerThinkingChip(") == 1,
-       "the level chip is not rendered exactly once")
-    ok(chat.index("ComposerThinkingChip(") < chat.index("// Right: 3-state Send"),
-       "the level chip is not in the mic/send slot")
-    ok("internal fun ComposerThinkingChip(" in extras,
-       "ComposerThinkingChip is not defined")
+    # [T-composer-level-follows-model] The level chip belongs to the model bar
+    # and follows the name. Nothing is pinned to the old mic slot, and the bar
+    # itself owns the row's weighted slot so the name can expand into it.
+    call = chat[call_at:call_at + 1200]
+    ok("showLevel = true" in call,
+       "the + row does not draw the level chip next to the model name")
+    ok("showLevel = false" not in chat,
+       "the level chip is still suppressed next to the model name")
+    ok("modifier = Modifier.weight(1f).padding(start = 2.dp)" in call,
+       "the model bar does not own the row's weighted slot")
+    ok("ComposerThinkingChip" not in chat,
+       "a standalone level chip is still rendered at the right edge")
+    ok("ComposerThinkingChip" not in extras,
+       "the retired standalone chip is still defined")
     ok("level.displayName.lowercase()" in extras,
        "the level chip is not labelled with the English level name")
+    # The row has exactly one weighted slot (the bar). A second weighted spacer
+    # splits the slack with the bar and caps a long name at part of the row —
+    # the bug this layout replaces.
+    row_segment = chat[row_at:chat.index("// Right: 3-state Send")]
+    ok(row_segment.count("Modifier.weight(1f)") == 1,
+       "the composer row has more than one weighted slot; a long model name is capped")
+    ok("Spacer(modifier = Modifier.weight(1f))" not in row_segment,
+       "a weight spacer still competes with the model bar for the row's slack")
+    # Edit-exit pill and read-aloud pill sit between the bar and send, so they
+    # are measured (and reserved) before the bar gets the rest of the row.
+    ok(row_segment.index("ComposerModelThinkingBar(") < row_segment.index("// T187: Exit Edit Mode pill"),
+       "the model bar is not measured before the edit-exit pill")
     ok("Icons.Default.Add" in chat, "+ button lost its icon")
     ok("showAttachMenu = true" in chat, "+ button no longer opens the merged menu")
     ok("MicButton(" not in chat, "mic button is still rendered in the composer")
@@ -176,6 +193,32 @@ def main() -> int:
        "the separate / button is still rendered")
 
     # Layout contract that keeps the chips usable on narrow phones.
+    bar = extras[
+        extras.index("internal fun ComposerModelThinkingBar("):
+        extras.index("internal fun ComposerCommandMenuRows(")
+    ]
+    ok(bar.count(".weight(1f, fill = false)") == 1,
+       "the model name lost its bounded, non-filling weight measurement")
+    ok("widthIn(max = 150.dp)" not in bar,
+       "a long model name is still capped at a fixed 150dp instead of the row's edge")
+    ok("Spacer(modifier = Modifier.weight(1f))" not in bar,
+       "the bar still ends in a trailing weight spacer")
+    model_at = bar.index("text = modelLabel")
+    chip_at = bar.index("text = if (compact) level.displayName.lowercase() else levelLabel")
+    ok(model_at < chip_at, "the level chip is not drawn after the model name")
+    # The chip is a non-weighted sibling: Row measures it at its intrinsic
+    # width FIRST, so its width is reserved before the name is measured.
+    chip_block = bar[bar.index("if (showLevel) {"):]
+    ok("Modifier.weight(" not in chip_block,
+       "the level chip is weighted, so a long name can squeeze it out")
+    # The bar fills the row's slack, so its content must stay left-packed;
+    # SpaceBetween/End would park a short name's chip at the far right again.
+    ok("Arrangement.SpaceBetween" not in bar and "Arrangement.End" not in bar,
+       "the bar pins its content to the row's end, so a short name still pushes the chip right")
+    ok("horizontalArrangement" not in bar,
+       "the bar arrangements its children explicitly; short names may no longer hug the chip")
+    ok("widthIn(min = 0.dp)" in bar,
+       "compact chip still reserves a 64dp minimum and wastes the row")
     for token in (
         "weight(1f, fill = false)",
         "widthIn(min = 64.dp)",

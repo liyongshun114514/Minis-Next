@@ -128,10 +128,24 @@ internal fun ComposerMenuHeader(text: String) {
  *
  * Layout contract (mirrors upstream and survives narrow screens):
  *  - 30dp row, model name 13sp with 8dp side padding, one line, ellipsis;
- *  - the model label yields width first (`weight(1f, fill = false)`), so the
- *    level chip keeps its intrinsic width and never clips;
- *  - level chip 13sp bold, 64dp minimum width, 10dp side padding, 15dp
- *    corner radius, 13% alpha of the blue→violet level colour;
+ *  - [T-composer-level-follows-model] the level chip sits IMMEDIATELY to the
+ *    right of the model name and travels with it. Two measurements make that
+ *    safe without guessing pixel widths:
+ *      • the chip is a non-weighted child, so Row measures it first at its
+ *        intrinsic width and that width is reserved before the name is
+ *        measured — the chip can never be pushed off the row;
+ *      • the name is `weight(1f, fill = false)`, so a short name keeps its
+ *        natural width (chip stays next to it, slack stays to the right) and
+ *        a long name expands up to the space the chip left, ellipsising only
+ *        past that point.
+ *    The caller assigns the whole bar `weight(1f)` on the "+" row, so the
+ *    slack a short name leaves is absorbed by the bar itself instead of by a
+ *    trailing weight spacer competing for the same space.
+ *  - level chip 13sp bold, 64dp minimum width (0dp when compact), 10dp side
+ *    padding, 15dp corner radius, 13% alpha of the blue→violet level colour;
+ *  - compact mode prints the English tier name (`low` / `medium` / `high` /
+ *    `xhigh` / `max` / `ultra` / `off`) because that is the value sent to the
+ *    model; the accessibility description stays localized;
  *  - non-reasoning model (or fewer than two levels): chip is dimmed to 45%,
  *    grey, and not clickable — same disabled look as upstream.
  *
@@ -153,14 +167,16 @@ internal fun ComposerModelThinkingBar(
     groupLabel: String? = null,
     leading: @Composable () -> Unit = {},
     // [T-composer-inline-chips] Lays the chips out on the "+" row instead of
-    // owning a full-width row of their own. Nothing is weighted or stretched:
-    // the model name takes its natural width (capped), the level chip follows
-    // it immediately, and the caller's spacer supplies the slack. Sharing the
-    // row through `weight(1f)` was what squeezed the name down to a single
-    // ellipsis dot on a normal-width phone.
+    // owning a full-width row of their own. Nothing is weighted or stretched
+    // by the bar itself: the model name takes its natural width when short,
+    // expands before ellipsising when long, and the level chip follows it
+    // immediately. The caller gives the whole bar `weight(1f)` so the bar owns
+    // the row's slack — a competing trailing weight spacer would split the
+    // space with the name and cap a long name at half the row.
     compact: Boolean = false,
-    // [T-composer-thinking-inline] When false the bar draws only the model
-    // name; the level chip is rendered separately, in the old mic slot.
+    // [T-composer-level-follows-model] Kept for callers that want the name
+    // alone; the composer passes true so the level chip travels with the name
+    // instead of being pinned to the mic slot.
     showLevel: Boolean = true,
 ) {
     val context = LocalContext.current
@@ -229,14 +245,12 @@ internal fun ComposerModelThinkingBar(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                // fill=false: the label takes at most its share of the row and
-                // truncates instead of pushing the level chip off screen.
-                // Compact keeps a hard cap instead, so the level chip always
-                // stays visible on the + row.
-                .then(
-                    if (compact) Modifier.widthIn(max = 150.dp)
-                    else Modifier.weight(1f, fill = false),
-                )
+                // fill=false on purpose: the name measures at its natural
+                // width when short (so the chip stays glued to it) and is
+                // capped only by the width the chip left, where it ellipsises.
+                // A fill=true weight would park the name's clickable box
+                // across the whole row and push the chip to the far edge.
+                .weight(1f, fill = false)
                 .clip(RoundedCornerShape(8.dp))
                 .then(
                     if (modelInteractionSource != null) {
@@ -256,98 +270,42 @@ internal fun ComposerModelThinkingBar(
         )
 
         if (showLevel) {
-        Spacer(modifier = Modifier.width(8.dp))
+            // 6dp gap plus the name's own 8dp end padding keeps the chip
+            // visibly adjacent without crowding the ellipsis.
+            Spacer(modifier = Modifier.width(if (compact) 6.dp else 8.dp))
 
-        Box(
-            modifier = Modifier
-                .height(if (compact) 30.dp else 30.dp)
-                .then(if (compact) Modifier.widthIn(min = 0.dp) else Modifier.widthIn(min = 64.dp))
-                .alpha(if (levelEnabled) 1f else 0.45f)
-                .clip(RoundedCornerShape(15.dp))
-                .background(levelColor.copy(alpha = 0.13f))
-                .clickable(enabled = levelEnabled, onClick = onLevelClick)
-                .padding(horizontal = if (compact) 8.dp else 10.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = levelLabel,
-                fontSize = 13.sp,
-                lineHeight = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = levelColor,
-                maxLines = 1,
-                modifier = Modifier.semantics {
-                    contentDescription = if (levelEnabled) {
-                        "当前思考等级 $levelLabel，点击选择"
-                    } else {
-                        "当前模型不支持推理等级"
-                    }
-                },
-            )
+            Box(
+                modifier = Modifier
+                    .height(30.dp)
+                    .then(if (compact) Modifier.widthIn(min = 0.dp) else Modifier.widthIn(min = 64.dp))
+                    .alpha(if (levelEnabled) 1f else 0.45f)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(levelColor.copy(alpha = 0.13f))
+                    .clickable(enabled = levelEnabled, onClick = onLevelClick)
+                    .padding(horizontal = if (compact) 8.dp else 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    // Compact prints the English tier (`medium`, `xhigh`, …):
+                    // it is the reasoning-effort value the request carries and
+                    // matches what the sheet shows. The wider, non-compact
+                    // toolbar keeps the localized name.
+                    text = if (compact) level.displayName.lowercase() else levelLabel,
+                    fontSize = 13.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = levelColor,
+                    maxLines = 1,
+                    modifier = Modifier.semantics {
+                        contentDescription = if (levelEnabled) {
+                            "当前思考等级 $levelLabel，点击选择"
+                        } else {
+                            "当前模型不支持推理等级"
+                        }
+                    },
+                )
+            }
         }
-        }
-
-        if (!compact) Spacer(modifier = Modifier.weight(1f))
-    }
-}
-
-/**
- * [T-composer-thinking-inline] The thinking-level chip on its own.
- *
- * It used to live inside [ComposerModelThinkingBar]; it now sits in the slot the
- * microphone button used to occupy, immediately left of send, so the two
- * controls the user actually reaches for (model, effort) are at opposite ends
- * of the row instead of crowded together.
- *
- * Labels are the English level names (`low` / `medium` / `high` / `xhigh` /
- * `max` / `ultra` / `off`), not the Chinese translations: the value is sent to
- * the model as-is (reasoning effort), and matching that spelling keeps the chip
- * and the request readable together.
- */
-@Composable
-internal fun ComposerThinkingChip(
-    level: ThinkingLevel,
-    availableLevels: List<ThinkingLevel>,
-    reasoningSupported: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val rows = remember(availableLevels) {
-        listOf(ThinkingLevel.OFF) + availableLevels.filter { it != ThinkingLevel.OFF }
-    }
-    val selectedIndex = remember(rows, level) { rows.indexOf(level).coerceAtLeast(0) }
-    val enabled = reasoningSupported && rows.size > 1
-    val color = if (enabled) {
-        Color(ComposerPortMath.levelColorArgb(selectedIndex, rows.size))
-    } else {
-        ChatColors.secondaryText
-    }
-    val label = level.displayName.lowercase()
-    Box(
-        modifier = modifier
-            .height(30.dp)
-            .alpha(if (enabled) 1f else 0.45f)
-            .clip(RoundedCornerShape(15.dp))
-            .background(color.copy(alpha = 0.13f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp)
-            .semantics {
-                contentDescription = if (enabled) {
-                    "思考等级 $label，点击选择"
-                } else {
-                    "当前模型不支持推理等级"
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            lineHeight = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = color,
-            maxLines = 1,
-        )
     }
 }
 

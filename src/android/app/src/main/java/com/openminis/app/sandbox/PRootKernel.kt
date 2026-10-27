@@ -944,6 +944,12 @@ object PRootKernel {
                     stub.writeText(want)
                     stub.setExecutable(true, false)
                     upgraded++
+                } else if (have == HandlerStub.previousContent(name)) {
+                    // Upgrade our earlier error-only wrapper so a one-shot
+                    // chroot command works while PRoot remains selected.
+                    stub.writeText(want)
+                    stub.setExecutable(true, false)
+                    upgraded++
                 } else {
                     existed++
                 }

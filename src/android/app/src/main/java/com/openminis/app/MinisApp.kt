@@ -800,6 +800,12 @@ class MinisApp : Application(), ImageLoaderFactory {
         // up the binder lifecycle listeners + StateFlow.
         NativeOffloadServer.register("android-shizuku-cli", ShizukuOffloadHandler(this))
         NativeOffloadServer.register("android-root-cli", ShizukuOffloadHandler(this, nativeRoot = true))
+        // [FEAT-261027-CHROOT-CLI] One-shot chroot execution for the agent;
+        // every exec asks the user once, status/help never start anything.
+        NativeOffloadServer.register(
+            "android-chroot-cli",
+            com.openminis.app.sandbox.offload.ChrootOffloadHandler(this),
+        )
         com.openminis.app.offload.ShizukuManager.init(this)
 
         // T-android-minis-debug-cli: shell-side CLI wrapper around the in-app

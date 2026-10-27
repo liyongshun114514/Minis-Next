@@ -162,7 +162,7 @@ private fun RootCommandConfirmDialog(req: PermissionRequest) {
         onDismissRequest = deny,
         title = {
             Text(
-                "允许本次 Root 命令？",
+                if (req.toolName == "android-chroot-cli") "允许本次 chroot 命令？" else "允许本次 Root 命令？",
                 fontWeight = FontWeight.Bold,
             )
         },
