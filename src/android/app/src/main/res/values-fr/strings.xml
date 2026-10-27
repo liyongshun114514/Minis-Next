@@ -1921,7 +1921,7 @@
     <string name="sub_agent_name_required">Un nom est requis.</string>
     <string name="sub_agent_name_taken">Un autre sous-agent utilise déjà ce nom.</string>
     <string name="sub_agent_builtin_name">Sous-agent général</string>
-    <string name="sub_agent_builtin_description">Travail ouvert nécessitant sa propre boucle d’outils : explorer un code ou le web en plusieurs tours, condenser de gros résultats ou mener des branches en parallèle.</string>
+    <string name="sub_agent_builtin_description">Exécute les tâches déléguées en autonomie avec des outils.</string>
     <string name="tool_pager_position">Appel d\'outil %1$d sur %2$d dans cette conversation</string>
     <string name="quota_source">Source</string>
     <string name="quota_done">Terminé</string>

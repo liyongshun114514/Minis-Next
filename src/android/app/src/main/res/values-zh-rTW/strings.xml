@@ -2151,7 +2151,7 @@
     <string name="sub_agent_name_required">名稱不能為空。</string>
     <string name="sub_agent_name_taken">已有同名的子代理。</string>
     <string name="sub_agent_builtin_name">通用子代理</string>
-    <string name="sub_agent_builtin_description">需要自己的工具循環的開放式工作：多輪探索程式庫或網頁、把大量輸出濃縮成結論，或並行推進分支。</string>
+    <string name="sub_agent_builtin_description">使用工具獨立完成委派任務。</string>
     <string name="helper_start">開始</string>
     <string name="helper_start_failed">無法啟動——正在執行的子代理過多</string>
     <!-- [T-android-subagent-card-resume] Resume button on an interrupted sub agent card -->

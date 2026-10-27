@@ -2082,7 +2082,7 @@
     <string name="sub_agent_name_required">Il nome è obbligatorio.</string>
     <string name="sub_agent_name_taken">Un altro sub-agente usa già questo nome.</string>
     <string name="sub_agent_builtin_name">Sub-agente generico</string>
-    <string name="sub_agent_builtin_description">Lavori aperti che richiedono un proprio ciclo di strumenti: esplorare codice o web in più passaggi, condensare output estesi o eseguire rami in parallelo.</string>
+    <string name="sub_agent_builtin_description">Esegue autonomamente i compiti delegati usando strumenti.</string>
     <string name="agent_model_group_unavailable">Gruppo di modelli fissato non disponibile — eseguito con il modello di questa conversazione</string>
     <string name="scheduled_card_label">Attività pianificata</string>
     <string name="scheduled_card_run">Esecuzione %1$d</string>

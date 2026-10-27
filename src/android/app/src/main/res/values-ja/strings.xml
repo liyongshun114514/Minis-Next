@@ -1959,7 +1959,7 @@
     <string name="sub_agent_name_required">名前を入力してください。</string>
     <string name="sub_agent_name_taken">その名前は別のサブエージェントで使われています。</string>
     <string name="sub_agent_builtin_name">汎用サブエージェント</string>
-    <string name="sub_agent_builtin_description">独自のツールループが必要な幅広い作業: コードベースやウェブの多回探索、大量出力の要約、独立した分岐の並行実行。</string>
+    <string name="sub_agent_builtin_description">ツールを使い、委任されたタスクを独立して実行します。</string>
     <string name="quota_source">ソース</string>
     <string name="quota_done">完了</string>
     <string name="quota_status_unknown">不明</string>

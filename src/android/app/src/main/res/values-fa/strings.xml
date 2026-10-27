@@ -2075,7 +2075,7 @@
     <string name="sub_agent_name_required">وارد کردن نام الزامی است.</string>
     <string name="sub_agent_name_taken">زیرعامل دیگری از این نام استفاده می‌کند.</string>
     <string name="sub_agent_builtin_name">زیرعامل عمومی</string>
-    <string name="sub_agent_builtin_description">کارهای باز که به حلقهٔ ابزار خود نیاز دارند: کاوش چندمرحله‌ای کد یا وب، خلاصه‌کردن خروجی حجیم، یا اجرای موازی شاخه‌های مستقل.</string>
+    <string name="sub_agent_builtin_description">انجام مستقل کارهای واگذارشده با ابزارها.</string>
     <string name="agent_model_group_unavailable">گروه مدل سنجاق‌شده در دسترس نیست — با مدل این گفتگو اجرا شد</string>
     <string name="scheduled_card_label">کار زمان‌بندی‌شده</string>
     <string name="scheduled_card_run">اجرای %1$d</string>

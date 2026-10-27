@@ -99,6 +99,22 @@ class SubAgentDefinitionTest {
         assertEquals("always cite sources", out[0].instructions)
     }
 
+    @Test
+    fun `legacy long description upgrades without renaming the built-in`() {
+        val stored = SubAgentDefinition.makeBuiltIn().copy(
+            description = "Open-ended work that needs its own tool loop: multi-round codebase or web research, " +
+                "distilling large output, or parallel branches.",
+            modelGroupId = "pinned-group",
+            instructions = "Keep my configuration",
+        )
+        val got = SubAgentRoster.normalize(listOf(stored)).single()
+        assertEquals("builtin.general", got.id)
+        assertEquals("General Sub Agent", got.name)
+        assertEquals("Handles delegated tasks independently using tools.", got.description)
+        assertEquals("pinned-group", got.modelGroupId)
+        assertEquals("Keep my configuration", got.instructions)
+    }
+
     // ── Impostor protection ─────────────────────────────────────────────────
 
     @Test

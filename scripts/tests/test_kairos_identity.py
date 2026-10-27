@@ -1,5 +1,7 @@
 """Kairos independent package, brand, signing and release-source contracts."""
 from pathlib import Path
+import hashlib
+import json
 import re
 import unittest
 import xml.etree.ElementTree as E
@@ -12,8 +14,8 @@ class KairosIdentityTest(unittest.TestCase):
     def test_independent_install_identity_and_reset_version(self):
         s=(APP/'build.gradle.kts').read_text()
         self.assertIn('applicationId = "com.kairos.app"',s)
-        self.assertRegex(s,r'versionCode\s*=\s*2\b')
-        self.assertIn('versionName = "1.0.1"',s)
+        self.assertRegex(s,r'versionCode\s*=\s*3\b')
+        self.assertIn('versionName = "1.0.2"',s)
         self.assertIn('namespace = "com.openminis.app"',s)
         self.assertIn('"RELEASE_REPO", "\\"liyongshun114514/OpenMinis\\""',s)
     def test_launcher_brand_and_shortcuts(self):
@@ -24,18 +26,24 @@ class KairosIdentityTest(unittest.TestCase):
         for intent in E.parse(RES/'xml/shortcuts.xml').getroot().iter('intent'):
             self.assertEqual('com.kairos.app',intent.get(A+'targetPackage'))
             self.assertEqual('com.openminis.app.MainActivity',intent.get(A+'targetClass'))
-    def test_new_adaptive_and_monochrome_icons(self):
+    def test_original_upstream_icons_are_byte_identical(self):
+        manifest=json.loads((ROOT/'branding/kairos/upstream-icons.json').read_text())
+        self.assertEqual('6eda5523a9c14fa8edc4fd9fb72e643fe47f23be',manifest['sourceCommit'])
+        self.assertEqual(40,len(manifest['files']))
+        resources={str(p.relative_to(ROOT)) for p in RES.rglob('ic_launcher*') if p.is_file()}
+        self.assertEqual(resources,set(manifest['files']))
+        for path,digest in manifest['files'].items():
+            self.assertEqual(digest,hashlib.sha256((ROOT/path).read_bytes()).hexdigest(),path)
         for qualifier in ('mipmap-anydpi-v26','mipmap-night-anydpi-v26'):
             for name in ('ic_launcher','ic_launcher_classic_light','ic_launcher_classic_dark'):
                 x=E.parse(RES/qualifier/(name+'.xml')).getroot()
                 self.assertEqual('adaptive-icon',x.tag)
                 self.assertEqual('@drawable/ic_launcher_monochrome',x.find('monochrome').get(A+'drawable'))
-                self.assertIsNotNone(x.find('foreground').get(A+'drawable'))
+                self.assertIsNotNone(x.find('foreground/inset').get(A+'drawable'))
         monochrome=(RES/'drawable/ic_launcher_monochrome.xml').read_text()
-        self.assertNotIn('M 36,70 L 36,38',monochrome)
-        self.assertIn('@drawable/ic_launcher_monochrome_mask',monochrome)
-        self.assertTrue((RES/'drawable-nodpi/ic_launcher_monochrome_mask.png').is_file())
-        self.assertTrue((ROOT/'branding/kairos/hourglass-source.png').is_file())
+        self.assertIn('M 36,70 L 36,38',monochrome)
+        self.assertNotIn('@drawable/ic_launcher_monochrome_mask',monochrome)
+        self.assertFalse((RES/'drawable-nodpi/ic_launcher_monochrome_mask.png').exists())
     def test_release_uses_private_stable_identity_not_debug_or_cache(self):
         s=(APP/'build.gradle.kts').read_text().split('        release {',1)[1].split('    // [T15-channels]',1)[0]
         self.assertIn('signingConfigs.getByName("kairosRelease")',s)

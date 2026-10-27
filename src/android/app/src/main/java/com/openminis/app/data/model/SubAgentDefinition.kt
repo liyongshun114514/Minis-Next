@@ -148,8 +148,7 @@ data class SubAgentDefinition(
 
         /** Also not localized: this goes into the system-prompt roster. */
         const val BUILT_IN_DESCRIPTION =
-            "Open-ended work that needs its own tool loop: multi-round codebase or web research, " +
-                "distilling large output, or parallel branches."
+            "Handles delegated tasks independently using tools."
 
         /** The built-in general sub agent, inserted by normalize when absent. */
         fun makeBuiltIn(sortOrder: Int = 0): SubAgentDefinition = SubAgentDefinition(

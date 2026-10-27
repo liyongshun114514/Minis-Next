@@ -2111,7 +2111,7 @@
     <string name="sub_agent_name_required">Naziv je obavezan.</string>
     <string name="sub_agent_name_taken">Drugi podagent već koristi taj naziv.</string>
     <string name="sub_agent_builtin_name">Opći podagent</string>
-    <string name="sub_agent_builtin_description">Otvoreni zadaci koji trebaju vlastitu petlju alata: višekratno istraživanje koda ili weba, sažimanje velikih rezultata ili paralelne neovisne grane.</string>
+    <string name="sub_agent_builtin_description">Samostalno izvršava delegirane zadatke pomoću alata.</string>
     <string name="agent_model_group_unavailable">Pribodena grupa modela nije dostupna — izvedeno na modelu ovog razgovora</string>
     <string name="scheduled_card_label">Zakazani zadatak</string>
     <string name="scheduled_card_run">Izvođenje %1$d</string>

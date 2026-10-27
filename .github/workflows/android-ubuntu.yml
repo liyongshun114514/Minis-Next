@@ -190,6 +190,7 @@ jobs:
             --tests '*ThinkingSliderGeometryTest' --tests '*ComposerPortMathTest' \
             --tests '*ComposerPermissionMenuTest' --tests '*SoulPrompt*' \
             --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
+            --tests '*SubAgentDefinitionTest' --tests '*SubAgentPersistenceTest' \
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
@@ -197,7 +198,7 @@ jobs:
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
-          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped Kairos 1.0.1 acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped Kairos acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

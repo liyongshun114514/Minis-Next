@@ -94,7 +94,14 @@ class KairosCopyTest(unittest.TestCase):
 
     def test_builtin_sub_agent_description_stays_short(self):
         base = string_values(RES / "values/strings.xml")["sub_agent_builtin_description"]
-        self.assertLessEqual(len(base), 160, base)
+        self.assertEqual('Handles delegated tasks independently using tools.', base)
+        self.assertLessEqual(len(base), 64, base)
+        for path in self.locales():
+            value = string_values(path).get('sub_agent_builtin_description')
+            if value is not None:
+                self.assertLessEqual(len(value), 80, (path, value))
+        self.assertEqual('使用工具独立完成委派任务。',
+                         string_values(RES / 'values-zh/strings.xml')['sub_agent_builtin_description'])
         self.assertEqual(1, base.count("."), base)
         src = (JAVA / "data/model/SubAgentDefinition.kt").read_text(encoding="utf-8")
         const = re.search(r'BUILT_IN_DESCRIPTION =\s*(.+?)\n\n', src, re.S).group(1)

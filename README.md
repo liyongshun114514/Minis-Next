@@ -1,6 +1,6 @@
 # Kairos for Android
 
-Independent Android fork maintained by **liyongshun114514**. The Android application is **Kairos** (`com.kairos.app`), currently **1.0.1 / build 2** (same installation/signing identity as 1.0.0). This build is distributed as a verified CI APK, without creating a GitHub Release. It coexists with upstream and older Minis Next APKs and does not automatically migrate their private data.
+Independent Android fork maintained by **liyongshun114514**. The Android application is **Kairos** (`com.kairos.app`), currently **1.0.2 / build 3** (same installation/signing identity as 1.0.0 and 1.0.1). Release assets are published only after cloud compilation and APK verification. The launcher uses the original upstream icon; the application name remains Kairos. It coexists with upstream and older Minis Next APKs and does not automatically migrate their private data.
 
 - [Kairos releases](https://github.com/liyongshun114514/OpenMinis/releases)
 - [Source branch](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot)

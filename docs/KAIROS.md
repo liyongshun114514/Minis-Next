@@ -1,14 +1,15 @@
-# Kairos 1.0.1
+# Kairos 1.0.2
 
 Kairos is an independently packaged Android fork of [OpenMinis](https://github.com/OpenMinis/OpenMinis), maintained in [liyongshun114514/OpenMinis](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot). Existing copyright notices, authorship and GPLv3 licensing are retained.
 
 ## Independent application
 
 - Application ID: `com.kairos.app` (source namespace remains `com.openminis.app`; it is not the installation ID).
-- Version: `1.0.1`, Android versionCode `2`; same package and signing identity as 1.0.0.
+- Version: `1.0.2`, Android versionCode `3`; same package and signing identity as 1.0.0 and 1.0.1.
 - Android arm64-v8a, minSdk 26 / targetSdk 35 / compileSdk 36.
 - Separate app storage from Minis/OpenMinis/Minis Next. No automatic access to or migration of their private app data.
-- Launcher: ivory/amber hourglass on midnight indigo, automatic/dark/light adaptive variants and a same-artwork Android themed-icon silhouette. Source artwork is maintained under `branding/kairos/`.
+- Launcher: original upstream OpenMinis icon, including automatic/light/dark/night and themed-icon variants. All 40 resources match pinned upstream bytes; provenance is in `branding/kairos/upstream-icons.json`. Application and launcher labels remain Kairos.
+- Built-in general subagent description: “使用工具独立完成委派任务。” / “Handles delegated tasks independently using tools.” Names, IDs, instructions and execution behavior are unchanged.
 - Static app shortcuts target `com.kairos.app` while the activity classes retain the source namespace.
 
 ## Global system prompt
@@ -41,7 +42,7 @@ Signing credentials are stored outside the public repository and passed via encr
 
 ## Build and acceptance
 
-For 1.0.1, deliver the verified CI APK only; do **not** create a GitHub Release or tag. The earlier 1.0.0 Release was deleted at the maintainer's request (its source/tag/local APK remain).
+For 1.0.2, the maintainer requested a public GitHub Release after successful cloud compilation and independent artifact verification. Publish tag `v1.0.2` at the accepted source commit with the signed APK, SHA-256 and public release metadata. Version 1.0.1 was CI-only; the earlier 1.0.0 Release remains deleted (its source/tag/local APK remain).
 
 Use the `Kairos Android APK` workflow (`.github/workflows/android-ubuntu.yml`) on `ubuntu-chroot` with release variant. It builds the Ubuntu guest toolset, runs the selected JVM/resource/protocol regressions, compiles Android/Compose and checks the final ZIP, package, launcher aliases, ABI, signature and alignment. The bundled guest is extracted with the production Kotlin installer; skipped/failed extraction tests reject delivery. `scripts/stage_kairos_release.py` independently checks the release certificate and stages versioned files with SHA-256 and source-commit metadata.
 

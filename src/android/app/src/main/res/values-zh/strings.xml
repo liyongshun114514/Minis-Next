@@ -2130,7 +2130,7 @@
     <string name="sub_agent_name_required">名称不能为空。</string>
     <string name="sub_agent_name_taken">已有同名的子代理。</string>
     <string name="sub_agent_builtin_name">通用子代理</string>
-    <string name="sub_agent_builtin_description">需要自己的工具循环的开放式工作：多轮探索代码库或网页、把大量输出提炼成结论，或并行推进分支。</string>
+    <string name="sub_agent_builtin_description">使用工具独立完成委派任务。</string>
     <string name="agent_model_group_unavailable">绑定的模型分组不可用——已改用当前对话的模型</string>
     <string name="scheduled_card_label">定时任务</string>
     <string name="scheduled_card_run">第 %1$d 次</string>

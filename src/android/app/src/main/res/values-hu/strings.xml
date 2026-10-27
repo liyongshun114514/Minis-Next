@@ -2075,7 +2075,7 @@
     <string name="sub_agent_name_required">A név megadása kötelező.</string>
     <string name="sub_agent_name_taken">Egy másik alügynök már használja ezt a nevet.</string>
     <string name="sub_agent_builtin_name">Általános alügynök</string>
-    <string name="sub_agent_builtin_description">Nyitott végű munka saját eszközciklussal: kódbázis vagy web többkörös feltérképezése, nagy kimenet sűrítése vagy független ágak párhuzamos futtatása.</string>
+    <string name="sub_agent_builtin_description">Delegált feladatok önálló végrehajtása eszközökkel.</string>
     <string name="agent_model_group_unavailable">A kitűzött modellcsoport nem érhető el – a beszélgetés modelljével futott</string>
     <string name="scheduled_card_label">Ütemezett feladat</string>
     <string name="scheduled_card_run">%1$d. futtatás</string>

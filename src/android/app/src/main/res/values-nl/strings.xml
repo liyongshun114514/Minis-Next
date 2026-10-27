@@ -2075,7 +2075,7 @@
     <string name="sub_agent_name_required">Een naam is vereist.</string>
     <string name="sub_agent_name_taken">Een andere subagent gebruikt die naam al.</string>
     <string name="sub_agent_builtin_name">Algemene subagent</string>
-    <string name="sub_agent_builtin_description">Open werk met een eigen toollus: codebase of web in meerdere rondes verkennen, veel uitvoer samenvatten of onafhankelijke takken parallel draaien.</string>
+    <string name="sub_agent_builtin_description">Voert gedelegeerde taken zelfstandig uit met tools.</string>
     <string name="agent_model_group_unavailable">Vastgezette modelgroep niet beschikbaar — uitgevoerd met het model van dit gesprek</string>
     <string name="scheduled_card_label">Geplande taak</string>
     <string name="scheduled_card_run">Uitvoering %1$d</string>

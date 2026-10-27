@@ -2089,7 +2089,7 @@
     <string name="sub_agent_name_required">Název je povinný.</string>
     <string name="sub_agent_name_taken">Tento název už používá jiný podagent.</string>
     <string name="sub_agent_builtin_name">Obecný podagent</string>
-    <string name="sub_agent_builtin_description">Otevřená práce s vlastní smyčkou nástrojů: vícenásobné zkoumání kódu či webu, zestručnění velkého výstupu nebo paralelní větve.</string>
+    <string name="sub_agent_builtin_description">Samostatně plní delegované úkoly pomocí nástrojů.</string>
     <string name="agent_model_group_unavailable">Připnutá skupina modelů není dostupná – použit model této konverzace</string>
     <string name="scheduled_card_label">Naplánovaná úloha</string>
     <string name="scheduled_card_run">Běh %1$d</string>
