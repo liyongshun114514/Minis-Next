@@ -224,13 +224,17 @@ class GuestAccountTest {
             .joinToString("\n")
     }
 
-    @Test fun chrootSpawnProvisionsTheAccountAndUsesItsHome() {
+    @Test fun chrootSpawnProvisionsCompatibleAccountButUsesAuthorizedRootIdentity() {
         val kernel = code("src/android/app/src/main/java/com/openminis/app/sandbox/ChrootKernel.kt")
+        // Keep the account records for shared-rootfs compatibility, while the
+        // approved chroot command intentionally runs as real uid0.
         assertTrue(kernel.contains("GuestAccount.ensureForApp(context)"))
-        assertTrue(kernel.contains("cwd = GuestAccount.WORKDIR"))
+        assertTrue(kernel.contains("cwd = if (rootExec) \"/root\" else GuestAccount.WORKDIR"))
         assertTrue(kernel.contains("env.putAll(GuestAccount.environment())"))
-        // The PRoot environment names /root; chroot must not pass that on.
-        assertFalse(kernel.contains("\"/root\""))
+        assertTrue(kernel.contains("env[\"HOME\"] = \"/root\""))
+        assertTrue(kernel.contains("env[\"USER\"] = \"root\""))
+        assertTrue(kernel.contains("RootExecPolicy.decide("))
+        assertTrue(kernel.contains("throw RootExecRefusedException("))
     }
 
     @Test fun shellExecutorDoesNotRestoreRootHomeUnderChroot() {

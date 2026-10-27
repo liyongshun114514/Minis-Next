@@ -104,11 +104,20 @@ class SystemChannelPlacementTest {
         // Applied to the loop's starting provider and to both mid-turn switch
         // points, so a fallback / switch cannot strand the prompt.
         assertTrue(chatVm.contains("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)"))
-        assertTrue(chatVm.contains("applyApplicationSystemPrompt(chosen, applicationPromptForTurn)"))
-        assertTrue(chatVm.contains("applyApplicationSystemPrompt(next, applicationPromptForTurn)"))
-        // Resolved once per turn; null for a sub agent, which carries its own
-        // HelperRunner identity instead of the parent's Settings prompt.
-        assertTrue(chatVm.contains("val applicationPromptForTurn = if (helperConfig == null)"))
+        for (provider in listOf("chosen", "next")) {
+            assertTrue("switch/fallback resolves scoped prompt for $provider", Regex(
+                "applyApplicationSystemPrompt\\(\\s*$provider,\\s*applicationPromptForSelection\\(",
+            ).containsMatchIn(chatVm))
+        }
+        // Text is snapshotted per turn; group/model identity is resolved for
+        // every request and after a switch/fallback. Helpers keep isolation.
+        assertTrue(chatVm.contains("val soulFileForTurn = if (helperConfig == null)"))
+        assertTrue(chatVm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
+        assertTrue(chatVm.contains("if (helperConfig != null) return null"))
+        val requestLoop = chatVm.indexOf("while (!collectDone)")
+        val inject = chatVm.indexOf("applicationPromptForSelection(", requestLoop)
+        assertTrue("scoped prompt refreshes in request loop", requestLoop >= 0 && inject > requestLoop)
+        assertTrue(chatVm.contains("modelId = entry?.baseModel?.id"))
         assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(context)"))
     }
 

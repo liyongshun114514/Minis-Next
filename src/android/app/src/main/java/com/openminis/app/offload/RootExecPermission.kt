@@ -42,8 +42,11 @@ object RootExecPermission {
      * refused.
      */
     fun canPromptHere(): Boolean = runCatching {
+        // A real Android main looper must exist. JVM Android stubs may return
+        // null for BOTH calls; that is not an IO thread with a working UI.
+        val main = Looper.getMainLooper() ?: return@runCatching false
         val looper = Looper.myLooper()
-        looper == null || looper != Looper.getMainLooper()
+        looper == null || looper != main
     }.getOrDefault(false)
 
     fun nowMs(): Long = SystemClock.elapsedRealtime()
