@@ -1,6 +1,7 @@
 package com.openminis.app.provider
 
 import android.content.Context
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.auth.OpenAIOAuthManager
 import com.openminis.app.data.model.LLMModel
 import com.openminis.app.data.model.ProviderCredential
@@ -159,7 +160,7 @@ object ProviderFactory {
                     model = model,
                     basePath = "https://openrouter.ai/api/v1",
                     extraHeaders = mapOf(
-                        "HTTP-Referer" to "https://github.com/OpenMinis/OpenMinis",
+                        "HTTP-Referer" to KairosBrandLinks.REPOSITORY_URL,
                         "X-Title" to "Minis App",
                     ),
                 )

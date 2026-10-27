@@ -1,10 +1,10 @@
-name: Android Ubuntu APK
+name: Kairos Android APK
 
 on:
   workflow_dispatch:
     inputs:
       variant:
-        description: APK build type (test signing only)
+        description: APK build type (release uses private Kairos signing)
         type: choice
         options: [release, debug]
         default: release
@@ -51,6 +51,7 @@ jobs:
     env:
       ANDROID_NDK_VERSION: 28.2.13676358
       GRADLE_OPTS: -Dorg.gradle.daemon=false
+      KAIROS_STORE_PASSWORD: ${{ secrets.KAIROS_STORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,32 +77,22 @@ jobs:
           sudo apt-get install -y make curl unzip xz-utils pkg-config libarchive-tools ripgrep gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
-      - name: Restore test signing identity
-        id: test-signing
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/minis-test-signing
-          key: ubuntu-next-test-signing-v1-${{ github.repository_id }}
-      - name: Prepare explicit test signing identity
+      - name: Restore private Kairos release identity
         shell: bash
+        env:
+          KAIROS_KEYSTORE_BASE64: ${{ secrets.KAIROS_KEYSTORE_BASE64 }}
+          KAIROS_STORE_PASSWORD: ${{ secrets.KAIROS_STORE_PASSWORD }}
         run: |
           set -euo pipefail
-          SIGNING_DIR="${RUNNER_TEMP}/minis-test-signing"
+          test -n "$KAIROS_KEYSTORE_BASE64"
+          test -n "$KAIROS_STORE_PASSWORD"
+          SIGNING_DIR="${RUNNER_TEMP}/kairos-private-signing"
           mkdir -p "$SIGNING_DIR"
-          KEYSTORE="$SIGNING_DIR/debug.keystore"
-          if [ ! -s "$KEYSTORE" ]; then
-            keytool -genkeypair -keystore "$KEYSTORE" -storepass android -keypass android \
-              -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' \
-              -keyalg RSA -keysize 2048 -validity 10000
-          fi
-          echo "MINIS_TEST_KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
-          keytool -list -keystore "$KEYSTORE" -storepass android -alias androiddebugkey
-      - name: Save test identity before compilation
-        if: steps.test-signing.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/minis-test-signing
-          key: ${{ steps.test-signing.outputs.cache-primary-key }}
+          chmod 700 "$SIGNING_DIR"
+          export KAIROS_KEYSTORE="$SIGNING_DIR/kairos-release.p12"
+          python3 -c 'import base64,os,pathlib; p=pathlib.Path(os.environ["KAIROS_KEYSTORE"]); p.write_bytes(base64.b64decode(os.environ["KAIROS_KEYSTORE_BASE64"],validate=True)); p.chmod(0o600)'
+          keytool -list -keystore "$KAIROS_KEYSTORE" -storepass:env KAIROS_STORE_PASSWORD -alias kairos
+          echo "KAIROS_KEYSTORE=$KAIROS_KEYSTORE" >> "$GITHUB_ENV"
       - name: Native dependency cache
         id: native-cache
         uses: actions/cache@v4
@@ -161,6 +152,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_build_ubuntu_toolset.py -v
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_workflow_resources.py -v
           python3 scripts/tests/test_native_composer_port.py
+          python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
           python3 scripts/test_offload_client.py
       - name: Build APK
         id: build-apk
@@ -198,7 +190,8 @@ jobs:
             --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
-            --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest'
+            --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
+            --tests '*Kairos*' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run
@@ -239,13 +232,24 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process \
             :app:testGithubDebugUnitTest --tests '*UbuntuBundledImageCompatibilityTest'
           python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; p=Path("app/build/test-results/testGithubDebugUnitTest/TEST-com.openminis.app.sandbox.UbuntuBundledImageCompatibilityTest.xml"); r=E.parse(p).getroot(); assert int(r.get("tests",0)) > 0 and all(int(r.get(k,0)) == 0 for k in ("skipped","failures","errors")), E.tostring(r).decode(); print("PASS: final APK extracted by production Kotlin installer; no skipped acceptance tests")'
+      - name: Stage verified Kairos release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/stage_kairos_release.py
+      - name: Remove temporary private signing file
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP}/kairos-private-signing/kairos-release.p12"
       - name: Upload APK and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: Minis-Ubuntu-arm64-${{ github.run_number }}
+          name: Kairos-arm64-${{ github.run_number }}
           path: |
-            src/android/app/build/outputs/apk/github/**/*.apk
-            src/android/app/build/outputs/apk/github/**/*.sha256
+            release/kairos/*.apk
+            release/kairos/*.sha256
+            release/kairos/*.json
             src/android/app/build/outputs/mapping/githubRelease/mapping.txt
           if-no-files-found: error
           retention-days: 14

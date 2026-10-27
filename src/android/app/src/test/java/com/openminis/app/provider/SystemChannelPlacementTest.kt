@@ -112,7 +112,11 @@ class SystemChannelPlacementTest {
         // Text is snapshotted per turn; group/model identity is resolved for
         // every request and after a switch/fallback. Helpers keep isolation.
         assertTrue(chatVm.contains("val soulFileForTurn = if (helperConfig == null)"))
-        assertTrue(chatVm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
+        // Mode and rules are captured atomically from one document so a
+        // concurrent settings save cannot mix GLOBAL and CUSTOM state.
+        assertTrue(chatVm.contains("SoulPromptRuleStore.cachedDocumentOrLoad(context)"))
+        assertTrue(chatVm.contains("val promptRulesForTurn = promptDocumentForTurn.rules"))
+        assertTrue(chatVm.contains("val promptModeForTurn = promptDocumentForTurn.mode"))
         assertTrue(chatVm.contains("if (helperConfig != null) return null"))
         val requestLoop = chatVm.indexOf("while (!collectDone)")
         val inject = chatVm.indexOf("applicationPromptForSelection(", requestLoop)
@@ -139,7 +143,8 @@ class SystemChannelPlacementTest {
             assertFalse("$name still yields to later messages",
                 src.contains("defer to the user's latest") || src.contains("may be overridden"))
         }
-        assertTrue(soul.contains("不得覆盖"))
+        assertTrue(soul.contains("不覆盖模型服务端规则"))
+        assertFalse(soul.contains("outranks every instruction"))
         assertEquals(1, Regex("SUPREME_PREAMBLE: String =").findAll(soul).count())
     }
 }

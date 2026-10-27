@@ -6,14 +6,14 @@ package com.openminis.app.data
  * an automatic check may run, and whether a badge shows. No Android, no I/O -
  * [UpdateChecker] and [UpdateStateStore] feed it and act on the answers.
  *
- * Distribution rules (spec, final revision - one repo, OpenMinis/OpenMinis):
+ * Distribution rules (spec, final revision - one repo, liyongshun114514/OpenMinis):
  *  - stable: tag `X.Y` (patch `X.Y.Z`, never `X.Y.0`), not a prerelease;
  *  - beta: a prerelease tagged `0-beta-build<N>`, titled
  *    `Android 1.16-beta.3 (build 31)`. Clients 1.12-1.15 ignore the
  *    prerelease flag and cut a tag at its first `-`, so they read `0`: lower
  *    than any 1.x, never an update and never their "highest" release;
  *  - the FILENAME is the protocol (no latest.json): an APK named
- *    `MinisApp-<version>-build<N>-<abi>.apk` gives the version name, the
+ *    `Kairos-<version>-build<N>-<abi>.apk` gives the version name, the
  *    build number and the ABI; GitHub's asset `digest` gives the sha256, the
  *    release's `prerelease` the channel, its `body` the changelog;
  *  - versionCode is one build counter shared by both channels and decides
@@ -93,13 +93,13 @@ object UpdatePolicy {
     /** What an APK's file name says about it. */
     data class ApkName(val version: String, val build: Int, val abi: String)
 
-    /** The release protocol: `^MinisApp-(?<ver>.+)-build(?<build>\d+)-(?<abi>[\w-]+)\.apk$`. */
-    private val APK_NAME = Regex("^MinisApp-(.+)-build(\\d+)-([\\w-]+)\\.apk$")
+    /** The release protocol: `^Kairos-(?<ver>.+)-build(?<build>\d+)-(?<abi>[\w-]+)\.apk$`. */
+    private val APK_NAME = Regex("^Kairos-(.+)-build(\\d+)-([\\w-]+)\\.apk$")
 
     /**
-     * `MinisApp-1.16-beta.3-build31-arm64-v8a.apk` -> (1.16-beta.3, 31,
+     * `Kairos-1.16-beta.3-build31-arm64-v8a.apk` -> (1.16-beta.3, 31,
      * arm64-v8a). Null for a name outside the protocol - including the
-     * pre-build history (`MinisApp-1.14-arm64-v8a.apk`), whose build is
+     * pre-build history (`Kairos-1.14-arm64-v8a.apk`), whose build is
      * unknown and which counts by version name on the stable channel only.
      */
     fun parseApkName(name: String): ApkName? {
@@ -175,7 +175,11 @@ object UpdatePolicy {
      * ABI must not be offered.
      */
     fun chooseApk(assets: List<Asset>, supportedAbis: List<String>): Asset? {
-        val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+        // The repository also retains upstream/fork history. Only explicitly
+        // branded Kairos assets belong to this independently numbered app.
+        val apks = assets.filter {
+            it.name.startsWith("Kairos-") && it.name.endsWith(".apk", ignoreCase = true)
+        }
         // An APK on the protocol carries its ABI; a name with a build number
         // beats a legacy name for the same ABI.
         fun abiOf(a: Asset): String? = parseApkName(a.name)?.abi

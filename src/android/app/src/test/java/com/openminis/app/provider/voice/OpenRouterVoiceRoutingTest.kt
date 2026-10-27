@@ -1,5 +1,6 @@
 package com.openminis.app.provider.voice
 
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.data.model.LLMModel
 import com.openminis.app.data.model.VoiceRole
 import com.openminis.app.data.model.hasAudioInput
@@ -237,7 +238,7 @@ class OpenRouterVoiceRoutingTest {
                 VoiceOutputRequest(input = "hi", model = "fish-audio/s1", voice = voice),
             )
             assertTrue(req.url.toString().endsWith("/api/v1/audio/speech"))
-            assertEquals("https://github.com/OpenMinis/OpenMinis", req.header("HTTP-Referer"))
+            assertEquals(KairosBrandLinks.REPOSITORY_URL, req.header("HTTP-Referer"))
             assertEquals("Minis App", req.header("X-Title"))
             assertEquals("Bearer sk-test", req.header("Authorization"))
             val buf = Buffer()

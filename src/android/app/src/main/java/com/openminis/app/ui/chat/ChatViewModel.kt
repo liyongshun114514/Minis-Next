@@ -7510,12 +7510,27 @@ class ChatViewModel(
      * the identity sentence, and the Anthropic OAuth path rebuilds that string
      * wholesale — either would silently demote it.
      *
+     * [K-mode-isolation] Used only to seed a provider that is built OUTSIDE the
+     * turn snapshot (a fallback candidate). It therefore re-checks the stored
+     * mode and applies NOTHING when the mode is CUSTOM: leaving the global body
+     * on such a provider — even for the instant before the loop's per-request
+     * re-apply — would be exactly the "residual global prompt" this mode
+     * forbids. The CUSTOM half is seeded by [seedApplicationSystemPrompt] with
+     * the candidate's own entry id.
+     *
      * Failures are swallowed: a provider that is not one of the three
      * implementations simply keeps its default (no application prompt), which
      * is the pre-existing behaviour. The prompt text itself is never logged.
      */
     private fun applyApplicationSystemPromptGlobal(provider: LLMProvider) {
-        val prompt = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
+        val mode = runCatching {
+            com.openminis.app.agent.SoulPromptRuleStore.cachedModeOrLoad(context)
+        }.getOrDefault(com.openminis.app.agent.SoulPromptMode.GLOBAL)
+        val prompt = if (mode == com.openminis.app.agent.SoulPromptMode.GLOBAL) {
+            runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
+        } else {
+            null
+        }
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
@@ -7537,28 +7552,48 @@ class ChatViewModel(
     }
 
     /**
-     * [T-soul-scoped-prompt] Resolve the application prompt for the selection
-     * that is active RIGHT NOW.
+     * [T-soul-scoped-prompt] [K-mode-isolation] Resolve the application prompt
+     * for the selection that is active RIGHT NOW, in the mode frozen at turn
+     * start ([mode]).
+     *
+     * The two modes are mutually exclusive here, at the only place the runtime
+     * chooses the text:
+     *  - GLOBAL → the SOUL.md body. [rules] is never matched (the caller passes
+     *    an empty list for this mode anyway) and the selection is irrelevant.
+     *  - CUSTOM → the exact (`providerInstanceId`, `modelId`) MODEL rule for
+     *    the entry about to be called. No body, no fallback: an unknown /
+     *    deleted entry resolves to a null selection, which returns null rather
+     *    than degrading into the global prompt.
      *
      * `entryId` is the provider identity the caller is about to use (the
      * loop's `currentIdentity.entryId`, which follows fallbacks and mid-turn
      * switches). Null falls back to [_activeEntryId]. The entry is looked up
      * again rather than trusting a cached model name: [ModelEntry] carries
      * both `providerInstanceId` and `baseModel.id`, which is the only pair
-     * that makes a model rule provider-specific. A rule recorded for the same
-     * model name under a different provider therefore does not match.
+     * that makes a model rule provider-specific.
      *
-     * A deleted/unknown entry resolves to null model scope, and a stale/
-     * deleted group id simply fails exact equality — neither can degrade into
-     * "apply globally". A helper returns null unconditionally.
+     * A helper returns null unconditionally: a sub agent has its own identity
+     * text and must not inherit the parent's prompt in either mode.
      */
     private fun applicationPromptForSelection(
         soul: com.openminis.app.agent.SoulFile?,
         rules: List<com.openminis.app.agent.SoulPromptRule>,
         entryId: String?,
+        mode: com.openminis.app.agent.SoulPromptMode,
     ): String? {
         if (helperConfig != null) return null
-        if (soul == null && rules.isEmpty()) return null
+        if (mode == com.openminis.app.agent.SoulPromptMode.GLOBAL) {
+            if (soul == null) return null
+            return runCatching {
+                com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
+                    soul,
+                    com.openminis.app.agent.SoulPromptMode.GLOBAL,
+                    emptyList(),
+                    com.openminis.app.agent.SoulPromptSelection(),
+                )
+            }.getOrNull()
+        }
+        if (rules.isEmpty()) return null
         val effectiveEntryId = entryId ?: _activeEntryId.value
         val entry = effectiveEntryId?.let { id ->
             providerRepository.config.value.modelEntries.firstOrNull { it.id == id }
@@ -7571,10 +7606,36 @@ class ChatViewModel(
         return runCatching {
             com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
                 soul,
+                mode,
                 rules,
                 selection,
             )
         }.getOrNull()
+    }
+
+    /**
+     * [K-mode-isolation] Seed a provider built outside the turn snapshot (a
+     * fallback candidate) with the text of the CURRENT mode, and only that
+     * text: GLOBAL → SOUL.md, CUSTOM → that entry's exact model rule or
+     * nothing. It never leaves the global body on a provider while the mode is
+     * CUSTOM, so a fallback cannot carry a residual global prompt.
+     */
+    private fun seedApplicationSystemPrompt(provider: LLMProvider, entryId: String?) {
+        // One snapshot: the mode and the rules must not come from two reads
+        // that a Settings save can split.
+        val document = runCatching {
+            com.openminis.app.agent.SoulPromptRuleStore.cachedDocumentOrLoad(context)
+        }.getOrDefault(com.openminis.app.agent.SoulPromptRulesDocument())
+        val mode = document.mode
+        if (mode == com.openminis.app.agent.SoulPromptMode.GLOBAL) {
+            applyApplicationSystemPromptGlobal(provider)
+            return
+        }
+        val soul = runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
+        applyApplicationSystemPrompt(
+            provider,
+            applicationPromptForSelection(soul, document.rules, entryId, mode),
+        )
     }
 
     private fun isBoundToAbandonedModel(): Boolean =
@@ -7910,12 +7971,15 @@ class ChatViewModel(
             val p = try {
                 ProviderFactory.create(instance, apiKey, entry.model, context, sessionId = activeSessionId, overrides = entry.overrides)
             } catch (_: Exception) { continue }
-            // [T-soul-prompt-supreme] A fallback provider is a different
-            // instance with its own empty `applicationSystemPrompt` field; it
-            // only becomes current after a switch, but seeding it here means
-            // the prompt cannot be missing on the very first request after a
-            // fallback (the loop re-applies it on adoption as well).
-            applyApplicationSystemPromptGlobal(p)
+            // [T-soul-prompt-supreme] [K-mode-isolation] A fallback provider is
+            // a different instance with its own empty
+            // `applicationSystemPrompt` field; it only becomes current after a
+            // switch, but seeding it here means the prompt cannot be missing on
+            // the very first request after a fallback (the loop re-applies it on
+            // adoption as well). The seed follows the CURRENT mode and this
+            // entry's own id, so a CUSTOM turn never leaves the global body on a
+            // candidate it is about to call.
+            seedApplicationSystemPrompt(p, entry.id)
             result.add(FallbackCandidate(provider = p, entryId = entry.id))
         }
         return result
@@ -11237,9 +11301,11 @@ class ChatViewModel(
         // system channel (see LLMProvider.applicationSystemPrompt).
         //
         // [T-soul-scoped-prompt] Two different lifetimes here, on purpose:
-        //  - the GLOBAL body + the rule list are snapshotted once per turn
-        //    (SoulStore.load / SoulPromptRuleStore.cachedOrLoad), so a
-        //    Settings save mid-turn cannot make one turn's requests disagree;
+        //  - the GLOBAL body + the rule list + the MODE are snapshotted once
+        //    per turn (SoulStore.load / SoulPromptRuleStore.cachedOrLoad /
+        //    cachedModeOrLoad), so a Settings save mid-turn cannot make one
+        //    turn's requests disagree — and a GLOBAL/CUSTOM flip cannot land
+        //    in the middle of a fallback chain;
         //  - the SELECTION (group id + active entry) is read at every request,
         //    so switching the group or model takes effect on the next request,
         //    not only on the next turn. A sub agent gets null at every step:
@@ -11249,16 +11315,29 @@ class ChatViewModel(
         } else {
             null
         }
-        val promptRulesForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.SoulPromptRuleStore.cachedOrLoad(context) }
-                .getOrDefault(emptyList())
+        // [K-mode-isolation] Mode + rules are ONE document, read through ONE
+        // synchronized accessor. Two separate reads could land either side of a
+        // Settings save and pair a new mode with an old (or empty) rule list —
+        // a turn that silently drops the user's prompt. Frozen for the whole
+        // turn: retries, mid-turn switches and fallbacks all reuse these.
+        val promptDocumentForTurn = if (helperConfig == null) {
+            runCatching {
+                com.openminis.app.agent.SoulPromptRuleStore.cachedDocumentOrLoad(context)
+            }.getOrDefault(com.openminis.app.agent.SoulPromptRulesDocument())
         } else {
-            emptyList()
+            // A helper has no Settings page and never renders an application
+            // prompt; GLOBAL is the inert value there.
+            com.openminis.app.agent.SoulPromptRulesDocument(
+                mode = com.openminis.app.agent.SoulPromptMode.GLOBAL,
+            )
         }
+        val promptRulesForTurn = promptDocumentForTurn.rules
+        val promptModeForTurn = promptDocumentForTurn.mode
         val applicationPromptForTurn = applicationPromptForSelection(
             soulFileForTurn,
             promptRulesForTurn,
             _activeEntryId.value,
+            promptModeForTurn,
         )
         applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
         // A flag left over from a turn that ended before it could be applied
@@ -11456,6 +11535,7 @@ class ChatViewModel(
                             soulFileForTurn,
                             promptRulesForTurn,
                             currentIdentity?.entryId,
+                            promptModeForTurn,
                         ),
                     )
                     AppLogger.info(
@@ -11928,6 +12008,7 @@ class ChatViewModel(
                             soulFileForTurn,
                             promptRulesForTurn,
                             currentIdentity?.entryId,
+                            promptModeForTurn,
                         ),
                     )
                 }
@@ -13376,7 +13457,12 @@ class ChatViewModel(
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
                         applyApplicationSystemPrompt(
                             next,
-                            applicationPromptForSelection(soulFileForTurn, promptRulesForTurn, currentIdentity?.entryId),
+                            applicationPromptForSelection(
+                                soulFileForTurn,
+                                promptRulesForTurn,
+                                currentIdentity?.entryId,
+                                promptModeForTurn,
+                            ),
                         )  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }

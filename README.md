@@ -1,3 +1,18 @@
+# Kairos for Android
+
+Independent Android fork maintained by **liyongshun114514**. The Android application is **Kairos** (`com.kairos.app`), starting at **1.0.0 / build 1**. It coexists with upstream and older Minis Next APKs and does not automatically migrate their private data.
+
+- [Kairos releases](https://github.com/liyongshun114514/OpenMinis/releases)
+- [Source branch](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot)
+- [Feedback / issues](https://github.com/liyongshun114514/OpenMinis/issues)
+- [Telegram](https://t.me/LYS114514) · [Email](mailto:liyongshun114514@gmail.com)
+- [Kairos build and verification notes](docs/KAIROS.md)
+- [Original OpenMinis project](https://github.com/OpenMinis/OpenMinis) — original authors and GPLv3 licensing remain unchanged.
+
+The following is the retained upstream project description; upstream download badges and services describe OpenMinis, not the independently signed Kairos app.
+
+---
+
 # OpenMinis
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)

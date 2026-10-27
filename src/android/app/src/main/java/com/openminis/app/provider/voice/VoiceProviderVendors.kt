@@ -2,6 +2,7 @@ package com.openminis.app.provider.voice
 
 import android.util.Base64
 import android.util.Log
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.data.model.hasAudioOutput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -1039,7 +1040,7 @@ class OpenRouterVoiceProvider(providerId: String, baseURL: String, apiKey: Strin
     /** Same attribution headers the models request already sends. */
     override fun applyVoiceAuth(builder: Request.Builder) {
         super.applyVoiceAuth(builder)
-        builder.header("HTTP-Referer", "https://github.com/OpenMinis/OpenMinis")
+        builder.header("HTTP-Referer", KairosBrandLinks.REPOSITORY_URL)
         builder.header("X-Title", "Minis App")
     }
 

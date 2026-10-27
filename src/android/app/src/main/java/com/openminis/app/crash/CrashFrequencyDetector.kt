@@ -19,6 +19,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.R
 import java.io.File
 import java.io.FileInputStream
@@ -661,9 +662,9 @@ object CrashFrequencyDetector {
             val uri = FileProvider.getUriForFile(ctx, authority, zip)
             val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
             val subject = ctx.getString(R.string.crash_freq_email_subject, date)
-            // Project crash-report inbox — a public alias, safe to ship in
-            // open-source builds (replaced the maintainer's personal email).
-            val recipient = "dev@openminis.app"
+            // [Kairos brand] Crash reports go to this build's maintainer, not
+            // the upstream alias — the app is an independent Kairos fork.
+            val recipient = KairosBrandLinks.EMAIL
 
             val launched: Boolean = if (emailOnly) {
                 tryLaunchMailto(ctx, recipient, subject, uri)

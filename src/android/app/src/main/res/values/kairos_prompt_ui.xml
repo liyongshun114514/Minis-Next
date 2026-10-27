@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [T-kairos-prompt-mode] Strings for the persisted Global / Custom prompt
+  switch, the per-model prompt list, and the model-only editor. Kept in their
+  own file so the older prompt_ui.xml / strings.xml keep their existing keys.
+-->
+<resources>
+    <string name="kairos_prompt_mode_global">Global</string>
+    <string name="kairos_prompt_mode_custom">Custom</string>
+    <string name="kairos_prompt_mode_saving">Saving…</string>
+    <string name="kairos_prompt_mode_error_title">Could not switch prompt mode</string>
+    <string name="kairos_prompt_mode_error_body">Nothing was saved, so the previous selection is still active.\n\n%1$s</string>
+
+    <string name="kairos_prompt_global_badge">Global</string>
+    <string name="kairos_prompt_global_scope">One prompt for every model. All chats use exactly this text.</string>
+    <string name="kairos_prompt_global_footer">Global mode sends this body only. Per-model prompts are not added.</string>
+    <string name="kairos_prompt_global_saved">Saved</string>
+    <string name="kairos_prompt_global_unsaved">Unsaved changes</string>
+
+    <string name="kairos_prompt_custom_header">Per-model prompts</string>
+    <string name="kairos_prompt_custom_intro">Custom mode sends only the prompt of the model in use. The global prompt is not added. A model without a prompt here sends no user system prompt.</string>
+    <string name="kairos_prompt_custom_empty">No model prompts yet. Every model gets no custom prompt until you add one.</string>
+    <string name="kairos_prompt_custom_empty_no_models">No models configured yet. Add a model before writing a per-model prompt.</string>
+    <string name="kairos_prompt_custom_add">Add model prompt</string>
+    <string name="kairos_prompt_custom_summary">%1$d model prompts · %2$d enabled</string>
+    <string name="kairos_prompt_custom_order_hint">One prompt per model. Lists keep their saved order.</string>
+    <string name="kairos_prompt_custom_source">From %1$s</string>
+    <string name="kairos_prompt_custom_missing_model">Model removed</string>
+    <string name="kairos_prompt_custom_disabled">Disabled</string>
+    <string name="kairos_prompt_custom_legacy">%1$d legacy group prompts are kept in storage but are not applied in either mode.</string>
+    <string name="kairos_prompt_custom_switch_desc">Enable prompt for %1$s</string>
+    <string name="kairos_prompt_custom_edit">Edit</string>
+    <string name="kairos_prompt_custom_edit_desc">Edit prompt for %1$s</string>
+    <string name="kairos_prompt_custom_delete">Delete</string>
+    <string name="kairos_prompt_custom_delete_desc">Delete prompt for %1$s</string>
+    <string name="kairos_prompt_custom_delete_title">Delete this model prompt?</string>
+    <string name="kairos_prompt_custom_delete_body">The prompt for %1$s will be deleted. This model will then send no custom prompt in Custom mode.</string>
+    <string name="kairos_prompt_custom_save_error">Could not save model prompts: %1$s</string>
+    <string name="kairos_prompt_custom_no_content">No prompt text</string>
+    <string name="kairos_prompt_custom_unknown_model">Unknown model</string>
+
+    <string name="kairos_prompt_editor_add_title">Add model prompt</string>
+    <string name="kairos_prompt_editor_edit_title">Edit model prompt</string>
+    <string name="kairos_prompt_editor_model">Model</string>
+    <string name="kairos_prompt_editor_choose_model">Choose a model</string>
+    <string name="kairos_prompt_editor_change_model">Change</string>
+    <string name="kairos_prompt_editor_model_desc">Change model. Current: %1$s</string>
+    <string name="kairos_prompt_editor_missing_target">The saved model no longer exists (%1$s). Choose a model to keep this prompt.</string>
+    <string name="kairos_prompt_editor_target_required">Choose a model.</string>
+    <string name="kairos_prompt_editor_content">Prompt text</string>
+    <string name="kairos_prompt_editor_content_required">Enter prompt text.</string>
+    <string name="kairos_prompt_editor_save_error">Could not save this prompt: %1$s</string>
+    <string name="kairos_prompt_editor_saving">Saving…</string>
+
+    <string name="kairos_prompt_picker_title">Choose a model</string>
+    <string name="kairos_prompt_picker_search">Search models</string>
+    <string name="kairos_prompt_picker_empty">No matching models.</string>
+    <string name="kairos_prompt_picker_no_models">No models configured. Add a model first.</string>
+    <string name="kairos_prompt_picker_configured">Configured</string>
+</resources>

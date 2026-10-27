@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [T-kairos-prompt-mode] 持久化“全局 / 自定义”提示词模式、按模型提示词列表与仅模型编辑器。 -->
+<resources>
+    <string name="kairos_prompt_mode_global">全局</string>
+    <string name="kairos_prompt_mode_custom">自定义</string>
+    <string name="kairos_prompt_mode_saving">正在保存…</string>
+    <string name="kairos_prompt_mode_error_title">无法切换提示词模式</string>
+    <string name="kairos_prompt_mode_error_body">未写入任何内容，因此仍保持原来的选择。\n\n%1$s</string>
+
+    <string name="kairos_prompt_global_badge">全局</string>
+    <string name="kairos_prompt_global_scope">对所有模型使用同一段提示词，所有对话都使用这段文本。</string>
+    <string name="kairos_prompt_global_footer">全局模式只发送这段正文，不会附加任何模型提示词。</string>
+    <string name="kairos_prompt_global_saved">已保存</string>
+    <string name="kairos_prompt_global_unsaved">有未保存的更改</string>
+
+    <string name="kairos_prompt_custom_header">按模型设置提示词</string>
+    <string name="kairos_prompt_custom_intro">自定义模式只发送当前使用模型的提示词，不会附加全局提示词。未在此配置的模型不会收到用户系统提示词。</string>
+    <string name="kairos_prompt_custom_empty">还没有模型提示词。未配置的模型不会收到自定义提示词。</string>
+    <string name="kairos_prompt_custom_empty_no_models">还没有配置模型。请先添加模型，再编写按模型提示词。</string>
+    <string name="kairos_prompt_custom_add">添加模型提示词</string>
+    <string name="kairos_prompt_custom_summary">%1$d 条模型提示词 · %2$d 条已启用</string>
+    <string name="kairos_prompt_custom_order_hint">每个模型只有一条生效提示词，列表保持保存顺序。</string>
+    <string name="kairos_prompt_custom_source">来源：%1$s</string>
+    <string name="kairos_prompt_custom_missing_model">模型已移除</string>
+    <string name="kairos_prompt_custom_disabled">已停用</string>
+    <string name="kairos_prompt_custom_legacy">已保留 %1$d 条旧分组提示词，但它们在任何模式下都不会生效。</string>
+    <string name="kairos_prompt_custom_switch_desc">启用 %1$s 的提示词</string>
+    <string name="kairos_prompt_custom_edit">编辑</string>
+    <string name="kairos_prompt_custom_edit_desc">编辑 %1$s 的提示词</string>
+    <string name="kairos_prompt_custom_delete">删除</string>
+    <string name="kairos_prompt_custom_delete_desc">删除 %1$s 的提示词</string>
+    <string name="kairos_prompt_custom_delete_title">删除这条模型提示词？</string>
+    <string name="kairos_prompt_custom_delete_body">%1$s 的提示词将被删除，该模型在自定义模式下将不再收到自定义提示词。</string>
+    <string name="kairos_prompt_custom_save_error">无法保存模型提示词：%1$s</string>
+    <string name="kairos_prompt_custom_no_content">无提示词内容</string>
+    <string name="kairos_prompt_custom_unknown_model">未知模型</string>
+
+    <string name="kairos_prompt_editor_add_title">添加模型提示词</string>
+    <string name="kairos_prompt_editor_edit_title">编辑模型提示词</string>
+    <string name="kairos_prompt_editor_model">模型</string>
+    <string name="kairos_prompt_editor_choose_model">选择模型</string>
+    <string name="kairos_prompt_editor_change_model">更改</string>
+    <string name="kairos_prompt_editor_model_desc">更改模型，当前：%1$s</string>
+    <string name="kairos_prompt_editor_missing_target">保存的模型已不存在（%1$s）。请重新选择模型以保留这段提示词。</string>
+    <string name="kairos_prompt_editor_target_required">请选择模型。</string>
+    <string name="kairos_prompt_editor_content">提示词正文</string>
+    <string name="kairos_prompt_editor_content_required">请输入提示词正文。</string>
+    <string name="kairos_prompt_editor_save_error">无法保存这条提示词：%1$s</string>
+    <string name="kairos_prompt_editor_saving">正在保存…</string>
+
+    <string name="kairos_prompt_picker_title">选择模型</string>
+    <string name="kairos_prompt_picker_search">搜索模型</string>
+    <string name="kairos_prompt_picker_empty">没有匹配的模型。</string>
+    <string name="kairos_prompt_picker_no_models">尚未配置模型，请先添加模型。</string>
+    <string name="kairos_prompt_picker_configured">已配置</string>
+</resources>

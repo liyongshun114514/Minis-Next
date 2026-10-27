@@ -5,6 +5,22 @@ title: "[Bug] "
 labels: ["bug", "triage"]
 ---
 
+> **Kairos build / Kairos 版本**
+> This repository is the **Kairos** fork of OpenMinis, maintained by
+> [liyongshun114514](https://github.com/liyongshun114514). Issues filed here go
+> to the Kairos maintainer.
+> 本仓库是 OpenMinis 的 **Kairos** 分支，由 liyongshun114514 维护；在此提交的
+> Issue 由 Kairos 维护者处理。
+>
+> - Kairos repository / 仓库: https://github.com/liyongshun114514/OpenMinis
+> - Email / 邮箱: liyongshun114514@gmail.com
+> - Telegram: https://t.me/LYS114514
+> - Original project / 原项目（上游）: https://github.com/OpenMinis/OpenMinis
+>
+> Bugs that reproduce in the original OpenMinis should go upstream:
+> https://github.com/OpenMinis/OpenMinis/issues
+> 仅在上游原版也能复现的问题，请提交到上面的原项目 Issue。
+
 ## 📝 Problem Summary / 问题描述
 
 <!-- A clear and concise description of the bug. 简要描述遇到的问题。-->

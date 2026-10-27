@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
@@ -404,7 +405,8 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(bottom = 24.dp)) {
                 FeedbackSheetItem(
                     icon = Icons.Outlined.BugReport,
-                    title = stringResource(R.string.settings_submit_github_issues),
+                    title = stringResource(R.string.kairos_issue_submit_title),
+                    subtitle = stringResource(R.string.kairos_repo_subtitle),
                     onClick = {
                         showFeedbackSheet = false
                         openExternalUrl(context, buildBugReportUrl())
@@ -412,18 +414,31 @@ fun SettingsScreen(
                 )
                 FeedbackSheetItem(
                     icon = Icons.AutoMirrored.Outlined.Send,
-                    title = stringResource(R.string.settings_feedback_telegram),
+                    title = stringResource(R.string.kairos_telegram_title),
+                    subtitle = stringResource(R.string.kairos_telegram_subtitle),
                     onClick = {
                         showFeedbackSheet = false
-                        openExternalUrl(context, "https://t.me/+2NzhOJuzRyI1YmM1")
+                        openExternalUrl(context, KairosBrandLinks.TELEGRAM_URL)
                     },
                 )
                 FeedbackSheetItem(
                     icon = Icons.Outlined.Email,
-                    title = stringResource(R.string.settings_feedback_email),
+                    title = stringResource(R.string.kairos_email_title),
+                    subtitle = stringResource(R.string.kairos_email_value),
                     onClick = {
                         showFeedbackSheet = false
                         openExternalUrl(context, buildFeedbackMailto())
+                    },
+                )
+                // [Kairos brand] Upstream stays one tap away from the feedback
+                // sheet so the fork never looks like an original project.
+                FeedbackSheetItem(
+                    icon = Icons.Outlined.Code,
+                    title = stringResource(R.string.kairos_feedback_upstream_title),
+                    subtitle = stringResource(R.string.kairos_feedback_upstream_subtitle),
+                    onClick = {
+                        showFeedbackSheet = false
+                        openExternalUrl(context, KairosBrandLinks.UPSTREAM_REPOSITORY_URL)
                     },
                 )
             }
@@ -435,6 +450,7 @@ fun SettingsScreen(
 private fun FeedbackSheetItem(
     icon: ImageVector,
     title: String,
+    subtitle: String? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -451,11 +467,20 @@ private fun FeedbackSheetItem(
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -466,7 +491,7 @@ private fun FeedbackSheetItem(
  * triage instead of asking the user to fill in environment details.
  *
  * URL shape:
- *   https://github.com/OpenMinis/OpenMinis/issues/new
+ *   https://github.com/liyongshun114514/OpenMinis/issues/new
  *     ?template=bug_report.md
  *     &title=[Bug]
  *     &body=<percent-encoded markdown>
@@ -500,7 +525,7 @@ private fun buildBugReportUrl(): String {
         |-------|-------|
         | Platform | Android |
         | OS Version | Android $osVersion (API $sdkInt) |
-        | Minis Version | $versionName (build $versionCode) |
+        | Kairos Version | $versionName (build $versionCode) |
         | Device Model | $manufacturer $model |
 
         ## 🔁 Steps to Reproduce
@@ -529,7 +554,7 @@ private fun buildBugReportUrl(): String {
     // since URLEncoder turns spaces into '+' which GitHub also accepts but
     // the spec calls for the literal "[Bug] " form.
     val title = java.net.URLEncoder.encode("[Bug] ", "UTF-8")
-    return "https://github.com/OpenMinis/OpenMinis/issues/new" +
+    return KairosBrandLinks.NEW_ISSUE_URL +
         "?template=bug_report.md" +
         "&title=$title" +
         "&body=$encodedBody"
@@ -552,9 +577,9 @@ private fun buildFeedbackMailto(): String {
 
         Screenshot (optional): Please attach a screenshot if relevant.
     """.trimIndent()
-    val subject = java.net.URLEncoder.encode("Minis Feedback", "UTF-8")
+    val subject = java.net.URLEncoder.encode("Kairos Feedback", "UTF-8")
     val encodedBody = java.net.URLEncoder.encode(body, "UTF-8")
-    return "mailto:dev@openminis.app?subject=$subject&body=$encodedBody"
+    return "mailto:" + KairosBrandLinks.EMAIL + "?subject=$subject&body=$encodedBody"
 }
 
 /**

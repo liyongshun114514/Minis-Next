@@ -76,6 +76,7 @@ import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulFile
 import com.openminis.app.agent.SoulMDParser
 import com.openminis.app.agent.SoulMetadata
+import com.openminis.app.agent.SoulPromptMode
 import com.openminis.app.agent.SoulPromptRule
 import com.openminis.app.agent.SoulPromptRuleStore
 import com.openminis.app.agent.SoulStore
@@ -83,22 +84,18 @@ import com.openminis.app.data.model.ProviderConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.withLock
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
 
 /**
- * [T-android-soul-two-scope-switch] The two halves of the system-prompt page,
- * selected by the segmented control at the top. GLOBAL is the SOUL.md body
- * that applies to every chat; CUSTOM is the list of group/model rules that
- * append after it. UI-only: nothing here is stored and the name is not part
- * of the file format.
- */
-private enum class SoulPromptScope { GLOBAL, CUSTOM }
-
-/**
  * [T-soul-md] Settings page for SOUL.md: an editable avatar, a name, the
- * global system prompt, and the scoped custom rules that append to it.
+ * global system prompt, and the per-model prompts used in Custom mode.
+ *
+ * [T-kairos-prompt-mode] The two buttons at the top are a PERSISTED runtime
+ * mode, not page tabs: Global sends the SOUL.md body to every model, Custom
+ * sends only the selected model's own prompt and never falls back to the
+ * global body. Both halves can be inspected from this screen; the selected
+ * value is whatever [SoulPromptRuleStore] will hand the agent loop.
  *
  * [T-android-soul-system-prompt-only] Style, language and the body-length
  * mode/cap controls were removed from the page. They are NOT removed from
@@ -135,11 +132,15 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     var limitSettings by remember { mutableStateOf(SoulBodyLimitSettings()) }
     var loaded by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    // [T-android-soul-two-scope-switch] Which half is on screen. The draft
-    // itself lives ABOVE this switch (`body`, `name`, `icon` are screen-level
-    // state), so flipping between the two pages never drops the global edits:
-    // the editor is merely not composed while the rules page is shown.
-    var promptScope by rememberSaveable { mutableStateOf(SoulPromptScope.GLOBAL) }
+    // [T-kairos-prompt-mode] The persisted prompt mode, not a page tab. The
+    // segmented control at the top reads it from SoulPromptRuleStore on load
+    // and writes it back on every tap; GLOBAL and CUSTOM are mutually
+    // exclusive runtime behaviours. The global draft (`body`, `name`, `icon`)
+    // lives ABOVE this state, so switching modes never drops it.
+    var promptMode by rememberSaveable { mutableStateOf(SoulPromptMode.GLOBAL) }
+    var modeLoaded by remember { mutableStateOf(false) }
+    var modeSaving by remember { mutableStateOf(false) }
+    var modeError by remember { mutableStateOf<String?>(null) }
     // [T-android-soul-two-scope-switch] Save is a one-shot: the first tap sets
     // this before the coroutine starts, so a second tap cannot enqueue a
     // second write — and the button below is disabled while it is true.
@@ -163,34 +164,40 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // card.
     var rules by remember { mutableStateOf<List<SoulPromptRule>>(emptyList()) }
     var rulesError by remember { mutableStateOf<String?>(null) }
+    // One rule write at a time. `rulesBusy` guards toggles/deletes; the
+    // editor has its own in-flight flag because its dialog must stay open
+    // (and keep its draft) until the write succeeds.
+    var rulesBusy by remember { mutableStateOf(false) }
     var ruleEditorOpen by remember { mutableStateOf(false) }
     var ruleBeingEdited by remember { mutableStateOf<SoulPromptRule?>(null) }
     var rulePendingDelete by remember { mutableStateOf<SoulPromptRule?>(null) }
+    var ruleSaveInFlight by remember { mutableStateOf(false) }
+    var ruleSaveError by remember { mutableStateOf<String?>(null) }
 
-    // The group / model lists shown by the rule editor. Read from the same
+    // The model list shown by the rule editor. Read from the same
     // ProviderRepository the chat uses, so the ids stored by a rule are the
     // ids the runtime will compare against. null repository (safe mode) simply
-    // yields empty pickers instead of crashing.
+    // yields an empty picker instead of crashing.
     val app = remember(context) { context.applicationContext as? com.openminis.app.MinisApp }
     val providerRepository = remember(app) { app?.providerRepositoryOrNull }
     val emptyConfig = remember { MutableStateFlow(ProviderConfig()) }
     val providerConfig by (providerRepository?.config ?: emptyConfig).collectAsState()
-    val groupOptions = providerConfig.modelGroups.map { group ->
-        SoulPromptGroupOption(group.id, group.name.ifBlank { group.id })
-    }
     val modelOptions = providerConfig.modelEntries
         .filter { !it.isHidden }
         .mapNotNull { entry ->
             val instance = providerConfig.instances.firstOrNull { it.id == entry.providerInstanceId }
                 ?: return@mapNotNull null
+            val providerLabel = instance.label.ifBlank { entry.model.provider }
             SoulPromptModelOption(
                 providerInstanceId = entry.providerInstanceId,
                 modelId = entry.model.id,
-                label = entry.model.displayName + " · " +
-                    instance.label.ifBlank { entry.model.provider },
+                label = entry.model.displayName + " · " + providerLabel,
+                modelName = entry.model.displayName,
+                providerLabel = providerLabel,
             )
         }
         .distinctBy { it.providerInstanceId + "\u0000" + it.modelId }
+    val configuredPairs = remember(rules) { SoulPromptRuleUi.configuredPairs(rules) }
 
     // [T-android-soul-save-in-appbar] What was loaded from disk, kept so
     // "has the user changed anything" is a comparison rather than a flag.
@@ -246,9 +253,22 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
             SoulStore.ensureExists(context)
             SoulStore.load(context) ?: SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)
         }
-        rules = withContext(Dispatchers.IO) {
-            runCatching { SoulPromptRuleStore.load(context) }.getOrDefault(emptyList())
+        // [T-kairos-prompt-mode] Mode and rules come from ONE store document.
+        // The mode is the persisted runtime behaviour, not a local tab: the
+        // segmented control below shows exactly what the agent loop will read.
+        val promptSnapshot = withContext(Dispatchers.IO) {
+            val mode = runCatching { SoulPromptRuleStore.loadMode(context) }
+                .getOrDefault(SoulPromptMode.GLOBAL)
+            val loadedRules = runCatching { SoulPromptRuleStore.load(context) }
+                .getOrDefault(emptyList())
+            mode to loadedRules
         }
+        promptMode = promptSnapshot.first
+        // Present at most one enabled prompt per model pair. This is an
+        // in-memory canonicalisation: the next write (toggle/edit/delete)
+        // persists it, so merely opening the page never rewrites the file.
+        rules = SoulPromptRuleUi.stabilize(promptSnapshot.second)
+        modeLoaded = true
         name = parsed.metadata.name
         preservedEmoji = parsed.metadata.emoji
         icon = parsed.metadata.icon
@@ -302,20 +322,87 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     val isDirty = loaded && baseline != null && currentFile != baseline
     var showDiscardDialog by remember { mutableStateOf(false) }
 
-    // [T-soul-scoped-prompt] Rule writes are serialized: rapid switch flips
-    // launch several saves, and without a mutex an older snapshot could land
-    // after a newer one. A failure reports itself but never rolls the UI back
-    // — that would discard a newer change the user already made.
-    val persistMutex = remember { kotlinx.coroutines.sync.Mutex() }
+    // [T-kairos-prompt-mode] Toggling or deleting a rule is a disk write
+    // first, UI second. A failed write leaves the switch/row where it was and
+    // explains itself; it never leaves the list claiming a state the store
+    // does not have.
     val persistRules: (List<SoulPromptRule>) -> Unit = { next ->
-        rules = next
-        scope.launch {
-            persistMutex.withLock {
-                runCatching {
-                    withContext(Dispatchers.IO) { SoulPromptRuleStore.save(context, next) }
-                }.onFailure { t ->
-                    rulesError = t.message ?: "save failed"
+        if (!rulesBusy) {
+            val canonical = SoulPromptRuleUi.stabilize(next)
+            rulesBusy = true
+            scope.launch {
+                val failure = withContext(Dispatchers.IO) {
+                    runCatching { SoulPromptRuleStore.save(context, canonical) }.exceptionOrNull()
                 }
+                if (failure == null) {
+                    rules = canonical
+                } else {
+                    rulesError = failure.message ?: "save failed"
+                    // Show what is actually on disk rather than a phantom
+                    // optimistic state. Reads never throw.
+                    rules = withContext(Dispatchers.IO) {
+                        runCatching { SoulPromptRuleStore.load(context) }.getOrDefault(rules)
+                    }
+                }
+                rulesBusy = false
+            }
+        }
+        Unit
+    }
+
+    // [T-kairos-prompt-mode] Editor save keeps the dialog — and therefore the
+    // draft typed into it — composed until the write succeeds. A failure is
+    // shown inline in the form; only success closes the dialog.
+    val saveRule: (SoulPromptRule) -> Unit = { incoming ->
+        if (!ruleSaveInFlight) {
+            val next = SoulPromptRuleUi.upsertModelRule(rules, incoming)
+            if (next === rules) {
+                ruleSaveError = context.getString(R.string.kairos_prompt_editor_target_required)
+            } else {
+                ruleSaveInFlight = true
+                ruleSaveError = null
+                scope.launch {
+                    val failure = withContext(Dispatchers.IO) {
+                        runCatching { SoulPromptRuleStore.save(context, next) }.exceptionOrNull()
+                    }
+                    if (failure == null) {
+                        rules = next
+                        ruleEditorOpen = false
+                        ruleBeingEdited = null
+                    } else {
+                        ruleSaveError = failure.message ?: "save failed"
+                        // Reconcile the list with the untouched file; the
+                        // editor's own state stays exactly as typed.
+                        rules = withContext(Dispatchers.IO) {
+                            runCatching { SoulPromptRuleStore.load(context) }.getOrDefault(rules)
+                        }
+                    }
+                    ruleSaveInFlight = false
+                }
+            }
+        }
+        Unit
+    }
+
+    // [T-kairos-prompt-mode] A tap on the top switch WRITES the mode. The
+    // selection moves immediately, but a failed write restores the exact
+    // previous selection and reports why. `body`/`name`/`icon` are not touched
+    // by this path, so switching modes never drops the global draft.
+    val selectMode: (SoulPromptMode) -> Unit = { requested ->
+        if (SoulPromptRuleUi.shouldSwitchMode(promptMode, requested, modeSaving, modeLoaded)) {
+            val previous = promptMode
+            modeSaving = true
+            promptMode = requested
+            scope.launch {
+                val failure = withContext(Dispatchers.IO) {
+                    runCatching { SoulPromptRuleStore.setMode(context, requested) }
+                        .exceptionOrNull()
+                }
+                if (failure != null) {
+                    promptMode = previous
+                    modeError = failure.message ?: "save failed"
+                }
+                modeSaving = false
             }
         }
         Unit
@@ -355,18 +442,21 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         title = stringResource(R.string.soul_settings_title),
         onBack = attemptBack,
     ) {
-        // [T-android-soul-two-scope-switch] Two native Minis segmented
-        // buttons pick the half of the page: the global prompt (identity,
-        // body and its own Save) or the scoped custom rules. This is page
-        // navigation only — both halves still write through their original
-        // stores, and the global draft survives every switch.
-        SoulPromptScopeSwitch(
-            selected = promptScope,
-            onSelect = { promptScope = it },
+        // [T-kairos-prompt-mode] Two native Minis segmented buttons pick the
+        // runtime prompt behaviour. They are NOT page navigation: the selected
+        // value is read from SoulPromptRuleStore on load and written back on
+        // every tap (see `selectMode`). A failed write restores the previous
+        // selection and reports it; the global draft survives every switch
+        // because `body`/`name`/`icon` are state above this control.
+        SoulPromptModeSwitch(
+            selected = promptMode,
+            enabled = modeLoaded && !modeSaving && !rulesBusy && !ruleSaveInFlight,
+            saving = modeSaving,
+            onSelect = selectMode,
         )
 
-        when (promptScope) {
-            SoulPromptScope.GLOBAL -> {
+        when (promptMode) {
+            SoulPromptMode.GLOBAL -> {
                 // Identity: the avatar and the name, and nothing else. Tapping the
                 // avatar opens the icon menu (emoji / image / default).
                 SettingsSection {
@@ -451,12 +541,12 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                 // SOUL.md body through SoulStore.save.
                 SettingsSection(
                     header = stringResource(R.string.soul_section_personality),
-                    footer = stringResource(R.string.prompt_ui_global_footer),
+                    footer = stringResource(R.string.kairos_prompt_global_footer),
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = stringResource(R.string.prompt_ui_global_badge),
+                                text = stringResource(R.string.kairos_prompt_global_badge),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier
@@ -466,7 +556,7 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = stringResource(R.string.prompt_ui_global_scope),
+                                text = stringResource(R.string.kairos_prompt_global_scope),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -541,8 +631,8 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                     // "Unsaved changes" mid-write reads as if
                                     // the tap was ignored.
                                     saving -> stringResource(R.string.system_prompt_saving)
-                                    isDirty -> stringResource(R.string.prompt_ui_global_unsaved)
-                                    else -> stringResource(R.string.prompt_ui_global_saved)
+                                    isDirty -> stringResource(R.string.kairos_prompt_global_unsaved)
+                                    else -> stringResource(R.string.kairos_prompt_global_saved)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isDirty || saving) {
@@ -561,36 +651,31 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            SoulPromptScope.CUSTOM -> {
-                // Custom rules write through SoulPromptRuleStore immediately; there is
-                // no draft to lose, which is why this section has no Save button.
+            SoulPromptMode.CUSTOM -> {
+                // Custom prompts write through SoulPromptRuleStore on every
+                // change; there is no separate Save button. GROUP rules stay in
+                // the file but are not listed and never apply.
                 SoulCustomRulesSection(
                     rules = rules,
-                    groups = groupOptions,
                     models = modelOptions,
-                    canAdd = groupOptions.isNotEmpty() || modelOptions.isNotEmpty(),
+                    canAdd = modelOptions.isNotEmpty(),
+                    busy = rulesBusy || ruleSaveInFlight || modeSaving,
                     onToggle = { rule, checked ->
-                        persistRules(
-                            rules.map {
-                                if (it.id == rule.id) it.copy(enabled = checked) else it
-                            },
-                        )
-                    },
-                    onMove = { rule, delta ->
-                        // Only swaps rules of the same scope: the resolver always
-                        // appends group rules before model rules, so a cross-scope
-                        // swap would rewrite storage without changing the prompt.
-                        val next = SoulPromptRuleUi.moveWithinTier(rules, rule.id, delta)
+                        val next = SoulPromptRuleUi.setEnabled(rules, rule.id, checked)
                         if (next !== rules) persistRules(next)
                     },
                     onEdit = { rule ->
+                        ruleSaveError = null
                         ruleBeingEdited = rule
                         ruleEditorOpen = true
                     },
                     onDelete = { rule -> rulePendingDelete = rule },
                     onAdd = {
-                        ruleBeingEdited = null
-                        ruleEditorOpen = true
+                        if (modelOptions.isNotEmpty()) {
+                            ruleSaveError = null
+                            ruleBeingEdited = null
+                            ruleEditorOpen = true
+                        }
                     },
                 )
             }
@@ -662,49 +747,47 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         )
     }
 
-    // [T-soul-scoped-prompt] Add / edit one custom rule. Saving writes through
-    // the same immediate-persist path as the switch and delete controls.
+    // [T-kairos-prompt-mode] Add / edit one model prompt. The dialog stays
+    // open on failure (`ruleSaveInFlight` / `ruleSaveError`) because the draft
+    // lives inside it; only a successful write closes it.
     if (ruleEditorOpen) {
         SoulPromptRuleEditorDialog(
             existing = ruleBeingEdited,
-            groups = groupOptions,
             models = modelOptions,
+            configuredPairs = configuredPairs,
+            saving = ruleSaveInFlight,
+            saveError = ruleSaveError,
             onDismiss = {
-                ruleEditorOpen = false
-                ruleBeingEdited = null
-            },
-            onSave = { saved ->
-                val index = rules.indexOfFirst { it.id == saved.id }
-                val next = if (index >= 0) {
-                    rules.toMutableList().also { it[index] = saved }
-                } else {
-                    rules + saved
+                if (!ruleSaveInFlight) {
+                    ruleEditorOpen = false
+                    ruleBeingEdited = null
+                    ruleSaveError = null
                 }
-                persistRules(next)
-                ruleEditorOpen = false
-                ruleBeingEdited = null
             },
+            onSave = saveRule,
         )
     }
 
     rulePendingDelete?.let { pending ->
-        val unnamedRule = stringResource(R.string.soul_custom_rule_unnamed)
+        val pendingTitle = SoulPromptRuleUi.modelTitle(pending, modelOptions)
+            .ifBlank { stringResource(R.string.kairos_prompt_custom_unknown_model) }
         AlertDialog(
             onDismissRequest = { rulePendingDelete = null },
-            title = { Text(stringResource(R.string.soul_custom_rule_delete_title)) },
+            title = { Text(stringResource(R.string.kairos_prompt_custom_delete_title)) },
             text = {
                 Text(
                     stringResource(
-                        R.string.soul_custom_rule_delete_body,
-                        pending.name.ifBlank { unnamedRule },
+                        R.string.kairos_prompt_custom_delete_body,
+                        pendingTitle,
                     ),
                 )
             },
             confirmButton = {
                 MinisTextButton(onClick = {
-                    persistRules(rules.filterNot { it.id == pending.id })
                     rulePendingDelete = null
-                }) { Text(stringResource(R.string.soul_custom_rule_delete)) }
+                    val next = SoulPromptRuleUi.removeRule(rules, pending.id)
+                    if (next !== rules) persistRules(next)
+                }) { Text(stringResource(R.string.kairos_prompt_custom_delete)) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { rulePendingDelete = null }) {
@@ -718,9 +801,24 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { rulesError = null },
             title = { Text(stringResource(R.string.soul_save_error_title)) },
-            text = { Text(stringResource(R.string.soul_custom_rules_save_error, err)) },
+            text = { Text(stringResource(R.string.kairos_prompt_custom_save_error, err)) },
             confirmButton = {
                 MinisButton(onClick = { rulesError = null }) {
+                    Text(stringResource(R.string.soul_ok))
+                }
+            },
+        )
+    }
+
+    // [T-kairos-prompt-mode] A failed mode write is explicit and names the
+    // state the screen kept: the previous selection. The draft is untouched.
+    modeError?.let { err ->
+        AlertDialog(
+            onDismissRequest = { modeError = null },
+            title = { Text(stringResource(R.string.kairos_prompt_mode_error_title)) },
+            text = { Text(stringResource(R.string.kairos_prompt_mode_error_body, err)) },
+            confirmButton = {
+                MinisButton(onClick = { modeError = null }) {
                     Text(stringResource(R.string.soul_ok))
                 }
             },
@@ -729,35 +827,50 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
 }
 
 /**
- * [T-android-soul-two-scope-switch] The two-page selector at the top of the
+ * [T-kairos-prompt-mode] The persisted mode selector at the top of the
  * system-prompt settings, drawn with the same Material3 segmented control the
- * rest of Settings uses (usage ranges, rule editor scope). It chooses between
- * the global prompt and the custom rules; it is not a second navigation bar,
- * and the two halves keep their own, unchanged save models.
+ * rest of Settings uses. It is NOT page navigation: the caller reads the
+ * value from [SoulPromptRuleStore] and writes every tap back. It is disabled
+ * until that read finishes and while a write is in flight, so a second tap
+ * cannot race the first.
  */
 @Composable
-private fun SoulPromptScopeSwitch(
-    selected: SoulPromptScope,
-    onSelect: (SoulPromptScope) -> Unit,
+private fun SoulPromptModeSwitch(
+    selected: SoulPromptMode,
+    enabled: Boolean,
+    saving: Boolean,
+    onSelect: (SoulPromptMode) -> Unit,
 ) {
     val items = listOf(
-        SoulPromptScope.GLOBAL to R.string.system_prompt_scope_global,
-        SoulPromptScope.CUSTOM to R.string.system_prompt_scope_custom,
+        SoulPromptMode.GLOBAL to R.string.kairos_prompt_mode_global,
+        SoulPromptMode.CUSTOM to R.string.kairos_prompt_mode_custom,
     )
-    SingleChoiceSegmentedButtonRow(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
     ) {
-        items.forEachIndexed { index, (item, label) ->
-            SegmentedButton(
-                selected = selected == item,
-                onClick = { onSelect(item) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = items.size),
-                icon = {},
-            ) {
-                Text(stringResource(label), maxLines = 1)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            items.forEachIndexed { index, (item, label) ->
+                SegmentedButton(
+                    selected = selected == item,
+                    onClick = { onSelect(item) },
+                    enabled = enabled && !saving,
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = items.size),
+                    icon = {},
+                ) {
+                    Text(stringResource(label), maxLines = 1)
+                }
             }
+        }
+        if (saving) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.kairos_prompt_mode_saving),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(start = 4.dp),
+            )
         }
     }
 }

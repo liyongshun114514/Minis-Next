@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Kairos build — Telegram support
+    url: https://t.me/LYS114514
+    about: Chat with the Kairos maintainer (this fork's build).
+  - name: Kairos build — email
+    url: mailto:liyongshun114514@gmail.com
+    about: Email the Kairos maintainer about this build.
+  - name: Original OpenMinis (upstream) issues
+    url: https://github.com/OpenMinis/OpenMinis/issues
+    about: Bugs reproducible in the original OpenMinis belong upstream.

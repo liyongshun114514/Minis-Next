@@ -3,6 +3,7 @@ package com.openminis.app.auth
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.data.repository.ProviderRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -169,7 +170,7 @@ object OpenRouterOAuthManager {
             .url(KEYS_URL)
             .post(body.toString().toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
-            .header("HTTP-Referer", "https://github.com/OpenMinis/OpenMinis")
+            .header("HTTP-Referer", KairosBrandLinks.REPOSITORY_URL)
             .header("X-Title", "Minis App")
             .build()
 

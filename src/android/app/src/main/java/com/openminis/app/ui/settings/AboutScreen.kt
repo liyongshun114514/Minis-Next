@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.openminis.app.AppBuildInfo
 import com.openminis.app.BuildConfig
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.R
 import com.openminis.app.ui.components.openExternalUrl
 
@@ -106,23 +110,84 @@ fun AboutScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
+            // [Kairos brand] Make the fork identity explicit; upstream credit
+            // follows in its own section below.
+            Text(
+                stringResource(R.string.kairos_maintainer_line),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
         }
 
-        SettingsSection(header = stringResource(R.string.about_links)) {
+        // [Kairos brand] All contact entries point at the Kairos repository /
+        // maintainer. They use openExternalUrl directly for the same reason as
+        // the old single GitHub row: nothing wraps Settings with an
+        // InAppBrowserHost, so the ambient launcher is a no-op here.
+        SettingsSection(header = stringResource(R.string.kairos_brand_section)) {
             SettingsRow(
                 icon = Icons.Outlined.Code,
                 iconColor = tileBlue,
-                title = stringResource(R.string.about_github_repository),
-                // Settings → ABOUT siblings (Privacy Policy / Submit GitHub
-                // Issues) all use openExternalUrl directly. The
-                // LocalInAppBrowserLauncher ambient defaults to a no-op when
-                // no InAppBrowserHost is in the tree above this screen — and
-                // nothing wraps Settings, so the row used to be a dead tap.
-                onClick = { openExternalUrl(context, "https://github.com/OpenMinis/OpenMinis") },
+                title = stringResource(R.string.kairos_repo_title),
+                subtitle = stringResource(R.string.kairos_repo_subtitle),
+                onClick = { openExternalUrl(context, KairosBrandLinks.REPOSITORY_URL) },
+                trailing = { ExternalLinkIcon() },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.BugReport,
+                iconColor = tileBlue,
+                title = stringResource(R.string.kairos_issue_title),
+                subtitle = stringResource(R.string.kairos_issue_subtitle),
+                onClick = { openExternalUrl(context, KairosBrandLinks.NEW_ISSUE_URL) },
+                trailing = { ExternalLinkIcon() },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Email,
+                iconColor = tileBlue,
+                title = stringResource(R.string.kairos_email_title),
+                subtitle = stringResource(R.string.kairos_email_value),
+                onClick = { openExternalUrl(context, "mailto:" + KairosBrandLinks.EMAIL) },
+                trailing = { ExternalLinkIcon() },
+            )
+            SettingsRow(
+                icon = Icons.AutoMirrored.Outlined.Send,
+                iconColor = tileBlue,
+                title = stringResource(R.string.kairos_telegram_title),
+                subtitle = stringResource(R.string.kairos_telegram_subtitle),
+                onClick = { openExternalUrl(context, KairosBrandLinks.TELEGRAM_URL) },
                 trailing = { ExternalLinkIcon() },
                 showDivider = false,
             )
         }
+
+        // [Kairos brand] Attribution is a first-class entry, not a footnote:
+        // the original project, its issue tracker and the GPL-3.0 credit stay
+        // reachable from About.
+        SettingsSection(header = stringResource(R.string.kairos_upstream_section)) {
+            SettingsRow(
+                icon = Icons.Outlined.Code,
+                iconColor = tileBlue,
+                title = stringResource(R.string.kairos_upstream_title),
+                subtitle = stringResource(R.string.kairos_upstream_subtitle),
+                onClick = { openExternalUrl(context, KairosBrandLinks.UPSTREAM_REPOSITORY_URL) },
+                trailing = { ExternalLinkIcon() },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.BugReport,
+                iconColor = tileBlue,
+                title = stringResource(R.string.kairos_upstream_issues_title),
+                subtitle = stringResource(R.string.kairos_upstream_issues_subtitle),
+                onClick = { openExternalUrl(context, KairosBrandLinks.UPSTREAM_ISSUES_URL) },
+                trailing = { ExternalLinkIcon() },
+                showDivider = false,
+            )
+        }
+        Text(
+            stringResource(R.string.kairos_upstream_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+        )
 
         // T122: surface the existing UpdateChecker entry on the About screen.
         // The composable was already implemented but never wired anywhere, so

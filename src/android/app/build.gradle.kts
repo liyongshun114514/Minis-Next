@@ -35,11 +35,11 @@ android {
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.openminis.app.next"
+        applicationId = "com.kairos.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 42
-        versionName = "1.15-ubuntu.7"
+        versionCode = 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -93,6 +93,15 @@ android {
         if (!ciStore.isNullOrBlank()) storeFile = file(ciStore)
     }
 
+    // Kairos is an independent application with a stable private release identity.
+    // A release without explicit credentials must fail, never silently use debug signing.
+    signingConfigs.create("kairosRelease") {
+        storeFile = providers.environmentVariable("KAIROS_KEYSTORE").orNull?.let { file(it) }
+        storePassword = providers.environmentVariable("KAIROS_STORE_PASSWORD").orNull
+        keyAlias = "kairos"
+        keyPassword = providers.environmentVariable("KAIROS_STORE_PASSWORD").orNull
+    }
+
     buildTypes {
         getByName("debug") {
             buildConfigField("boolean", "DEV_TOOLS", "true")
@@ -105,7 +114,7 @@ android {
         // on `debug` therefore do not represent what users run. `perf` keeps
         // the debug server and probes (DEV_TOOLS) so the measurement harness
         // works, but is profileable/AOT-compilable like a release build.
-        // Same debug signing key as release, so it installs in place.
+        // Development-only signing; cannot replace the independently signed Kairos release.
         create("perf") {
             initWith(getByName("debug"))
             isDebuggable = false
@@ -134,7 +143,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("kairosRelease")
         }
     }
 

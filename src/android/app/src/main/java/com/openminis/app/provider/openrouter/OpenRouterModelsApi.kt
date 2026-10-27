@@ -1,6 +1,7 @@
 package com.openminis.app.provider.openrouter
 
 import android.content.Context
+import com.openminis.app.KairosBrandLinks
 import com.openminis.app.data.model.LLMModel
 import com.openminis.app.data.model.VoiceRole
 import com.openminis.app.data.model.normalizeModalities
@@ -104,7 +105,7 @@ object OpenRouterModelsApi {
         val request = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $apiKey")
-            .header("HTTP-Referer", "https://github.com/OpenMinis/OpenMinis")
+            .header("HTTP-Referer", KairosBrandLinks.REPOSITORY_URL)
             .header("X-Title", "Minis App")
             // [T-android-default-ua] brand outbound /api/v1/models request.
             .applyUserAgentOverride(null)
