@@ -2777,9 +2777,9 @@ class ChatViewModel(
                         childId, parentSid, toolId, job.id, subAgent, hr.MAX_TURNS, title,
                     )
                 }
-                registry.markRunning(job.id, childId) {
+                if (!registry.markRunning(job.id, childId) {
                     viewModelScope.launch(Dispatchers.Main) { childVm.cancelStream() }
-                }
+                }) return@launch
                 // [T-subagent-termination] A resume restarts the record too.
                 childVm.helperClosingAttempted = false
                 com.openminis.app.agent.jobs.SubAgentTerminationStore.shared.begin(childId, job.id, parentSid)
@@ -2837,7 +2837,10 @@ class ChatViewModel(
                         AppLogger.info(TAG, "[subagent_task] RESUME END job=${finished.id.take(8)} state=${finished.state.wire}")
                     }
                 }
-                val outcome = withContext(Dispatchers.Main) { childVm.submitPrompt(hr.resumeNotice()) }
+                val outcome = withContext(Dispatchers.Main) {
+                    if (registry.job(job.id)?.isActive != true) return@withContext null
+                    childVm.submitPrompt(hr.resumeNotice())
+                } ?: return@launch
                 if (outcome is SubmitOutcome.Rejected) {
                     AppLogger.warning(TAG, "[subagent_task] resume not started for ${childId.take(8)}: ${outcome.reason}")
                     registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, null)
@@ -2982,7 +2985,7 @@ class ChatViewModel(
         if (com.openminis.app.agent.jobs.HelperRunner.isControlOnly(args, block.content.ifEmpty { null })) {
             return false
         }
-        return startQueuedDelegation(args, block.id)
+        return startQueuedDelegation(args, block.id, fromQueue = false)
     }
 
     /** [T-android-subagent-card-resume] What the Resume button on an interrupted card did. */
@@ -3041,7 +3044,7 @@ class ChatViewModel(
         }
     }
 
-    fun startQueuedDelegation(argsJson: String, toolUseId: String): Boolean {
+    fun startQueuedDelegation(argsJson: String, toolUseId: String, fromQueue: Boolean = true): Boolean {
         if (activeSessionId.isEmpty()) return false
         // [T-android-subagent-prompt-parity] A queued RESUME re-enters through
         // resumeInterruptedChild, not executeDelegateTask. Routing it as a
@@ -3060,7 +3063,7 @@ class ChatViewModel(
         }
         val args = try {
             JSONObject(argsJson)
-                .put(com.openminis.app.agent.jobs.HelperRunner.QUEUED_REENTRY_KEY, true)
+                .put(com.openminis.app.agent.jobs.HelperRunner.QUEUED_REENTRY_KEY, fromQueue)
                 // A queued task always runs in the background: its tool call
                 // already returned `queued`, so there is nothing left to block.
                 .put("wait", false)
@@ -14788,16 +14791,19 @@ class ChatViewModel(
             clearDelegateOverride(toolId)
             return reject("child_start_failed", "The helper session could not resolve a provider.")
         }
-        val outcome = withContext(Dispatchers.Main) { childVm.submitPrompt(hr.childPrompt(args)) }
+        val outcome = withContext(Dispatchers.Main) {
+            if (registry.job(job.id)?.isActive != true) return@withContext null
+            childVm.submitPrompt(hr.childPrompt(args))
+        } ?: return reject("cancelled", "This helper was stopped before it started.")
         if (outcome !is SubmitOutcome.Sent) {
             registry.setThen(job.id, com.openminis.app.agent.jobs.AgentJobThen.None)
             registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, null)
             clearDelegateOverride(toolId)
             return reject("child_start_failed", "The helper session did not start ($outcome).")
         }
-        registry.markRunning(job.id, child.id) {
+        if (!registry.markRunning(job.id, child.id) {
             if (childVm.isStreaming.value) childVm.cancelStream()
-        }
+        }) return reject("cancelled", "This helper was stopped during startup.")
         // [T-subagent-termination] `running` until an ending path replaces it;
         // still `running` later with no live run reads as `interrupted`.
         com.openminis.app.agent.jobs.SubAgentTerminationStore.shared.begin(child.id, job.id, parentSid)

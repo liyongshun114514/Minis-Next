@@ -313,7 +313,9 @@ object ScheduledAgentRunner {
             status = "Error",
             responseText = "Error: ${t.message}",
             timedOut = false,
-        )
+        ).also { result ->
+            runCatching { closeChildJob(app, sessionId, result) }
+        }
     }
 
     private suspend fun resolveSessionId(app: MinisApp, task: ScheduledTask): String? {
@@ -511,6 +513,7 @@ object ScheduledAgentRunner {
             registry.finish(job.id, com.openminis.app.agent.jobs.AgentJobState.FAILED, "Scheduled child startup failed")
             throw failure
         }
+        if (registry.job(job.id)?.isActive != true) return null
         AppLogger.info(TAG, "task ${task.id}: child ${child.id.take(8)} of ${parentSid.take(8)} job=${job.id.take(8)} tier=${resolution.tierUsed.wire}")
         return child.id
     }

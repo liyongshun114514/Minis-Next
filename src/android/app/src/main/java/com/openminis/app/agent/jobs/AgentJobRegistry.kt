@@ -636,12 +636,12 @@ object AgentJobRegistry {
     fun setThen(jobId: String, then: AgentJobThen) { update(jobId) { it.copy(then = then) } }
 
     /** The producer has started the run in [sessionId]. [onCancel] stops it. */
-    fun markRunning(jobId: String, sessionId: String?, onCancel: (() -> Unit)? = null) {
+    fun markRunning(jobId: String, sessionId: String?, onCancel: (() -> Unit)? = null): Boolean {
         if (_jobs.value[jobId]?.isActive != true) {
             // Stop may arrive while the child VM is still being constructed.
             // Termination is sticky: stop that late child instead of reviving it.
             runCatching { onCancel?.invoke() }
-            return
+            return false
         }
         val job = update(jobId) {
             it.copy(
@@ -651,9 +651,10 @@ object AgentJobRegistry {
                 runSessionId = sessionId ?: it.runSessionId,
                 remaining = it.remaining?.let { r -> maxOf(0, r - 1) },
             )
-        } ?: return
+        } ?: return false
         if (onCancel != null) cancelHooks[jobId] = onCancel
         AppLogger.info(TAG, "RUNNING ${job.logLabel} session=${sessionId?.take(8) ?: "nil"} fired=${job.firedCount}")
+        return true
     }
 
     // ── Steering  [T-sub-agents-steer] ──────────────────────────────────────
