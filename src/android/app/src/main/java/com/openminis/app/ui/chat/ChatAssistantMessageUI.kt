@@ -309,7 +309,7 @@ internal fun AssistantHeader() {
         // 18.dp, matching the previous Icon exactly: the row height feeds a
         // measured-height estimate in the message list, so the icon stays
         // square and same-sized whichever branch renders.
-        com.openminis.app.ui.settings.SoulIconGlyph(
+        com.openminis.app.ui.components.SoulAvatarGlyph(
             icon = soulMeta.icon,
             sizeDp = 18.dp,
             emojiSp = 15.sp,

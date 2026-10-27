@@ -19,6 +19,15 @@ class WorkflowResourceTests(unittest.TestCase):
         self.assertIn(':app:"$TASK"', invocations[1])
         self.assertNotIn(':app:"$TASK"', invocations[0])
 
+    def test_preserves_regression_reports_and_does_not_publish(self):
+        self.assertIn('cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions', self.build)
+        self.assertNotIn('gh release create', self.text)
+        self.assertNotIn('softprops/action-gh-release', self.text)
+        self.assertIn('contents: read', self.text)
+        self.assertIn('agent.SoulIconImportRoboTest', self.build)
+        self.assertIn('zero skipped', self.build)
+        self.assertIn('for k in ("skipped","failures","errors")', self.build)
+
     def test_compile_has_one_worker_and_one_jvm(self):
         self.assertIn('--max-workers=1 --no-parallel', self.build)
         self.assertIn('-Pkotlin.compiler.execution.strategy=in-process', self.build)

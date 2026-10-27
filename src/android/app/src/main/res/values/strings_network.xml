@@ -7,7 +7,7 @@
     <string name="network_default_route_footer">Used by every part of the app set to “Follow Default”. Addresses in your tailnet always go through Tailscale while it is on, whatever the route.</string>
     <string name="network_default_route_covers">The app’s own requests use it too: update checks, skill downloads, voice, weather and images in chats. A provider’s model list, usage and sign-in follow that provider’s route. Mirror speed tests always connect directly, to measure this network itself.</string>
     <string name="network_tailscale">Tailscale</string>
-    <string name="network_tailscale_footer">Runs inside Minis, without a VPN profile: only Minis\'s own connections can reach your tailnet, and only while Minis is running. “Use Subnet Routes” lets addresses that other devices share (such as a home network) go through Tailscale.</string>
+    <string name="network_tailscale_footer">Runs inside Kairos, without a VPN profile: only Kairos\'s own connections can reach your tailnet, and only while Kairos is running. “Use Subnet Routes” lets addresses that other devices share (such as a home network) go through Tailscale.</string>
     <string name="network_status">Status</string>
     <string name="network_status_starting">Starting…</string>
     <string name="network_status_connected">Connected</string>
@@ -17,7 +17,7 @@
     <string name="network_login_browser">Log In with Browser</string>
     <string name="network_copy_login_link">Copy Login Link</string>
     <string name="network_login_opening">Opening the sign-in page…</string>
-    <string name="network_login_in_browser">Finish signing in in the browser. Minis comes back by itself.</string>
+    <string name="network_login_in_browser">Finish signing in in the browser. Kairos comes back by itself.</string>
     <string name="network_login_no_page">Tailscale did not return a sign-in page. Check the connection and try again.</string>
     <string name="network_login_no_browser">No browser could open the sign-in page. Copy the link and open it in a browser.</string>
     <string name="network_login_auth_key">Log In with Auth Key</string>
@@ -71,7 +71,7 @@
     <string name="network_provider_route">Network</string>
     <string name="network_provider_route_footer">How this provider\'s requests connect. Set up Tailscale and proxies in Settings &gt; Network.</string>
     <string name="network_restore_direct">Restore Direct Connections</string>
-    <string name="network_restore_direct_footer">Turns Tailscale and every proxy route off at once, without a restart: all of Minis connects as if nothing here were set. Your settings are kept.</string>
+    <string name="network_restore_direct_footer">Turns Tailscale and every proxy route off at once, without a restart: all of Kairos connects as if nothing here were set. Your settings are kept.</string>
     <string name="network_paused_title">Network settings are off</string>
     <string name="network_paused_message">Every connection is direct. Turn them back on to use Tailscale and your proxies again.</string>
     <string name="network_turn_back_on">Turn Back On</string>
@@ -80,7 +80,7 @@
     <string name="network_diagnostics_running">Checking…</string>
     <string name="network_diagnostics_copy">Copy Result</string>
     <string name="network_copied">Copied</string>
-    <string name="network_entry_note">Minis listens on 127.0.0.1 for its own connections. Other apps on this device can reach that port but cannot use it without a password that changes every time Minis starts.</string>
+    <string name="network_entry_note">Kairos listens on 127.0.0.1 for its own connections. Other apps on this device can reach that port but cannot use it without a password that changes every time Kairos starts.</string>
     <!-- [FEAT-261021-04] Settings > Network section -->
     <string name="network_routing_title">Network Routing</string>
     <string name="network_container_dns">Shell Container DNS</string>
@@ -99,7 +99,7 @@
     <string name="network_stop_using_proxy">Stop Using This Proxy</string>
     <string name="network_stop_using_proxy_footer">Everything routed through this proxy connects directly instead. The proxy stays in the list; choose it as a route again to use it.</string>
     <string name="network_proxy_not_in_use">Nothing is routed through this proxy any more.</string>
-    <string name="network_tailscale_failing_footer">Turn Tailscale off above to connect directly again, or keep it on and Minis keeps trying.</string>
+    <string name="network_tailscale_failing_footer">Turn Tailscale off above to connect directly again, or keep it on and Kairos keeps trying.</string>
     <string name="network_reason_timeout">timed out</string>
     <string name="network_reason_dns">server name not found</string>
     <string name="network_reason_refused">connection refused</string>

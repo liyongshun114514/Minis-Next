@@ -1,26 +1,27 @@
-# Kairos 1.0.0
+# Kairos 1.0.1
 
 Kairos is an independently packaged Android fork of [OpenMinis](https://github.com/OpenMinis/OpenMinis), maintained in [liyongshun114514/OpenMinis](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot). Existing copyright notices, authorship and GPLv3 licensing are retained.
 
 ## Independent application
 
 - Application ID: `com.kairos.app` (source namespace remains `com.openminis.app`; it is not the installation ID).
-- Version: `1.0.0`, Android versionCode `1`.
+- Version: `1.0.1`, Android versionCode `2`; same package and signing identity as 1.0.0.
 - Android arm64-v8a, minSdk 26 / targetSdk 35 / compileSdk 36.
 - Separate app storage from Minis/OpenMinis/Minis Next. No automatic access to or migration of their private app data.
-- Launcher: new cyan/violet orbital star-ring, automatic/dark/light adaptive variants and an Android themed-icon silhouette. Source artwork is maintained under `branding/kairos/`.
+- Launcher: ivory/amber hourglass on midnight indigo, automatic/dark/light adaptive variants and a same-artwork Android themed-icon silhouette. Source artwork is maintained under `branding/kairos/`.
 - Static app shortcuts target `com.kairos.app` while the activity classes retain the source namespace.
 
-## Prompt modes
+## Global system prompt
 
-The two settings are mutually exclusive runtime modes, not merely editor tabs:
+Only the global editor and saved `SOUL.md` body are active. Per-model/per-group custom prompts and mode selection are removed. Legacy rule files remain preserved for backup compatibility but are not applied; a previously saved CUSTOM mode cannot suppress the global body.
 
-- **Global**: every selected model uses the same saved global system-prompt body. Model/group rule text is not added.
-- **Custom**: only the configured prompt for the exact provider-instance/model pair is used. A model with no enabled nonempty prompt receives no user-configured system-prompt body. The global body is never a fallback or an addition in this mode.
+The application imposes no body character/word limit and does not truncate saved text. Real model context windows, API payload limits and provider fees still apply. The global body is frozen for a turn and sent once through each provider's native system channel (OpenAI system/instructions, Anthropic system, Gemini systemInstruction where supported). Native channel placement is not a promise to override provider rules. Ordinary tool/runtime/environment instructions and device permission gates remain unchanged.
 
-The application still sends its ordinary tool/runtime/environment instructions separately. API-system channel placement does not supersede model-provider safety policy or device permission gates. Existing child-agent prompt separation is unchanged. A mode is captured for a turn; fallback/model-switch resolution uses that same mode with the new exact model identity.
+## Avatar and PRoot maintenance
 
-The custom editor is model-only: choose a model, edit text, save; rows provide enable/edit/delete. Legacy group records can remain stored without being applied. Mode/rules share the backed-up `SOUL_PROMPT_RULES.json` envelope, and the global text remains in `SOUL.md`.
+Avatar images fill the circle with center-crop in settings, chat, export and overlays. Import decodes image bounds first and samples pixel data before resizing; local file-size/pixel-count rejection is removed without allocating full camera-resolution bitmaps. Unreadable formats and I/O errors are still reported.
+
+On PRoot boot, the current process's supplementary IDs from `/proc/self/status` are named in the guest's `etc/group` only when missing. Existing rows and permissions are preserved. This fixes `groups: cannot find name for group ID ...` without changing the host groups, invoking Root or suppressing terminal errors. Chroot setup is unchanged.
 
 ## Distribution, updates and contact
 
@@ -39,6 +40,8 @@ Release builds use an explicit private Kairos signing identity, not the Android 
 Signing credentials are stored outside the public repository and passed via encrypted GitHub Actions secrets. They must be backed up privately by the maintainer and never attached to a release. No app-installation or device-Root action is required to build or publish.
 
 ## Build and acceptance
+
+For 1.0.1, deliver the verified CI APK only; do **not** create a GitHub Release or tag. The earlier 1.0.0 Release was deleted at the maintainer's request (its source/tag/local APK remain).
 
 Use the `Kairos Android APK` workflow (`.github/workflows/android-ubuntu.yml`) on `ubuntu-chroot` with release variant. It builds the Ubuntu guest toolset, runs the selected JVM/resource/protocol regressions, compiles Android/Compose and checks the final ZIP, package, launcher aliases, ABI, signature and alignment. The bundled guest is extracted with the production Kotlin installer; skipped/failed extraction tests reject delivery. `scripts/stage_kairos_release.py` independently checks the release certificate and stages versioned files with SHA-256 and source-commit metadata.
 

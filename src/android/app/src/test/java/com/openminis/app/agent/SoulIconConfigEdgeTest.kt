@@ -180,11 +180,29 @@ class SoulIconConfigEdgeTest {
             )
             val back = SoulMDParser.parse(text)
             assertEquals(v, back.metadata.icon)
-            // The other keys must survive untouched.
-            assertEquals("Minis", back.metadata.name)
+            // The other keys must survive untouched. Asserted against the
+            // DEFAULT rather than a literal: the shipped name was renamed
+            // (Minis -> Kairos) and the icon round trip is not the place that
+            // decides the product's name. Pin the actual default elsewhere;
+            // here the point is only "unchanged".
+            assertEquals(SoulMetadata.DEFAULT.name, back.metadata.name)
             assertEquals("auto", back.metadata.lang)
             assertEquals("body", back.body.trim())
         }
+    }
+
+    /**
+     * A user's OWN name must survive an icon change: the round trip is about
+     * the icon, and the writer always reads the current file first. This is
+     * the case a hard-coded default-name assertion would have hidden.
+     */
+    @Test
+    fun `a custom name is preserved when only the icon changes`() {
+        val custom = SoulMetadata.DEFAULT.copy(name = "My Assistant", icon = "")
+        val withIcon = custom.copy(icon = SoulIcon.DATA_URI_PREFIX + "iVBORw0KGgo=")
+        val back = SoulMDParser.parse(SoulMDParser.serialize(SoulFile(withIcon, "body")))
+        assertEquals("My Assistant", back.metadata.name)
+        assertEquals(withIcon.icon, back.metadata.icon)
     }
 
     /**

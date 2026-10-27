@@ -4,7 +4,7 @@
     <string name="network_title">Netzwerk</string>
     <string name="network_default_route">Standardroute</string>
     <string name="network_default_route_footer">Gilt für alle Bereiche, die auf „Standard folgen“ stehen. Adressen in deinem Tailnet laufen immer über Tailscale, solange es eingeschaltet ist – unabhängig von der Route.</string>
-    <string name="network_tailscale_footer">Läuft innerhalb von Minis, ohne VPN-Profil: Nur Verbindungen von Minis selbst erreichen dein Tailnet, und nur solange Minis läuft. „Subnetzrouten verwenden“ leitet Adressen, die andere Geräte freigeben (etwa ein Heimnetz), über Tailscale.</string>
+    <string name="network_tailscale_footer">Läuft innerhalb von Kairos, ohne VPN-Profil: Nur Verbindungen von Kairos selbst erreichen dein Tailnet, und nur solange Kairos läuft. „Subnetzrouten verwenden“ leitet Adressen, die andere Geräte freigeben (etwa ein Heimnetz), über Tailscale.</string>
     <string name="network_status">Status</string>
     <string name="network_status_starting">Wird gestartet …</string>
     <string name="network_status_connected">Verbunden</string>

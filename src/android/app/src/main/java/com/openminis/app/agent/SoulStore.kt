@@ -184,211 +184,6 @@ object SoulMDParser {
 }
 
 /**
- * Result of a SOUL.md body length check. The hard limit depends on what
- * language the body is written in — Chinese / Japanese / Korean text is
- * information-dense per character so the cap is in chars, while English /
- * other Latin-alphabet text is capped by word count.
- *
- * Mirrors `SoulStore.isOverLimit(_:)` on iOS. The associated value carries
- * the observed magnitude and the matching cap so callers can surface a
- * precise "your body is N / max M" message.
- */
-sealed class SoulBodyLimitCheck {
-    object Ok : SoulBodyLimitCheck()
-    data class OverLimitChinese(val chars: Int, val cap: Int) : SoulBodyLimitCheck()
-    data class OverLimitEnglish(val words: Int, val cap: Int) : SoulBodyLimitCheck()
-
-    val isOverLimit: Boolean get() = this !is Ok
-}
-
-/**
- * [T-native-composer-soul-limit] How the SOUL.md body length gate behaves.
- *
- * NATIVE keeps the shipped language-aware caps (1600 CJK chars / 1000 Latin
- * words). UNLIMITED removes only the application-side length gate and shows
- * the editor counter as / ∞. CUSTOM lets the user set both caps explicitly.
- *
- * [T-soul-unlimited-default] UNLIMITED is the DEFAULT: the system prompt has
- * no application-side word/character ceiling unless a user explicitly
- * narrowed it to CUSTOM. See [SoulBodyLimitMode.isUnlimited] for how a stale
- * NATIVE value left on disk by an older build is folded into "unlimited".
- *
- * This policy is about LENGTH ONLY. Prompt construction, the injection
- * scrubber and instruction priority remain the native implementation and are
- * not touched by any mode.
- */
-enum class SoulBodyLimitMode {
-    NATIVE,
-    UNLIMITED,
-    CUSTOM,
-    ;
-
-    /**
-     * [T-soul-unlimited-default] Effective "no application-side length gate".
-     *
-     * UNLIMITED is obvious; NATIVE is folded in too. NATIVE used to be the
-     * default AND the only mode, so any stored NATIVE was either written by an
-     * older build's default or by a user clicking "Native caps" on a page that
-     * no longer exists — neither is a deliberate cap in a build whose default
-     * is unlimited. CUSTOM is the only mode that survives, because it is the
-     * only one a user could only have reached by typing numbers.
-     */
-    val isUnlimited: Boolean get() = this != CUSTOM
-}
-
-/** Persisted body-length configuration. Values are normalised on every write/read. */
-data class SoulBodyLimitSettings(
-    // [T-soul-unlimited-default] The default is the shipped behaviour now:
-    // no application-side length gate on the system prompt.
-    val mode: SoulBodyLimitMode = SoulBodyLimitMode.UNLIMITED,
-    val chineseCharLimit: Int = SoulStore.CHINESE_CHAR_LIMIT,
-    val englishWordLimit: Int = SoulStore.ENGLISH_WORD_LIMIT,
-) {
-    fun normalized(): SoulBodyLimitSettings {
-        val cn = chineseCharLimit.coerceIn(MIN_CUSTOM_LIMIT, MAX_CUSTOM_LIMIT)
-        val en = englishWordLimit.coerceIn(MIN_CUSTOM_LIMIT, MAX_CUSTOM_LIMIT)
-        return if (cn == chineseCharLimit && en == englishWordLimit) this
-        else copy(chineseCharLimit = cn, englishWordLimit = en)
-    }
-
-    companion object {
-        const val MIN_CUSTOM_LIMIT: Int = 1
-        const val MAX_CUSTOM_LIMIT: Int = 1_000_000
-    }
-}
-
-/**
- * Storage + classification for [SoulBodyLimitSettings].
- *
- * The current value is cached in-process because the native write/prompt
- * paths call `SoulStore.isOverLimit(body)` without a Context. Those call
- * sites (Settings Save, the minis-config `soul.body` writer, and
- * `SystemPromptBuilder.identitySection`) therefore obey the same selected
- * mode without changing their signatures.
- *
- * Threading: reads/writes are synchronized; the cached value is volatile.
- * No security decision is stored here — the injection patterns and the
- * prompt assembly remain native code.
- */
-object SoulBodyLimitPolicy {
-    private const val PREFS_NAME = "soul_body_limit"
-    private const val KEY_MODE = "mode"
-    private const val KEY_CN = "chinese_char_limit"
-    private const val KEY_EN = "english_word_limit"
-
-    @Volatile private var cached = SoulBodyLimitSettings()
-    @Volatile private var loaded = false
-
-    /**
-     * [T-soul-unlimited-default] Test-only override. The JVM unit tests run
-     * without a Context (no SharedPreferences), while `SoulStore.isOverLimit(body)`
-     * — the call the prompt builder and the minis-config writer use — reads
-     * this cache. Setting a value here lets a test pin the effective policy
-     * without an Android framework. `null` (the shipped state) means "read
-     * from prefs". Never set from production code.
-     */
-    @Volatile internal var forced: SoulBodyLimitSettings? = null
-
-    fun current(): SoulBodyLimitSettings = forced ?: cached
-
-    @Synchronized
-    fun ensureLoaded(context: Context) {
-        if (forced != null) return
-        if (!loaded) read(context)
-    }
-
-    @Synchronized
-    fun load(context: Context): SoulBodyLimitSettings = read(context)
-
-    private fun read(context: Context): SoulBodyLimitSettings {
-        if (forced != null) return forced!!
-        val prefs = context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val rawMode = prefs.getString(KEY_MODE, SoulBodyLimitMode.UNLIMITED.name)
-        val stored = runCatching {
-            SoulBodyLimitMode.valueOf(rawMode ?: SoulBodyLimitMode.UNLIMITED.name)
-        }.getOrDefault(SoulBodyLimitMode.UNLIMITED)
-        // [T-soul-unlimited-default] NATIVE and UNLIMITED both read as
-        // unlimited; only a stored CUSTOM keeps enforcing caps. See
-        // [SoulBodyLimitMode.isUnlimited] for why the stale NATIVE is folded in
-        // rather than honoured. The custom values themselves are left on disk
-        // untouched (not zeroed) — read() is a query, not a migration.
-        val mode = if (stored.isUnlimited) SoulBodyLimitMode.UNLIMITED else stored
-        val value = SoulBodyLimitSettings(
-            mode = mode,
-            chineseCharLimit = prefs.getInt(KEY_CN, SoulStore.CHINESE_CHAR_LIMIT),
-            englishWordLimit = prefs.getInt(KEY_EN, SoulStore.ENGLISH_WORD_LIMIT),
-        ).normalized()
-        cached = value
-        loaded = true
-        return value
-    }
-
-    @Synchronized
-    fun save(context: Context, settings: SoulBodyLimitSettings) {
-        val value = settings.normalized()
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_MODE, value.mode.name)
-            .putInt(KEY_CN, value.chineseCharLimit)
-            .putInt(KEY_EN, value.englishWordLimit)
-            .apply()
-        cached = value
-        loaded = true
-    }
-
-    /**
-     * The ONE length classifier. Only CUSTOM inspects the body: every other
-     * mode — UNLIMITED, and a stored NATIVE folded into it by
-     * [SoulBodyLimitMode.isUnlimited] — returns Ok without counting anything.
-     * Injection validation is deliberately absent here — it is handled by
-     * [SystemPromptBuilder.containsInjectionPattern] / [scrubInjections]
-     * exactly as before.
-     */
-    fun check(
-        body: String,
-        settings: SoulBodyLimitSettings = current(),
-    ): SoulBodyLimitCheck {
-        if (settings.mode.isUnlimited) return SoulBodyLimitCheck.Ok
-        val effective = settings.normalized()
-        if (effective.mode.isUnlimited) return SoulBodyLimitCheck.Ok
-        val trimmed = body.trim()
-        if (trimmed.isEmpty()) return SoulBodyLimitCheck.Ok
-
-        var cjk = 0
-        var total = 0
-        var i = 0
-        while (i < trimmed.length) {
-            val cp = trimmed.codePointAt(i)
-            total += 1
-            if (SoulStore.isCJKCodePoint(cp)) cjk += 1
-            i += Character.charCount(cp)
-        }
-        val ratio = if (total > 0) cjk.toDouble() / total else 0.0
-        val cnCap = if (effective.mode == SoulBodyLimitMode.CUSTOM) {
-            effective.chineseCharLimit
-        } else {
-            SoulStore.CHINESE_CHAR_LIMIT
-        }
-        val enCap = if (effective.mode == SoulBodyLimitMode.CUSTOM) {
-            effective.englishWordLimit
-        } else {
-            SoulStore.ENGLISH_WORD_LIMIT
-        }
-        return if (ratio > SoulStore.CJK_RATIO_THRESHOLD) {
-            val chars = trimmed.codePointCount(0, trimmed.length)
-            if (chars > cnCap) SoulBodyLimitCheck.OverLimitChinese(chars, cnCap)
-            else SoulBodyLimitCheck.Ok
-        } else {
-            val words = trimmed.split(Regex("\\s+")).count { it.isNotEmpty() }
-            if (words > enCap) SoulBodyLimitCheck.OverLimitEnglish(words, enCap)
-            else SoulBodyLimitCheck.Ok
-        }
-    }
-}
-
-/**
  * File-system helpers + cached metadata. Methods are intentionally
  * `Context`-scoped instead of taking a global singleton — keeps the
  * dependency surface explicit and avoids depending on MinisApp from
@@ -428,68 +223,6 @@ object SoulStore {
     fun iconFileLocation(context: Context): File =
         File(File(context.filesDir, MEMORY_SUBDIR), SoulIcon.SIDECAR_NAME)
 
-    // -- Body length rules (language-aware) ----------------------------
-    //
-    // The personality body has a hard cap applied at every write surface
-    // (Settings UI Save button, minis-config writer, and the
-    // prompt-build-time fallback in `SystemPromptBuilder`). The cap is
-    // language-dependent: CJK text is information-dense per character so
-    // 1600 chars is the limit; Latin / mixed text gets a 1000-word cap.
-    // (T-soul-body-limit-2000 — both axes doubled from 800 / 500 to align
-    //  with iOS bumping its single 1000→2000 token cap.)
-    //
-    // CJK ratio of 30% switches the rule. A body whose CJK glyphs make up
-    // more than 30% of all unicode code points is treated as CJK-leaning
-    // and counted by character; anything at-or-below 30% is counted by
-    // word. 30% is the lowest watermark at which Chinese / Japanese
-    // clearly dominates — high enough to ignore stray CJK quotes or
-    // proper nouns in an English document, low enough that a majority-CJK
-    // paragraph with a few inline English terms still counts as CJK.
-
-    const val CJK_RATIO_THRESHOLD: Double = 0.3
-    const val CHINESE_CHAR_LIMIT: Int = 1600
-    const val ENGLISH_WORD_LIMIT: Int = 1000
-
-    /**
-     * Classify [body] under the language-aware length rules above. Empty
-     * / whitespace-only bodies always return [SoulBodyLimitCheck.Ok].
-     */
-    fun isOverLimit(body: String): SoulBodyLimitCheck =
-        SoulBodyLimitPolicy.check(body, SoulBodyLimitPolicy.current())
-
-    /**
-     * Pure variant for UI previews/tests: classify [body] against [settings]
-     * without touching the in-process cache.
-     */
-    fun isOverLimit(body: String, settings: SoulBodyLimitSettings): SoulBodyLimitCheck =
-        SoulBodyLimitPolicy.check(body, settings)
-
-    /**
-     * True if [cp] belongs to any CJK Unified Ideograph or Kana / Hangul
-     * range. Covers Chinese (Simplified + Traditional), Japanese
-     * (Hiragana + Katakana + Kanji shared with CJK Unified), and Korean
-     * (Hangul Syllables + Jamo). Wider than just U+4E00–U+9FFF so the
-     * extensions and Hangul also count toward the ratio.
-     */
-    internal fun isCJKCodePoint(cp: Int): Boolean {
-        // CJK Unified Ideographs + Ext A
-        if (cp in 0x4E00..0x9FFF) return true
-        if (cp in 0x3400..0x4DBF) return true
-        // CJK Unified Ideographs Ext B, C/D/E/F, G/H
-        if (cp in 0x20000..0x2A6DF) return true
-        if (cp in 0x2A700..0x2EBEF) return true
-        if (cp in 0x30000..0x323AF) return true
-        // Hiragana, Katakana, Katakana Phonetic Extensions
-        if (cp in 0x3040..0x309F) return true
-        if (cp in 0x30A0..0x30FF) return true
-        if (cp in 0x31F0..0x31FF) return true
-        // Hangul Syllables, Jamo, Compatibility Jamo
-        if (cp in 0xAC00..0xD7AF) return true
-        if (cp in 0x1100..0x11FF) return true
-        if (cp in 0x3130..0x318F) return true
-        return false
-    }
-
     /**
      * The verbatim default file content used both for first-run
      * auto-create and the "Restore Default" button in Settings.
@@ -525,7 +258,6 @@ lang: "auto"
      * Safe to call on every launch — never overwrites existing user edits.
      */
     fun ensureExists(context: Context) {
-        SoulBodyLimitPolicy.ensureLoaded(context)
         val file = fileLocation(context)
         if (file.exists()) return
         try {
@@ -543,9 +275,6 @@ lang: "auto"
      * empty body and callers may treat that as "fall back to default".
      */
     fun load(context: Context): SoulFile? {
-        // The write/prompt paths call isOverLimit(String) without a Context;
-        // prime the cached policy here so they observe the user's choice.
-        SoulBodyLimitPolicy.ensureLoaded(context)
         val file = fileLocation(context)
         if (!file.exists()) return null
         return try {
@@ -585,7 +314,6 @@ lang: "auto"
 
     /** Atomic write through a `.tmp` sibling, then rename. */
     fun save(context: Context, file: SoulFile) {
-        SoulBodyLimitPolicy.ensureLoaded(context)
         val target = fileLocation(context)
         target.parentFile?.mkdirs()
         // [T-android-soul-icon-sidecar] Move the bytes out to the sidecar and
@@ -651,7 +379,6 @@ lang: "auto"
      * of [save] (currently only the Settings UI uses save()).
      */
     fun refreshCache(context: Context) {
-        SoulBodyLimitPolicy.ensureLoaded(context)
         val parsed = load(context)
         _cachedMetadata.value = parsed?.metadata ?: SoulMetadata.DEFAULT
     }
@@ -761,18 +488,6 @@ object SystemPromptBuilder {
         "Application system prompt (configured in Settings → System Prompt; sent through the provider's native system channel):"
 
     /**
-     * [K-mode-isolation] Header for the CUSTOM-mode block. In CUSTOM mode this
-     * text IS the configured application prompt for the selected model, so the
-     * wording says exactly that and makes no priority claim beyond the (shared)
-     * preamble — the previous "appended after the global prompt, never
-     * replaces it" wording was only true while the two modes could be summed.
-     * Kept as one constant so the runtime and the tests agree on the exact
-     * wording.
-     */
-    internal const val CUSTOM_RULES_HEADER =
-        "Custom system prompt for the currently selected model (configured in Settings → System Prompt → Custom; it applies to this model only):"
-
-    /**
      * [T-soul-prompt-supreme] Render the application system prompt.
      *
      * Layout, and why it is this order:
@@ -805,123 +520,36 @@ object SystemPromptBuilder {
     }
 
     /**
-     * [K-mode-isolation] The GLOBAL-mode application block: the SOUL.md body
-     * and nothing else. Scoped rules are not consulted at all here, which is
-     * the whole point of the mode — a stale custom rule cannot leak into a
-     * GLOBAL turn even if the file still contains it.
+     * [K-global-prompt-only] The application system prompt: the user's global
+     * SOUL.md body, and nothing else.
+     *
+     * There is no per-model / per-group alternative any more. The legacy
+     * `SOUL_PROMPT_RULES.json` and its mode value are kept on disk for
+     * compatibility, but this function does not read them: a stale CUSTOM
+     * selection cannot replace or suppress the global body.
      */
     fun applicationPrompt(context: Context): String? =
-        applicationPrompt(SoulStore.load(context), SoulPromptMode.GLOBAL, emptyList(), SoulPromptSelection())
+        applicationPrompt(SoulStore.load(context))
 
     /**
-     * [K-mode-isolation] The one entry point the runtime uses. [mode] decides
-     * which half of the configuration is rendered — the two are NEVER
-     * concatenated:
-     *
-     *  - [SoulPromptMode.GLOBAL] → [SUPREME_PREAMBLE] + the SOUL.md body.
-     *    [rules] is ignored (a caller may pass the turn snapshot without
-     *    having to filter it first, and even then nothing of it is rendered).
-     *  - [SoulPromptMode.CUSTOM] → [SUPREME_PREAMBLE] + the enabled MODEL
-     *    rules whose (`providerInstanceId`, `modelId`) pair equals
-     *    [selection]. The SOUL.md body is not read at all, and no match means
-     *    null — never the global body.
-     *
-     * The [SoulFile] snapshot is passed in so one turn keeps a stable global
-     * body even if Settings saves mid-turn, while the [SoulPromptSelection] is
-     * supplied per request — that is what makes a model switch/fallback apply
-     * to the very next request instead of only to the next turn.
+     * Global block for one frozen [SoulFile] snapshot. The caller passes the
+     * file it loaded at turn start, so a Settings save mid-turn cannot change
+     * the prompt under that turn (retries and model switches reuse it).
      */
-    fun applicationPrompt(
-        context: Context,
-        mode: SoulPromptMode,
-        rules: List<SoulPromptRule>,
-        selection: SoulPromptSelection,
-    ): String? = applicationPrompt(SoulStore.load(context), mode, rules, selection)
-
-    internal fun applicationPrompt(file: SoulFile?): String? =
-        applicationPrompt(file, SoulPromptMode.GLOBAL, emptyList(), SoulPromptSelection())
-
-    internal fun applicationPrompt(
-        file: SoulFile?,
-        mode: SoulPromptMode,
-        rules: List<SoulPromptRule>,
-        selection: SoulPromptSelection,
-    ): String? = when (mode) {
-        SoulPromptMode.GLOBAL -> globalBlock(file)
-        SoulPromptMode.CUSTOM -> customBlock(rules, selection)
-    }
-
-    /** The SOUL.md body, after the existing length + injection gates. */
-    private fun globalBody(file: SoulFile?): String? {
-        val trimmed = file?.body?.trim().orEmpty()
-        if (trimmed.isEmpty()) return null
-        if (SoulStore.isOverLimit(trimmed).isOverLimit) {
-            AppLogger.warning(TAG, "application prompt body is over the configured length limit — omitting the global block")
-            return null
-        }
-        return scrubInjections(trimmed).takeIf { it.isNotBlank() }
-    }
+    internal fun applicationPrompt(file: SoulFile?): String? = globalBlock(file)
 
     /**
      * GLOBAL block. Null when the user has not written a body — the caller
-     * then emits no application block at all, exactly as before this existed.
+     * then emits no application block at all. There is no application-side
+     * length gate: the body is sent as written (after the injection scrubber
+     * below, which removes lines that try to replace the system prompt).
      */
     private fun globalBlock(file: SoulFile?): String? {
-        val body = globalBody(file) ?: return null
+        val trimmed = file?.body?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        val body = scrubInjections(trimmed).trim()
+        if (body.isEmpty()) return null
         return SUPREME_PREAMBLE + "\n\n" + APPLICATION_PROMPT_HEADER + "\n" + body
-    }
-
-    /**
-     * CUSTOM block. It takes no [SoulFile] on purpose: there is no code path
-     * here that could append the global body, so "custom" can never degrade
-     * into "global + custom".
-     *
-     * Several rules for one model (an old build allowed them) are rendered in
-     * their stored order — stable, no sorting by id/name, so the same file
-     * always produces the same bytes.
-     */
-    private fun customBlock(
-        rules: List<SoulPromptRule>,
-        selection: SoulPromptSelection,
-    ): String? {
-        if (!SoulPromptRuleResolver.selectionCanMatch(selection)) return null
-        val matched = SoulPromptRuleResolver.matching(rules, selection).mapNotNull { match ->
-            val content = match.rule.content.trim()
-            if (content.isEmpty()) return@mapNotNull null
-            if (SoulStore.isOverLimit(content).isOverLimit) {
-                AppLogger.warning(TAG, "custom prompt rule ${match.rule.id} is over the configured length limit — skipped")
-                return@mapNotNull null
-            }
-            // Custom rules are user-authored prompt text, so they pass through
-            // exactly the same injection scrubber as the global body. This is
-            // not a new filtering mode and does not relax anything.
-            val scrubbed = scrubInjections(content)
-            if (scrubbed.isBlank()) null else RenderedRule(match.rule.name.trim(), scrubbed)
-        }
-        if (matched.isEmpty()) return null
-
-        val sb = StringBuilder()
-        sb.append(SUPREME_PREAMBLE)
-        sb.append("\n\n").append(CUSTOM_RULES_HEADER)
-        for (rule in matched) {
-            sb.append("\n\n").append(ruleHeading(rule)).append("\n").append(rule.content)
-        }
-        return sb.toString()
-    }
-
-    private data class RenderedRule(
-        val name: String,
-        val content: String,
-    )
-
-    /**
-     * A stable, content-free heading. Rule ids are deliberately not printed:
-     * they are storage details. Only the MODEL scope reaches this point, so
-     * the heading never has to name a legacy group rule.
-     */
-    private fun ruleHeading(rule: RenderedRule): String {
-        val scope = "Model rule"
-        return if (rule.name.isEmpty()) "[$scope]" else "[$scope · ${rule.name}]"
     }
 
     /** Render settings into the application's API system message. */
@@ -938,8 +566,7 @@ object SystemPromptBuilder {
         // [T-soul-hint] Fixed hint telling the model how SOUL fields can be
         // changed. Always appended (with or without a personality body) so
         // the model never says "I can't change my personality". This hint
-        // is system-owned text and is NOT counted against the user-facing
-        // SOUL body length limit (#356 / 1000 EN words / 1600 CN chars).
+        // is system-owned text and is not part of the user's global body.
         val soulEditHint =
             "---\n" +
             "The assistant avatar, name and application system prompt can be edited in Settings → System Prompt (系统提示词).\n" +
@@ -966,18 +593,10 @@ object SystemPromptBuilder {
             return identityTrimmed + "\n\n" + SANDBOX_FACTS + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
         }
 
-        // Reject (NOT truncate) bodies that exceed the then-active length
-        // policy — which since [T-soul-unlimited-default] is UNLIMITED unless
-        // the user explicitly narrowed it to CUSTOM. The old head/tail
-        // truncation silently dropped half the user's text; falling back to
-        // identity-only is the safer signal when a cap IS in force. This
-        // branch is about the cap only; it is not a priority decision.
-        val check = SoulStore.isOverLimit(trimmed)
-        if (check.isOverLimit) {
-            AppLogger.warning(TAG, "personality body is over the configured length limit ($check) — falling back to identity-only system prompt.")
-            return identityTrimmed + "\n\n" + SANDBOX_FACTS + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
-        }
-
+        // [K-global-prompt-only] No application-side length gate and no
+        // truncation: the user's global body is sent as written. The only
+        // transformation that remains is the injection scrubber, which drops
+        // lines that try to replace the system prompt (safety, not length).
         val personality = scrubInjections(trimmed)
 
         // [T-soul-prompt-supreme] Application prompt FIRST. See [render]'s KDoc

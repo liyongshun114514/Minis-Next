@@ -127,6 +127,18 @@ object PRootKernel {
         // each app update. Mirrors iOS RootfsManager.applyDefaultMountOverlay.
         rootfsManager.applyDefaultMountOverlay()
 
+        // [FEAT-261028-PROOT-GROUPS] PRoot hands the guest the host's
+        // supplementary group list, and Ubuntu has no names for Android's
+        // device/OEM-dependent ids. Read them from THIS process (no fixed
+        // ids) and write the missing names before any shell can start — this
+        // also covers an image installed by an older build. PRoot only: a
+        // chroot image is not modified here, and installIfNeeded() stays
+        // untouched. Additive and non-fatal; syncGuestGroupNames() logs and
+        // records any failure.
+        if (SandboxBackendStore.selected(context) == SandboxBackend.PROOT) {
+            rootfsManager.syncGuestGroupNames()
+        }
+
         // Re-apply user mirror selections — the overlay above ships stock
         // config files (pip.conf, .npmrc, repositories) and would otherwise
         // revert user-chosen mirrors on every boot. Mirrors iOS ordering in

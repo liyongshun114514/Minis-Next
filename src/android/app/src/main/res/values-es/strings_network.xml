@@ -4,7 +4,7 @@
     <string name="network_title">Red</string>
     <string name="network_default_route">Ruta predeterminada</string>
     <string name="network_default_route_footer">La usan todas las partes de la app configuradas en «Seguir predeterminada». Mientras Tailscale está activado, las direcciones de tu tailnet siempre pasan por Tailscale, sea cual sea la ruta.</string>
-    <string name="network_tailscale_footer">Funciona dentro de Minis, sin perfil VPN: solo las conexiones de Minis llegan a tu tailnet, y solo mientras Minis está en ejecución. «Usar rutas de subred» hace que las direcciones que comparten otros dispositivos (como una red doméstica) pasen por Tailscale.</string>
+    <string name="network_tailscale_footer">Funciona dentro de Kairos, sin perfil VPN: solo las conexiones de Kairos llegan a tu tailnet, y solo mientras Kairos está en ejecución. «Usar rutas de subred» hace que las direcciones que comparten otros dispositivos (como una red doméstica) pasen por Tailscale.</string>
     <string name="network_status">Estado</string>
     <string name="network_status_starting">Iniciando…</string>
     <string name="network_status_connected">Conectado</string>

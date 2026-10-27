@@ -32,10 +32,16 @@ object SoulIcon {
     const val STORED_PIXELS = 256
 
     /**
-     * Hard cap on the stored string. A 96px PNG lands far below this; the cap
-     * exists so a hand-edited or synced-in SOUL.md cannot put an unbounded
-     * blob on the single frontmatter line (there is no other size guard on
-     * frontmatter, unlike the body which has its own limit).
+     * Hard cap on the stored string — the frontmatter line's own capacity
+     * limit, not a verdict on the user's picture.
+     *
+     * [T-soul-avatar-import-no-size-cap] A 256px PNG normally lands far below
+     * this. The cap exists so a hand-edited or synced-in SOUL.md cannot put an
+     * unbounded blob on the single frontmatter line (there is no other size
+     * guard on frontmatter, unlike the body which has its own limit), and so
+     * the value stays within what the config/backup plumbing will carry.
+     * [encode] never REJECTS a picture because of it: it walks
+     * [INLINE_EDGE_LADDER] until the rendering fits.
      */
     const val MAX_DATA_URI_CHARS = 64 * 1024
 
@@ -63,16 +69,62 @@ object SoulIcon {
         DATA_URI_PREFIX + Base64.encodeToString(png, Base64.NO_WRAP)
 
     /**
-     * Corner radius as a fraction of the icon's edge, matching iOS.
+     * LEGACY: the rounded-rectangle corner radius a previous renderer used.
      *
-     * Rounded, deliberately NOT a circle: at 18dp in the chat header a circle
-     * eats the corners of a small avatar. 22% is the platform app-icon
-     * proportion.
+     * [T-soul-avatar-circle] The avatar is a CIRCLE everywhere now
+     * (`ui/components/SoulAvatar.kt`): a 22% rounded rectangle reads as a
+     * "squarish tile" and, on the identity card, left the frame's margin
+     * visible as a ring of background around the picture. The constant is kept
+     * ONLY because `ui/settings/SoulSettingsScreen.kt` still names it on its
+     * own renderer; nothing may read it once that call site moves to
+     * `SoulAvatarGlyph`. Do not use it for new drawing.
      */
     const val CORNER_RADIUS_FRACTION = 0.22f
 
-    /** Why a picked image was refused. */
-    enum class Rejection { UNREADABLE, TOO_LARGE }
+    /**
+     * Longest edge, in pixels, an imported picture is DECODED at, before
+     * [encode] shrinks it to [STORED_PIXELS].
+     *
+     * [T-soul-avatar-import-no-size-cap] This is a SAFETY BOUND, not a
+     * user-facing limit: it exists so a 10800x8100 phone photo or a 100MP scan
+     * is never materialised at full resolution (which is what used to make the
+     * import path OOM or die on `Bitmap` allocation) while still leaving 4x the
+     * stored resolution for a clean final resample. Images of ANY byte size and
+     * ANY pixel count are accepted; they are simply sampled down while
+     * decoding. Rejecting a picture because of its size was the behaviour this
+     * replaced.
+     */
+    const val IMPORT_DECODE_EDGE_PX = 1024
+
+    /**
+     * [T-soul-avatar-import-no-size-cap] Edges [encode] tries, in order, when
+     * the PNG of the largest one would not fit [MAX_DATA_URI_CHARS].
+     *
+     * The cap is a *storage-format* invariant (a SOUL.md frontmatter line must
+     * stay small enough to be parsed and synced), NOT a verdict on the user's
+     * picture: instead of refusing an image that compresses badly — a detailed
+     * 256px photo with noise can exceed 64KB of base64 — the encoder steps the
+     * edge down until it fits. 32px is the floor and its PNG is a few KB even
+     * for pure noise, so the loop always terminates in a stored icon. Small
+     * sources are never upscaled: an edge above the source's own longest edge
+     * is a no-op step.
+     */
+    val INLINE_EDGE_LADDER: IntArray = intArrayOf(STORED_PIXELS, 192, 128, 96, 64, 32)
+
+    /**
+     * Why a picked image was refused.
+     *
+     * [T-soul-avatar-import-no-size-cap] There is exactly ONE reason left:
+     * the data could not be read. `TOO_LARGE` used to be the other, and it
+     * was an opinion about the user's file (byte size, then encoded size)
+     * rather than a defect. It is GONE from the enum on purpose: oversize
+     * sources are sampled while decoding ([importFrom]) and an encode that
+     * would not fit the inline cap steps down [INLINE_EDGE_LADDER] to its
+     * 32px floor, which always fits. Deleting the constant is what makes it
+     * impossible for a UI branch to offer a "picture too large" message
+     * again.
+     */
+    enum class Rejection { UNREADABLE }
 
     sealed class EncodeResult {
         data class Success(val dataUri: String) : EncodeResult()
@@ -80,65 +132,272 @@ object SoulIcon {
     }
 
     /**
-     * Normalize a picked bitmap into the stored form: aspect ratio preserved,
-     * longest edge downscaled to [STORED_PIXELS], PNG, base64 data URI.
+     * Normalize a bitmap into the stored form: aspect ratio preserved, longest
+     * edge downscaled to [STORED_PIXELS] (or the first edge of
+     * [INLINE_EDGE_LADDER] whose PNG fits [MAX_DATA_URI_CHARS]), PNG, base64
+     * data URI.
      *
-     * [T-soul-avatar-fill] Not centre-cropped to a square any more. The avatar
-     * is drawn with `ContentScale.Crop` inside a rounded rectangle, so a
-     * non-square image fills the frame instead of letterboxing inside it; the
-     * crop happens at draw time, not by destroying pixels on save.
+     * [T-soul-avatar-circle] Not centre-cropped to a square. The avatar is
+     * drawn with `ContentScale.Crop` inside a CIRCLE, so a non-square image
+     * fills the frame instead of letterboxing inside it; the crop happens at
+     * draw time, not by destroying pixels on save.
+     *
+     * [T-soul-avatar-import-no-size-cap] **No image is refused for being too
+     * large.** An earlier version failed with `Rejection.TOO_LARGE` whenever
+     * the encoded string passed 64KB, which a perfectly ordinary detailed
+     * photo of a few hundred pixels hit — an arbitrary limit on the user's
+     * file, not a safety measure. The encoder now walks [INLINE_EDGE_LADDER]
+     * and keeps the largest rendering that fits, so the stored value stays
+     * parseable and the picture is still accepted.
      *
      * **Opaque images are accepted.** An earlier version refused anything
      * without an alpha channel, reasoning that an unframed opaque rectangle
      * reads as a broken tile. That reasoning was about PRESENTATION, so the
-     * fix belongs in the renderer — every image is now clipped to a rounded
-     * rectangle ([CORNER_RADIUS_FRACTION]) wherever it is drawn. With that in
-     * place the refusal only turned away most of the images a user might pick.
-     * Follows iOS `fe2f3ae8b`, which reversed the same rule for the same
-     * reason; the two platforms must agree, since the value syncs.
+     * fix belongs in the renderer — every image is clipped to a circle
+     * wherever it is drawn. Follows iOS `fe2f3ae8b`, which reversed the same
+     * rule for the same reason; the two platforms must agree, since the value
+     * syncs.
      *
      * Alpha is still PRESERVED (PNG, never flattened) — it is simply no
-     * longer required.
+     * longer required. Null-ish bitmaps and compression failures remain
+     * [Rejection.UNREADABLE]: those are real defects, not size opinions.
      */
     fun encode(source: Bitmap): EncodeResult {
         if (source.width <= 0 || source.height <= 0) {
             return EncodeResult.Failure(Rejection.UNREADABLE)
         }
+        // [T-soul-avatar-alpha-fill] A PNG with a transparent border would be
+        // CENTRED, not filled, inside the avatar circle: the circle clip
+        // cannot shrink an image that is already the right aspect ratio, so
+        // the empty margin survives as a ring of nothing between the artwork
+        // and the frame edge. Trimming the OUTER transparent rows/columns
+        // makes the visible content reach the frame; interior transparency
+        // (holes, soft edges, a circular logo's corners) is left alone. Only
+        // images that actually carry alpha are scanned.
+        val content = trimTransparentEdges(source)
+        return try {
+            encodeLadder(content)
+        } finally {
+            if (content !== source) content.recycle()
+        }
+    }
 
-        // [T-soul-avatar-fill] NO crop. The stored image keeps the picked
-        // image's aspect ratio; only its LONGEST edge is bounded, by
-        // [STORED_PIXELS]. Cropping here was the old behaviour and it threw
-        // away everything outside the centre square before the user could see
-        // where the avatar would sit; the renderer now fills the frame
-        // (ContentScale.Crop) so the visible crop is predictable and reversible
-        // — pick a different image, nothing was destroyed on disk.
-        val (w, h) = scaledSize(source.width, source.height, STORED_PIXELS)
-        // Never upscale: a 48px source stays 48px rather than being blown up
-        // and looking soft.
+    /**
+     * The ladder itself: the largest rendering that fits the inline cap, and
+     * — because [INLINE_EDGE_LADDER] ends at 32px — never a refusal.
+     */
+    private fun encodeLadder(source: Bitmap): EncodeResult {
+        var smallest: String? = null
+        for (edge in INLINE_EDGE_LADDER) {
+            val png = pngAtEdge(source, edge) ?: return EncodeResult.Failure(Rejection.UNREADABLE)
+            // NO_WRAP is mandatory: the default inserts newlines, and the
+            // frontmatter parser is strictly line-oriented — a wrapped payload
+            // would be truncated at the first break.
+            val encoded = dataUri(png)
+            if (fitsInline(encoded.length)) return EncodeResult.Success(encoded)
+            smallest = encoded
+        }
+        // Unreachable: a 32x32 ARGB PNG is at most 4KB of pixels, i.e. ~5.5KB
+        // of base64, far below the 64KB cap. If a codec ever managed to exceed
+        // it, storing the floor rendering is still better than telling the
+        // user their perfectly good picture is "too large" — the cap is a
+        // format constraint, not a verdict on their file.
+        return EncodeResult.Success(smallest!!)
+    }
+
+    /**
+     * [T-soul-avatar-alpha-fill] Crop the fully transparent outer margin, so
+     * the visible pixels fill the avatar frame.
+     *
+     * Returns [source] itself when there is nothing to trim (no alpha, all
+     * opaque, fully transparent, or a scan failure), so the caller can tell
+     * the two cases apart by identity and recycle only what it created.
+     */
+    internal fun trimTransparentEdges(source: Bitmap): Bitmap {
+        if (!source.hasAlpha()) return source
+        val w = source.width
+        val h = source.height
+        if (w <= 0 || h <= 0) return source
+        val pixels = IntArray(w * h)
+        runCatching { source.getPixels(pixels, 0, w, 0, 0, w, h) }.getOrElse { return source }
+        val bounds = alphaBounds(pixels, w, h) ?: return source
+        val (left, top, right, bottom) = bounds
+        if (left == 0 && top == 0 && right == w - 1 && bottom == h - 1) return source
+        return runCatching {
+            Bitmap.createBitmap(source, left, top, right - left + 1, bottom - top + 1)
+        }.getOrNull() ?: source
+    }
+
+    /**
+     * [T-soul-avatar-alpha-fill] The box of non-invisible pixels in an ARGB
+     * buffer, as `(left, top, right, bottomInclusive)`, or null when every
+     * pixel is (near) transparent.
+     *
+     * A "visible" threshold of 8/255 rather than 1: an alpha of 1–7 is
+     * imperceptible on any screen and is exactly what encoders leave in the
+     * margin, so counting it would keep a one-pixel ghost border and defeat
+     * the trim.
+     *
+     * Pure arithmetic over an IntArray, so the trim decision is asserted on
+     * the JVM where a Bitmap cannot be built.
+     */
+    internal fun alphaBounds(pixels: IntArray, width: Int, height: Int): IntArray? {
+        if (width <= 0 || height <= 0) return null
+        if (pixels.size < width * height) return null
+        var left = width
+        var top = height
+        var right = -1
+        var bottom = -1
+        for (y in 0 until height) {
+            val row = y * width
+            for (x in 0 until width) {
+                val alpha = pixels[row + x] ushr 24
+                if (alpha < VISIBLE_ALPHA) continue
+                if (x < left) left = x
+                if (x > right) right = x
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
+        }
+        if (right < 0) return null
+        return intArrayOf(left, top, right, bottom)
+    }
+
+    /** Alpha at or above this is treated as visible content. */
+    private const val VISIBLE_ALPHA = 8
+
+    /**
+     * PNG bytes for [source] with its longest edge at [edge], never upscaled.
+     * Null when the bitmap cannot be scaled or compressed at all.
+     */
+    private fun pngAtEdge(source: Bitmap, edge: Int): ByteArray? {
+        val (w, h) = scaledSize(source.width, source.height, edge)
         val scaled = if (source.width == w && source.height == h) {
             source
         } else {
-            Bitmap.createScaledBitmap(source, w, h, true)
+            runCatching { Bitmap.createScaledBitmap(source, w, h, true) }.getOrNull()
+                ?: return null
         }
-
-        val png = ByteArrayOutputStream().use { out ->
-            // PNG is lossless and ignores the quality argument, so alpha and
-            // exact pixels survive the round trip.
-            if (!scaled.compress(Bitmap.CompressFormat.PNG, 100, out)) {
-                return EncodeResult.Failure(Rejection.UNREADABLE)
+        return runCatching {
+            ByteArrayOutputStream().use { out ->
+                // PNG is lossless and ignores the quality argument, so alpha
+                // and exact pixels survive the round trip.
+                if (!scaled.compress(Bitmap.CompressFormat.PNG, 100, out)) return null
+                out.toByteArray()
             }
-            out.toByteArray()
-        }
-
-        // NO_WRAP is mandatory: the default inserts newlines, and the
-        // frontmatter parser is strictly line-oriented — a wrapped payload
-        // would be truncated at the first break.
-        val encoded = DATA_URI_PREFIX + Base64.encodeToString(png, Base64.NO_WRAP)
-        if (encoded.length > MAX_DATA_URI_CHARS) {
-            return EncodeResult.Failure(Rejection.TOO_LARGE)
-        }
-        return EncodeResult.Success(encoded)
+        }.getOrNull()
     }
+
+    /**
+     * True when a base64 data URI of [encodedChars] characters may be stored
+     * inline. Pure arithmetic so the "does it fit?" decision — the only thing
+     * left that can look like a size limit — is asserted on the JVM.
+     */
+    internal fun fitsInline(encodedChars: Int, cap: Int = MAX_DATA_URI_CHARS): Boolean =
+        encodedChars <= cap
+
+    // ── Import (streaming, downsampled) ──────────────────────────────────
+
+    /**
+     * [T-soul-avatar-import-no-size-cap] Turn a user-picked picture into the
+     * stored icon WITHOUT ever materialising it at full resolution.
+     *
+     * The old path was `BitmapFactory.decodeStream(input)` followed by a byte
+     * check: a 10800x8100 camera photo (350MB as ARGB_8888) was decoded whole
+     * and then judged, so the app either died on the allocation (OOM, which
+     * no `runCatching` can make good on) or refused a perfectly ordinary
+     * picture for being "too large". Neither is acceptable.
+     *
+     * Now the stream is read TWICE, which is cheap because the decoder only
+     * parses a header on the first pass:
+     *
+     *  1. bounds only (`inJustDecodeBounds`) — pixels are never allocated;
+     *  2. one real decode at [sampleSizeFor]'s power-of-two sample, so a
+     *     100MP source arrives as ~1MP (≈4MB), then [encode] resamples that
+     *     down to [STORED_PIXELS].
+     *
+     * Any byte size and any pixel count is accepted, as long as the platform
+     * can decode the format. [open] must return a FRESH stream on every call
+     * (a `content://` URI can be opened repeatedly; a one-shot stream cannot).
+     *
+     * Failure is reserved for real defects: an unreadable/unrecognised file,
+     * a truncated stream, or an I/O error while reading it. Those surface as
+     * [Rejection.UNREADABLE] — the "can't read your file" verdict, never
+     * "your file is too big".
+     */
+    fun importFrom(open: () -> java.io.InputStream?): EncodeResult {
+        val bounds = readBounds(open) ?: return EncodeResult.Failure(Rejection.UNREADABLE)
+        val sample = sampleSizeFor(bounds.first, bounds.second)
+        val bitmap = decodeSampled(open, sample)
+            ?: return EncodeResult.Failure(Rejection.UNREADABLE)
+        return try {
+            encode(bitmap)
+        } finally {
+            // The caller handed us no bitmap, so nothing else can be holding
+            // it: free ~4MB before the settings screen redraws. encode() has
+            // already copied what it needs into the PNG bytes.
+            bitmap.recycle()
+        }
+    }
+
+    /** [importFrom] over bytes already in memory (minis-config, shared files). */
+    fun importBytes(bytes: ByteArray): EncodeResult =
+        importFrom { java.io.ByteArrayInputStream(bytes) }
+
+    /**
+     * The `inSampleSize` that keeps a [width]×[height] decode at or under
+     * [maxEdge] on its longest side, as a power of two (what
+     * `BitmapFactory` actually honours).
+     *
+     * Pure arithmetic so the memory bound — the thing that replaced the size
+     * rejection — is asserted on the JVM. A source already within [maxEdge]
+     * is sampled at 1 (no resampling, no upscale). The result is always >= 1,
+     * so a 1px image is not divided into zero.
+     */
+    internal fun sampleSizeFor(
+        width: Int,
+        height: Int,
+        maxEdge: Int = IMPORT_DECODE_EDGE_PX,
+    ): Int {
+        require(maxEdge > 0) { "maxEdge must be positive" }
+        if (width <= 0 || height <= 0) return 1
+        val longest = maxOf(width, height)
+        var sample = 1
+        // Double (not multiply-by-anything) because inSampleSize is specified
+        // as a power of two; any other value is rounded down by the platform
+        // and would silently decode larger than we budgeted for.
+        while (longest / sample > maxEdge && sample <= Int.MAX_VALUE / 2) {
+            sample *= 2
+        }
+        return sample
+    }
+
+    /** Image dimensions from a header-only pass; null when nothing decodable. */
+    private fun readBounds(open: () -> java.io.InputStream?): Pair<Int, Int>? {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching { open()?.use { BitmapFactory.decodeStream(it, null, options) } }
+        return if (options.outWidth > 0 && options.outHeight > 0) {
+            options.outWidth to options.outHeight
+        } else {
+            null
+        }
+    }
+
+    private fun decodeSampled(open: () -> java.io.InputStream?, sample: Int): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            // Explicit ARGB_8888: alpha must survive (PNG storage), and the
+            // default can vary with the source format.
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+            inScaled = false
+        }
+        // runCatching also absorbs OutOfMemoryError from a pathological
+        // decode; the sample above is what keeps that from happening, and a
+        // remaining OOM is reported as a read failure rather than a crash.
+        return runCatching { open()?.use { BitmapFactory.decodeStream(it, null, options) } }
+            .getOrNull()
+    }
+
 
     /** Decode a stored data URI. Returns null for an emoji value or garbage. */
     fun decode(value: String): Bitmap? {

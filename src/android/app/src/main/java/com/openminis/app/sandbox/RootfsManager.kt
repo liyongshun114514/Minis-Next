@@ -70,6 +70,15 @@ class RootfsManager private constructor(private val context: Context) {
     var lastLegacyBackup: File? = null
         private set
 
+    /**
+     * [FEAT-261028-PROOT-GROUPS] Why naming the host supplementary group ids
+     * failed on the last [syncGuestGroupNames] run, or null. Kept as state (not
+     * only a log line) so a settings/diagnostic surface can show it later.
+     */
+    @Volatile
+    var lastGuestGroupWarning: String? = null
+        private set
+
     /** Every preserved pre-Ubuntu rootfs, newest last. Never deleted automatically. */
     val legacyBackupDirs: List<File>
         get() = context.filesDir.listFiles()
@@ -226,6 +235,11 @@ class RootfsManager private constructor(private val context: Context) {
                 )
             }
 
+            // [FEAT-261028-PROOT-GROUPS] Deliberately NOT synced here:
+            // installIfNeeded() also runs for a chroot image, and the user asked
+            // for the PRoot guest only. PRootKernel.bootLocked() repairs the
+            // live rootfs before the first shell (fresh and existing images).
+
             // resolv.conf now that the tree is live (needs the active network).
             refreshDns()
 
@@ -318,6 +332,31 @@ class RootfsManager private constructor(private val context: Context) {
         } catch (t: Throwable) {
             Log.w(TAG, "[UbuntuConfig] failed: ${t.message}", t)
         }
+    }
+
+    /**
+     * [FEAT-261028-PROOT-GROUPS] Name the host supplementary group ids PRoot
+     * passes into the guest, for both a fresh install and an image that was
+     * installed by an older build. Idempotent, additive, and never fatal: the
+     * failure (and its reason) is stored in [lastGuestGroupWarning] and logged
+     * at WARN, so a broken `/etc/group` is visible instead of silently
+     * leaving `groups` printing numeric ids.
+     */
+    fun syncGuestGroupNames(): GuestGroupNames.Outcome? {
+        if (!rootfsDir.isDirectory) return null
+        val outcome = runCatching { GuestSupplementaryGroups.ensure(rootfsDir) }
+            .getOrElse { t ->
+                lastGuestGroupWarning = "${t.javaClass.simpleName}: ${t.message}"
+                Log.w(TAG, "[GuestGroups] ${lastGuestGroupWarning}")
+                return null
+            }
+        lastGuestGroupWarning = outcome.error
+        if (outcome.error != null) {
+            Log.w(TAG, "[GuestGroups] ${outcome.error}")
+        } else if (outcome.added.isNotEmpty()) {
+            Log.i(TAG, "[GuestGroups] added ${outcome.added.size} group name(s) to ${outcome.groupFile}")
+        }
+        return outcome
     }
 
     /** All default packages ship preinstalled; a marker alone never proves readiness. */

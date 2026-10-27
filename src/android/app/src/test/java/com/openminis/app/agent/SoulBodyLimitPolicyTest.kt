@@ -1,174 +1,91 @@
 package com.openminis.app.agent
 
-import org.junit.After
+import com.openminis.app.ProductionSources
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [T-native-composer-soul-limit] [T-soul-unlimited-default] Pure-JVM tests for
- * the length policy.
- *
- * Only `SoulStore.isOverLimit(body, settings)` is touched: no Context, no
- * SharedPreferences, no prompt construction. The security boundary is
- * covered separately by the source contract test (injection patterns and
- * scrubber byte-identical to HEAD).
- *
- * [T-soul-unlimited-default] The policy's DEFAULT is now UNLIMITED, and a
- * stored NATIVE is folded into it. The first tests below pin that; the
- * NATIVE-cap tests are kept as CUSTOM tests so the caps themselves stay
- * covered (that is the only mode that still counts anything).
+ * [K-global-prompt-only] There is no application-side body length policy any
+ * more — not for the default, not for a stored NATIVE/CUSTOM value left on
+ * disk by an older build, and not for `forced` test overrides (the type that
+ * carried them is gone). This file used to pin the language-aware caps; it now
+ * pins their absence at both the source and the prompt-build level.
  */
 class SoulBodyLimitPolicyTest {
 
-    private val defaultSettings = SoulBodyLimitSettings()
+    private val soul = ProductionSources.read("agent/SoulStore.kt")
+    private val builtins = ProductionSources.read("config/ConfigBuiltins.kt")
 
-    @After
-    fun clearForcedPolicy() {
-        SoulBodyLimitPolicy.forced = null
+    @Test
+    fun `the length policy types no longer exist in production`() {
+        val offenders = ProductionSources.allKotlinFiles().filter { f ->
+            val text = f.readText()
+            text.contains("SoulBodyLimitPolicy") ||
+                text.contains("SoulBodyLimitSettings") ||
+                text.contains("SoulBodyLimitCheck") ||
+                text.contains("isOverLimit")
+        }.map { it.name }
+        assertEquals("no length gate type or call site may remain: $offenders", emptyList<String>(), offenders)
     }
 
     @Test
-    fun `default mode is unlimited`() {
-        assertEquals(SoulBodyLimitMode.UNLIMITED, defaultSettings.mode)
-        assertTrue(defaultSettings.mode.isUnlimited)
+    fun `a body far past the old chinese cap is sent whole`() {
+        val body = "汉".repeat(60_000)
+        val block = SystemPromptBuilder.applicationPrompt(SoulFile(SoulMetadata.DEFAULT, body))
+        assertNotNull(block)
+        assertTrue("every character must reach the provider", block!!.contains(body))
+        assertEquals(SystemPromptBuilder.SUPREME_PREAMBLE, block.substringBefore("\n\n"))
+
+        val rendered = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT, body))
+        assertTrue(rendered.contains(body))
     }
 
     @Test
-    fun `unlimited and stale native are both unlimited, only custom counts`() {
-        assertTrue(SoulBodyLimitMode.UNLIMITED.isUnlimited)
-        assertTrue("a stored NATIVE from an older build reads as unlimited",
-            SoulBodyLimitMode.NATIVE.isUnlimited)
-        assertEquals(false, SoulBodyLimitMode.CUSTOM.isUnlimited)
+    fun `a body far past the old english cap is sent whole`() {
+        val body = (1..20_000).joinToString(" ") { "word$it" }
+        val block = SystemPromptBuilder.applicationPrompt(SoulFile(SoulMetadata.DEFAULT, body))
+        assertNotNull(block)
+        assertTrue(block!!.contains(body))
+        assertTrue(block.contains("word20000"))
     }
 
     @Test
-    fun `default unlimited accepts a body far beyond either native cap`() {
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(50_000)))
-        assertSame(
-            SoulBodyLimitCheck.Ok,
-            SoulStore.isOverLimit((1..20_000).joinToString(" ") { "w$it" }),
-        )
-    }
-
-    @Test
-    fun `unlimited accepts a body far beyond either native cap`() {
-        val unlimited = SoulBodyLimitSettings(mode = SoulBodyLimitMode.UNLIMITED)
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(50_000), unlimited))
-        assertSame(
-            SoulBodyLimitCheck.Ok,
-            SoulStore.isOverLimit((1..20_000).joinToString(" ") { "w$it" }, unlimited),
-        )
-    }
-
-    @Test
-    fun `a stored native limit no longer rejects a long body`() {
-        // What an older build left on disk: mode=NATIVE with the caps filled
-        // in (they were the defaults). It must NOT gate the save any more.
-        val staleNative = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.NATIVE,
-            chineseCharLimit = 1600,
-            englishWordLimit = 1000,
-        )
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(50_000), staleNative))
-        assertSame(
-            SoulBodyLimitCheck.Ok,
-            SoulStore.isOverLimit((1..5_000).joinToString(" ") { "w$it" }, staleNative),
-        )
-    }
-
-    @Test
-    fun `custom CJK cap is enforced at the code-point boundary`() {
-        val custom = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.CUSTOM,
-            chineseCharLimit = 1600,
-            englishWordLimit = 1000,
-        )
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(1600), custom))
-        val over = SoulStore.isOverLimit("汉".repeat(1601), custom)
-        assertTrue(over is SoulBodyLimitCheck.OverLimitChinese)
-        assertEquals(1601, (over as SoulBodyLimitCheck.OverLimitChinese).chars)
-        assertEquals(1600, over.cap)
-    }
-
-    @Test
-    fun `custom English cap is enforced at the word boundary`() {
-        val custom = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.CUSTOM,
-            chineseCharLimit = 1600,
-            englishWordLimit = 1000,
-        )
-        val at = (1..1000).joinToString(" ") { "w$it" }
-        val overBody = (1..1001).joinToString(" ") { "w$it" }
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit(at, custom))
-        val over = SoulStore.isOverLimit(overBody, custom)
-        assertTrue(over is SoulBodyLimitCheck.OverLimitEnglish)
-        assertEquals(1001, (over as SoulBodyLimitCheck.OverLimitEnglish).words)
-        assertEquals(1000, over.cap)
-    }
-
-    @Test
-    fun `custom caps are enforced per majority language`() {
-        val custom = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.CUSTOM,
-            chineseCharLimit = 10,
-            englishWordLimit = 5,
-        )
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(10), custom))
-        val cjkOver = SoulStore.isOverLimit("汉".repeat(11), custom)
-        assertTrue(cjkOver is SoulBodyLimitCheck.OverLimitChinese)
-        assertEquals(10, (cjkOver as SoulBodyLimitCheck.OverLimitChinese).cap)
-
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("a b c d e", custom))
-        val enOver = SoulStore.isOverLimit("a b c d e f", custom)
-        assertTrue(enOver is SoulBodyLimitCheck.OverLimitEnglish)
-        assertEquals(5, (enOver as SoulBodyLimitCheck.OverLimitEnglish).cap)
-    }
-
-    @Test
-    fun `empty and whitespace bodies stay ok in every mode`() {
-        for (mode in SoulBodyLimitMode.entries) {
-            val settings = SoulBodyLimitSettings(mode = mode)
-            assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("", settings))
-            assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("  \n\t ", settings))
+    fun `legacy stored settings and forced overrides cannot gate anything`() {
+        // The SharedPreferences namespace that held mode/caps is not read by
+        // any production source, so an old CUSTOM / NATIVE value on a device
+        // has no effect: there is no reader to honour it.
+        assertFalse(soul.contains("soul_body_limit"))
+        assertFalse(soul.contains("SharedPreferences"))
+        assertFalse(soul.contains("CHINESE_CHAR_LIMIT"))
+        assertFalse(soul.contains("ENGLISH_WORD_LIMIT"))
+        assertFalse(soul.contains("SoulBodyLimitMode"))
+        for (f in ProductionSources.allKotlinFiles()) {
+            assertFalse(
+                "unexpected legacy length-prefs read in ${f.name}",
+                f.readText().contains("soul_body_limit"),
+            )
         }
     }
 
     @Test
-    fun `settings normalise custom caps into the supported range`() {
-        val low = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.CUSTOM,
-            chineseCharLimit = 0,
-            englishWordLimit = -5,
-        ).normalized()
-        assertEquals(SoulBodyLimitSettings.MIN_CUSTOM_LIMIT, low.chineseCharLimit)
-        assertEquals(SoulBodyLimitSettings.MIN_CUSTOM_LIMIT, low.englishWordLimit)
-
-        val high = SoulBodyLimitSettings(
-            mode = SoulBodyLimitMode.CUSTOM,
-            chineseCharLimit = Int.MAX_VALUE,
-            englishWordLimit = Int.MAX_VALUE,
-        ).normalized()
-        assertEquals(SoulBodyLimitSettings.MAX_CUSTOM_LIMIT, high.chineseCharLimit)
-        assertEquals(SoulBodyLimitSettings.MAX_CUSTOM_LIMIT, high.englishWordLimit)
+    fun `the writer accepts a long body and only rejects injection`() {
+        assertFalse(builtins.contains("isOverLimit"))
+        assertFalse(builtins.contains("OverLimitChinese"))
+        assertTrue("the injection guard must stay", builtins.contains("containsInjectionPattern(raw)"))
+        val writer = builtins.substringAfter("path = \"soul.body\"")
+        assertTrue("the body is stored verbatim", writer.contains("saveCurrent(cur.copy(body = raw))"))
+        assertFalse("no length rejection text", writer.contains("Over limit:"))
     }
 
-    /**
-     * [T-soul-unlimited-default] The cache the Context-less calls read must
-     * itself resolve to UNLIMITED out of the box — this is the state a fresh
-     * install boots in, before any SharedPreferences read.
-     */
     @Test
-    fun `the process-wide default cache is unlimited`() {
-        assertNull(SoulBodyLimitPolicy.forced)
-        assertEquals(SoulBodyLimitMode.UNLIMITED, SoulBodyLimitPolicy.current().mode)
-        // The value the Context-less `isOverLimit(body)` overload reads is
-        // derived from that same cache, so the two cannot disagree.
-        // The Context-less `isOverLimit(body)` overload routes through
-        // current(), so pin the cache and observe the public entry point.
-        SoulBodyLimitPolicy.forced = SoulBodyLimitSettings(mode = SoulBodyLimitMode.UNLIMITED)
-        assertSame(SoulBodyLimitCheck.Ok, SoulStore.isOverLimit("汉".repeat(50_000)))
+    fun `no omission or truncation branch is left in the prompt builder`() {
+        assertFalse(soul.contains("over the configured length limit"))
+        assertFalse(soul.contains("falling back to identity-only"))
+        assertFalse(soul.contains("custom prompt rule"))
+        // The only body transformation left is the injection scrubber.
+        assertTrue(soul.contains("scrubInjections(trimmed)"))
     }
 }

@@ -12,8 +12,8 @@ class KairosIdentityTest(unittest.TestCase):
     def test_independent_install_identity_and_reset_version(self):
         s=(APP/'build.gradle.kts').read_text()
         self.assertIn('applicationId = "com.kairos.app"',s)
-        self.assertRegex(s,r'versionCode\s*=\s*1\b')
-        self.assertIn('versionName = "1.0.0"',s)
+        self.assertRegex(s,r'versionCode\s*=\s*2\b')
+        self.assertIn('versionName = "1.0.1"',s)
         self.assertIn('namespace = "com.openminis.app"',s)
         self.assertIn('"RELEASE_REPO", "\\"liyongshun114514/OpenMinis\\""',s)
     def test_launcher_brand_and_shortcuts(self):
@@ -33,7 +33,9 @@ class KairosIdentityTest(unittest.TestCase):
                 self.assertIsNotNone(x.find('foreground').get(A+'drawable'))
         monochrome=(RES/'drawable/ic_launcher_monochrome.xml').read_text()
         self.assertNotIn('M 36,70 L 36,38',monochrome)
-        self.assertIn('54,37',monochrome)
+        self.assertIn('@drawable/ic_launcher_monochrome_mask',monochrome)
+        self.assertTrue((RES/'drawable-nodpi/ic_launcher_monochrome_mask.png').is_file())
+        self.assertTrue((ROOT/'branding/kairos/hourglass-source.png').is_file())
     def test_release_uses_private_stable_identity_not_debug_or_cache(self):
         s=(APP/'build.gradle.kts').read_text().split('        release {',1)[1].split('    // [T15-channels]',1)[0]
         self.assertIn('signingConfigs.getByName("kairosRelease")',s)

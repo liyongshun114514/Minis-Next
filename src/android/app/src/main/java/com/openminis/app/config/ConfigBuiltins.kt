@@ -165,7 +165,7 @@ internal object ConfigBuiltins {
             PrefsBoolField(
                 path = "agentTools.userAsk.notifyInBackground",
                 displayName = "Notify about questions in the background",
-                description = "Post a notification when the assistant asks while Minis is in the background. The question can be answered from the notification.",
+                description = "Post a notification when the assistant asks while Kairos is in the background. The question can be answered from the notification.",
                 prefs = prefs,
                 key = spec.NOTIFY_IN_BACKGROUND_KEY,
                 defaultValue = spec.DEFAULT_NOTIFY_IN_BACKGROUND,
@@ -267,7 +267,7 @@ internal object ConfigBuiltins {
         val autoCheck = ClosureField(
             path = "updates.autoCheck",
             displayName = "Check for updates automatically",
-            description = "Whether Minis looks for a new version by itself when it comes to the foreground (at most once a day on stable, every 6 hours on beta). false stops those requests and hides the update badges; Check for Updates in Settings still works.",
+            description = "Whether Kairos looks for a new version by itself when it comes to the foreground (at most once a day on stable, every 6 hours on beta). false stops those requests and hides the update badges; Check for Updates in Settings still works.",
             valueSchema = ConfigSchema.Bool,
             risk = ConfigRisk.NORMAL,
             revertable = true,
@@ -287,7 +287,7 @@ internal object ConfigBuiltins {
             if (com.openminis.app.BuildConfig.AUTO_UPDATE_CHECK) {
                 autoCheck
             } else {
-                UnavailableField(autoCheck, "This build of Minis does not check for updates by itself.")
+                UnavailableField(autoCheck, "This build of Kairos does not check for updates by itself.")
             }
         )
     }
@@ -1315,11 +1315,15 @@ internal object ConfigBuiltins {
      */
     private fun resolveSoulIconImage(context: Context, raw: String): String {
         val icon = com.openminis.app.agent.SoulIcon
-        val bytes: ByteArray = when (val src = icon.classifySource(raw)) {
+        // The inferred type of `result` is SoulIcon.EncodeResult on every branch.
+        // Produces the ENCODED value, not raw bytes: a path source is read
+        // through a stream so a large file is never loaded whole, and an
+        // inline source is decoded from the value itself.
+        val result = when (val src = icon.classifySource(raw)) {
             is com.openminis.app.agent.SoulIcon.Source.Unsupported ->
                 throw ConfigError.InvalidValue(src.reason)
 
-            is com.openminis.app.agent.SoulIcon.Source.Bytes -> src.data
+            is com.openminis.app.agent.SoulIcon.Source.Bytes -> icon.importBytes(src.data)
 
             is com.openminis.app.agent.SoulIcon.Source.LinuxPath -> {
                 val root = icon.ALLOWED_LINUX_ROOTS.firstOrNull {
@@ -1351,37 +1355,40 @@ internal object ConfigBuiltins {
                 if (!hostFile.isFile) {
                     throw ConfigError.InvalidValue("${src.path} does not exist")
                 }
-                runCatching { hostFile.readBytes() }.getOrElse {
-                    throw ConfigError.InvalidValue("could not read ${src.path}")
+                // [T-soul-avatar-import-no-size-cap] STREAMING import: the
+                // importer reads the header, picks a power-of-two sample and
+                // re-opens the file for one bounded decode. `readBytes()`
+                // here would have put the whole file on the heap before the
+                // decoder ever saw it — the original OOM path.
+                icon.importFrom {
+                    runCatching { java.io.FileInputStream(hostFile) }.getOrNull()
                 }
             }
         }
 
-        val bitmap = runCatching {
-            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        }.getOrNull() ?: throw ConfigError.InvalidValue(
-            "that data isn't a decodable image (png / jpeg / webp / gif are supported; svg is not)",
-        )
-
-        // Same encoder the Settings picker uses, so crop / downscale / size
-        // rules are shared by construction rather than by copy.
-        return when (val r = icon.encode(bitmap)) {
+        // [T-soul-avatar-import-no-size-cap] Decode through the SAME streaming,
+        // down-sampling importer the Settings picker uses: the header is read
+        // first and the pixels are sampled while decoding, so a 100MP file
+        // never becomes a full-resolution Bitmap (which is what used to OOM
+        // here) and no picture is refused for its byte or pixel size. Failure
+        // means the data really is not a readable image.
+        return when (val r = result) {
             is com.openminis.app.agent.SoulIcon.EncodeResult.Success -> r.dataUri
-            is com.openminis.app.agent.SoulIcon.EncodeResult.Failure -> when (r.reason) {
-                com.openminis.app.agent.SoulIcon.Rejection.TOO_LARGE ->
-                    throw ConfigError.InvalidValue("that image is too large to store inline")
-                com.openminis.app.agent.SoulIcon.Rejection.UNREADABLE ->
-                    throw ConfigError.InvalidValue("that image could not be processed")
-            }
+            // The ONLY failure: the data could not be read. There is no
+            // "too large" verdict — an oversized file is sampled while
+            // decoding and the encoder steps down to its 32px floor.
+            is com.openminis.app.agent.SoulIcon.EncodeResult.Failure ->
+                throw ConfigError.InvalidValue(
+                    "that data isn't a decodable image (png / jpeg / webp / gif are supported; svg is not)",
+                )
         }
     }
 
     private fun registerSoul(r: ConfigRegistry, context: Context) {
-        // Length cap is language-aware now (Chinese ≤ 800 chars OR
-        // English ≤ 500 words); see [com.openminis.app.agent.SoulStore.isOverLimit].
-        // No schema-level maxLength — a fixed char count would be wrong
-        // for either language. The writer below rejects over-limit with a
-        // precise [ConfigError.InvalidValue].
+        // [K-global-prompt-only] No application-side length cap and no
+        // schema maxLength: the global body is stored and sent as written.
+        // The writer only rejects prompt-injection patterns (safety), never
+        // a long but legitimate personality prompt.
 
         // Re-read SOUL.md every call so concurrent writes from Settings
         // UI don't race with minis-config writes. Parse falls back to
@@ -1401,7 +1408,7 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.name",
                 displayName = "Soul name",
-                description = "The agent's name as shown in chat bubble headers and as the system-prompt identity. Trimmed; empty falls back to \"Minis\".",
+                description = "The agent's name as shown in chat bubble headers and as the system-prompt identity. Trimmed; empty falls back to \"Kairos\".",
                 valueSchema = ConfigSchema.Str(maxLength = 64),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,
@@ -1463,7 +1470,7 @@ internal object ConfigBuiltins {
                     "then pass its path.\n" +
                     "\n" +
                     "TRANSPARENCY — not required. Opaque images (a JPEG, a flattened PNG) are fine; " +
-                    "the icon renders with rounded corners, so it still reads as a normal small avatar. " +
+                    "the icon fills a circular frame with a center crop, so it still reads as a normal small avatar. " +
                     "Transparency is preserved when the source has it.\n" +
                     "\n" +
                     // [T-soul-avatar-fill] No square crop: the image keeps its
@@ -1473,7 +1480,7 @@ internal object ConfigBuiltins {
                     "aspect ratio is preserved, the longest edge is downscaled to at most " +
                     "${com.openminis.app.agent.SoulIcon.STORED_PIXELS}px, then it is re-encoded as " +
                     "PNG and stored inline. Nothing is cropped on save; the avatar fills its " +
-                    "rounded frame from the image's centre when you look at it.\n" +
+                    "circular frame with a center crop when you look at it.\n" +
                     "\n" +
                     "READING — `get soul.icon` returns \"<image>\" for an image, never the base64.\n" +
                     "\n" +
@@ -1572,11 +1579,11 @@ internal object ConfigBuiltins {
         r.register(
             ClosureField(
                 path = "soul.body",
-                displayName = "Soul personality prompt",
-                description = "Personality / voice instructions injected as a block in the system prompt. Length follows Settings → Soul: native language-aware caps, custom caps, or unlimited. Unlimited changes application length handling only, not provider context limits. The writer also rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
-                // No schema maxLength because either character or word
-                // count is wrong for the *other* language. Both checks
-                // (length + injection) run in the writer below.
+                displayName = "Global system prompt",
+                description = "The global system prompt (personality / voice instructions) sent through the model's native system channel. There is no application-side length limit: the body is stored and sent as written. The writer rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
+                // No schema maxLength: there is no application-side length
+                // limit at all. Only the injection-pattern rejection runs in
+                // the writer below.
                 valueSchema = ConfigSchema.Str(),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,
@@ -1593,18 +1600,6 @@ internal object ConfigBuiltins {
                         throw ConfigError.InvalidValue(
                             "Body contains a prompt-injection pattern (\"ignore/disregard/forget … previous/prior instructions\"). SOUL.md is for personality, not instructions to the model."
                         )
-                    }
-                    val check = com.openminis.app.agent.SoulStore.isOverLimit(raw)
-                    when (check) {
-                        is com.openminis.app.agent.SoulBodyLimitCheck.Ok -> Unit
-                        is com.openminis.app.agent.SoulBodyLimitCheck.OverLimitChinese ->
-                            throw ConfigError.InvalidValue(
-                                "Over limit: ${check.chars} Chinese chars exceeds cap of ${check.cap}. Either trim to ≤ ${check.cap} chars, or rewrite mostly in English to use the ≤ ${com.openminis.app.agent.SoulStore.ENGLISH_WORD_LIMIT}-word cap."
-                            )
-                        is com.openminis.app.agent.SoulBodyLimitCheck.OverLimitEnglish ->
-                            throw ConfigError.InvalidValue(
-                                "Over limit: ${check.words} English words exceeds cap of ${check.cap}. Either trim to ≤ ${check.cap} words, or rewrite mostly in Chinese to use the ≤ ${com.openminis.app.agent.SoulStore.CHINESE_CHAR_LIMIT}-char cap."
-                            )
                     }
                     val cur = loadCurrent()
                     saveCurrent(cur.copy(body = raw))

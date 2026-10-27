@@ -321,19 +321,26 @@ def main() -> int:
     ok(not (ROOT / "src/android/app/src/main/assets/title.dex").exists(),
        "title.dex was copied into the app")
 
-    # --- Soul length policy ---------------------------------------------
-    ok("enum class SoulBodyLimitMode" in soul and "UNLIMITED" in soul,
-       "soul limit modes missing")
-    ok("object SoulBodyLimitPolicy" in soul, "soul limit policy missing")
-    ok("fun isOverLimit(body: String): SoulBodyLimitCheck" in soul,
-       "legacy context-free isOverLimit signature lost")
-    ok("SoulBodyLimitPolicy.ensureLoaded(context)" in soul,
-       "policy is not primed from the native read paths")
-    # The settings page is now a three-field system-prompt editor and the
-    # policy defaults to UNLIMITED, so the length controls, the live counter
-    # and the mode persistence it used to assert no longer exist by design.
-    # The gate itself is still covered by ApplicationSystemPromptTest and
-    # SoulBodyLimitPolicy's own tests.
+    # --- Soul: global-only prompt, no length gate -----------------------
+    # The product now has ONE application prompt (the SOUL.md body) and no
+    # application-side length policy at all: not NATIVE, not CUSTOM, not a
+    # stored mode left on disk. These checks pin the absence of the gate and
+    # of the retired per-model path; the positive behaviour (a very long body
+    # is sent whole) is covered by SoulBodyLimitPolicyTest.
+    ok("SoulBodyLimitMode" not in soul
+       and "SoulBodyLimitPolicy" not in soul
+       and "SoulBodyLimitCheck" not in soul
+       and "isOverLimit" not in soul,
+       "a body-length gate is still present in SoulStore")
+    ok("CUSTOM_RULES_HEADER" not in soul
+       and "SoulPromptMode" not in soul
+       and "SoulPromptRule" not in soul,
+       "the retired GLOBAL/CUSTOM prompt path is still reachable")
+    ok("internal fun applicationPrompt(file: SoulFile?): String? = globalBlock(file)" in soul,
+       "the global application prompt entry point is missing")
+    ok("over the configured length limit" not in soul
+       and "falling back to identity-only" not in soul,
+       "a truncation/omission branch survived in the prompt builder")
 
     # --- Soul safety boundary: prompt text must stay native --------------
     ok("Ubuntu 24.04" in soul and "PRoot or Chroot" in soul,

@@ -153,6 +153,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_workflow_resources.py -v
           python3 scripts/tests/test_native_composer_port.py
           python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
+          python3 -m unittest discover -s scripts/tests -p test_kairos_brand_copy.py -v
           python3 scripts/test_offload_client.py
       - name: Build APK
         id: build-apk
@@ -181,7 +182,8 @@ jobs:
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
-            --tests '*SystemChannelPlacementTest' --tests '*SoulIconAspectRatioTest' \
+            --tests '*SystemChannelPlacementTest' --tests '*SoulIcon*' --tests '*SoulAvatar*' \
+            --tests '*GuestGroupNames*' \
             --tests '*SoulBodyLimitPolicyTest' --tests '*HandlerStubRoutingTest' \
             --tests '*ChrootCliTest' --tests '*ChrootCliTriStateTest' \
             --tests '*RootExecPolicyTest' --tests '*RootExecPermissionTest' --tests '*RootExecutionWiringTest' \
@@ -192,6 +194,10 @@ jobs:
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest'
+          # The final extraction test invokes this task again; preserve the first
+          # selected-regression XMLs instead of silently replacing their reports.
+          cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped Kairos 1.0.1 acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run
@@ -232,7 +238,7 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process \
             :app:testGithubDebugUnitTest --tests '*UbuntuBundledImageCompatibilityTest'
           python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; p=Path("app/build/test-results/testGithubDebugUnitTest/TEST-com.openminis.app.sandbox.UbuntuBundledImageCompatibilityTest.xml"); r=E.parse(p).getroot(); assert int(r.get("tests",0)) > 0 and all(int(r.get(k,0)) == 0 for k in ("skipped","failures","errors")), E.tostring(r).decode(); print("PASS: final APK extracted by production Kotlin installer; no skipped acceptance tests")'
-      - name: Stage verified Kairos release files
+      - name: Stage verified Kairos APK artifacts (no GitHub Release)
         shell: bash
         run: |
           set -euo pipefail

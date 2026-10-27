@@ -1300,23 +1300,24 @@ class ToolOverlayController(private val context: Context) {
      * [T-android-overlay-soul-identity] Paint the identity circle from the
      * user's Soul icon, falling back to the launcher mark.
      *
-     * The three branches mirror SoulIconGlyph (SoulSettingsScreen.kt), which is
-     * the authoritative renderer for this value — that one is @Composable and
-     * cannot be called from a View, so the BRANCHING is duplicated here while
-     * the actual decoding stays shared in SoulIcon. Keeping the decode in one
-     * place is what stops the two from disagreeing about what a given string
-     * means:
+     * The three branches mirror SoulAvatarGlyph (ui/components/SoulAvatar.kt),
+     * the authoritative COMPOSE renderer for this value — that one is
+     * @Composable and cannot be called from a View, so the BRANCHING is
+     * duplicated here while the actual decoding stays shared in SoulIcon.
+     * Keeping the decode in one place is what stops the two from disagreeing
+     * about what a given string means:
      *
      *   data URI  -> SoulIcon.decode() to a Bitmap
      *   non-empty -> an emoji literal, rasterized below
      *   empty     -> unset; keep the launcher icon exactly as before, so a user
      *                who never touched Soul sees no change at all
      *
-     * Note this deliberately does NOT reproduce SoulIconGlyph's rounded-rect
-     * clip. The capsule's circle is an established part of its own visual
+     * [T-soul-avatar-circle] The clip is the SAME circle the Compose renderer
+     * uses: the capsule's circle is an established part of its own visual
      * language (the rotating ring traces that exact circle), and the outline
      * provider that produces it is applied to this ImageView once at build
-     * time. A Soul icon simply takes the place the launcher icon already held.
+     * time. A Soul icon simply takes the place the launcher icon already held,
+     * so avatar and launcher mark share one shape.
      */
     private fun applySoulIdentityIcon(iv: ImageView) {
         val icon = SoulStore.cachedMetadata.value.icon

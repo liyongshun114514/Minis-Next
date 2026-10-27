@@ -4,7 +4,7 @@
     <string name="network_title">Rete</string>
     <string name="network_default_route">Percorso predefinito</string>
     <string name="network_default_route_footer">Usato da tutte le parti dell’app impostate su «Segui predefinito». Con Tailscale attivo, gli indirizzi della tua tailnet passano sempre da Tailscale, qualunque sia il percorso.</string>
-    <string name="network_tailscale_footer">Funziona dentro Minis, senza profilo VPN: solo le connessioni di Minis raggiungono la tua tailnet, e solo mentre Minis è in esecuzione. «Usa route di sottorete» fa passare da Tailscale gli indirizzi condivisi da altri dispositivi (come una rete domestica).</string>
+    <string name="network_tailscale_footer">Funziona dentro Kairos, senza profilo VPN: solo le connessioni di Kairos raggiungono la tua tailnet, e solo mentre Kairos è in esecuzione. «Usa route di sottorete» fa passare da Tailscale gli indirizzi condivisi da altri dispositivi (come una rete domestica).</string>
     <string name="network_status">Stato</string>
     <string name="network_status_starting">Avvio…</string>
     <string name="network_status_connected">Connesso</string>

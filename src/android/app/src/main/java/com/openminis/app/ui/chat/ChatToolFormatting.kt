@@ -127,7 +127,7 @@ internal fun toolAccentColorInt(toolName: String?): Int = when (toolName) {
  * several sessions edit concurrently; the vocabulary here is small and stable.
  */
 internal fun friendlyToolTitleFor(toolName: String?): String = when (toolName) {
-    null, "" -> "Minis"
+    null, "" -> "Kairos"
     "shell_execute" -> "Execute Shell"
     "file_read" -> "Read File"
     "file_write" -> "Write File"
@@ -143,7 +143,7 @@ internal fun friendlyToolTitleFor(toolName: String?): String = when (toolName) {
         .joinToString(" ") { it.replaceFirstChar { ch -> ch.uppercase() } }
 }
 
-// Helper: tool display name for "Minis is using X"
+// Helper: tool display name for "Kairos is using X"
 internal fun toolDisplayName(toolName: String): String = when (toolName) {
     "shell_execute" -> "terminal"
     "file_read" -> "file reader"
@@ -159,20 +159,20 @@ internal fun toolDisplayName(toolName: String): String = when (toolName) {
 }
 
 /**
- * Full "Minis is …" label shown in the tool detail sheet's bottom bar.
+ * Full "Kairos is …" label shown in the tool detail sheet's bottom bar.
  * Mirrors iOS ToolLiveSheet.toolTitle so the wording matches per tool.
  */
 internal fun toolTitleLabel(toolName: String): String = when (toolName) {
-    "shell_execute" -> "Minis is using Shell"
-    "file_read" -> "Minis is reading File"
-    "file_write" -> "Minis is using Editor"
-    "file_edit" -> "Minis is editing File"
-    "browser_use" -> "Minis is using Browser"
-    "read_image" -> "Minis is reading Image"
-    "memory_write", "memory_get" -> "Minis is using Memory"
-    "web_search" -> "Minis is using Search"
-    "subagent_task", "delegate_task", "agent_status" -> "Minis is using an Agent"
-    else -> "Minis is using ${toolDisplayName(toolName)}"
+    "shell_execute" -> "Kairos is using Shell"
+    "file_read" -> "Kairos is reading File"
+    "file_write" -> "Kairos is using Editor"
+    "file_edit" -> "Kairos is editing File"
+    "browser_use" -> "Kairos is using Browser"
+    "read_image" -> "Kairos is reading Image"
+    "memory_write", "memory_get" -> "Kairos is using Memory"
+    "web_search" -> "Kairos is using Search"
+    "subagent_task", "delegate_task", "agent_status" -> "Kairos is using an Agent"
+    else -> "Kairos is using ${toolDisplayName(toolName)}"
 }
 
 // Helper: format duration (iOS: < 1s → "0.1s", < 60s → "45s", >= 60s → "2m 10s")

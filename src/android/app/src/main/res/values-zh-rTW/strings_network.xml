@@ -6,7 +6,7 @@
     <string name="network_default_route">預設路由</string>
     <string name="network_default_route_footer">所有設為「跟隨預設」的部分都使用此路由。Tailscale 開啟時，tailnet 內的位址一律經 Tailscale 連線，與路由設定無關。</string>
     <string name="network_default_route_covers">App 自己發出的請求也使用此路由：檢查更新、下載技能、語音、天氣和聊天中的圖片。服務商的模型列表、用量和登入跟隨該服務商的路由。鏡像測速一律直連，測的是本機網路本身。</string>
-    <string name="network_tailscale_footer">在 Minis 內部執行，不安裝 VPN 設定檔：只有 Minis 自己的連線能存取你的 tailnet，且僅在 Minis 執行時有效。「使用子網路由」會讓其他裝置分享的網段（例如家用網路）經 Tailscale 連線。</string>
+    <string name="network_tailscale_footer">在 Kairos 內部執行，不安裝 VPN 設定檔：只有 Kairos 自己的連線能存取你的 tailnet，且僅在 Kairos 執行時有效。「使用子網路由」會讓其他裝置分享的網段（例如家用網路）經 Tailscale 連線。</string>
     <string name="network_status">狀態</string>
     <string name="network_status_starting">正在啟動…</string>
     <string name="network_status_connected">已連線</string>
@@ -16,7 +16,7 @@
     <string name="network_login_browser">在瀏覽器中登入</string>
     <string name="network_copy_login_link">拷貝登入連結</string>
     <string name="network_login_opening">正在開啟登入頁面…</string>
-    <string name="network_login_in_browser">請在瀏覽器中完成登入，完成後會自動回到 Minis。</string>
+    <string name="network_login_in_browser">請在瀏覽器中完成登入，完成後會自動回到 Kairos。</string>
     <string name="network_login_no_page">Tailscale 沒有回傳登入頁面，請檢查網路後重試。</string>
     <string name="network_login_no_browser">沒有可以開啟登入頁面的瀏覽器。請複製連結，在瀏覽器中開啟。</string>
     <string name="network_login_auth_key">使用 Auth Key 登入</string>
@@ -67,7 +67,7 @@
     <string name="network_provider_route">網路</string>
     <string name="network_provider_route_footer">此供應商的請求如何連線。請在「設定 &gt; 網路」中設定 Tailscale 和代理伺服器。</string>
     <string name="network_restore_direct">一鍵恢復直連</string>
-    <string name="network_restore_direct_footer">立即關閉 Tailscale 和所有代理路由，無需重新啟動：Minis 的所有連線恢復為未設定任何網路選項時的樣子。你的設定會保留。</string>
+    <string name="network_restore_direct_footer">立即關閉 Tailscale 和所有代理路由，無需重新啟動：Kairos 的所有連線恢復為未設定任何網路選項時的樣子。你的設定會保留。</string>
     <string name="network_paused_title">網路設定已關閉</string>
     <string name="network_paused_message">所有連線都是直連。重新開啟後才會再使用 Tailscale 和你的代理。</string>
     <string name="network_turn_back_on">重新開啟</string>
@@ -76,7 +76,7 @@
     <string name="network_diagnostics_running">正在檢查…</string>
     <string name="network_diagnostics_copy">複製結果</string>
     <string name="network_copied">已複製</string>
-    <string name="network_entry_note">Minis 會在 127.0.0.1 上為自身連線開一個本機入口。本機其他 App 也能連到這個連接埠，但沒有口令就無法使用；口令在每次 Minis 啟動時更換。</string>
+    <string name="network_entry_note">Kairos 會在 127.0.0.1 上為自身連線開一個本機入口。本機其他 App 也能連到這個連接埠，但沒有口令就無法使用；口令在每次 Kairos 啟動時更換。</string>
     <!-- [FEAT-261021-04] Settings > Network section -->
     <string name="network_routing_title">網路路由</string>
     <string name="network_container_dns">Shell 容器 DNS</string>
@@ -95,7 +95,7 @@
     <string name="network_stop_using_proxy">停止使用此代理</string>
     <string name="network_stop_using_proxy_footer">原本經過此代理的流量都會改為直連。代理會保留在清單中，重新把它選為路由即可再次使用。</string>
     <string name="network_proxy_not_in_use">目前已沒有流量經過此代理。</string>
-    <string name="network_tailscale_failing_footer">在上方關閉 Tailscale 即可恢復直連；保持開啟則 Minis 會繼續嘗試。</string>
+    <string name="network_tailscale_failing_footer">在上方關閉 Tailscale 即可恢復直連；保持開啟則 Kairos 會繼續嘗試。</string>
     <string name="network_reason_timeout">連線逾時</string>
     <string name="network_reason_dns">找不到伺服器名稱</string>
     <string name="network_reason_refused">連線被拒絕</string>

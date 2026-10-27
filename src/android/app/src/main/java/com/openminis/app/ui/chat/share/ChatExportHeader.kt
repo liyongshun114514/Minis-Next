@@ -40,7 +40,7 @@ import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulStore
 import com.openminis.app.ui.chat.SparkleColor1
 import com.openminis.app.ui.chat.SparkleColor2
-import com.openminis.app.ui.settings.SoulIconGlyph
+import com.openminis.app.ui.components.SoulAvatarGlyph
 import com.openminis.app.ui.theme.LocalChatPalette
 import java.text.DateFormat
 import java.util.Date
@@ -150,7 +150,7 @@ private fun ExportAvatar() {
             .background(palette.secondaryBg)
             .border(0.5.dp, palette.separator, CircleShape),
     ) {
-        SoulIconGlyph(
+        SoulAvatarGlyph(
             icon = icon,
             sizeDp = if (isImage) AVATAR else AVATAR * 0.55f,
             emojiSp = 14.sp,

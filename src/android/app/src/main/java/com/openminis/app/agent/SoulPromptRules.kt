@@ -14,21 +14,21 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /**
- * [K-mode-isolation] The two prompt behaviours. They are MUTUALLY EXCLUSIVE:
- * a request carries either the global SOUL.md body or the custom rule of the
- * selected model — never both, and neither one falls back to the other.
+ * [K-global-prompt-only] LEGACY COMPATIBILITY ONLY.
  *
- *  - [GLOBAL] — Settings → System Prompt → Global. Exactly the SOUL.md body.
- *    Scoped rules are not read, not matched and not rendered in this mode.
- *  - [CUSTOM] — the single enabled MODEL rule whose
- *    (`ProviderInstance.id`, `LLMModel.id`) pair equals the selection's pair.
- *    The global body is NOT added; no match (unconfigured, disabled, empty,
- *    deleted model, stale id) yields no application prompt at all instead of
- *    silently degrading to [GLOBAL].
+ * Stored per-model / per-group prompt configuration was removed from the
+ * runtime: every turn now uses the global SOUL.md body (see
+ * [SystemPromptBuilder.applicationPrompt]). This file is kept so a user's
+ * existing `SOUL_PROMPT_RULES.json` still decodes, can still be exported and
+ * is never rewritten or deleted by this build — the data is preserved, but
+ * nothing in the app reads it to build a prompt.
  *
- * Persisted inside the same `SOUL_PROMPT_RULES.json` envelope as the rules
- * (see [SoulPromptRulesDocument]), so the mode and the rules can never be
- * written by two different atomic writes and disagree.
+ * The enum and the rule types below therefore exist to round-trip old JSON,
+ * not to describe a behaviour:
+ *  - [SoulPromptMode.GLOBAL] is what the product does now, always.
+ *  - [SoulPromptMode.CUSTOM] can still appear in an old file; it is inert.
+ *  - [SoulPromptRuleTarget.GROUP] and [SoulPromptRuleTarget.MODEL] rows are
+ *    inert too. No resolver exists any more.
  */
 @Serializable
 enum class SoulPromptMode {
@@ -37,22 +37,11 @@ enum class SoulPromptMode {
 }
 
 /**
- * [T-soul-scoped-prompt] Scope of a stored custom rule.
+ * [K-global-prompt-only] Scope recorded by an older build's rule.
  *
- * [GROUP] is LEGACY: records written by an older build still round-trip
- * through this file, but the resolver never matches them (see
- * [SoulPromptRuleResolver]) and the editor no longer offers the scope. Keeping
- * the constant is what lets an old document decode without dropping data.
- *
- * Identity is deliberately explicit. A MODEL rule names the pair
- * (`ProviderInstance.id`, `LLMModel.id`); a display name is never an identity.
- * Two providers can expose the same model name (e.g. `gpt-4o` via two
- * relays); matching on the name alone would leak one provider's instructions
- * to the other. The instance id is part of the key, so that cannot happen.
- *
- * There is no "global" target. A rule with a blank/missing target is invalid
- * and is skipped by [SoulPromptRuleResolver] — it must never silently fall
- * back to applying everywhere.
+ * Both constants are decode-only: no code matches a rule against a group or a
+ * model any more. They exist so an old `SOUL_PROMPT_RULES.json` still
+ * round-trips without dropping the user's rows.
  */
 @Serializable
 enum class SoulPromptRuleTarget {
@@ -87,89 +76,6 @@ data class SoulPromptRule(
         }
 }
 
-/** What the runtime currently has selected, captured at request time. */
-data class SoulPromptSelection(
-    val groupId: String? = null,
-    val providerInstanceId: String? = null,
-    val modelId: String? = null,
-)
-
-/** Which layer a matched rule belongs to. Global is implicit (SOUL.md body). */
-enum class SoulPromptRuleTier {
-    GROUP,
-    MODEL,
-}
-
-data class MatchedSoulPromptRule(
-    val rule: SoulPromptRule,
-    val tier: SoulPromptRuleTier,
-)
-
-/**
- * Pure resolution. No Android, no files, no clocks — this is what the unit
- * tests drive directly and what [SystemPromptBuilder] calls at prompt-build
- * time.
- *
- * [K-mode-isolation] Only exact MODEL hits are resolved. GROUP records are
- * legacy data: [matchTier] answers null for them, so they can be listed,
- * repaired or deleted in Settings but never reach a model.
- *
- * Ordering is part of the contract and is intentionally boring: the order
- * persisted in the JSON document (= the order the user sees). No hash-map
- * iteration, no sorting by id, so the same config always produces the same
- * prompt bytes (prompt-cache friendly). Several old rules for the SAME model
- * therefore apply in their stored order, which is also how the one-rule-per-
- * model editor will present them.
- */
-object SoulPromptRuleResolver {
-
-    /**
-     * The tier a rule resolves to for [selection], or null when it does not
-     * apply. Only [SoulPromptRuleTier.MODEL] can be returned today.
-     */
-    fun matchTier(rule: SoulPromptRule, selection: SoulPromptSelection): SoulPromptRuleTier? {
-        if (!rule.enabled) return null
-        if (rule.content.isBlank()) return null
-        if (!rule.hasValidTarget) return null
-        return when (rule.target) {
-            // Legacy GROUP scope: retained in storage, never effective.
-            SoulPromptRuleTarget.GROUP -> null
-            SoulPromptRuleTarget.MODEL -> {
-                val instance = selection.providerInstanceId
-                val model = selection.modelId
-                if (instance != null && model != null &&
-                    rule.providerInstanceId == instance && rule.modelId == model
-                ) {
-                    SoulPromptRuleTier.MODEL
-                } else {
-                    null
-                }
-            }
-        }
-    }
-
-    fun matching(
-        rules: List<SoulPromptRule>,
-        selection: SoulPromptSelection,
-    ): List<MatchedSoulPromptRule> {
-        val model = ArrayList<MatchedSoulPromptRule>()
-        for (rule in rules) {
-            if (matchTier(rule, selection) == SoulPromptRuleTier.MODEL) {
-                model.add(MatchedSoulPromptRule(rule, SoulPromptRuleTier.MODEL))
-            }
-        }
-        return model
-    }
-
-    /**
-     * `true` when [selection] can possibly match a MODEL rule at all. A
-     * selection without BOTH halves (unknown/deleted entry) can never match;
-     * used by the runtime to skip a pointless scan, not to fall back.
-     */
-    fun selectionCanMatch(selection: SoulPromptSelection): Boolean =
-        !selection.providerInstanceId.isNullOrBlank() && !selection.modelId.isNullOrBlank()
-}
-
 /**
  * Persisted envelope. A single JSON document holds BOTH the mode and the
  * rules, so `save(context, rules)` and `setMode` rewrite one file atomically
@@ -200,26 +106,21 @@ data class SoulPromptRulesDocument(
  * `SOUL.md`. The memory directory is already what backup export walks, so the
  * configuration travels with a backup without a second integration.
  *
- * [K-mode-isolation] Mode and rules live in ONE document ([
- * SoulPromptRulesDocument]). That is what keeps them consistent:
+ * [K-global-prompt-only] LEGACY STORAGE ONLY. Nothing in the runtime calls
+ * this store to build a prompt; the global SOUL.md body is the only source.
+ * Mode and rules live in ONE document ([SoulPromptRulesDocument]) so an old
+ * file continues to round-trip:
  *  - [save] rewrites the rules and PRESERVES the stored mode;
  *  - [setMode] rewrites the mode and PRESERVES the stored rules;
- *  - both go through one atomic write, so a crash cannot leave "CUSTOM with
- *    no rules" or "GLOBAL with a stale custom payload" behind.
+ *  - both go through one atomic write, so a crash cannot tear the document.
  *
- * Threading: the public methods are synchronized; the runtime cache is
- * volatile. [cachedOrLoad] / [cachedModeOrLoad] do file I/O only on the first
- * call after process start / [invalidate] (or after an external rewrite,
- * detected by fingerprint), so a per-turn read in the agent loop is a memory
- * read, not a disk read.
+ * Threading: the public methods are synchronized. The snapshot cache only
+ * serves this legacy API and is never read on the prompt path.
  *
  * Failure policy: reads NEVER throw. A missing (or zero-byte) file means the
- * shipped default ([SoulPromptMode.GLOBAL], no rules). A file that EXISTS but
- * cannot be decoded fails CLOSED — [SoulPromptMode.CUSTOM] with no rules, i.e.
- * no application prompt — because degrading to GLOBAL would inject the SOUL.md
- * body into a turn the user asked to isolate. Either way reading never rewrites
- * or truncates the damaged file (the user can still recover it), and every
- * failure is logged.
+ * default document. A file that EXISTS but cannot be decoded reads as a
+ * no-rules document while its bytes are left untouched, so the user can still
+ * recover or export it. Writes are stricter (see below).
  *
  * Writes are stricter on purpose: they first re-read the CURRENT bytes and
  * refuse ([IOException]) when the file exists but cannot be decoded, so a
@@ -240,21 +141,6 @@ object SoulPromptRuleStore {
         prettyPrint = true
     }
 
-    /** Snapshot of the whole file, so mode and rules always come from one read. */
-    @Volatile
-    private var cachedSnapshot: Snapshot? = null
-
-    /**
-     * One file's contents plus the fingerprint they were read from. The path is
-     * part of the key so two directories (a backup restore, or a unit test with
-     * a temporary `filesDir`) can never serve each other's snapshot.
-     */
-    private data class Snapshot(
-        val path: String,
-        val fingerprint: String,
-        val document: SoulPromptRulesDocument,
-    )
-
     fun fileLocation(context: Context): File =
         File(File(context.filesDir, MEMORY_SUBDIR), FILE_NAME)
 
@@ -262,30 +148,6 @@ object SoulPromptRuleStore {
 
     @Synchronized
     fun load(context: Context): List<SoulPromptRule> = readDocument(fileLocation(context)).rules
-
-    /**
-     * Runtime accessor: serve the in-process snapshot when present, otherwise
-     * read the file once. Used by the agent loop at turn start.
-     *
-     * Prefer [cachedDocumentOrLoad] when BOTH halves are needed: two calls can
-     * land either side of a Settings save and pair a new mode with old rules.
-     */
-    @Synchronized
-    fun cachedOrLoad(context: Context): List<SoulPromptRule> =
-        cachedOrLoadDocument(fileLocation(context)).rules
-
-    /**
-     * [K-mode-isolation] ONE consistent snapshot of mode + rules.
-     *
-     * This is what a caller that renders a prompt must use to freeze its
-     * per-turn state: the mode and the list come from the same read/one
-     * synchronized section, so a Settings save between two accessors can no
-     * longer produce "new CUSTOM mode + old empty list" (which would silently
-     * drop the user's prompt for a turn).
-     */
-    @Synchronized
-    fun cachedDocumentOrLoad(context: Context): SoulPromptRulesDocument =
-        cachedOrLoadDocument(fileLocation(context))
 
     /**
      * Rewrite the rules and KEEP the stored mode. This is the signature the
@@ -299,14 +161,6 @@ object SoulPromptRuleStore {
 
     @Synchronized
     fun loadMode(context: Context): SoulPromptMode = readDocument(fileLocation(context)).mode
-
-    /**
-     * Runtime accessor for the mode. Same snapshot/fingerprint rules as
-     * [cachedOrLoad]; the agent loop freezes its value once per turn.
-     */
-    @Synchronized
-    fun cachedModeOrLoad(context: Context): SoulPromptMode =
-        cachedOrLoadDocument(fileLocation(context)).mode
 
     /**
      * Switch the product's prompt mode. Rules are preserved verbatim (the
@@ -331,11 +185,12 @@ object SoulPromptRuleStore {
         SoulPromptRulesDocument(mode = mode, rules = normalize(rules)),
     )
 
-    /** Drop the runtime snapshot (e.g. after an external restore/import). */
+    /**
+     * [K-global-prompt-only] Kept for the backup importer's call site. There is
+     * no runtime snapshot to drop: the prompt path never reads this store.
+     */
     @Synchronized
-    fun invalidate() {
-        cachedSnapshot = null
-    }
+    fun invalidate() = Unit
 
     // ── File-level entry points (no Context) ────────────────────────────
     //
@@ -354,19 +209,6 @@ object SoulPromptRuleStore {
 
     @Synchronized
     fun loadMode(file: File): SoulPromptMode = readDocument(file).mode
-
-    /** Snapshot accessor bound to a file (same cache as the Context version). */
-    @Synchronized
-    internal fun cachedOrLoad(file: File): List<SoulPromptRule> = cachedOrLoadDocument(file).rules
-
-    /** Snapshot accessor bound to a file (same cache as the Context version). */
-    @Synchronized
-    internal fun cachedModeOrLoad(file: File): SoulPromptMode = cachedOrLoadDocument(file).mode
-
-    /** One consistent mode + rules snapshot, bound to a file. */
-    @Synchronized
-    internal fun cachedDocumentOrLoad(file: File): SoulPromptRulesDocument =
-        cachedOrLoadDocument(file)
 
     /**
      * Rewrite rules, keep the stored mode (and the rest of the envelope).
@@ -475,36 +317,24 @@ object SoulPromptRuleStore {
         return decoded
     }
 
-    private fun cachedOrLoadDocument(file: File): SoulPromptRulesDocument {
-        val fingerprint = fingerprintOf(file)
-        val hit = cachedSnapshot
-        if (hit != null && hit.path == file.path && hit.fingerprint == fingerprint) return hit.document
-        return readDocument(file)
-    }
-
     /**
-     * The document used when an EXISTING configuration cannot be decoded:
-     * CUSTOM with no rules, i.e. no application prompt at all.
+     * The document used when an EXISTING configuration cannot be decoded.
      *
-     * Falling back to GLOBAL here would inject the SOUL.md body into a turn
-     * whose owner asked for full isolation — the exact leak the modes exist to
-     * prevent. "No configuration" and "broken configuration" therefore differ:
-     * a missing file means the shipped default (GLOBAL); a file that exists but
-     * does not decode means silence, plus a warning, with the bytes untouched
-     * so the user can still repair or export them.
+     * The value is only a data placeholder: nothing in the runtime consults it,
+     * so a corrupt legacy file can neither suppress nor replace the global
+     * SOUL.md prompt. The bytes are left untouched so the user can still repair
+     * or export them.
      */
     private fun failClosedDocument(): SoulPromptRulesDocument =
-        SoulPromptRulesDocument(mode = SoulPromptMode.CUSTOM, rules = emptyList())
+        SoulPromptRulesDocument(mode = SoulPromptMode.GLOBAL, rules = emptyList())
 
     /**
      * Read + decode for the READ path. Two different failure behaviours, on
      * purpose:
      *  - file missing / zero-byte → the shipped default document
      *    ([SoulPromptMode.GLOBAL], no rules);
-     *  - file exists but its bytes cannot be read or decoded → fail CLOSED
-     *    ([failClosedDocument]: CUSTOM, no rules) so a damaged file cannot
-     *    silently re-enable the global prompt in a mode the user switched away
-     *    from.
+     *  - file exists but its bytes cannot be read or decoded → [failClosedDocument]
+     *    (an empty placeholder), with the bytes untouched.
      *
      * Either way the file is left exactly as it is on disk, so the user's last
      * bytes survive a prompt build and can still be repaired or exported.
@@ -533,7 +363,6 @@ object SoulPromptRuleStore {
                 }
             }
         }
-        cachedSnapshot = Snapshot(file.path, fingerprintOf(file), document)
         return document
     }
 
@@ -570,7 +399,6 @@ object SoulPromptRuleStore {
                 out.close()
             }
             replaceAtomically(tmp, file)
-            cachedSnapshot = Snapshot(file.path, fingerprintOf(file), normalized)
         } catch (t: Throwable) {
             // Only the temp file: the target still holds the previous bytes.
             if (tmp.exists()) runCatching { tmp.delete() }
@@ -609,6 +437,5 @@ object SoulPromptRuleStore {
         if (!tmp.renameTo(target)) throw IOException("cannot replace ${target.name}")
     }
 
-    private fun fingerprintOf(file: File): String =
-        if (file.isFile) "${file.lastModified()}:${file.length()}" else "missing"
+
 }

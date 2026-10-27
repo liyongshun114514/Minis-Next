@@ -144,7 +144,7 @@ class ApplicationSystemPromptTest {
      */
     @Test fun aVeryLongBodyStillProducesAnApplicationPrompt() {
         val long = "汉".repeat(50_000)
-        assertFalse(SoulStore.isOverLimit(long).isOverLimit)
+        // [K-global-prompt-only] No application-side cap exists to consult.
         val block = SystemPromptBuilder.applicationPrompt(SoulFile(SoulMetadata.DEFAULT, long))
         assertNotNull(block)
         assertTrue(block!!.contains(long))

@@ -820,10 +820,12 @@ private fun NoConversationSelected(
             // a cold start shows, and it should introduce the assistant the
             // user configured rather than the product.
             //
-            // Renders through the SAME SoulIconGlyph the chat header and the
-            // settings card use, so an emoji / custom image / unset-sparkle all
-            // behave identically here (that shared-renderer rule is what keeps
-            // image icons from silently failing on one surface).
+            // Renders through the SAME SoulAvatarGlyph the chat header and
+            // the settings card use, so an emoji / custom image /
+            // unset-sparkle all behave identically here (that shared-renderer
+            // rule is what keeps image icons from silently failing on one
+            // surface). [T-soul-avatar-circle] It is a CIRCLE filled with
+            // ContentScale.Crop, not a rounded rectangle.
             val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
             // Never scale a custom image ABOVE its stored resolution: icons are
             // saved at up to SoulIcon.STORED_PIXELS square and deliberately not
@@ -841,7 +843,7 @@ private fun NoConversationSelected(
                     minOf(EMPTY_STATE_ICON_SIZE, iconBitmap.width.toDp())
                 }
             }
-            com.openminis.app.ui.settings.SoulIconGlyph(
+            com.openminis.app.ui.components.SoulAvatarGlyph(
                 icon = soulMeta.icon,
                 sizeDp = iconSize,
                 emojiSp = with(density) { EMPTY_STATE_ICON_SIZE.toSp() * 0.82f },

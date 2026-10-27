@@ -4,7 +4,7 @@
     <string name="network_title">Rede</string>
     <string name="network_default_route">Rota padrão</string>
     <string name="network_default_route_footer">Usada por todas as partes do app configuradas como “Seguir padrão”. Com o Tailscale ativado, os endereços da sua tailnet sempre passam pelo Tailscale, seja qual for a rota.</string>
-    <string name="network_tailscale_footer">Funciona dentro do Minis, sem perfil de VPN: só as conexões do próprio Minis chegam à sua tailnet, e só enquanto o Minis está em execução. “Usar rotas de sub-rede” faz os endereços compartilhados por outros dispositivos (como uma rede doméstica) passarem pelo Tailscale.</string>
+    <string name="network_tailscale_footer">Funciona dentro do Kairos, sem perfil de VPN: só as conexões do próprio Kairos chegam à sua tailnet, e só enquanto o Kairos está em execução. “Usar rotas de sub-rede” faz os endereços compartilhados por outros dispositivos (como uma rede doméstica) passarem pelo Tailscale.</string>
     <string name="network_status">Status</string>
     <string name="network_status_starting">Iniciando…</string>
     <string name="network_status_connected">Conectado</string>

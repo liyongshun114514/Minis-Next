@@ -105,23 +105,21 @@ class SystemChannelPlacementTest {
         // points, so a fallback / switch cannot strand the prompt.
         assertTrue(chatVm.contains("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)"))
         for (provider in listOf("chosen", "next")) {
-            assertTrue("switch/fallback resolves scoped prompt for $provider", Regex(
-                "applyApplicationSystemPrompt\\(\\s*$provider,\\s*applicationPromptForSelection\\(",
+            assertTrue("switch/fallback reuses the frozen global prompt for $provider", Regex(
+                "applyApplicationSystemPrompt\\(\\s*$provider,\\s*applicationPromptForTurn,",
             ).containsMatchIn(chatVm))
         }
-        // Text is snapshotted per turn; group/model identity is resolved for
-        // every request and after a switch/fallback. Helpers keep isolation.
+        // Text is snapshotted ONCE per turn and reused by retries, fallbacks
+        // and mid-turn switches. Helpers keep isolation (null).
         assertTrue(chatVm.contains("val soulFileForTurn = if (helperConfig == null)"))
-        // Mode and rules are captured atomically from one document so a
-        // concurrent settings save cannot mix GLOBAL and CUSTOM state.
-        assertTrue(chatVm.contains("SoulPromptRuleStore.cachedDocumentOrLoad(context)"))
-        assertTrue(chatVm.contains("val promptRulesForTurn = promptDocumentForTurn.rules"))
-        assertTrue(chatVm.contains("val promptModeForTurn = promptDocumentForTurn.mode"))
-        assertTrue(chatVm.contains("if (helperConfig != null) return null"))
+        assertTrue(chatVm.contains("val applicationPromptForTurn = if (helperConfig == null)"))
+        assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(soulFileForTurn)"))
+        // No mode, no rule list, no per-entry prompt resolution.
+        assertFalse(chatVm.contains("SoulPromptRuleStore"))
+        assertFalse(chatVm.contains("applicationPromptForSelection"))
         val requestLoop = chatVm.indexOf("while (!collectDone)")
-        val inject = chatVm.indexOf("applicationPromptForSelection(", requestLoop)
-        assertTrue("scoped prompt refreshes in request loop", requestLoop >= 0 && inject > requestLoop)
-        assertTrue(chatVm.contains("modelId = entry?.baseModel?.id"))
+        val inject = chatVm.indexOf("applicationPromptForTurn", requestLoop)
+        assertTrue("frozen prompt reapplied in request loop", requestLoop >= 0 && inject > requestLoop)
         assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(context)"))
     }
 
