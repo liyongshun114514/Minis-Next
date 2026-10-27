@@ -1032,10 +1032,13 @@ class MinisApp : Application(), ImageLoaderFactory {
             com.openminis.app.offload.RootManager.accessLevel() ==
             com.openminis.app.offload.RootAccess.BYPASS
         ) {
+            // `this` inside the runBlocking lambda is the CoroutineScope, so
+            // the Application context is captured before the thread starts.
+            val appContext = this
             Thread({
                 runCatching {
                     kotlinx.coroutines.runBlocking {
-                        com.openminis.app.sandbox.ChrootKernel.ensureServer(this, "startup")
+                        com.openminis.app.sandbox.ChrootKernel.ensureServer(appContext, "startup")
                     }
                 }
             }, "minis-chroot-autostart").apply { isDaemon = true }.start()
