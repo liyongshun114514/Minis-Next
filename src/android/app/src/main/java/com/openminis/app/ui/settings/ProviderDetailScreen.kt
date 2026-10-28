@@ -609,16 +609,17 @@ fun ProviderDetailScreen(
             SettingsRow(
                 title = stringResource(if (isRefreshing) R.string.provider_refreshing_models else R.string.provider_refresh_model_list),
                 subtitle = refreshOutcome?.let { o ->
+                    // [T-authoritative-model-refresh] Two outcomes, two
+                    // sentences: the provider's live answer replaced the list
+                    // (possibly with none at all), or the read failed and the
+                    // stored list was kept for the stated reason. There is no
+                    // third "we used something else" message because a refresh
+                    // never substitutes a public catalog or a built-in list.
                     val error = o.vendorError
-                    when {
-                        error == null -> stringResource(R.string.provider_refresh_result_ok, o.total, o.added)
-                        // [FIX-261025-18] Nothing from the provider, but the
-                        // built-in models it lacked were added.
-                        o.source == com.openminis.app.data.repository.ProviderRepository.ModelRefreshSource.KEPT && o.added > 0 ->
-                            stringResource(R.string.provider_refresh_result_builtin, error, o.added)
-                        o.source == com.openminis.app.data.repository.ProviderRepository.ModelRefreshSource.KEPT ->
-                            stringResource(R.string.provider_refresh_result_kept, error)
-                        else -> stringResource(R.string.provider_refresh_result_fallback, error, o.total)
+                    if (error == null) {
+                        stringResource(R.string.provider_refresh_result_ok, o.total, o.added)
+                    } else {
+                        stringResource(R.string.provider_refresh_result_kept, error)
                     }
                 },
                 onClick = if (isRefreshing) {

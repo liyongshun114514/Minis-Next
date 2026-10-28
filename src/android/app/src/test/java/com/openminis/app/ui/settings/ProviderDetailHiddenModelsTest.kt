@@ -1,6 +1,5 @@
 package com.openminis.app.ui.settings
 
-import com.openminis.app.data.repository.ProviderRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -43,9 +42,8 @@ class ProviderDetailHiddenModelsTest {
     }
 
     @Test
-    fun `unhiding writes straight through and the absence grace is unchanged`() {
+    fun `unhiding writes straight through and removeEntry deletes any entry`() {
         assertTrue(src.contains("providerRepository.updateEntry(entry.copy(isHidden = !entry.isHidden))"))
-        assertEquals(7L * 24 * 60 * 60 * 1000, ProviderRepository.MODEL_ABSENCE_GRACE_MS)
         val repo = File("src/main/java/com/openminis/app/data/repository/ProviderRepository.kt").readText()
         val remove = repo.substringAfter("fun removeEntry(entryId: String)").substringBefore("// --- Model Group management")
         assertFalse("removeEntry deletes any entry", remove.contains("isCustom"))

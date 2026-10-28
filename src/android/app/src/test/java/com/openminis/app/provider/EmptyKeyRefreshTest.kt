@@ -188,15 +188,20 @@ class EmptyKeyRefreshTest {
     // FALLBACK rather than the answer.
 
     @Test
-    fun `xAI refresh fetches live and falls back to the built-in list`() {
+    fun `xAI refresh fetches live and never substitutes the built-in list`() {
         val repoSrc = src("data/repository/ProviderRepository.kt")
-        val branch = repoSrc.substringAfter("ProviderType.xAI -> OpenAIModelsApi.fetchModels(")
+        val branch = repoSrc.substringAfter("ProviderType.xAI -> {")
             .substringBefore("ProviderType.kimiCode")
-        assertTrue(
-            "the built-in list must be reachable only through ifEmpty {}",
-            branch.contains("ifEmpty") && branch.contains("XAIModelsApi.fetchModelsOAuth()"),
+        // A parsed answer (even an empty one) replaces the list; anything else
+        // is a reported failure that keeps the stored catalog. The compiled-in
+        // catalog is never a stand-in — that would present build-time data as
+        // the vendor's current truth.
+        assertTrue("xAI reads the live catalog", branch.contains("OpenAIModelsApi.fetchModelsDetailed("))
+        assertTrue("a failed read is reported", branch.contains("failed(r.error"))
+        assertFalse(
+            "the built-in catalog must not appear in the refresh path",
+            branch.contains("fetchModelsOAuth"),
         )
-        // And it must not be the unconditional answer any more.
         assertFalse(
             "xAI must not return the built-in catalog directly",
             repoSrc.contains("ProviderType.xAI -> com.openminis.app.provider.xai.XAIModelsApi.fetchModelsOAuth()"),

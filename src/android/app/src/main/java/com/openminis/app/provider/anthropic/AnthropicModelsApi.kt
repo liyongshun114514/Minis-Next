@@ -39,6 +39,11 @@ object AnthropicModelsApi {
         // [FEAT-261021-16] The instance's Settings > Network tag (prov:<id>);
         // null follows the default route.
         netTag: String? = null,
+        // [T-authoritative-model-refresh] Called when the fetch could not read
+        // a real model list and is about to return a built-in/empty placeholder.
+        // The caller uses it to KEEP the stored catalog instead of presenting
+        // the placeholder as a live answer.
+        onVendorFailure: ((String) -> Unit)? = null,
     ): List<LLMModel> = withContext(Dispatchers.IO) {
         // Cache key: base URL included so the same API key across proxies doesn't
         // share cached model lists (vLLM vs api.anthropic.com can differ).
@@ -125,11 +130,14 @@ object AnthropicModelsApi {
                 android.util.Log.i("AnthropicModels", "Parent-path fallback succeeded at level=$idx base=$candidate")
             }
             android.util.Log.d("AnthropicModels", "Response ${response.code}, body length: ${body.length}")
-            return@withContext parseAndCache(body, isCustomEndpoint, context, cacheKey)
+            return@withContext parseAndCache(body, isCustomEndpoint, context, cacheKey, onVendorFailure)
         }
 
         // All candidate bases failed.
         android.util.Log.e("AnthropicModels", "All ${candidateBases.size} fallback levels failed; lastCode=$lastFailureCode")
+        onVendorFailure?.invoke(
+            if (lastFailureCode >= 0) "HTTP $lastFailureCode" else "the provider did not answer",
+        )
         return@withContext if (isCustomEndpoint) emptyList() else LLMModel.allAnthropic
     }
 
@@ -138,11 +146,15 @@ object AnthropicModelsApi {
         isCustomEndpoint: Boolean,
         context: Context?,
         cacheKey: String,
+        onVendorFailure: ((String) -> Unit)? = null,
     ): List<LLMModel> {
         val fallback: List<LLMModel> = if (isCustomEndpoint) emptyList() else LLMModel.allAnthropic
         val models = try {
             val json = JSONObject(body)
-            val data = json.optJSONArray("data") ?: return fallback
+            val data = json.optJSONArray("data") ?: run {
+                onVendorFailure?.invoke("the response is not a model list")
+                return fallback
+            }
             val parsed = mutableListOf<LLMModel>()
             for (i in 0 until data.length()) {
                 val obj = data.getJSONObject(i)
@@ -179,9 +191,12 @@ object AnthropicModelsApi {
                 )
             }
             android.util.Log.i("AnthropicModels", "Parsed ${parsed.size} models: ${parsed.map { it.id }.joinToString()}")
-            if (parsed.isEmpty()) return fallback
+            // A parsed but empty list is the provider's real answer: let the
+            // caller clear the catalog instead of replacing it with built-ins.
+            if (parsed.isEmpty()) return emptyList()
             ModelsDevApi.enrichModels(parsed)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            onVendorFailure?.invoke("could not read the model list: ${e.message ?: e.javaClass.simpleName}")
             return fallback
         }
 

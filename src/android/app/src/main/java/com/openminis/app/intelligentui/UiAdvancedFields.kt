@@ -504,16 +504,15 @@ private fun UiFieldEditor(
                     Text(value.ifBlank { UiFieldValidation.numberText(lo) })
                 }
                 if (hi > lo) {
-                    val current = (UiFieldValidation.number(value) ?: lo).coerceIn(lo, hi).toFloat()
+                    val current = (UiFieldValidation.number(value) ?: lo).coerceIn(lo, hi)
+                    // Sliders stay continuous during dragging and after release. The legacy
+                    // step field must not turn a general numeric field into fixed detents.
                     Slider(
-                        value = current,
+                        value = current.toFloat(),
                         onValueChange = { raw ->
-                            val candidate = raw.toDouble()
-                            val stepped = if (spec.step != null && spec.step > 0) {
-                                lo + kotlin.math.round((candidate - lo) / spec.step) * spec.step
-                            } else candidate
-                            onValueChange(UiFieldValidation.numberText(stepped.coerceIn(lo, hi)))
+                            onValueChange(UiFieldValidation.numberText(raw.toDouble().coerceIn(lo, hi)))
                         },
+                        steps = 0,
                         valueRange = lo.toFloat()..hi.toFloat(),
                         enabled = editable,
                         modifier = tag,

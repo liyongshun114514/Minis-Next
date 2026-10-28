@@ -5555,13 +5555,11 @@ fun ChatScreen(
             var composerWidthPx by remember { mutableStateOf(0) }
 
             // [T-next-composer-surface] Bottom clearance for the composer.
-            // The card keeps the same 12dp gap on the left, right and bottom
-            // edges of its safe area. Computed from the live navigation-bar
-            // inset instead of a second `navigationBarsPadding()`: a hidden
-            // gesture bar contributes 0, while a shown bar adds its own inset
-            // once (no extra minimum on top). While the IME is up the outer
-            // Box already applies `imePadding()`, so only the 12dp gap is
-            // added above the keyboard.
+            // Keep the original 12dp side gutters and lift the card 16dp above
+            // its safe-area bottom. Read the live navigation inset once: a
+            // hidden gesture bar contributes 0, while a shown bar adds its own
+            // inset. The outer Box already applies imePadding(), so the open
+            // keyboard gets only the same 16dp clearance, not a second nav inset.
             val composerDensity = LocalDensity.current
             val composerBottomPadding = with(composerDensity) {
                 ComposerSurfaceGeometry.bottomPaddingDp(
@@ -6171,9 +6169,8 @@ fun ChatScreen(
                             } else Modifier,
                         )
                         .drawBehind {
-                            // [T-next-composer-surface] Uniform ~40dp corners
-                            // for all four sides (reference shape). Kept in
-                            // sync with the context-usage glow below.
+                            // [T-next-composer-surface] Restore the original
+                            // 20dp corner shape, including the matching glow.
                             val radiusPx = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()
                             val canvas = drawContext.canvas.nativeCanvas
                             // Pass 1: symmetric ambient halo — small blur, low alpha.
@@ -6204,7 +6201,7 @@ fun ChatScreen(
                         // glowing, and drawn as a paint pass only — no layout,
                         // no touch interception, so the caret, the +/mic/send
                         // buttons and every hit target are untouched. The
-                        // radius matches the card's own 40.dp corner above.
+                        // radius matches the card's original 20.dp corner above.
                         //
                         // Reads `contextUsage`, which refreshes on every usage
                         // chunk, so the colour tracks pressure live rather

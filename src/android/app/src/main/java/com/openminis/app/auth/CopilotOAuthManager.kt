@@ -12,6 +12,129 @@ import okhttp3.Request
 import org.json.JSONObject
 
 /**
+ * [T-authoritative-model-refresh] The outcome of Copilot's `/models` read.
+ *
+ * Copilot has no fallback catalog, so "empty" and "failed" must not be the
+ * same value: an HTTP error, a rejected session or a body that is not a model
+ * list means the caller KEEPS the stored entries, while a well-formed answer
+ * whose list is empty (or emptied by the `model_picker_enabled` /
+ * `capabilities.type` filters) is the account's authoritative catalog and may
+ * replace — and clear — them.
+ */
+sealed interface CopilotModelsResult {
+    /** A parsed model-list answer; [models] may legitimately be empty. */
+    data class Success(val models: List<CopilotDeviceFlow.CopilotModel>) : CopilotModelsResult
+
+    /** HTTP error, transport failure, missing session or an unparsed body. */
+    data class Failed(val reason: String) : CopilotModelsResult
+}
+
+/** Shared client for the models read; the chat client lives on the manager. */
+private const val COPILOT_MODELS_TAG = "CopilotOAuth"
+
+private val copilotModelsClient = okhttp3.OkHttpClient()
+
+/** First 200 characters of an error body, single line, for a visible message. */
+private fun copilotErrorSnippet(body: String): String {
+    val json = runCatching { JSONObject(body.trim()) }.getOrNull()
+    val message = json?.optJSONObject("error")?.optString("message", "")?.takeIf { it.isNotBlank() }
+        ?: json?.optString("message", "")?.takeIf { it.isNotBlank() }
+    return (message ?: body).replace(Regex("\\s+"), " ").trim().take(200).ifEmpty { "(empty body)" }
+}
+
+/**
+ * The HTTP + parse half of [CopilotOAuthManager.fetchModelsDetailed], taking
+ * the session token and base URL explicitly so the real request path can be
+ * exercised against a MockWebServer without a Context or encrypted prefs.
+ *
+ * `200 {"data":[]}` → [CopilotModelsResult.Success] with no models;
+ * `200 {"data":[…]}` → those models after the picker/type filters;
+ * anything else → [CopilotModelsResult.Failed] with the reason.
+ */
+internal suspend fun fetchCopilotModelsDetailed(
+    sessionToken: String,
+    baseURL: String = CopilotDeviceFlow.API_BASE,
+    client: okhttp3.OkHttpClient = copilotModelsClient,
+): CopilotModelsResult = withContext(Dispatchers.IO) {
+    val builder = Request.Builder()
+        .url("${baseURL.trimEnd('/')}/models")
+        .get()
+        .header("Authorization", "Bearer $sessionToken")
+    CopilotDeviceFlow.staticChatHeaders().forEach { (k, v) -> builder.header(k, v) }
+    builder.header("X-Request-Id", java.util.UUID.randomUUID().toString())
+
+    val (code, body) = try {
+        client.newCall(builder.build()).execute().use { response ->
+            response.code to (response.body?.string().orEmpty())
+        }
+    } catch (e: Exception) {
+        Log.e(COPILOT_MODELS_TAG, "[Copilot] /models fetch failed: ${e.message}")
+        return@withContext CopilotModelsResult.Failed(
+            "could not read the model list: ${e.message ?: e.javaClass.simpleName}",
+        )
+    }
+
+    if (code !in 200..299) {
+        Log.e(COPILOT_MODELS_TAG, "[Copilot] /models returned HTTP $code")
+        return@withContext CopilotModelsResult.Failed("HTTP $code: ${copilotErrorSnippet(body)}")
+    }
+
+    // Shape check BEFORE parsing: parseModelsDetailed reports 0 returned for a
+    // missing `data`, which would otherwise look exactly like a legitimate
+    // empty answer and clear a working catalog.
+    val json = runCatching { JSONObject(body) }.getOrNull()
+        ?: return@withContext CopilotModelsResult.Failed(
+            "the response is not a model list: ${copilotErrorSnippet(body)}",
+        )
+    if (json.optJSONArray("data") == null) {
+        return@withContext CopilotModelsResult.Failed(
+            "the response is not a model list: ${copilotErrorSnippet(body)}",
+        )
+    }
+
+    val parsed = CopilotDeviceFlow.parseModelsDetailed(json)
+    Log.i(
+        COPILOT_MODELS_TAG,
+        "[Copilot] ${parsed.models.size} selectable models of " +
+            "${parsed.totalReturned} returned; ids=[${parsed.models.joinToString(",") { it.id }}]",
+    )
+    if (parsed.hiddenByPolicy.isNotEmpty()) {
+        Log.i(
+            COPILOT_MODELS_TAG,
+            "[Copilot] hidden by model_picker_enabled=false: " +
+                parsed.hiddenByPolicy.joinToString(","),
+        )
+    }
+    if (parsed.droppedByType.isNotEmpty()) {
+        Log.i(
+            COPILOT_MODELS_TAG,
+            "[Copilot] dropped by capabilities.type != chat: " +
+                parsed.droppedByType.joinToString(","),
+        )
+    }
+    if (parsed.models.isEmpty()) {
+        Log.e(
+            COPILOT_MODELS_TAG,
+            "[Copilot] model list is EMPTY after filtering — " +
+                "${parsed.totalReturned} entries returned by /models",
+        )
+    }
+    CopilotModelsResult.Success(parsed.models)
+}
+
+/** The manager-bound entry point: resolve a session, then read the catalog. */
+private suspend fun fetchModelsForManager(
+    session: String?,
+    client: okhttp3.OkHttpClient,
+): CopilotModelsResult {
+    if (session == null) {
+        Log.w(COPILOT_MODELS_TAG, "[Copilot] /models skipped — no valid session token")
+        return CopilotModelsResult.Failed("no valid GitHub Copilot session token")
+    }
+    return fetchCopilotModelsDetailed(session, client = client)
+}
+
+/**
  * [T-copilot-provider] GitHub Copilot OAuth manager.
  *
  * Two tiers, and keeping them apart is the whole job:
@@ -396,7 +519,9 @@ class CopilotOAuthManager(
      * wiping the user's model list because one refresh did not answer.
      */
     suspend fun fetchModels(): List<Pair<String, String>> =
-        fetchModelsDetailed().map { it.id to it.displayName }
+        (fetchModelsDetailed() as? CopilotModelsResult.Success)
+            ?.models.orEmpty()
+            .map { it.id to it.displayName }
 
     /**
      * [T-android-copilot-model-capabilities] Models with their capabilities,
@@ -410,62 +535,7 @@ class CopilotOAuthManager(
      * Previously every failure collapsed into `emptyList()` behind a single
      * `Log.w`. Now each outcome says which one it was.
      */
-    suspend fun fetchModelsDetailed(): List<CopilotDeviceFlow.CopilotModel> =
-        withContext(Dispatchers.IO) {
-            val session = validAccessToken()
-            if (session == null) {
-                Log.w(TAG, "[Copilot] /models skipped — no valid session token")
-                return@withContext emptyList()
-            }
-            val builder = Request.Builder()
-                .url("${CopilotDeviceFlow.API_BASE}/models")
-                .get()
-                .header("Authorization", "Bearer $session")
-            CopilotDeviceFlow.staticChatHeaders().forEach { (k, v) -> builder.header(k, v) }
-            builder.header("X-Request-Id", java.util.UUID.randomUUID().toString())
-
-            val result = runCatching {
-                val response = httpClient.newCall(builder.build()).execute()
-                val ok = response.isSuccessful
-                val code = response.code
-                val body = response.body?.string().orEmpty()
-                response.close()
-                if (!ok) {
-                    Log.e(TAG, "[Copilot] /models returned HTTP $code")
-                    return@runCatching emptyList<CopilotDeviceFlow.CopilotModel>()
-                }
-                val parsed = CopilotDeviceFlow.parseModelsDetailed(JSONObject(body))
-                Log.i(
-                    TAG,
-                    "[Copilot] ${parsed.models.size} selectable models of " +
-                        "${parsed.totalReturned} returned; " +
-                        "ids=[${parsed.models.joinToString(",") { it.id }}]",
-                )
-                if (parsed.hiddenByPolicy.isNotEmpty()) {
-                    Log.i(
-                        TAG,
-                        "[Copilot] hidden by model_picker_enabled=false: " +
-                            parsed.hiddenByPolicy.joinToString(","),
-                    )
-                }
-                if (parsed.droppedByType.isNotEmpty()) {
-                    Log.i(
-                        TAG,
-                        "[Copilot] dropped by capabilities.type != chat: " +
-                            parsed.droppedByType.joinToString(","),
-                    )
-                }
-                if (parsed.models.isEmpty()) {
-                    // Nothing behind this to fall back on, so say so loudly.
-                    Log.e(
-                        TAG,
-                        "[Copilot] model list is EMPTY after filtering — " +
-                            "${parsed.totalReturned} entries returned by /models",
-                    )
-                }
-                parsed.models
-            }
-            result.onFailure { Log.e(TAG, "[Copilot] /models fetch failed: ${it.message}") }
-            result.getOrDefault(emptyList())
-        }
+    suspend fun fetchModelsDetailed(): CopilotModelsResult = withContext(Dispatchers.IO) {
+        fetchModelsForManager(validAccessToken(), httpClient)
+    }
 }

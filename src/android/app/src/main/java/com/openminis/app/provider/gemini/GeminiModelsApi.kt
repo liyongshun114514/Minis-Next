@@ -41,6 +41,10 @@ object GeminiModelsApi {
         // [FEAT-261021-16] The instance's Settings > Network tag (prov:<id>);
         // null follows the default route.
         netTag: String? = null,
+        // [T-authoritative-model-refresh] Called when the fetch could not read a
+        // real model list and is about to return the built-in placeholder. The
+        // caller then KEEPS its stored catalog instead of replacing it.
+        onVendorFailure: ((String) -> Unit)? = null,
     ): List<LLMModel> = withContext(Dispatchers.IO) {
         if (cloudCodeFallback) return@withContext LLMModel.allGemini
 
@@ -60,22 +64,32 @@ object GeminiModelsApi {
         // [T-android-default-ua] brand outbound /v1beta/models request.
         builder.applyUserAgentOverride(null)
         val response = com.openminis.app.network.NetworkHttp.client(netTag, client).newCall(builder.build()).execute()
-        val body = response.body?.string() ?: return@withContext LLMModel.allGemini
+        val body = response.body?.string() ?: run {
+            onVendorFailure?.invoke("the provider returned an empty response")
+            return@withContext LLMModel.allGemini
+        }
 
         if (!response.isSuccessful) {
             // 403 on OAuth almost always means the token lacks the
             // generative-language scope. Falling back to the built-in list
             // matches iOS and keeps Cloud Code Assist users functional.
-            if (isOAuth && response.code == 403) return@withContext LLMModel.allGemini
+            if (isOAuth && response.code == 403) {
+                onVendorFailure?.invoke("HTTP 403: the OAuth token lacks the model-list scope")
+                return@withContext LLMModel.allGemini
+            }
             if (context != null && (response.code == 401 || response.code == 403)) {
                 cache.invalidate(context, cacheKey)
             }
+            onVendorFailure?.invoke("HTTP ${response.code}")
             return@withContext LLMModel.allGemini
         }
 
         val models = try {
             val json = JSONObject(body)
-            val arr = json.optJSONArray("models") ?: return@withContext LLMModel.allGemini
+            val arr = json.optJSONArray("models") ?: run {
+                onVendorFailure?.invoke("the response is not a model list")
+                return@withContext LLMModel.allGemini
+            }
             val result = mutableListOf<LLMModel>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
@@ -92,9 +106,12 @@ object GeminiModelsApi {
                     result.add(LLMModel(name, displayName, "Google"))
                 }
             }
-            if (result.isEmpty()) return@withContext LLMModel.allGemini
+            // Parsed and empty is the provider's real answer: the caller may
+            // clear the catalog instead of showing built-ins as live data.
+            if (result.isEmpty()) return@withContext emptyList()
             ModelsDevApi.enrichModels(result)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            onVendorFailure?.invoke("could not read the model list: ${e.message ?: e.javaClass.simpleName}")
             return@withContext LLMModel.allGemini
         }
 

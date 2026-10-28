@@ -147,12 +147,25 @@ object OpenAIModelsApi {
     /**
      * [T-android-model-refresh-visible] A model-list fetch and, when the
      * vendor's own list could not be used, why. [models] is what [fetchModels]
-     * returns (the built-in list on the official endpoint, EMPTY for a custom
-     * base so the caller keeps the user's entries); [error] is set for an HTTP
-     * error, a body that is not a model list, a list with no models, or a
-     * network failure - each of which used to be silent.
+     * returns (EMPTY on failure so a custom base keeps the user's entries);
+     * [error] is set for an HTTP error, a body that is not a model list, or a
+     * network failure - each of which used to be silent. An EMPTY parsed list
+     * is not a failure: it is the provider's authoritative answer and carries
+     * `parsed = true` with no error.
      */
-    data class FetchResult(val models: List<LLMModel>, val error: String?)
+    data class FetchResult(
+        val models: List<LLMModel>,
+        val error: String?,
+        /**
+         * [T-authoritative-model-refresh] True when the endpoint answered with
+         * a body that parsed as a model list — including an EMPTY one. An
+         * empty parsed list is an authoritative "this vendor has no models",
+         * which the caller may persist as an empty catalog; a failed fetch
+         * (HTTP error, unparsed body, network failure) leaves this false and
+         * must never be mistaken for it.
+         */
+        val parsed: Boolean = false,
+    )
 
     suspend fun fetchModels(
         apiKey: String,
@@ -183,7 +196,7 @@ object OpenAIModelsApi {
 
         val cacheKey = (baseURL ?: "") + "|" + apiKey
         if (context != null && !forceRefresh) {
-            cache.load(context, cacheKey)?.let { return@withContext FetchResult(it, null) }
+            cache.load(context, cacheKey)?.let { return@withContext FetchResult(it, null, parsed = true) }
         }
 
         val url = buildURL(baseURL)
@@ -279,14 +292,18 @@ object OpenAIModelsApi {
                     )
                 )
             }
-            if (parsed.isEmpty()) return@withContext fail("the provider listed no models")
+            // An empty list is a real answer, not a failure: `parsed = true`
+            // lets the caller clear the catalog (T-authoritative-model-refresh).
+            if (parsed.isEmpty()) {
+                return@withContext FetchResult(emptyList(), null, parsed = true)
+            }
             ModelsDevApi.enrichModels(parsed)
         } catch (e: Exception) {
             return@withContext fail("could not read the model list: ${e.message ?: e.javaClass.simpleName}")
         }
 
         if (context != null) cache.save(context, cacheKey, models)
-        FetchResult(models, null)
+        FetchResult(models, null, parsed = true)
     }
 
     /**

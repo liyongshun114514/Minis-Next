@@ -2300,6 +2300,15 @@
     <string name="rootfs_dns_effective_system">当前生效：系统 DNS</string>
     <string name="rootfs_dns_effective_custom">当前生效：%1$s</string>
     <string name="quota_title">额度</string>
+    <string name="quota_custom_balance_url_title">余额查询地址</string>
+    <string name="quota_custom_balance_url_automatic">自动识别</string>
+    <string name="quota_custom_balance_url_add">设置</string>
+    <string name="quota_custom_balance_url_edit">编辑</string>
+    <string name="quota_custom_balance_url_description">可选。使用当前供应商 API Key 查询的完整 HTTPS 地址；留空则自动识别。</string>
+    <string name="quota_custom_balance_url_invalid">请输入带主机名的完整 https:// 地址；不允许 user-info 和 # 片段。</string>
+    <string name="quota_custom_balance_url_clear">清空</string>
+    <string name="quota_custom_balance_url_save">保存</string>
+    <string name="quota_custom_balance_url_cancel">取消</string>
     <string name="quota_refresh">刷新额度</string>
     <string name="quota_source_updated">%1$s · %2$s更新</string>
     <string name="quota_last_refresh_failed">上次刷新失败：%1$s</string>

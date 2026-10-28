@@ -286,6 +286,22 @@ data class ProviderInstance(
     val createdAt: Long = System.currentTimeMillis(),
     var customBaseURL: String? = null,
     var appendV1Suffix: Boolean = true,
+    /**
+     * [T-provider-custom-balance-url] Optional, user-supplied, full HTTPS
+     * balance endpoint for this instance (e.g. a relay's own billing API that
+     * the automatic probe does not recognise).
+     *
+     * null / blank means "keep the automatic detection" - the vendor adapter
+     * chosen from [providerType] and [customBaseURL]. A value is queried
+     * INSTEAD of that automatic query, with this instance's own API key as the
+     * bearer credential; nothing is ever sent to an address the user did not
+     * enter here. The quota layer validates it as HTTPS-only, with a host and
+     * without user-info/fragment (see CustomBalanceEndpoint).
+     *
+     * Default null keeps every pre-existing config (JSON mirror, DB rows before
+     * MIGRATION_4_5, older backups) decoding unchanged.
+     */
+    var customBalanceURL: String? = null,
     // [T-provider-custom-user-agent] Optional per-provider User-Agent
     // override. Some relay gateways only accept requests whose UA looks like
     // an official client (e.g. Claude Code); Minis' default UA gets rejected.
@@ -463,29 +479,11 @@ data class ModelEntry(
     @Serializable(with = com.openminis.app.backup.Iso8601MillisNullableSerializer::class)
     val userModifiedAt: Long? = null,
     /**
-     * [T-android-model-absence-grace] When the provider's /v1/models first
-     * stopped listing this model, or null while it is still being reported.
-     * Mirrors iOS `ModelEntry.absentSince`.
-     *
-     * Exists because "this refresh did not list the model" and "this model is
-     * gone" are different facts, and [ProviderRepository.replaceEntries] used
-     * to treat them as one: a catalog entry missing from a single response was
-     * deleted outright, taking its [overrides] with it. Relay/aggregator
-     * endpoints drop a model from the list transiently — upstream quota, a
-     * backend rotation, a partial outage — and list it again minutes later.
-     *
-     * While set, the entry is kept and shown as unavailable rather than
-     * deleted; it is only really removed once the absence outlives
-     * [ProviderRepository.MODEL_ABSENCE_GRACE_MS]. A model that comes back is
-     * cleared to null and is indistinguishable from one that never left,
-     * overrides included.
-     *
-     * DELIBERATELY excluded from [isUserModified]: absence is a per-device
-     * observation (each device refreshes on its own schedule against possibly
-     * different upstream state), not user intent, so it must not make an
-     * otherwise-untouched entry look user-modified. Same ISO-8601 wire shape as
-     * [userModifiedAt] so the field round-trips with iOS rather than becoming a
-     * platform-only dialect.
+     * Legacy absence observation retained solely for JSON/backup compatibility.
+     * Authoritative refresh now deletes catalog ids missing from a successful
+     * live response immediately; returning ids get null here. A failed request
+     * retains the entire previous list without marking models absent.
+     * Excluded from [isUserModified]; same ISO-8601 wire shape as [userModifiedAt].
      */
     @Serializable(with = com.openminis.app.backup.Iso8601MillisNullableSerializer::class)
     val absentSince: Long? = null,

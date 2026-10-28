@@ -33,7 +33,7 @@ class IntelligentUiContractTest(unittest.TestCase):
   self.assertIn('"math" -> UiMathDisplay(node)',(JAVA/'intelligentui/IntelligentUiCard.kt').read_text())
   self.assertIn('UiMathShowcase.nodes()',(JAVA/'intelligentui/UiShowcase.kt').read_text())
   flow=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
-  for name in ('UiMathSchemaTest','UiMathEngineTest','UiMathRenderTest','IntelligentUiSurfaceTest','ComposerSurfaceGeometryTest'):
+  for name in ('UiMathSchemaTest','UiMathEngineTest','UiMathRenderTest','UiMathInteractionRenderTest','UiPlotGeometryTest','IntelligentUiSurfaceTest','ComposerSurfaceGeometryTest'):
    self.assertIn(name,flow)
   for token in ('--tests \'*UiMath*\'','--tests \'*ComposerSurfaceGeometryTest\''):
    self.assertIn(token,flow)

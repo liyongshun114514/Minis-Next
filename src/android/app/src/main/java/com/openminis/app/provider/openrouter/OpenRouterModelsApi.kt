@@ -45,6 +45,10 @@ object OpenRouterModelsApi {
         // [FEAT-261021-16] The instance's Settings > Network tag (prov:<id>);
         // null follows the default route.
         netTag: String? = null,
+        // [T-authoritative-model-refresh] Called when the catalog request
+        // failed, so the caller can KEEP its stored list rather than reading
+        // the empty return value as "this provider has no models".
+        onVendorFailure: ((String) -> Unit)? = null,
     ): List<LLMModel> = withContext(Dispatchers.IO) {
         val cacheKey = apiKey
         if (context != null && !forceRefresh) {
@@ -68,6 +72,7 @@ object OpenRouterModelsApi {
                 if (context != null && (defaultResult.code == 401 || defaultResult.code == 403)) {
                     cache.invalidate(context, cacheKey)
                 }
+                onVendorFailure?.invoke("HTTP ${defaultResult.code}")
                 return@withContext emptyList()
             }
         }

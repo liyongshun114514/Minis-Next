@@ -279,6 +279,23 @@ object QuotaStore {
         }
     }
 
+    /**
+     * [T-provider-custom-balance-url] The user saved a different balance URL
+     * (or cleared it) on [instanceId]. Any pools cached from the previous URL
+     * stop describing the configured endpoint immediately - they are dropped
+     * before the re-query, so a failing new endpoint shows an error instead of
+     * the old endpoint's amount - then the instance is refreshed once.
+     */
+    fun customBalanceURLChanged(instanceId: String, previousURL: String?) {
+        if (!started) return
+        scope.launch {
+            ensureLoaded()
+            // Automatic -> custom is a source change too: never retain the old amount.
+            detach(instanceId)
+            refresh(instanceId, forced = true, reason = "customBalanceChanged")
+        }
+    }
+
     // MARK: - Attention
 
     fun noteViewed(instanceId: String) {
@@ -394,6 +411,20 @@ object QuotaStore {
                         ?: runCatching { com.openminis.app.auth.KimiOAuthManager(ctx, instanceId).validAccessToken() }.getOrNull()
                 }
             }
+            adapter.vendor == QuotaVendor.customBalance -> {
+                // [T-provider-custom-balance-url] Keyed by INSTANCE, not by the
+                // key hash: two instances may share an API key yet point at
+                // different balance URLs, and editing/clearing the URL must be
+                // able to drop exactly this instance's cached pools.
+                val credential = credential(instance)
+                    ?: return note(instanceId, QuotaSubject.NotConfiguredReason.missingCredential)
+                subjectId = QuotaSubjectID(
+                    adapter.vendor,
+                    "instance:$instanceId:${CustomBalanceEndpoint.capabilityIdentity(d.customBalanceURL)}:${QuotaAccountKey.derive(credential)}",
+                )
+                attach(instanceId, subjectId, QuotaAccountKey.mask(credential))
+                credentialSource = { credential }
+            }
             else -> {
                 val credential = credential(instance)
                     ?: return note(instanceId, QuotaSubject.NotConfiguredReason.missingCredential)
@@ -467,16 +498,24 @@ object QuotaStore {
                 d, subjectId, credential, QuotaOkHttpTransport(com.openminis.app.network.NetworkRuntime.providerTag(d.instanceId)), started, extraHeaders(adapter.vendor, d), relayHint,
                 endpointOverride = endpointOverride,
             )
+            fun sourceStillCurrent(): Boolean = instance(d.instanceId)?.let {
+                val current = descriptor(it)
+                current.isEnabled && current.customBalanceURL == d.customBalanceURL &&
+                    current.capabilityKey == d.capabilityKey
+            } == true
             val outcome = try {
                 adapter.fetch(ctx)
             } catch (e: QuotaFetchError) {
+                if (!sourceStillCurrent()) return QuotaRefreshResult.Unsupported
                 return recordFailure(e, adapter.adapterId, subjectId, d.capabilityKey, forced)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (!sourceStillCurrent()) return QuotaRefreshResult.Unsupported
                 val fe = QuotaFetchError(QuotaError.Kind.network, e.javaClass.simpleName)
                 return recordFailure(fe, adapter.adapterId, subjectId, d.capabilityKey, forced)
             }
+            if (!sourceStillCurrent()) return QuotaRefreshResult.Unsupported
 
             val now = System.currentTimeMillis()
             val policy = policy(subjectId.vendor)
@@ -894,6 +933,7 @@ object QuotaStore {
         isOAuth = instance.credentialType == ProviderCredential.oauth,
         isEnabled = instance.isEnabled,
         customBaseURL = instance.customBaseURL?.trim()?.takeIf { it.isNotEmpty() },
+        customBalanceURL = instance.customBalanceURL?.trim()?.takeIf { it.isNotEmpty() },
         isOpenCodeChannel = isOpenCodeChannel(instance),
     )
 

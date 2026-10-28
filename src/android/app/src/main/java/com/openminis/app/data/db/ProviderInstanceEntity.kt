@@ -17,6 +17,10 @@ data class ProviderInstanceEntity(
     @ColumnInfo(name = "provider_type") val providerType: String,
     @ColumnInfo(name = "credential_type") val credentialType: String,
     @ColumnInfo(name = "custom_base_url") val customBaseURL: String? = null,
+    // [T-provider-custom-balance-url] Optional full HTTPS balance endpoint the
+    // user configured for this instance. Nullable TEXT: null = automatic
+    // vendor detection, which is also what every row gets from MIGRATION_4_5.
+    @ColumnInfo(name = "custom_balance_url") val customBalanceURL: String? = null,
     @ColumnInfo(name = "append_v1_suffix") val appendV1Suffix: Int = 1,
     @ColumnInfo(name = "use_responses_api") val useResponsesAPI: Int = 0,
     // [T-android-azure-openai] 0/1 Azure OpenAI mode. NOT NULL DEFAULT 0 so

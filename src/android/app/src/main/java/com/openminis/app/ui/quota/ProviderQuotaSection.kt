@@ -1,6 +1,7 @@
 package com.openminis.app.ui.quota
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +23,15 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -50,6 +54,7 @@ import com.openminis.app.R
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.i18n.uppercaseForDisplay
 import com.openminis.app.quota.QuotaConsoleLink
+import com.openminis.app.quota.CustomBalanceEndpoint
 import com.openminis.app.quota.QuotaInstanceDisplay
 import com.openminis.app.quota.QuotaPool
 import com.openminis.app.quota.QuotaPoolBinding
@@ -76,11 +81,12 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
     val st by QuotaStore.state.collectAsState()
     val descriptor = QuotaStore.descriptor(instance)
     val display = st.display(descriptor)
-    if (display is QuotaInstanceDisplay.Hidden) return
+    val hidden = display is QuotaInstanceDisplay.Hidden
 
     // [T-quota-attention-refresh] Refreshes on open when due, and keeps the
-    // watched interval while the page is open.
-    QuotaWatch(instance.id, "detailAppeared")
+    // watched interval while the page is open. A hidden instance is not
+    // queried, but its custom balance URL must still be editable.
+    if (!hidden) QuotaWatch(instance.id, "detailAppeared")
 
     val scope = rememberCoroutineScope()
     var blockedMessage by remember(instance.id) { mutableStateOf<String?>(null) }
@@ -134,12 +140,19 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
         ) {
             SectionContent(st, display)
-            if (linkUrl != null) {
+            if (!hidden) {
+                // [T-provider-custom-balance-url] Configuration lives here, in
+                // the quota section, so it is next to the figure it changes.
+                // Saving clears this instance's cached amount before re-querying.
+                QuotaDivider()
+            }
+            CustomBalanceURLRow(instance)
+            if (!hidden && linkUrl != null) {
                 QuotaDivider()
                 QuotaConsoleLinkRow(linkUrl, onOpen = { consoleUrl = linkUrl })
             }
         }
-        SectionFooter(st, display, instance, blockedMessage)
+        if (!hidden) SectionFooter(st, display, instance, blockedMessage)
     }
 
     consoleUrl?.let { url -> UrlPreviewSheet(url = url, onDismiss = { consoleUrl = null }) }
@@ -149,6 +162,119 @@ private fun canRefresh(display: QuotaInstanceDisplay): Boolean = when (display) 
     QuotaInstanceDisplay.Hidden -> false
     is QuotaInstanceDisplay.Unsupported -> display.reason == QuotaSubject.UnsupportedReason.capabilityProbeFailed
     else -> true
+}
+
+/**
+ * [T-provider-custom-balance-url] "Balance URL: Automatic" / "host/path" row.
+ * The full value is never printed - a configured URL may carry a token in its
+ * query string - and the editor saves through the existing
+ * ProviderRepository.updateInstance so this screen does not need its own
+ * persistence path.
+ */
+@Composable
+private fun CustomBalanceURLRow(instance: ProviderInstance) {
+    val repo = rememberProviderRepository()
+    var editing by remember(instance.id) { mutableStateOf(false) }
+    val configured = CustomBalanceEndpoint.normalize(instance.customBalanceURL)
+    val shown = if (configured != null) CustomBalanceEndpoint.display(configured)
+    else stringResource(R.string.quota_custom_balance_url_automatic)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = repo != null) { editing = true }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.quota_custom_balance_url_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                shown,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        Text(
+            stringResource(
+                if (configured != null) R.string.quota_custom_balance_url_edit
+                else R.string.quota_custom_balance_url_add,
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    if (editing && repo != null) {
+        CustomBalanceURLDialog(
+            initial = instance.customBalanceURL.orEmpty(),
+            onDismiss = { editing = false },
+            onSave = { value ->
+                repo.updateInstance(instance.copy(customBalanceURL = value))
+                editing = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun CustomBalanceURLDialog(initial: String, onDismiss: () -> Unit, onSave: (String?) -> Unit) {
+    var text by remember(initial) { mutableStateOf(initial) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val invalid = stringResource(R.string.quota_custom_balance_url_invalid)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.quota_custom_balance_url_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(R.string.quota_custom_balance_url_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it; error = null },
+                    singleLine = false,
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = error != null,
+                )
+                error?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val trimmed = text.trim()
+                if (trimmed.isEmpty()) {
+                    onSave(null)
+                    return@TextButton
+                }
+                val normalized = CustomBalanceEndpoint.normalize(trimmed)
+                if (normalized == null) {
+                    error = invalid
+                } else {
+                    onSave(normalized)
+                }
+            }) { Text(stringResource(R.string.quota_custom_balance_url_save)) }
+        },
+        dismissButton = {
+            Row {
+                if (initial.isNotBlank()) {
+                    TextButton(onClick = { onSave(null) }) {
+                        Text(stringResource(R.string.quota_custom_balance_url_clear))
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.quota_custom_balance_url_cancel))
+                }
+            }
+        },
+    )
 }
 
 @Composable

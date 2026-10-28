@@ -2501,6 +2501,15 @@
     <string name="rootfs_dns_effective_system">In effect: system DNS</string>
     <string name="rootfs_dns_effective_custom">In effect: %1$s</string>
     <string name="quota_title">Quota</string>
+    <string name="quota_custom_balance_url_title">Balance URL</string>
+    <string name="quota_custom_balance_url_automatic">Automatic detection</string>
+    <string name="quota_custom_balance_url_add">Set</string>
+    <string name="quota_custom_balance_url_edit">Edit</string>
+    <string name="quota_custom_balance_url_description">Optional. A full HTTPS endpoint queried with this provider\'s API key. Leave blank to keep automatic detection.</string>
+    <string name="quota_custom_balance_url_invalid">Enter a full https:// URL with a host. User-info and #fragments are not allowed.</string>
+    <string name="quota_custom_balance_url_clear">Clear</string>
+    <string name="quota_custom_balance_url_save">Save</string>
+    <string name="quota_custom_balance_url_cancel">Cancel</string>
     <string name="quota_refresh">Refresh quota</string>
     <string name="quota_source_updated">%1$s · updated %2$s</string>
     <string name="quota_last_refresh_failed">Last refresh failed: %1$s</string>

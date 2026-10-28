@@ -36,7 +36,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProviderConfigMetaEntity::class,
         ProviderThinkingRuleEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class ProviderDatabase : RoomDatabase() {
@@ -105,6 +105,23 @@ abstract class ProviderDatabase : RoomDatabase() {
         }
 
 
+        /** The single statement of [MIGRATION_4_5]; kept visible to the JVM test that proves the row-preserving ALTER. */
+        const val MIGRATION_4_5_SQL = "ALTER TABLE provider_instances ADD COLUMN custom_balance_url TEXT"
+
+        /**
+         * [T-provider-custom-balance-url] Add the per-instance custom balance
+         * endpoint. Pure additive nullable TEXT ALTER: every existing row keeps
+         * all of its columns and reads back custom_balance_url = NULL, which is
+         * exactly "use the automatic vendor detection". No table rewrite, no
+         * provider deleted; the JSON mirror is untouched and still carries the
+         * field for downgrade.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(MIGRATION_4_5_SQL)
+            }
+        }
+
         fun getInstance(context: Context): ProviderDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -112,7 +129,7 @@ abstract class ProviderDatabase : RoomDatabase() {
                     ProviderDatabase::class.java,
                     "provider.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }

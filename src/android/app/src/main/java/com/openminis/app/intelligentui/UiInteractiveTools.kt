@@ -50,7 +50,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.round
 
 /**
  * Native interactive tools rendered by the Intelligent UI card.
@@ -687,9 +686,11 @@ private fun UiDecisionTool(n: JSONObject) {
             Slider(
                 value = weights[i].toFloat().coerceIn(0f, UiDecision.MAX_WEIGHT.toFloat()),
                 onValueChange = { raw ->
-                    val rounded = (round(raw.toDouble() * 10.0) / 10.0).coerceIn(0.0, UiDecision.MAX_WEIGHT)
+                    // Continuous: no 0.1 detents while dragging, the displayed weight is
+                    // still formatted to one decimal but the committable value keeps precision.
+                    val value = raw.toDouble().coerceIn(0.0, UiDecision.MAX_WEIGHT)
                     weightsText = criteria.indices.joinToString(",") { j ->
-                        UiFormat.number(if (j == i) rounded else weights[j], 1)
+                        UiFormat.number(if (j == i) value else weights[j])
                     }
                 },
                 valueRange = 0f..UiDecision.MAX_WEIGHT.toFloat(),

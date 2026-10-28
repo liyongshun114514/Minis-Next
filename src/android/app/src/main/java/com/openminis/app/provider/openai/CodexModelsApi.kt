@@ -181,11 +181,8 @@ object CodexModelsApi {
             return@withContext Result.Failed("parse: ${e.javaClass.simpleName}")
         }
 
-        if (parsed.isEmpty()) {
-            AppLogger.warning(TAG, "discovery returned no visible models")
-            return@withContext Result.Failed("empty")
-        }
-
+        // A valid empty catalog is authoritative too, including when every
+        // returned entry is explicitly hidden by the backend.
         val enriched = enrichPreservingFresh(parsed)
         AppLogger.info(
             TAG,
@@ -290,7 +287,8 @@ object CodexModelsApi {
      */
     internal fun parseModels(body: String): List<LLMModel> {
         val root = JSONObject(body)
-        val array = root.optJSONArray("models") ?: root.optJSONArray("data") ?: return emptyList()
+        val array = root.optJSONArray("models") ?: root.optJSONArray("data")
+            ?: throw IllegalArgumentException("the response is not a model list")
 
         // priority ascending (the backend's own ranking), id as the tiebreak so
         // the picker order is stable across refreshes rather than reshuffling
@@ -335,8 +333,8 @@ object CodexModelsApi {
                 .normalizeModalities(),
             // Deliberately NOT derived. The route describes inputs only; every
             // Codex chat model outputs text, and the one Codex model that
-            // outputs images (gpt-image-2*) does not come from this route at
-            // all — it is appended by OpenAIModelsApi with its own modalities.
+            // outputs images (gpt-image-2*) does not come from this route.
+            // Authoritative refresh does not append such built-in catalog ids.
             outputModalities = null,
             reasoningEffortValues = parseEffortTiers(obj),
             serviceTiers = parseServiceTiers(obj),

@@ -50,14 +50,17 @@ class CodexModelsApiTest {
         assertEquals(listOf("visible-one"), models.map { it.id })
     }
 
-    /** `data` is accepted as an alias for `models`; neither present = empty. */
+    /** A valid empty array clears the catalog; a missing array is a failed read. */
     @Test
-    fun `data alias is accepted and an unknown shape yields empty`() {
+    fun `data alias and empty list are accepted but an unknown shape fails`() {
         assertEquals(
             listOf("a"),
             CodexModelsApi.parseModels("""{"data":[{"slug":"a"}]}""").map { it.id },
         )
-        assertTrue(CodexModelsApi.parseModels("""{"something_else":[]}""").isEmpty())
+        assertTrue(CodexModelsApi.parseModels("""{"models":[]}""").isEmpty())
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            CodexModelsApi.parseModels("""{"something_else":[]}""")
+        }
     }
 
     /** `id` stands in when `slug` is missing; an entry with neither is skipped. */
@@ -361,11 +364,12 @@ class CodexModelsApiTest {
  * discovery response — they are not chat SKUs — but they are routable on the
  * Codex OAuth path through OpenAIProvider's image_generation branch.
  *
- * So a SUCCESSFUL discovery is the dangerous case, not a failing one: replacing
- * the built-in list wholesale with the discovered chat models would silently
- * delete three working models from the picker. `discoverCodexModels` merges
- * `OpenAIModelsApi.codexImageModels()` back in, and this pins the two
- * properties that merge depends on.
+ * [T-authoritative-model-refresh] They are therefore NOT merged into a
+ * successful discovery any more: a live answer is stored verbatim, so the
+ * picker cannot show an id the account's own answer omitted. They survive in
+ * the compiled-in OAuth list (the tier users get when discovery is down), and
+ * these tests pin that list plus the "no backfill" rule of the production
+ * mapping.
  */
 class CodexImageModelMergeTest {
 
@@ -412,45 +416,48 @@ class CodexImageModelMergeTest {
     }
 
     /**
-     * The merge RULE itself, as `discoverCodexModels` applies it on a
-     * successful discovery:
+     * [T-authoritative-model-refresh] A successful discovery IS the catalog.
      *
-     *     result.models + imageModels.filter { it.id !in discoveredIds }
+     * `ProviderRepository.codexDiscoveryFromResult` — the production mapping
+     * from a discovery answer to what a refresh stores — returns
+     * `result.models` unchanged. It used to append [OpenAIModelsApi.codexImageModels]
+     * ("build-owned capabilities, not upstream ids"); that topped up an
+     * authoritative answer with ids the account's own answer did not contain,
+     * which is exactly what an authoritative refresh must not do.
      *
-     * The tests above pin what the accessor CONTAINS; this pins what the tier-1
-     * path DOES with it, which is the property GH#319's follow-up is actually
-     * about. Reproduced rather than invoked because `discoverCodexModels` is a
-     * private suspend member needing a Context, an instance and a live token —
-     * none of which a JVM unit test can supply. If the merge is ever dropped
-     * from the repository, this test keeps passing and the one below it
-     * (`built-in oauth list still ends with the image models`) does too — so
-     * the comment at ProviderRepository's Success branch is the anchor a
-     * reviewer should check against.
+     * The accessor still exists and the compiled-in OAuth list still ends with
+     * it (tests above), but it no longer participates in discovery. Exercised
+     * through the real production function rather than a local copy of the
+     * merge rule.
      */
     @Test
-    fun `a successful discovery keeps the image models and adds no duplicates`() {
-        val image = com.openminis.app.provider.openai.OpenAIModelsApi.codexImageModels()
-
-        fun merge(discovered: List<String>): List<String> {
-            val discoveredIds = discovered.toSet()
-            return discovered + image.map { it.id }.filter { it !in discoveredIds }
+    fun `a successful discovery is stored verbatim with no built-in backfill`() {
+        val discovered = listOf(
+            com.openminis.app.data.model.LLMModel(
+                id = "gpt-5.6-terra", displayName = "GPT-5.6 Terra", provider = "OpenAI",
+            ),
+            com.openminis.app.data.model.LLMModel(
+                id = "gpt-5.5", displayName = "GPT-5.5", provider = "OpenAI",
+            ),
+        )
+        val outcome = com.openminis.app.data.repository.ProviderRepository.codexDiscoveryFromResult(
+            CodexModelsApi.Result.Success(discovered),
+            forceRefresh = true,
+        )
+        val stored = (outcome as com.openminis.app.data.repository.ProviderRepository.CodexDiscovery.Success)
+            .models
+        assertEquals(discovered.map { it.id }, stored.map { it.id })
+        for (image in com.openminis.app.provider.openai.OpenAIModelsApi.codexImageModels()) {
+            assertFalse("${image.id} must not be appended to a live answer", image.id in stored.map { it.id })
         }
 
-        // The normal case: discovery answers with chat SKUs only, so all three
-        // image models must be appended — this is the regression GH#319's
-        // follow-up describes, where a fresh list would otherwise replace the
-        // built-in one and delete them.
-        val chatOnly = merge(listOf("gpt-5.6-terra", "gpt-5.5"))
-        assertEquals(listOf("gpt-5.6-terra", "gpt-5.5") + image.map { it.id }, chatOnly)
-
-        // An empty discovery still yields the image models rather than nothing.
-        assertEquals(image.map { it.id }, merge(emptyList()))
-
-        // And if the backend ever DOES start listing one, the filter must keep
-        // it single — a duplicate id in the picker is its own bug.
-        val withOne = merge(listOf("gpt-5.6-terra", "gpt-image-2"))
-        assertEquals(withOne.size, withOne.toSet().size)
-        for (m in image) assertTrue("${m.id} must survive", m.id in withOne)
+        // A discovered answer that is empty stays empty — the image list is not
+        // resurrected as a stand-in catalog.
+        val empty = com.openminis.app.data.repository.ProviderRepository.codexDiscoveryFromResult(
+            CodexModelsApi.Result.Success(emptyList()),
+            forceRefresh = true,
+        ) as com.openminis.app.data.repository.ProviderRepository.CodexDiscovery.Success
+        assertTrue(empty.models.isEmpty())
     }
 }
 

@@ -5,8 +5,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -152,13 +154,12 @@ private fun SliderPanel(sliders: List<MathSlider>, values: List<Double>, onChang
                     modifier = Modifier.testTag("ui-math-slider-value-${slider.name}"),
                 )
             }
-            val range = slider.max - slider.min
             Slider(
                 value = values[index].toFloat().coerceIn(slider.min.toFloat(), slider.max.toFloat()),
                 onValueChange = { onChange(index, it.toDouble()) },
                 valueRange = slider.min.toFloat()..slider.max.toFloat(),
                 modifier = Modifier.fillMaxWidth().testTag("ui-math-slider-${slider.name}"),
-                steps = if (range <= 40) range.toInt().coerceIn(0, 40) else 0,
+                steps = 0,
             )
         }
     }
@@ -309,11 +310,11 @@ private fun sampleFunction(expression: String, b: PlotBounds, vars: Map<String, 
     return if (success == 0) SeriesData(emptyList(), firstError ?: "定义域内没有可绘制的值") else SeriesData(segments, null)
 }
 
-private data class ParamSeries(val segments: List<List<Pair<Double, Double>>>, val error: String?)
+
 
 private fun sampleParametric(xExpr: String, yExpr: String, tMin: Double, tMax: Double, vars: Map<String, Double>, samples: Int = 321): ParamSeries {
-    val segments = mutableListOf<List<Pair<Double, Double>>>()
-    var current = mutableListOf<Pair<Double, Double>>()
+    val segments = mutableListOf<List<ParamSample>>()
+    var current = mutableListOf<ParamSample>()
     var firstError: String? = null
     var success = 0
     fun breakHere() {
@@ -329,15 +330,17 @@ private fun sampleParametric(xExpr: String, yExpr: String, tMin: Double, tMax: D
             continue
         }
         success++
-        current.add(x.value to y.value)
+        // t travels with the painted point: the gesture pass resolves a tap to this sample's
+        // real parameter instead of deriving t from the horizontal position.
+        current.add(ParamSample(t, x.value, y.value))
     }
     breakHere()
     return if (success == 0) ParamSeries(emptyList(), firstError ?: "参数区间内没有可绘制的点") else ParamSeries(segments, null)
 }
 
 private fun samplePolar(expression: String, tMin: Double, tMax: Double, vars: Map<String, Double>, samples: Int = 361): ParamSeries {
-    val segments = mutableListOf<List<Pair<Double, Double>>>()
-    var current = mutableListOf<Pair<Double, Double>>()
+    val segments = mutableListOf<List<ParamSample>>()
+    var current = mutableListOf<ParamSample>()
     var firstError: String? = null
     var success = 0
     fun breakHere() {
@@ -353,7 +356,9 @@ private fun samplePolar(expression: String, tMin: Double, tMax: Double, vars: Ma
             continue
         }
         success++
-        current.add(radius * cos(t) to radius * sin(t))
+        // θ rides along with the painted point, so a tap at the top of a polar circle
+        // resolves to θ ≈ π/2 instead of the left-hand θ = π.
+        current.add(ParamSample(t, radius * cos(t), radius * sin(t)))
     }
     breakHere()
     return if (success == 0) ParamSeries(emptyList(), firstError ?: "角度区间内没有可绘制的点") else ParamSeries(segments, null)
@@ -376,10 +381,13 @@ private fun PlotCanvas(
     description: String,
     tag: String,
     modifier: Modifier = Modifier,
-    onTap: ((Float, Float) -> Unit)? = null,
+    onPoint: ((xPx: Float, yPx: Float, rect: PlotRectPx) -> Unit)? = null,
     draw: androidx.compose.ui.graphics.drawscope.DrawScope.(MathColors) -> Unit,
 ) {
     val colors = mathColors()
+    // The latest callback is read at gesture time: a recomposition with new bounds
+    // must never keep the pointerInput coroutine's first (stale) closure.
+    val currentOnPoint by rememberUpdatedState(onPoint)
     Canvas(
         modifier
             .fillMaxWidth()
@@ -387,12 +395,33 @@ private fun PlotCanvas(
             .testTag(tag)
             .semantics { contentDescription = description }
             .then(
-                if (onTap == null) Modifier else Modifier.pointerInput(tag) {
-                    detectTapGestures { offset ->
-                        val left = 38.dp.toPx(); val right = 10.dp.toPx(); val top = 12.dp.toPx(); val bottom = 24.dp.toPx()
-                        val w = (size.width - left - right).coerceAtLeast(1f)
-                        val h = (size.height - top - bottom).coerceAtLeast(1f)
-                        onTap(((offset.x - left) / w).coerceIn(0f, 1f), ((offset.y - top) / h).coerceIn(0f, 1f))
+                if (onPoint == null) Modifier else Modifier.pointerInput(tag) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        // Geometry is derived per gesture from the live node size + density,
+                        // never from values captured when the pointerInput block was created.
+                        val rect = UiPlotGeometry.rectFor(size.width.toFloat(), size.height.toFloat(), density)
+                        fun report(x: Float, y: Float) {
+                            currentOnPoint?.invoke(x, y, rect)
+                        }
+                        // The chart takes the gesture it was started on: consuming the down
+                        // and every move keeps a parent vertical scroller from breaking the
+                        // loop with an already-consumed change, so a finger inside the plot
+                        // keeps dragging the point. Touches outside the plot never reach this
+                        // node, so the surrounding list still scrolls normally.
+                        down.consume()
+                        report(down.position.x, down.position.y)
+                        val pointer = down.id
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointer } ?: break
+                            val stillPressed = change.pressed
+                            change.consume()
+                            if (!stillPressed) break
+                            if (change.position != change.previousPosition) {
+                                report(change.position.x, change.position.y)
+                            }
+                        }
                     }
                 },
             ),
@@ -405,9 +434,8 @@ private fun PlotCanvas(
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.gridAndAxes(b: PlotBounds, colors: MathColors) {
-    val left = 38.dp.toPx(); val right = 10.dp.toPx(); val top = 12.dp.toPx(); val bottom = 24.dp.toPx()
-    val w = (size.width - left - right).coerceAtLeast(1f)
-    val h = (size.height - top - bottom).coerceAtLeast(1f)
+    val rect = plotRect()
+    val left = rect.left; val top = rect.top; val w = rect.width; val h = rect.height
     val grid = colors.grid
     for (i in 0..4) {
         val x = left + w * i / 4f
@@ -422,19 +450,25 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.gridAndAxes(b: Plot
     if (zeroY in top..(top + h)) drawLine(axis, Offset(left, zeroY), Offset(left + w, zeroY), 1.6f)
 }
 
+/** One pixel geometry shared by every draw helper and by [PlotCanvas]'s gesture mapping. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.plotRect(): PlotRectPx =
+    UiPlotGeometry.rectFor(
+        size.width,
+        size.height,
+        PlotInsetsPx(38.dp.toPx(), 12.dp.toPx(), 10.dp.toPx(), 24.dp.toPx()),
+    )
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.mapPoint(b: PlotBounds, x: Double, y: Double): Offset {
-    val left = 38.dp.toPx(); val right = 10.dp.toPx(); val top = 12.dp.toPx(); val bottom = 24.dp.toPx()
-    val w = (size.width - left - right).coerceAtLeast(1f)
-    val h = (size.height - top - bottom).coerceAtLeast(1f)
+    val rect = plotRect()
     return Offset(
-        left + w * ((x - b.xMin) / (b.xMax - b.xMin)).toFloat(),
-        top + h * ((b.yMax - y) / (b.yMax - b.yMin)).toFloat(),
+        UiPlotGeometry.screenX(x, b.xMin, b.xMax, rect, clamp = false),
+        UiPlotGeometry.screenY(y, b.yMin, b.yMax, rect, clamp = false),
     )
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.plotClip(block: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit) {
-    val left = 38.dp.toPx(); val right = 10.dp.toPx(); val top = 12.dp.toPx(); val bottom = 24.dp.toPx()
-    clipRect(left, top, size.width - right, size.height - bottom) { block() }
+    val rect = plotRect()
+    clipRect(rect.left, rect.top, rect.right, rect.bottom) { block() }
 }
 
 @Composable
@@ -461,7 +495,10 @@ private fun FunctionPlotMode(n: JSONObject, vars: Map<String, Double>) {
     PlotCanvas(
         description = "函数图像 y=${expression}，x 从 ${fmt(b.xMin)} 到 ${fmt(b.xMax)}",
         tag = "ui-math-plot",
-        onTap = { fx, _ -> probeX = b.xMin + fx * (b.xMax - b.xMin) },
+        onPoint = { xPx, _, rect ->
+            val (fx, _) = UiPlotGeometry.fractionAt(xPx, rect.centerY, rect)
+            probeX = UiPlotGeometry.dataX(fx, b.xMin, b.xMax)
+        },
     ) { c ->
         gridAndAxes(b, c)
         plotClip {
@@ -479,7 +516,8 @@ private fun FunctionPlotMode(n: JSONObject, vars: Map<String, Double>) {
         if (y != null && y.isFinite() && y in b.yMin..b.yMax) {
             val p = mapPoint(b, probeX, y)
             drawCircle(c.primary, 5.dp.toPx(), p)
-            drawLine(c.primary.copy(alpha = 0.35f), Offset(p.x, 12.dp.toPx()), Offset(p.x, size.height - 24.dp.toPx()), 1f)
+            val pr = plotRect()
+            drawLine(c.primary.copy(alpha = 0.35f), Offset(p.x, pr.top), Offset(p.x, pr.bottom), 1f)
         }
     }
     if (probe.value == null) {
@@ -487,7 +525,7 @@ private fun FunctionPlotMode(n: JSONObject, vars: Map<String, Double>) {
     } else {
         PlotReadout("探测点", "f(${fmt(probeX)}) = ${fmt(probe.value)}", "ui-math-probe-value")
     }
-    Text("点按图像移动探测点；滑块参数实时重算（固定 241 采样）。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("点按或拖动图像移动探测点；滑块参数实时重算（固定 241 采样）。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 // ---------------------------------------------------------------- parametric
@@ -511,7 +549,14 @@ private fun ParametricMode(n: JSONObject, vars: Map<String, Double>) {
     PlotCanvas(
         description = "参数曲线 x=${xExpr}, y=${yExpr}, t 从 ${fmt(tMin)} 到 ${fmt(tMax)}",
         tag = "ui-math-plot",
-        onTap = { fx, _ -> probeT = tMin + fx * (tMax - tMin) },
+        onPoint = { xPx, yPx, rect ->
+            // Nearest painted sample in pixels, carrying its own t: a vertical tap at the
+            // top of a loop resolves to the top's t, not to the t that shares its column.
+            UiPlotParamHit.nearestT(
+                data.segments, xPx, yPx,
+                b.xMin, b.xMax, b.yMin, b.yMax, rect,
+            )?.let { probeT = it }
+        },
     ) { c ->
         gridAndAxes(b, c)
         plotClip {
@@ -519,7 +564,7 @@ private fun ParametricMode(n: JSONObject, vars: Map<String, Double>) {
                 if (segment.size < 2) return@forEach
                 val path = Path()
                 segment.forEachIndexed { index, point ->
-                    val p = mapPoint(b, point.first, point.second)
+                    val p = mapPoint(b, point.x, point.y)
                     if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
                 }
                 drawPath(path, c.primary, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
@@ -536,7 +581,7 @@ private fun ParametricMode(n: JSONObject, vars: Map<String, Double>) {
     } else {
         PlotReadout("探测点", "t=${fmt(probeT)} → (${fmt(px.value)}, ${fmt(py.value)})", "ui-math-probe-value")
     }
-    Text("点按图像沿 t 移动探测点；固定 321 采样。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("点按或拖动图像沿曲线移动探测点；固定 321 采样。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 // --------------------------------------------------------------------- polar
@@ -558,7 +603,14 @@ private fun PolarMode(n: JSONObject, vars: Map<String, Double>) {
     PlotCanvas(
         description = "极坐标 r=${expression}, θ 从 ${fmt(tMin)} 到 ${fmt(tMax)}",
         tag = "ui-math-plot",
-        onTap = { fx, _ -> probeT = tMin + fx * (tMax - tMin) },
+        onPoint = { xPx, yPx, rect ->
+            // The hit is the painted point under the finger, carrying its own θ. Mapping
+            // the column back to θ would put θ = π (the left end) under a tap at the top.
+            UiPlotParamHit.nearestT(
+                data.segments, xPx, yPx,
+                b.xMin, b.xMax, b.yMin, b.yMax, rect,
+            )?.let { probeT = it }
+        },
     ) { c ->
         gridAndAxes(b, c)
         plotClip {
@@ -566,7 +618,7 @@ private fun PolarMode(n: JSONObject, vars: Map<String, Double>) {
                 if (segment.size < 2) return@forEach
                 val path = Path()
                 segment.forEachIndexed { index, point ->
-                    val p = mapPoint(b, point.first, point.second)
+                    val p = mapPoint(b, point.x, point.y)
                     if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
                 }
                 drawPath(path, c.primary, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
@@ -584,7 +636,7 @@ private fun PolarMode(n: JSONObject, vars: Map<String, Double>) {
     } else {
         PlotReadout("探测点", "θ=${fmt(probeT)} → r=${fmt(probe.value)}", "ui-math-probe-value")
     }
-    Text("角度以弧度表示；点按图像移动探测点。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("角度以弧度表示；点按或拖动图像沿曲线移动探测点。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 // ----------------------------------------------------------------- implicit
@@ -664,16 +716,18 @@ private fun ImplicitMode(n: JSONObject, vars: Map<String, Double>) {
     PlotCanvas(
         description = "隐式关系 ${expression} ${comparator} 0 的图像",
         tag = "ui-math-plot",
-        onTap = { fx, fy ->
-            probe = (b.xMin + fx * (b.xMax - b.xMin)) to (b.yMax - fy * (b.yMax - b.yMin))
+        onPoint = { xPx, yPx, rect ->
+            val (fx, fy) = UiPlotGeometry.fractionAt(xPx, yPx, rect)
+            probe = UiPlotGeometry.dataX(fx, b.xMin, b.xMax) to UiPlotGeometry.dataY(fy, b.yMin, b.yMax)
         },
     ) { c ->
         gridAndAxes(b, c)
         plotClip {
         data.fills.forEach { cell ->
             val p = mapPoint(b, cell.first, cell.second)
-            val cellW = (size.width - 48.dp.toPx()) / 32f
-            val cellH = (size.height - 36.dp.toPx()) / 32f
+            val pr = plotRect()
+            val cellW = pr.width / 32f
+            val cellH = pr.height / 32f
             drawRect(c.primary.copy(alpha = 0.12f), Offset(p.x - cellW / 2, p.y - cellH / 2), Size(cellW, cellH))
         }
         data.lines.forEach { line ->
@@ -690,7 +744,7 @@ private fun ImplicitMode(n: JSONObject, vars: Map<String, Double>) {
     } else {
         PlotReadout("探测点", "f(${fmt(probe.first)}, ${fmt(probe.second)}) = ${fmt(probeValue.value)}", "ui-math-probe-value")
     }
-    Text("点按图像选点；等号绘制零等值线，不等式填充满足区域。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("点按或拖动图像选点；等号绘制零等值线，不等式填充满足区域。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 // ---------------------------------------------------------------- surface3d
@@ -728,11 +782,15 @@ private fun SurfaceMode(n: JSONObject, vars: Map<String, Double>) {
         Canvas(
             Modifier.fillMaxWidth().height(240.dp).testTag("ui-math-surface")
                 .semantics { contentDescription = "三维曲面线框 z=$expression，拖动旋转视角" }
-                .pointerInput(Unit) {
+                .pointerInput("surface3d") {
+                    // Rotation stays pixel-independent: one drag step is dp-normalised so
+                    // the same physical finger travel rotates the same amount on any density.
                     detectDragGestures { change, drag ->
                         change.consume()
-                        azimuth = ((azimuth + drag.x * 0.4) % 360 + 360) % 360
-                        elevation = (elevation - drag.y * 0.35).coerceIn(-89.0, 89.0)
+                        val dx = drag.x / density
+                        val dy = drag.y / density
+                        azimuth = ((azimuth + dx * 0.4) % 360 + 360) % 360
+                        elevation = (elevation - dy * 0.35).coerceIn(-89.0, 89.0)
                     }
                 },
         ) {

@@ -51,6 +51,13 @@ data class QuotaInstanceDescriptor(
      * carried in so this file does not grow a second one.
      */
     val isOpenCodeChannel: Boolean = false,
+    /**
+     * [T-provider-custom-balance-url] The user's own full HTTPS balance
+     * endpoint, or null for automatic detection. Passed verbatim to
+     * [CustomBalanceQuotaAdapter] only after [CustomBalanceEndpoint.normalize]
+     * accepts it.
+     */
+    val customBalanceURL: String? = null,
 ) {
     @Suppress("EnumEntryName")
     enum class ProviderKind {
@@ -67,7 +74,20 @@ data class QuotaInstanceDescriptor(
         }
 
     val capabilityKey: QuotaCapabilityKey
-        get() = QuotaCapabilityKey(providerKind.name, QuotaCapabilityKey.normalize(customBaseURL))
+        get() {
+            // [T-provider-custom-balance-url] A user endpoint is a different
+            // capability from the vendor's own: keying on it (host/path plus a
+            // hash, never the raw query string) means changing the URL starts a
+            // fresh probe instead of inheriting the old endpoint's failure.
+            val custom = CustomBalanceEndpoint.normalize(customBalanceURL)
+            if (custom != null) {
+                return QuotaCapabilityKey(
+                    providerKind.name + "#customBalance",
+                    CustomBalanceEndpoint.capabilityIdentity(custom),
+                )
+            }
+            return QuotaCapabilityKey(providerKind.name, QuotaCapabilityKey.normalize(customBaseURL))
+        }
 }
 
 // MARK: - Vendor detection
@@ -75,6 +95,11 @@ data class QuotaInstanceDescriptor(
 object QuotaVendorDetector {
     fun vendor(d: QuotaInstanceDescriptor): QuotaVendor {
         if (d.providerKind == QuotaInstanceDescriptor.ProviderKind.unsupported) return QuotaVendor.unknown
+        // [T-provider-custom-balance-url] An explicit endpoint wins over every
+        // host/type heuristic: it is the user's stated source of truth. A
+        // non-blank but invalid value also lands here so the section explains
+        // the bad URL instead of silently querying a different endpoint.
+        if (!d.customBalanceURL.isNullOrBlank()) return QuotaVendor.customBalance
         if (d.isOpenCodeChannel) return QuotaVendor.openCode
         val host = d.customHost
         if (host != null) {
@@ -132,6 +157,18 @@ class QuotaHttpResponse(
 interface QuotaHttpTransport {
     /** [headers] are extra request headers (e.g. the Claude CLI fingerprint); never logged. */
     suspend fun get(url: String, bearer: String, headers: Map<String, String> = emptyMap()): QuotaHttpResponse
+
+    /**
+     * [T-provider-custom-balance-url] Same request, but a redirect is NEVER
+     * followed: a 3xx is returned as-is. Used for a user-configured endpoint,
+     * where following a redirect could hand the API key (or identity headers)
+     * to a host the user did not configure.
+     *
+     * The default keeps every existing transport/test a pure GET; the real
+     * OkHttp transport overrides it with a redirect-disabled client.
+     */
+    suspend fun getWithoutRedirect(url: String, bearer: String, headers: Map<String, String> = emptyMap()): QuotaHttpResponse =
+        get(url, bearer, headers)
 }
 
 /**
@@ -158,12 +195,32 @@ class QuotaOkHttpTransport(private val netTag: String? = null) : QuotaHttpTransp
     }
 
     override suspend fun get(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse =
+        execute(client, url, bearer, headers)
+
+    /**
+     * [T-provider-custom-balance-url] A redirect must not move the request to
+     * another origin: the bearer credential and every extra header stay on the
+     * URL the user configured. A 3xx therefore reaches [QuotaHttp.error] as a
+     * non-2xx response instead of being followed.
+     */
+    override suspend fun getWithoutRedirect(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse =
+        execute(
+            client.newBuilder().followRedirects(false).followSslRedirects(false).build(),
+            url, bearer, headers,
+        )
+
+    private suspend fun execute(
+        http: OkHttpClient,
+        url: String,
+        bearer: String,
+        headers: Map<String, String>,
+    ): QuotaHttpResponse =
         withContext(Dispatchers.IO) {
             val builder = Request.Builder().url(url).get()
             for ((k, v) in headers) builder.header(k, v)
             builder.header("Authorization", "Bearer $bearer")
             builder.header("Accept", "application/json")
-            client.newCall(builder.build()).execute().use { resp ->
+            http.newCall(builder.build()).execute().use { resp ->
                 // Allow-list: only what the quota layer reads.
                 val kept = HashMap<String, String>()
                 resp.header("retry-after")?.let { kept["retry-after"] = it }
@@ -344,6 +401,7 @@ object QuotaAdapterRegistry {
         // [T-quota-relay-probe] The relay's own account ledger, labelled as
         // relay-reported (never as the upstream vendor's balance).
         QuotaVendor.customRelay -> RelayQuotaAdapter
+        QuotaVendor.customBalance -> CustomBalanceQuotaAdapter
         QuotaVendor.unknown -> UnsupportedQuotaAdapter(vendor, QuotaSubject.UnsupportedReason.unknownVendor)
     }
 
@@ -842,7 +900,7 @@ object QuotaConsoleLink {
             QuotaVendor.openCode -> "https://opencode.ai/auth"
             QuotaVendor.siliconFlow, QuotaVendor.geminiAPIKey, QuotaVendor.geminiCodeAssist,
             QuotaVendor.antigravity, QuotaVendor.xAI, QuotaVendor.githubCopilot,
-            QuotaVendor.customRelay, QuotaVendor.unknown -> null
+            QuotaVendor.customRelay, QuotaVendor.customBalance, QuotaVendor.unknown -> null
         }
     }
 
