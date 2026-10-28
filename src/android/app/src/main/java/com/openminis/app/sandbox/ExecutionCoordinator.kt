@@ -675,6 +675,7 @@ object ExecutionCoordinator {
      * Called when a session is closed. Stops and removes the shell.
      */
     fun sessionDidTerminate(sessionId: String) {
+        com.openminis.app.tools.ChrootFileTools.stopForSession(sessionId)
         bumpStopEpoch(sessionId)
         val shell = removeSessionShells(sessionId)
         mutexes.remove(sessionId)
@@ -701,6 +702,7 @@ object ExecutionCoordinator {
      * The shell process is killed; next command will recreate it.
      */
     fun stopCurrentCommand(sessionId: String? = null) {
+        com.openminis.app.tools.ChrootFileTools.stopForSession(sessionId)
         // [FIX-261025-05] Only a Stop aimed at a session moves its epoch. The
         // session-less form is the shell restart after a mount change
         // (MinisApp), not a user Stop: moving every epoch there told the
@@ -746,6 +748,7 @@ object ExecutionCoordinator {
      * @return how many commands were signalled.
      */
     fun interruptForegroundCommands(sessionId: String): Int {
+        val fileOperations = com.openminis.app.tools.ChrootFileTools.stopForSession(sessionId)
         bumpStopEpoch(sessionId)
         val prefix = "$sessionId#"
         var pooled = 0
@@ -759,7 +762,7 @@ object ExecutionCoordinator {
             "[stop-tool] [$sessionId] foreground commands interrupted, pool kept: " +
                 "pooled=$pooled freshCommands=$fresh",
         )
-        return pooled + fresh
+        return pooled + fresh + fileOperations
     }
 
     /**

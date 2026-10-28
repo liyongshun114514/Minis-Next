@@ -25,7 +25,7 @@ object FileEditTool {
         propertyOrdering = listOf("tool_title", "path", "old_string", "new_string", "replace_all"),
     )
 
-    fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
+    suspend fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
             val path = args.optString("path", "")
@@ -63,6 +63,10 @@ object FileEditTool {
                         "Toggle writability in Settings → Mount External Folders if this is a mistake.",
                     false, toolTitle = toolTitle,
                 )
+            }
+
+            if (ChrootFileTools.selected(context)) {
+                return ChrootFileTools.execute("edit", args, sessionId, context)
             }
 
             // T123: per-session resolver — see FileWriteTool for rationale.

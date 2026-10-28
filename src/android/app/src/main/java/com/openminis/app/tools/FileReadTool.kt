@@ -25,7 +25,7 @@ object FileReadTool {
         propertyOrdering = listOf("tool_title", "path", "offset", "lines", "direction", "max_length"),
     )
 
-    fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
+    suspend fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
             val path = args.optString("path", "")
@@ -48,6 +48,14 @@ object FileReadTool {
 
             if (path.isBlank()) {
                 return ToolExecutionResult("Error: 'path' is required", false, toolTitle = toolTitle)
+            }
+
+            val validatedLines = if (args.has("lines")) args.optInt("lines") else null
+            if (validatedLines != null && validatedLines < 0) {
+                return ToolExecutionResult("Error: 'lines' must not be negative", false, toolTitle = toolTitle)
+            }
+            if (ChrootFileTools.selected(context)) {
+                return ChrootFileTools.execute("read", args, sessionId, context)
             }
 
             // T123: per-session resolver — see FileWriteTool for rationale.

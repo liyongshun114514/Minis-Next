@@ -31,7 +31,7 @@ object FileWriteTool {
         propertyOrdering = listOf("tool_title", "path", "content", "append", "create_dirs"),
     )
 
-    fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
+    suspend fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
             val path = args.optString("path", "")
@@ -74,6 +74,10 @@ object FileWriteTool {
                         "Toggle writability in Settings → Mount External Folders if this is a mistake.",
                     false, toolTitle = toolTitle,
                 )
+            }
+
+            if (ChrootFileTools.selected(context)) {
+                return ChrootFileTools.execute("write", args, sessionId, context)
             }
 
             // T123: per-session resolver so /var/minis/workspace/...,

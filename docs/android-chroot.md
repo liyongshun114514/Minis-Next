@@ -413,3 +413,44 @@ silent success.
 nning), 98
 (rejected request), 126 (setup/drop failed), 127 (exec failed) — never as a
 silent success.
+
+
+## 12. Text file tools in 1.4
+
+Default ACL inheritance is useful for ordinary App consumers of shared output,
+but cannot make App-UID access succeed after an explicit restrictive creation
+mode/chmod or removal of an ACL. An EACCES in that case is normal DAC behavior.
+In CHROOT mode, file_read/file_write/file_edit now use ChrootKernel.spawn with
+rootRequired=true and the exact per-session SessionMounts map. Each invocation
+uses the existing Root tri-state gate: Ask prompts for that operation, Deny
+executes nothing, and Allow uses the current grant. Approval shows operation
+and target path; file contents live in private request files rather than argv.
+No target chmod, chown, ACL repair, recursive scan or fallback identity occurs.
+This means an approved Root file tool can operate on root:root 0755 directories
+or 0600 files without any default ACL, just as an approved Root shell can.
+
+The App stages the bundled Python helper and JSON request/response in a random
+0700 directory under Ubuntu-rootfs/.minis-file-tools; all transport files are
+App-created 0600 and the response is overwritten in place, retaining ownership.
+The helper runs with /usr/bin/python3 -I inside CHROOT, processes one operation,
+and reports structured success or a real error. Python is part of the verified
+bundled Ubuntu toolset. A missing interpreter/helper or invalid/oversized result
+is a tool failure, never a successful write. No package installation is attempted.
+Request directories are cleaned after completion; cleanup failures are logged.
+The empty staging parent may remain for reuse and holds no request content.
+
+Write guards reject locked external mount paths and offload-placeholder content
+before dispatch. Kernel read-only bind mounts remain enforced. A Root file tool
+is still subject to read-only filesystems and SELinux. Existing target inodes,
+owner/mode/ACL survive overwrite/append/edit; new files use normal guest creation
+rules. A 45-second process deadline and Stop/backend-switch/Root-revocation hooks
+close the client, whose disconnect kills the child process group. A timeout or
+failed result after a possible write tells the caller to re-read, never retries.
+Read output remains capped at 80,000 characters; edit input is capped at 8 MiB.
+PRoot continues its previous App-UID file implementation.
+
+Cloud validation includes the real helper with ordinary separate root/App UIDs
+and a no-ACL 0755 directory, plus Kotlin request/response integration. It does
+not substitute for Android CHROOT and SELinux verification on the user's device.
+Rollback is a code downgrade/revert: this change does not migrate or rewrite
+user permissions, and the 1.3 default ACL policy remains unchanged.
