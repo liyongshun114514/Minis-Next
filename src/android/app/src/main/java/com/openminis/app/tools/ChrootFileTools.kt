@@ -43,10 +43,11 @@ internal object ChrootFileTools {
 
     suspend fun execute(
         operation: String, args: JSONObject, sessionId: String, context: Context,
+        executionSessionId: String = sessionId,
     ): ToolExecutionResult = withContext(Dispatchers.IO) {
         val path = args.optString("path", "")
         val title = args.optString("tool_title", "file_$operation")
-        val call = Active(sessionId)
+        val call = Active(executionSessionId)
         val id = "file-${UUID.randomUUID()}"
         active[id] = call
         com.openminis.app.sandbox.SandboxActivityRegistry.begin(
@@ -68,7 +69,7 @@ internal object ChrootFileTools {
                 // Direct CHROOT route: switching backends cannot silently run this as App UID.
                 if (call.stopped.get()) return@runStaged Exit(130, "Cancelled before Root authorization.")
                 val spawn = ChrootKernel.spawn(context, SandboxCommandSpec(
-                    command = command, sessionId = sessionId, sessionMounts = mounts.mounts,
+                    command = command, sessionId = executionSessionId, sessionMounts = mounts.mounts,
                     rootRequired = true,
                 ))
                 val diagnostic = File(job, "diagnostic")

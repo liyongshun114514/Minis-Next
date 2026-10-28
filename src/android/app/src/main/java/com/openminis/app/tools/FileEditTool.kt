@@ -25,7 +25,7 @@ object FileEditTool {
         propertyOrdering = listOf("tool_title", "path", "old_string", "new_string", "replace_all"),
     )
 
-    suspend fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
+    suspend fun execute(argsJson: String, sessionId: String, context: Context, executionSessionId: String = sessionId): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
             val path = args.optString("path", "")
@@ -66,7 +66,7 @@ object FileEditTool {
             }
 
             if (ChrootFileTools.selected(context)) {
-                return ChrootFileTools.execute("edit", args, sessionId, context)
+                return ChrootFileTools.execute("edit", args, sessionId, context, executionSessionId)
             }
 
             // T123: per-session resolver — see FileWriteTool for rationale.

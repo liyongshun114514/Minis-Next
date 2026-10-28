@@ -14290,7 +14290,7 @@ class ChatViewModel(
             com.openminis.app.intelligentui.IntelligentUiTool.NAME ->
                 com.openminis.app.intelligentui.IntelligentUiTool.execute(argsJson)
             FileReadTool.NAME -> {
-                val result = FileReadTool.execute(argsJson, fsSessionId, context)
+                val result = FileReadTool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId)
                 // Record skill usage when SKILL.md under /var/minis/skills/<id>/ is read.
                 if (result.success) {
                     runCatching {
@@ -14304,10 +14304,10 @@ class ChatViewModel(
                 }
                 result
             }
-            FileWriteTool.NAME -> FileWriteTool.execute(argsJson, fsSessionId, context).also {
+            FileWriteTool.NAME -> FileWriteTool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId).also {
                 if (it.success) maybeReloadSkillsForPath(argsJson)
             }
-            FileEditTool.NAME -> FileEditTool.execute(argsJson, fsSessionId, context).also {
+            FileEditTool.NAME -> FileEditTool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId).also {
                 if (it.success) maybeReloadSkillsForPath(argsJson)
             }
             // T178: pass sessionId + context so read_image routes through

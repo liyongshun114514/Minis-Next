@@ -31,7 +31,7 @@ object FileWriteTool {
         propertyOrdering = listOf("tool_title", "path", "content", "append", "create_dirs"),
     )
 
-    suspend fun execute(argsJson: String, sessionId: String, context: Context): ToolExecutionResult {
+    suspend fun execute(argsJson: String, sessionId: String, context: Context, executionSessionId: String = sessionId): ToolExecutionResult {
         return try {
             val args = JSONObject(argsJson)
             val path = args.optString("path", "")
@@ -77,7 +77,7 @@ object FileWriteTool {
             }
 
             if (ChrootFileTools.selected(context)) {
-                return ChrootFileTools.execute("write", args, sessionId, context)
+                return ChrootFileTools.execute("write", args, sessionId, context, executionSessionId)
             }
 
             // T123: per-session resolver so /var/minis/workspace/...,

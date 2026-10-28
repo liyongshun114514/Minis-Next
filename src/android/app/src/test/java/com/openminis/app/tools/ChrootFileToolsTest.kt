@@ -116,5 +116,11 @@ class ChrootFileToolsTest {
         assertTrue(bridge.contains("ChrootKernel.spawn(context, SandboxCommandSpec("))
         assertTrue(bridge.contains("rootRequired = true"))
         assertTrue(bridge.contains("sessionMounts = mounts.mounts"))
+        assertTrue(bridge.contains("SessionMounts.forContext(context, sessionId)"))
+        assertTrue(bridge.contains("Active(executionSessionId)"))
+        val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
+        for (tool in listOf("FileReadTool", "FileWriteTool", "FileEditTool")) {
+            assertTrue(vm.contains("$tool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId)"))
+        }
     }
 }
