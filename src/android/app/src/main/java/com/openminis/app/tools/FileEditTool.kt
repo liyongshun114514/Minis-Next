@@ -70,7 +70,10 @@ object FileEditTool {
                 ?: return ToolExecutionResult("Error: Cannot resolve path: $path", false, toolTitle = toolTitle)
 
             if (!file.exists()) {
-                return ToolExecutionResult("Error: File not found: $path", false, toolTitle = toolTitle)
+                // [T-chroot-file-owner-propagation] exists() is false for both
+                // "gone" and "cannot stat": say which one this is instead of
+                // reporting a permission denial as a missing file.
+                return ToolExecutionResult(FileToolErrors.missingMessage(file, path), false, toolTitle = toolTitle)
             }
 
             // [T-port-filetool-size-guard] Read, replace and write back off
@@ -118,7 +121,14 @@ object FileEditTool {
             )
         }
 
-        val content = file.readText()
+        val content = try {
+            file.readText()
+        } catch (e: Exception) {
+            return ToolExecutionResult(
+                FileToolErrors.failureMessage(file, path, "read", e),
+                false, toolTitle = toolTitle,
+            )
+        }
 
         // Count occurrences
         var count = 0
@@ -148,7 +158,14 @@ object FileEditTool {
             content.replaceFirst(oldString, newString)
         }
 
-        file.writeText(newContent)
+        try {
+            FileToolErrors.writeText(file, path, newContent, append = false, createDirs = false)
+        } catch (e: Exception) {
+            return ToolExecutionResult(
+                FileToolErrors.failureMessage(file, path, "write", e),
+                false, toolTitle = toolTitle,
+            )
+        }
         val replacements = if (replaceAll) count else 1
         return ToolExecutionResult(
             "Edited $path ($replacements replacement(s), ${newContent.length} bytes)",

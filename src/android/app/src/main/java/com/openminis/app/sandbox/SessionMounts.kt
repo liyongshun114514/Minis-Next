@@ -76,7 +76,15 @@ object SessionMounts {
         val mounts = linkedMapOf<String, String>()
         val skipped = mutableListOf<String>()
         for ((linux, dir) in candidates) {
-            if (ensureDir(dir)) mounts[linux] = dir.absolutePath else skipped += linux
+            if (ensureDir(dir)) {
+                // App-owned infrastructure, before any uid-0 shell can create it.
+                // Existing non-writable tmp is preserved; file tools report its
+                // actual ownership/mode instead of silently changing permissions.
+                if (linux == "/var/minis/workspace" && !ensureDir(File(dir, "tmp"))) {
+                    Log.w(TAG, "cannot prepare App workspace tmp: ${File(dir, "tmp")}")
+                }
+                mounts[linux] = dir.absolutePath
+            } else skipped += linux
         }
         // External (SAF-picked) folders are the user's, not ours to create,
         // and are passed through as before: under scoped storage a Java

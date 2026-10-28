@@ -46,6 +46,20 @@ class SessionIsolationTest {
     }
 
     @Test
+    fun `workspace tmp exists before a shell and preserves existing contents`() {
+        val a = SessionMounts.build(filesDir, "A").mounts
+        val tmp = File(a.getValue("/var/minis/workspace"), "tmp")
+        assertTrue(tmp.isDirectory)
+        val note = File(tmp, "keep.txt").apply { writeText("keep") }
+        SessionMounts.build(filesDir, "A")
+        assertEquals("keep", note.readText())
+        val b = SessionMounts.build(filesDir, "B").mounts
+        val otherTmp = File(b.getValue("/var/minis/workspace"), "tmp")
+        assertTrue(otherTmp.isDirectory)
+        assertFalse(File(otherTmp, "keep.txt").exists())
+    }
+
+    @Test
     fun `two sessions never share a per-session dir, and do share the global ones`() {
         val a = SessionMounts.build(filesDir, "A").mounts
         val b = SessionMounts.build(filesDir, "B").mounts

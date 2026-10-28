@@ -157,6 +157,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_brand_copy.py -v
           python3 scripts/test_offload_client.py
+          python3 scripts/test_chroot_shared_dirs.py --require-identities
           python3 -m unittest discover -s scripts/tests -p test_intelligent_ui_contract.py -v
       - name: Build APK
         id: build-apk
@@ -183,6 +184,7 @@ jobs:
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
             --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
+            --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
@@ -206,7 +208,7 @@ jobs:
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
-          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("sandbox.RootfsDirectoryMigrationTest","sandbox.RootfsDirectoryMigrationIntegrationTest","agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","intelligentui.IntelligentUiParserTest","intelligentui.UiExpressionTest","intelligentui.IntelligentUiRenderTest","intelligentui.IntelligentUiExtendedParserTest","intelligentui.IntelligentUiToolLogicTest","intelligentui.IntelligentUiToolsRenderTest","intelligentui.IntelligentUiRichRenderTest","intelligentui.IntelligentUiFieldsRenderTest","intelligentui.IntelligentUiSurfaceTest","intelligentui.UiMathEngineTest","intelligentui.UiMathSchemaTest","intelligentui.UiMathRenderTest","intelligentui.UiMathInteractionRenderTest","intelligentui.UiPlotGeometryTest","ui.chat.ComposerSurfaceGeometryTest","data.CustomBalancePersistenceTest","quota.CustomBalanceQuotaTest","data.repository.ModelListReconcileTest","ui.settings.ProviderDetailHiddenModelsTest","provider.ModelListRefreshTest","provider.EmptyKeyRefreshTest","provider.CodexModelsApiTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("sandbox.SessionIsolationTest","sandbox.ChrootSharedFilesTest","tools.FileToolWriteFailureTest","sandbox.RootfsDirectoryMigrationTest","sandbox.RootfsDirectoryMigrationIntegrationTest","agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","intelligentui.IntelligentUiParserTest","intelligentui.UiExpressionTest","intelligentui.IntelligentUiRenderTest","intelligentui.IntelligentUiExtendedParserTest","intelligentui.IntelligentUiToolLogicTest","intelligentui.IntelligentUiToolsRenderTest","intelligentui.IntelligentUiRichRenderTest","intelligentui.IntelligentUiFieldsRenderTest","intelligentui.IntelligentUiSurfaceTest","intelligentui.UiMathEngineTest","intelligentui.UiMathSchemaTest","intelligentui.UiMathRenderTest","intelligentui.UiMathInteractionRenderTest","intelligentui.UiPlotGeometryTest","ui.chat.ComposerSurfaceGeometryTest","data.CustomBalancePersistenceTest","quota.CustomBalanceQuotaTest","data.repository.ModelListReconcileTest","ui.settings.ProviderDetailHiddenModelsTest","provider.ModelListRefreshTest","provider.EmptyKeyRefreshTest","provider.CodexModelsApiTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

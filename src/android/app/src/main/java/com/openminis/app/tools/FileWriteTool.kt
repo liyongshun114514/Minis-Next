@@ -102,19 +102,22 @@ object FileWriteTool {
             // folder no longer holds the agent loop forever.
             try {
                 FileToolIO.run("Writing $path", writes = true) {
-                    val parent = file.parentFile
-                    if (parent != null && (createDirs || !parent.exists())) {
-                        parent.mkdirs()
-                    }
-
-                    if (append) {
-                        file.appendText(content)
-                    } else {
-                        file.writeText(content)
-                    }
+                    // [T-chroot-file-owner-propagation] The parent directory
+                    // and the write are one step: a directory the app's UID
+                    // cannot create is reported by name (createDirectories'
+                    // first failing path and reason), not as a bare ENOENT for
+                    // the file.
+                    FileToolErrors.writeText(file, path, content, append, createDirs)
                 }
             } catch (e: FileToolIO.TimedOut) {
                 return ToolExecutionResult("Error: ${e.message}", false, toolTitle = toolTitle, timedOut = true)
+            } catch (e: FileToolIO.OutOfMemory) {
+                return ToolExecutionResult("Error: ${e.message}", false, toolTitle = toolTitle)
+            } catch (e: Exception) {
+                return ToolExecutionResult(
+                    FileToolErrors.failureMessage(file, path, if (append) "append to" else "write", e),
+                    false, toolTitle = toolTitle,
+                )
             }
 
             val bytes = file.length()

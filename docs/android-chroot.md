@@ -222,11 +222,45 @@ What still bounds it:
 * at 不允许 nothing runs at all (no app-uid fallback), and at 每次询问 a refused
   or timed-out confirmation runs nothing.
 
-Practical consequences: files created by an approved root command are owned by
-uid 0 inside the guest (the same numeric uid as host root). Mounts under
-`/var/minis` are still the app's files; a root command can rewrite them into
-ownership the app can no longer read, so prefer root for package management
-rather than for editing shared workspace files.
+### Shared file handoff in 1.3
+
+Files created by an approved root command keep uid 0. Before binding App-managed
+shared roots, the helper installs a POSIX default ACL naming the actual App UID
+with `rwx`. The primary GID comes from `Os.getgid()`, not an assumed UID/GID
+equality. This applies only to the four session roots (`workspace`, `attachments`,
+`offloads`, `browser`), four global roots (`memory`, `skills`, `shared`,
+`mcp-servers`), and the fixed App-created `workspace/tmp`. It never changes
+`/opt`, package files, user mounts, or the rest of the guest tree. Read-only
+mounts are excluded. Each preparation touches those roots only; it never scans
+or recursively changes their contents. PRoot's execution identity is unchanged.
+
+Ordinary `mkdir` (creation mode 0777) and file creation (0666) inherit the App
+entry, including through nested directories. Under an inherited ACL Linux uses
+the requested creation mode rather than umask to constrain the ACL mask, so
+these normally show 0775 / 0664 while the group-object entry keeps its previous
+permissions. Root remains root for `apt` / `dpkg`. Explicit modes such as
+`mkdir -m 700`, `open(..., 0600)`, or later `chmod` still limit the App's access;
+Minis does not undo them. Moving in an existing inode does not make it inherit
+an ACL. Existing file contents, ownership and permissions are never repaired
+automatically. An existing different default ACL is preserved and reported.
+
+A pre-existing root-owned `workspace/tmp` can therefore remain unwritable to the
+App. The helper reports that exact path and preserves it; a newly created task
+directory directly under the managed workspace inherits sharing. Changing an
+old tree's ownership or permissions is a separate, deliberate user operation.
+Filesystems that reject POSIX ACL xattrs report the OS error and continue with
+their existing permissions. SELinux denials are not fixed by this DAC policy.
+The App file tools stop on the first parent creation error and include its path
+and exception rather than attempting a write that obscures the cause as ENOENT.
+
+Validation uses isolated ordinary filesystem fixtures, including distinct
+numeric root/App identities on cloud Linux, nested creation, existing files,
+explicit modes, and parallel task directories. It is not Android chroot or
+SELinux runtime validation. No Root/Shizuku operation on the user's device is
+part of this build. Roll back the code with a normal Git revert; existing
+inherited ACLs persist on files, so reverting code alone does not remove those
+metadata. Removing them is a separate scoped filesystem operation, not a
+recursive automatic cleanup or a data migration.
 
 ## 7. Mounts and namespace policy
 

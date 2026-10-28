@@ -73,6 +73,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include "minis_shared_dirs.h"
 
 #define PROTO_MAGIC   0x5248434dU /* 'MCHR' LE */
 #define PROTO_VERSION 2U
@@ -386,7 +387,7 @@ static int mkdir_under_root(const char *rootfs, const char *guest, const char **
  * by the caller), so nothing here can leak to the rest of the device.
  */
 static int enter_sandbox(const char *rootfs, const struct request *r,
-                         const struct allow_roots *allow) {
+                         const struct allow_roots *allow, const char *app_files) {
     if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) != 0) {
         say("minis-chroot: cannot make / private: %s\n", strerror(errno));
         return -1;
@@ -465,6 +466,33 @@ static int enter_sandbox(const char *rootfs, const struct request *r,
             say("minis-chroot: mount target escapes the rootfs: %s\n", dst);
             continue;
         }
+        if (!m->ro && app_files) {
+            char real_files[PATH_MAX], real_host[PATH_MAX];
+            if (realpath(app_files, real_files) && realpath(m->host.p, real_host) &&
+                minis_shared_is_managed(m->guest.p, real_host, real_files)) {
+                if (minis_shared_prepare(real_host, (uid_t)r->uid, (gid_t)r->gid) != 0) {
+                    int e = errno;
+                    say("minis-chroot: shared directory %s (App uid=%u gid=%u): "
+                        "cannot establish default file handoff ACL: %s (errno=%d). "
+                        "Existing contents and permissions were preserved; "
+                        "App file writes may fail. No recursive ownership repair was attempted.\n",
+                        m->guest.p, r->uid, r->gid, strerror(e), e);
+                }
+                /* The only pre-created infrastructure child. No scan and no
+                 * owner repair: a legacy root-owned tmp is reported unchanged. */
+                if (!strcmp(m->guest.p, "/var/minis/workspace")) {
+                    char tmp[PATH_MAX];
+                    if (snprintf(tmp, sizeof(tmp), "%s/tmp", real_host) < (int)sizeof(tmp) &&
+                        minis_shared_prepare(tmp, (uid_t)r->uid, (gid_t)r->gid) != 0) {
+                        int e = errno;
+                        say("minis-chroot: /var/minis/workspace/tmp file handoff: %s "
+                            "(errno=%d); existing ownership/mode unchanged, use a new "
+                            "task directory under workspace if this legacy tmp is not writable.\n",
+                            strerror(e), e);
+                    }
+                }
+            }
+        }
         if (bind_one(m->host.p, dst, m->ro) != 0) {
             say("minis-chroot: bind failed %s -> %s: %s\n", m->host.p, dst, strerror(errno));
         }
@@ -525,7 +553,7 @@ static int token_equal(const unsigned char *a, const unsigned char *b) {
 }
 
 struct server {
-    const char *rootfs, *socket_name, *state_dir;
+    const char *rootfs, *socket_name, *state_dir, *app_files;
     int uid, gid, idle_ttl;
     /* Second gate for uid-0 children; set only by --root-exec. */
     int root_exec;
@@ -656,7 +684,7 @@ static void serve_one(struct server *s, int conn, pid_t server_pid) {
             say("minis-chroot: unshare(CLONE_NEWNS): %s\n", strerror(errno));
             _exit(126);
         }
-        if (enter_sandbox(s->rootfs, &r, &s->allow) != 0) _exit(126);
+        if (enter_sandbox(s->rootfs, &r, &s->allow, s->app_files) != 0) _exit(126);
         if (setgroups(0, NULL) != 0 || prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
             say("minis-chroot: cannot clear supplementary groups or lock privileges: %s\n", strerror(errno));
             _exit(126);
@@ -989,7 +1017,7 @@ static void usage(void) {
     fprintf(stderr,
             "usage: libminis-chroot.so --serve --root DIR --socket NAME --uid N --gid N\n"
             "                            [--idle-ttl SEC] [--state DIR] [--root-exec]\n"
-            "                            [--allow-root DIR]...\n"
+            "                            [--app-files DIR] [--allow-root DIR]...\n"
             "       libminis-chroot.so --client --socket NAME --root DIR [--cwd DIR]\n"
             "                            [--tty] [--login] [--root-user]\n"
             "                            [--mount g=h|--ro-mount g=h]...\n"
@@ -1012,6 +1040,7 @@ int main(int argc, char **argv) {
             else if (!strcmp(a, "--gid")) { s.gid = atoi(v); i++; }
             else if (!strcmp(a, "--idle-ttl")) { s.idle_ttl = atoi(v); i++; }
             else if (!strcmp(a, "--state")) { s.state_dir = v; i++; }
+            else if (!strcmp(a, "--app-files")) { s.app_files = v; i++; }
             else if (!strcmp(a, "--root-exec")) { s.root_exec = 1; }
             else if (!strcmp(a, "--allow-root")) {
                 if (s.allow.n < (int)(sizeof(s.allow.v) / sizeof(s.allow.v[0]))) s.allow.v[s.allow.n++] = v;
