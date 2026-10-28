@@ -122,7 +122,10 @@ class UiMathInteractionRenderTest {
         val t = numberAfter("t=")
         assertEquals("a tap on the top of the circle must resolve to t = π/2", PI / 2, t, 0.02)
         assertTrue("t must not be the left end of the loop", abs(t - PI) > 1.0)
-        assertTrue("the probe must sit at the top, not on the left", probeText().contains("(0, 1)"))
+        val coordinates = probeText().substringAfter("→ (").substringBefore(')').split(',')
+            .map { it.trim().toDouble() }
+        assertEquals("the probe x must be at the circle's top", 0.0, coordinates[0], 0.02)
+        assertEquals("the probe y must be at the circle's top", 1.0, coordinates[1], 0.02)
     }
 
     @Test fun parameterCircleTappedAtItsRightPicksAnEndpointOfTheParameterRange() {

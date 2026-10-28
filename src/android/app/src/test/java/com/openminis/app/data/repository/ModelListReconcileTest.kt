@@ -125,6 +125,7 @@ class ModelListReconcileTest {
             instanceId = "inst",
             existing = listOf(entry("a", uuid = "ua", contextWindow = 111)),
             authoritative = listOf(model("a"), model("b")),
+            newUuid = { "uuid-b" },
         )
         assertEquals(setOf("a", "b"), first.entries.map { it.baseModel.id }.toSet())
 
