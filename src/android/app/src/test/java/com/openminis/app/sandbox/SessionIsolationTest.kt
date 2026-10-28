@@ -152,9 +152,19 @@ class SessionIsolationTest {
         val coord = src("sandbox/ExecutionCoordinator.kt")
         assertFalse(coord.contains("PRootKernel.addBindMount("))
         assertTrue(coord.contains("SessionMounts.forContext(appContext, sessionId)"))
-        // Both shell types take their -b argv from the private map only.
-        assertTrue(src("sandbox/PersistentShell.kt").contains("for ((linuxPath, hostPath) in sessionBindMounts)"))
-        assertTrue(src("sandbox/FreshProcessShell.kt").contains("for ((linuxPath, hostPath) in sessionBindMounts)"))
+        // Both shells hand the private table to the common backend router.
+        for (shell in listOf("PersistentShell.kt", "FreshProcessShell.kt")) {
+            val source = src("sandbox/$shell")
+            assertTrue(source.contains("SandboxRouter.build("))
+            assertTrue(source.contains("sessionMounts = sessionBindMounts"))
+            assertFalse(source.contains("PRootKernel.bindMounts"))
+        }
+        val router = src("sandbox/SandboxBackendStore.kt")
+        assertTrue(router.contains("val mounts = spec.sessionMounts ?: PRootKernel.bindMounts"))
+        assertTrue(router.contains("PRootKernel.buildProotArgv(shellArgv, mounts)"))
+        assertTrue(router.contains("PRootKernel.buildProotInteractiveCommand(listOf(\"/bin/sh\"), mounts)"))
+        val chroot = src("sandbox/ChrootKernel.kt")
+        assertTrue(chroot.contains("mountsFor(context, spec.sessionMounts ?: PRootKernel.bindMounts)"))
     }
 
     @Test
