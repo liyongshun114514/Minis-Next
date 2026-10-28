@@ -1,6 +1,8 @@
 package com.openminis.app.intelligentui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -45,7 +47,18 @@ internal fun IntelligentUiCard(block: AssistantBlock, interactive: Boolean, onFo
             }
         }
     }
-    ElevatedCard(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    // Tall in-list cards must not cast a hardware shadow: some Android GPUs
+    // rasterise the whole scrolling layer as a dark slab below the card. Use
+    // an explicit untinted, zero-elevation surface instead of ElevatedCard.
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("ui-native-card"),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Intelligent UI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
@@ -70,6 +83,7 @@ internal fun UiNode(title: String, node: JSONObject, interactive: Boolean, onFol
             in UiExtendedSchema.layouts -> UiLayout(node) { child -> UiNode(title, child, interactive, onFollowUp) }
             in UiExtendedSchema.rich -> UiRichDisplay(node)
             in UiExtendedSchema.tools -> UiInteractiveTool(node)
+            "math" -> UiMathDisplay(node)
             "actions" -> UiActions(title, node, interactive, onFollowUp)
             "sources" -> UiSources(node)
             "stat" -> Text(node.getString("value") + " " + node.optString("unit"), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)

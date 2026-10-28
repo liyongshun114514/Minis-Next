@@ -6,7 +6,7 @@ JAVA=ROOT/'src/android/app/src/main/java/com/openminis/app'
 class IntelligentUiContractTest(unittest.TestCase):
  def test_renderer_is_native_not_web(self):
   s='\n'.join(p.read_text() for p in (JAVA/'intelligentui').glob('*.kt'))
-  for token in ('Canvas(', 'OutlinedTextField(', 'Slider(', 'Checkbox(', 'ElevatedCard(', 'rememberSaveable', 'VideoView(', 'UiAdvancedFields(', 'UiInteractiveTool(', 'UiRichDisplay('):
+  for token in ('Canvas(', 'OutlinedTextField(', 'Slider(', 'Checkbox(', 'shadowElevation = 0.dp', 'rememberSaveable', 'VideoView(', 'UiAdvancedFields(', 'UiInteractiveTool(', 'UiRichDisplay('):
    self.assertIn(token,s)
   for forbidden in ('import android.webkit.WebView','evaluateJavascript(', 'loadUrl(', 'HttpURLConnection('):
    self.assertNotIn(forbidden,s)
@@ -28,6 +28,26 @@ class IntelligentUiContractTest(unittest.TestCase):
    self.assertIn(name,s)
   self.assertIn("--tests '*IntelligentUi*'",s)
   self.assertIn('"skipped","failures","errors"',s)
+ def test_math_is_wired_and_local(self):
+  self.assertIn('"math" -> UiMathSchema.validate(n)',(JAVA/'intelligentui/IntelligentUiDocument.kt').read_text())
+  self.assertIn('"math" -> UiMathDisplay(node)',(JAVA/'intelligentui/IntelligentUiCard.kt').read_text())
+  self.assertIn('UiMathShowcase.nodes()',(JAVA/'intelligentui/UiShowcase.kt').read_text())
+  flow=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
+  for name in ('UiMathSchemaTest','UiMathEngineTest','UiMathRenderTest','IntelligentUiSurfaceTest','ComposerSurfaceGeometryTest'):
+   self.assertIn(name,flow)
+  for token in ('--tests \'*UiMath*\'','--tests \'*ComposerSurfaceGeometryTest\''):
+   self.assertIn(token,flow)
+ def test_card_has_no_large_shadow_or_tonal_overlay(self):
+  s=(JAVA/'intelligentui/IntelligentUiCard.kt').read_text()
+  self.assertIn('shadowElevation = 0.dp',s)
+  self.assertIn('tonalElevation = 0.dp',s)
+  self.assertIn('color = MaterialTheme.colorScheme.surface',s)
+  self.assertNotIn('ElevatedCard(',s)
+ def test_composer_uses_shared_geometry_for_safe_edges_and_corners(self):
+  s=(JAVA/'ui/chat/ChatScreen.kt').read_text()
+  self.assertIn('ComposerSurfaceGeometry.bottomPaddingDp(',s)
+  self.assertIn('ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()',s)
+  self.assertIn('cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp',s)
  def test_cloud_build_has_no_release_publication(self):
   s=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
   self.assertNotIn('contents: write',s)

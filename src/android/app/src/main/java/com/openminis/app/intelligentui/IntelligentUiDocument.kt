@@ -8,7 +8,7 @@ data class IntelligentUiDocument(val title: String, val nodes: List<JSONObject>,
 /** Deliberately a finite native component catalog, not an HTML/JS interpreter. */
 object IntelligentUiParser {
     const val MAX_BYTES = 196608
-    val types = listOf("text", "stat", "table", "chart", "choices", "form", "calculator", "steps", "diagram", "map", "rotation3d") + UiExtendedSchema.types
+    val types = listOf("text", "stat", "table", "chart", "choices", "form", "calculator", "steps", "diagram", "map", "rotation3d", "math") + UiExtendedSchema.types
     private val idPattern = Regex("[A-Za-z][A-Za-z0-9_]{0,47}")
     private val common = setOf("id", "type", "title", "text")
     private val specific = mapOf(
@@ -33,12 +33,13 @@ object IntelligentUiParser {
             require(depth <= 5 && ++count <= 128) { "Use at most 128 components and depth 5" }
             val type = str(n, "type", 30)
             require(type in types) { "Unsupported component: $type" }
-            if (type !in UiExtendedSchema.types) keys(n, common + specific.getValue(type))
+            if (type !in UiExtendedSchema.types && type != "math") keys(n, common + specific.getValue(type))
             val id = str(n, "id", 48)
             require(idPattern.matches(id) && ids.add(id)) { "Component IDs must be unique identifiers" }
             optionalText(n, "title", 200); optionalText(n, "text", 4000)
             when (type) {
                 in UiExtendedSchema.types -> UiExtendedSchema.validate(n) { validate(it, depth + 1) }
+                "math" -> UiMathSchema.validate(n)
                 "text" -> str(n, "text", 4000)
                 "stat" -> { str(n, "value", 200); optionalText(n, "unit", 80) }
                 "table" -> {

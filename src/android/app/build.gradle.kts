@@ -38,8 +38,9 @@ android {
         applicationId = "com.openminis.app.next"
         minSdk = 26
         targetSdk = 35
-        versionCode = 44
-        versionName = "1.15-ubuntu.9"
+        // Android update ordering stays monotonic even as the public name restarts.
+        versionCode = 45
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

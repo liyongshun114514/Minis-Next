@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 /** First-party local examples, never advertised as live statistics, quotes or records. */
 object UiShowcase {
-    val presets = listOf("all","cards","layouts","forms","tools","charts","media","actions","dashboard","comparison","budget","quiz","directory","panel")
+    val presets = listOf("all","cards","layouts","forms","tools","charts","media","actions","dashboard","comparison","budget","quiz","directory","panel","math")
     fun document(preset:String):JSONObject {
         require(preset in presets)
         var next=0
@@ -38,6 +38,7 @@ object UiShowcase {
         groups["quiz"]=array(text("D · 本地知识练习，非考试服务，无真实成绩记录"),quiz())
         groups["directory"]=array(text("E · 支持本地搜索、类别过滤、排序和详情"),directory())
         groups["panel"]=array(text("F · 图片、统计、图表和操作综合面板"),card("综合信息面板","summary",true,true),node("stat","示例总量","value" to "69","unit" to "件"),chart("pie"),actions())
+        groups["math"] = JSONArray(UiMathShowcase.nodes())
         val nodes=if(preset=="all") array(node("tabs","组件展示与六个综合示例","items" to JSONArray(groups.map{(name,nodes)->item("label" to name,"nodes" to nodes)}))) else groups.getValue(preset)
         return JSONObject().put("version",1).put("title","Intelligent UI · 原生交互展示").put("nodes",nodes)
     }

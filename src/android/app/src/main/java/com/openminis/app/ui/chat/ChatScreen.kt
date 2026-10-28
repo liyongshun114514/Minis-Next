@@ -237,10 +237,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.TextFields
@@ -5551,6 +5554,23 @@ fun ChatScreen(
             // back by the slash / mention popups below so they line up with it.
             var composerWidthPx by remember { mutableStateOf(0) }
 
+            // [T-next-composer-surface] Bottom clearance for the composer.
+            // The card keeps the same 12dp gap on the left, right and bottom
+            // edges of its safe area. Computed from the live navigation-bar
+            // inset instead of a second `navigationBarsPadding()`: a hidden
+            // gesture bar contributes 0, while a shown bar adds its own inset
+            // once (no extra minimum on top). While the IME is up the outer
+            // Box already applies `imePadding()`, so only the 12dp gap is
+            // added above the keyboard.
+            val composerDensity = LocalDensity.current
+            val composerBottomPadding = with(composerDensity) {
+                ComposerSurfaceGeometry.bottomPaddingDp(
+                    navigationBarBottomDp = WindowInsets.navigationBars
+                        .getBottom(this).toDp().value,
+                    imeVisible = WindowInsets.isImeVisible,
+                ).dp
+            }
+
             // ─── Input area (iOS-style: rounded box with text + buttons below) ───
             Column(
                 modifier = Modifier
@@ -5576,9 +5596,13 @@ fun ChatScreen(
                     // which is exactly how the first attempt at this fix still
                     // looked broken.
                     .onGloballyPositioned { composerWidthPx = it.size.width }
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp)
-                    .padding(top = 2.dp, bottom = 8.dp),
+                    // Keep the landscape side insets from a 3-button bar,
+                    // but apply the bottom clearance computed above.
+                    .windowInsetsPadding(
+                        WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal),
+                    )
+                    .padding(horizontal = ComposerSurfaceGeometry.SIDE_INSET_DP.dp)
+                    .padding(top = 2.dp, bottom = composerBottomPadding),
             ) {
                 // T13 banner moved INSIDE the LazyColumn so it renders at the
                 // visual end of the message list (mirrors iOS — see the
@@ -6147,7 +6171,10 @@ fun ChatScreen(
                             } else Modifier,
                         )
                         .drawBehind {
-                            val radiusPx = 20.dp.toPx()
+                            // [T-next-composer-surface] Uniform ~40dp corners
+                            // for all four sides (reference shape). Kept in
+                            // sync with the context-usage glow below.
+                            val radiusPx = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()
                             val canvas = drawContext.canvas.nativeCanvas
                             // Pass 1: symmetric ambient halo — small blur, low alpha.
                             shadowPaint.setShadowLayer(
@@ -6177,7 +6204,7 @@ fun ChatScreen(
                         // glowing, and drawn as a paint pass only — no layout,
                         // no touch interception, so the caret, the +/mic/send
                         // buttons and every hit target are untouched. The
-                        // radius matches the card's own 20.dp corner above.
+                        // radius matches the card's own 40.dp corner above.
                         //
                         // Reads `contextUsage`, which refreshes on every usage
                         // chunk, so the colour tracks pressure live rather
@@ -6186,7 +6213,7 @@ fun ChatScreen(
                         // crossfade honours it.
                         .contextUsageGlow(
                             tier = contextUsage?.tier ?: ContextUsage.Tier.NORMAL,
-                            cornerRadius = 20.dp,
+                            cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp,
                             animate = !animationsDisabled(context),
                         )
                         .padding(top = if (attachments.isNotEmpty()) 8.dp else 4.dp),
