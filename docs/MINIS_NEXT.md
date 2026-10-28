@@ -1,4 +1,4 @@
-# Minis Next 1.15-ubuntu.8 / code 43
+# Minis Next 1.15-ubuntu.9 / code 44
 
 Current branch: `minis-next`, repository https://github.com/liyongshun114514/Minis-Next . Continues Kairos 1.0.2 functions without removing features; display name Minis Next, applicationId com.openminis.app.next, namespace com.openminis.app. Launcher icons remain the pinned upstream originals. `docs/KAIROS.md` is historical, not current installation/signing guidance.
 
@@ -16,4 +16,4 @@ See [INTELLIGENT_UI.md](INTELLIGENT_UI.md) for protocol, native component catalo
 
 Run `.github/workflows/android-ubuntu.yml` on `minis-next` with variant release. It creates a verified preinstalled Ubuntu rootfs, compiles helpers, executes selected JVM/Compose tests, assembles Release and verifies package, launcher aliases, signature/alignment and the final APK's production rootfs extraction. Missing signing credentials reject the build. `scripts/stage_kairos_release.py` retains its historical filename but stages **MinisNext** artifacts with the new identity and exact certificate check into `release/minis-next`.
 
-Actions artifact: `MinisNext-arm64-<run_number>`. APK protocol: `MinisNext-1.15-ubuntu.8-build43-arm64-v8a.apk`, plus .sha256, release-metadata.json and mapping. No Release or tag is created in this iteration. Cloud build/test success is not a device installation or runtime UI validation claim.
+Actions artifact: `MinisNext-arm64-<run_number>`. APK protocol: `MinisNext-1.15-ubuntu.9-build44-arm64-v8a.apk`, plus .sha256, release-metadata.json and mapping. No Release or tag is created in this iteration. Cloud build/test success is not a device installation or runtime UI validation claim.

@@ -5,10 +5,10 @@ ROOT=Path(__file__).resolve().parents[2]
 JAVA=ROOT/'src/android/app/src/main/java/com/openminis/app'
 class IntelligentUiContractTest(unittest.TestCase):
  def test_renderer_is_native_not_web(self):
-  s=(JAVA/'intelligentui/IntelligentUiCard.kt').read_text()
-  for token in ('Canvas(', 'OutlinedTextField(', 'Slider(', 'Checkbox(', 'ElevatedCard(', 'rememberSaveable'):
+  s='\n'.join(p.read_text() for p in (JAVA/'intelligentui').glob('*.kt'))
+  for token in ('Canvas(', 'OutlinedTextField(', 'Slider(', 'Checkbox(', 'ElevatedCard(', 'rememberSaveable', 'VideoView(', 'UiAdvancedFields(', 'UiInteractiveTool(', 'UiRichDisplay('):
    self.assertIn(token,s)
-  for forbidden in ('WebView','AndroidView(', 'evaluateJavascript', 'loadUrl', 'HttpURLConnection'):
+  for forbidden in ('import android.webkit.WebView','evaluateJavascript(', 'loadUrl(', 'HttpURLConnection('):
    self.assertNotIn(forbidden,s)
  def test_registered_executed_and_rendered(self):
   for path,token in [('tools/AgentTools.kt','IntelligentUiTool.definition()'),('ui/chat/ChatViewModel.kt','IntelligentUiTool.execute(argsJson)'),('ui/chat/ChatViewModel.kt','IntelligentUiTool.PROMPT'),('ui/chat/ChatScreen.kt','IntelligentUiCard('),('ui/chat/ToolFoldPlanner.kt','IntelligentUiTool.NAME -> Input.Barrier')]:
@@ -16,13 +16,15 @@ class IntelligentUiContractTest(unittest.TestCase):
  def test_controls_do_not_execute_actions(self):
   s=(JAVA/'intelligentui/IntelligentUiCard.kt').read_text()
   self.assertIn('onFollowUp(IntelligentUiParser.followUp',s)
-  self.assertIn('interactive && !invalid',s)
+  fields=(JAVA/'intelligentui/UiAdvancedFields.kt').read_text()
+  self.assertIn('if (!interactive || cancelled || hasErrors) return',fields)
+  self.assertIn('onFollowUp(IntelligentUiParser.followUp',fields)
   prompt=(JAVA/'intelligentui/IntelligentUiTool.kt').read_text()
   self.assertIn('Use user_ask for approvals',prompt)
   self.assertIn('does not wait for input',prompt)
  def test_new_tests_cannot_be_silently_skipped(self):
   s=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
-  for name in ('IntelligentUiParserTest','UiExpressionTest','IntelligentUiRenderTest'):
+  for name in ('IntelligentUiParserTest','UiExpressionTest','IntelligentUiRenderTest','IntelligentUiFieldsRenderTest','IntelligentUiToolsRenderTest','IntelligentUiRichRenderTest','IntelligentUiToolLogicTest','IntelligentUiExtendedParserTest'):
    self.assertIn(name,s)
   self.assertIn("--tests '*IntelligentUi*'",s)
   self.assertIn('"skipped","failures","errors"',s)

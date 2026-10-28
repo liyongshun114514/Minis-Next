@@ -1,6 +1,7 @@
 package com.openminis.app.intelligentui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
 import com.openminis.app.ui.chat.AssistantBlock
 import com.openminis.app.ui.chat.ToolBlockStatus
@@ -31,9 +34,23 @@ internal fun IntelligentUiCard(block: AssistantBlock, interactive: Boolean, onFo
         }.getOrNull()
     }
     if (document == null) { fallback(); return }
+    var showcase by rememberSaveable { mutableStateOf(false) }
+    if (showcase) Dialog(onDismissRequest = { showcase = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.safeDrawingPadding().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = { showcase = false }) { Text("关闭展示 / Close showcase") }
+                Text("示例数据 · 本地交互；媒体需网络 / Sample data", style = MaterialTheme.typography.labelSmall)
+                val demo = remember { IntelligentUiParser.parse(UiShowcase.document("all").toString()) }
+                demo.nodes.forEach { UiNode(demo.title, it, interactive, onFollowUp) }
+            }
+        }
+    }
     ElevatedCard(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Intelligent UI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Intelligent UI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+                TextButton(onClick = { showcase = true }) { Text("组件展示 / Showcase") }
+            }
             Text(document.title, style = MaterialTheme.typography.titleLarge)
             for (node in document.nodes) key(block.id, node.getString("id")) {
                 UiNode(document.title, node, interactive, onFollowUp)
@@ -43,21 +60,28 @@ internal fun IntelligentUiCard(block: AssistantBlock, interactive: Boolean, onFo
 }
 
 @Composable
-private fun UiNode(title: String, node: JSONObject, interactive: Boolean, onFollowUp: (String) -> Unit) {
+internal fun UiNode(title: String, node: JSONObject, interactive: Boolean, onFollowUp: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        node.optString("title").takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-        node.optString("text").takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        if (node.getString("type") !in setOf("card", "alert")) {
+            node.optString("title").takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+            node.optString("text").takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        }
         when (node.getString("type")) {
+            in UiExtendedSchema.layouts -> UiLayout(node) { child -> UiNode(title, child, interactive, onFollowUp) }
+            in UiExtendedSchema.rich -> UiRichDisplay(node)
+            in UiExtendedSchema.tools -> UiInteractiveTool(node)
+            "actions" -> UiActions(title, node, interactive, onFollowUp)
+            "sources" -> UiSources(node)
             "stat" -> Text(node.getString("value") + " " + node.optString("unit"), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
             "table" -> UiTable(node)
-            "chart" -> UiChart(node)
+            "chart" -> UiRichDisplay(node)
             "choices" -> {
                 val options = node.getJSONArray("options")
                 repeat(options.length()) { i ->
                     OutlinedButton(enabled = interactive, onClick = { onFollowUp(IntelligentUiParser.followUp(title, node, mapOf(node.getString("id") to options.getString(i)))) }, modifier = Modifier.fillMaxWidth()) { Text(options.getString(i)) }
                 }
             }
-            "form", "calculator" -> UiFields(title, node, interactive, onFollowUp)
+            "form", "calculator" -> UiAdvancedFields(title, node, interactive, onFollowUp)
             "steps" -> {
                 val labels = node.getJSONArray("labels")
                 var checked by rememberSaveable { mutableStateOf(ArrayList<String>()) }
@@ -96,83 +120,6 @@ private fun UiTable(n: JSONObject) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
-}
-
-@Composable
-private fun UiChart(n: JSONObject) {
-    val labels = n.getJSONArray("labels"); val values = n.getJSONArray("values")
-    val data = (0 until values.length()).map { values.getDouble(it) }
-    val primary = MaterialTheme.colorScheme.primary; val line = MaterialTheme.colorScheme.outlineVariant
-    val low = min(0.0, data.min()); val high = max(0.0, data.max()); val span = (high - low).coerceAtLeast(1.0)
-    val description = data.indices.joinToString { "${labels.getString(it)}: ${data[it]} ${n.optString("unit")}" }
-    Canvas(Modifier.fillMaxWidth().height(180.dp).semantics { contentDescription = description }) {
-        fun y(v: Double) = (size.height * (1 - (v - low) / span)).toFloat()
-        val zero = y(0.0)
-        drawLine(line, Offset(0f, zero), Offset(size.width, zero))
-        val slot = size.width / data.size
-        if (n.optString("style", "bar") == "line") {
-            val path = Path()
-            data.forEachIndexed { i, v -> val p = Offset(slot * (i + .5f), y(v)); if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y); drawCircle(primary, 4.dp.toPx(), p) }
-            drawPath(path, primary, style = Stroke(2.dp.toPx()))
-        } else data.forEachIndexed { i, v ->
-            val top = min(zero, y(v)); val height = abs(zero - y(v)).coerceAtLeast(1f)
-            drawRect(primary, Offset(slot * i + slot * .15f, top), androidx.compose.ui.geometry.Size(slot * .7f, height))
-        }
-    }
-    // Exact values remain accessible even on a narrow screen and with a screen reader.
-    repeat(data.size) { i -> Text("${labels.getString(i)}  ·  ${format(data[i])} ${n.optString("unit")}", style = MaterialTheme.typography.bodySmall) }
-}
-
-private fun format(v: Double): String = String.format(Locale.getDefault(), "%.4f", v).trimEnd('0').trimEnd('.', ',')
-
-@Composable
-private fun UiFields(title: String, n: JSONObject, interactive: Boolean, onFollowUp: (String) -> Unit) {
-    val fields = n.getJSONArray("fields")
-    var values by rememberSaveable { mutableStateOf(ArrayList((0 until fields.length()).map { i -> fields.getJSONObject(i).opt("value")?.toString() ?: "" })) }
-    fun update(i: Int, value: String) { if (value.length <= 2000) values = ArrayList(values).apply { set(i, value) } }
-    val errorText = stringResource(R.string.intelligent_ui_invalid_input)
-    val invalid = (0 until fields.length()).any { i ->
-        val f = fields.getJSONObject(i); val value = values[i]
-        if (f.optBoolean("required") && value.isBlank()) true
-        else if (f.getString("kind") in listOf("number", "slider")) {
-            val v = value.toDoubleOrNull()
-            v == null || !v.isFinite() || abs(v) > 1e12 || (f.has("min") && v < f.getDouble("min")) || (f.has("max") && v > f.getDouble("max"))
-        } else false
-    }
-    repeat(fields.length()) { i ->
-        val f = fields.getJSONObject(i); val label = f.getString("label"); val value = values[i]
-        when (f.getString("kind")) {
-            "toggle" -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(label, Modifier.weight(1f)); Switch(checked = value == "true", onCheckedChange = { update(i, it.toString()) })
-            }
-            "slider" -> {
-                val min = f.getDouble("min"); val max = f.getDouble("max")
-                Text("$label: ${format(value.toDoubleOrNull() ?: min)}")
-                Slider(value = (value.toDoubleOrNull() ?: min).toFloat().coerceIn(min.toFloat(), max.toFloat()), onValueChange = {
-                    val step = f.optDouble("step", 0.0)
-                    val v = if (step > 0) min + round((it.toDouble() - min) / step) * step else it.toDouble()
-                    update(i, v.coerceIn(min, max).toString())
-                }, valueRange = min.toFloat()..max.toFloat())
-            }
-            "select" -> {
-                Text(label)
-                val options = f.getJSONArray("options")
-                Column { repeat(options.length()) { j ->
-                    val option = options.getString(j)
-                    FilterChip(selected = value == option, onClick = { update(i, option) }, label = { Text(option) })
-                } }
-            }
-            else -> OutlinedTextField(value = value, onValueChange = { update(i, it) }, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        }
-    }
-    if (invalid) Text(errorText, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-    if (n.getString("type") == "calculator") {
-        val computed = if (invalid) null else runCatching { UiExpression.evaluate(n.getString("expression"), (0 until fields.length()).associate { fields.getJSONObject(it).getString("id") to values[it].toDouble() }) }.getOrNull()
-        Text(if (computed == null) errorText else "${format(computed)} ${n.optString("unit")}", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-    } else Button(enabled = interactive && !invalid, onClick = {
-        val selected = (0 until fields.length()).associate { fields.getJSONObject(it).getString("id") to values[it] }
-        onFollowUp(IntelligentUiParser.followUp(title, n, selected))
-    }) { Text(stringResource(R.string.intelligent_ui_send)) }
 }
 
 @Composable

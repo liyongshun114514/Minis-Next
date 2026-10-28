@@ -1,6 +1,6 @@
 # Minis Next · Native Intelligent UI
 
-基于 Kairos 1.0.2 源码延续全部既有功能；仅显示品牌更名为 Minis Next、安装包名改为 `com.openminis.app.next`，版本 `1.15-ubuntu.8` / code 43，并新增本功能。内部 namespace、数据库、CLI、minis:// 协议、全局 SOUL、Root/PRoot/chroot 与子代理行为不因更名改写。使用新的稳定私有签名，不兼容旧 Next 或 Kairos 的签名；不得宣传为可直接覆盖旧安装。先在旧应用导出备份，再由用户决定安装/恢复，不自动迁移、不自动卸载。
+基于 Kairos 1.0.2 源码延续全部既有功能；仅显示品牌更名为 Minis Next、安装包名改为 `com.openminis.app.next`，版本 `1.15-ubuntu.9` / code 44，并新增本功能。内部 namespace、数据库、CLI、minis:// 协议、全局 SOUL、Root/PRoot/chroot 与子代理行为不因更名改写。使用新的稳定私有签名，不兼容旧 Next 或 Kairos 的签名；不得宣传为可直接覆盖旧安装。先在旧应用导出备份，再由用户决定安装/恢复，不自动迁移、不自动卸载。
 
 ## 来源与原生适配
 
@@ -12,7 +12,7 @@
 
 直接对话，例如：“用交互卡片比较这几个套餐”“做一个可以调整人数和小费的分账器”“给我一个步骤清单”。系统提示词建议在合适场景主动调用 `intelligent_ui`；简单问候/事实仍可直接回答，卡片后可补充短说明。是否调用仍取决于模型能力，不能保证每次回答都生成卡片。
 
-`intelligent_ui` 参数：`tool_title`、`document`（JSON 字符串或对象）。声明：`{"version":1,"title":"...","nodes":[...]}`。1–16 组件，64 KiB；组件有唯一 id、type、可选 title/text。工具严格校验后把完整文档写入普通工具结果，随对话数据库保存和恢复；取消、失败、残缺调用使用现有错误/运行 pill，不渲染不完整交互卡片。卡片不会被工具自动折叠。
+`intelligent_ui` 参数：`tool_title`、`document`（JSON 字符串或对象），或 `preset`（与 document 互斥）。`preset: all` 为八类组件和 A–F 六个综合实例的原生分区展示。每张卡片右上角“组件展示”也可直接打开，无需模型支持额外 API。声明：`{"version":1,"title":"...","nodes":[...]}`。1–32 顶层、至多128总组件、5层嵌套，192 KiB；组件有唯一 id、type、可选 title/text。工具严格校验后把完整文档写入普通工具结果，随对话数据库保存和恢复；取消、失败、残缺调用使用现有错误/运行 pill，不渲染不完整交互卡片。卡片不会被工具自动折叠。
 
 ## 原生组件
 
@@ -35,3 +35,28 @@
 - Python：`python3 -m unittest discover -s scripts/tests -p test_intelligent_ui_contract.py -v`。
 - 云端 `.github/workflows/android-ubuntu.yml`：Debug 测试与 Release 编译顺序执行，关键测试零失败/零跳过，签名/包名/镜像校验和最终生产解压通过后上传 Actions artifact。**不创建 Release，不创建版本标签。**
 - 尚需用户安装后实机验收滚动、输入法、无障碍、屏幕旋转/深色主题和模型实际调用表现；云端测试不等同实机验收。
+
+## 扩展目录与附件逐项对照（ubuntu.9）
+
+公开参考已联网核对：
+- [OpenAI UI guidelines](https://developers.openai.com/plugins/concepts/ui-guidelines)：inline cards、carousel、展开工作区、明确动作、系统字体/暗色/响应式及可访问性。
+- [OpenAI Apps SDK UI](https://openai.github.io/apps-sdk-ui/?path=/docs/overview-introduction--docs) 与 [源码](https://github.com/openai/apps-sdk-ui)：公开 Input/Textarea/RadioGroup/Checkbox/Select/SegmentedControl/Slider/DatePicker/Popover/Tooltip 等。该库是 React/Tailwind，未导入 Android、未访问隐藏 API；这里独立 Compose 实现对应交互，不承诺 ChatGPT 产品内部能力或协议完全兼容。
+
+|附件类别|原生实现和实际行为|
+|---|---|
+|1 信息卡片|`card` 普通/图标/图片/横纵向、产品/人物/地点/摘要/推荐/状态/警告；`stat` 指标；点击展开详情，多列组合|
+|2 布局导航|`section/grid/masonry/row/carousel/tabs/accordion/timeline/popover/tooltip/details`；触屏说明用点击弹层；`wizard/progress` 流程进度。瀑布分组是原生分栏，不是浏览器瀑布流|
+|3 输入表单|`form` 的 text/textarea/search/number/slider/toggle/select/radio/checkbox/multiselect/segmented/date；必填/禁用/错误/数值范围校验；发送/取消/重置；日期使用原生 Material picker|
+|4 交互工具|`calculator` 多输出及变量联动、`converter` 长度/质量/温度/存储、`compare` 同单位单价排序、`budget` 收支比例余额、`directory` 搜索过滤排序详情、`decision` 动态权重、`quiz` 本地练习反馈重置、`wizard` 本地分页向导。均真实本地计算，不等模型往返|
+|5 数据可视化|`chart` bar/line/pie/scatter/histogram/ranking；点击选择精确数据、可切换多系列图例；`table/trend/progress/before_after`。直方图输入为已分桶计数，不冒充自动统计；坐标/单位/图例/精确值可见|
+|6 媒体|`image/gallery` 单图/网格/轮播/说明，产品图列表；`video` 原生 VideoView 显式点播/停止/外部播放器/错误提示，无自动播放；`map` 地点坐标示意而非地图瓦片或已核实路线|
+|7 结果操作|`alert` 四状态、`actions` 复制剪贴板/展开详情/明确跟进/打开HTTPS、`sources` 引用；可本地确认/取消，不把本地确认视为外部操作授权|
+|8 综合界面|预设 dashboard/comparison/budget/quiz/directory/panel 对应 A–F，全部使用上面真实控件。all 展示用分类标签，不挤成一张长表|
+
+价格比较中 `price` 是整份套餐/包装的总价，`quantity` 是所含计量单位数，单价=price/quantity；不同单位分组比较。决策分数及权重为0–100。示例统计、价格、测试成绩都明确是合成本地示例，练习不连接真实考试系统、不修改真实成绩。网络示例图片/视频不代表实时地点或官方实时数据。
+
+媒体需要网络和设备解码支持；生产 Coil/VideoView 可能受网络策略、地址可用性、重定向影响，不承诺任意URL都可用。没有在线地图服务/API Key、直播或任意3D模型引擎。不能实现的部分明确标注，不用网页假装原生。
+
+表单输入与选中状态使用 Compose `rememberSaveable`；对话数据库持久化的是生成文档，不是独立账目或业务记录。展示不会创建购买、预约或授权；真正工具操作仍走原工具与审批。
+
+扩展回归：`IntelligentUiExtendedParserTest`、`IntelligentUiToolLogicTest`、`IntelligentUiToolsRenderTest`、`IntelligentUiRichRenderTest`、`IntelligentUiFieldsRenderTest` 加入云端零跳过门槛；包含真实输入、选择、预算联动、目录筛选、图例、画廊、视频不自动播放、表单必填/取消/显式发送、标签切换等测试。云端通过不代表已安装或真机全部验收。

@@ -7,36 +7,38 @@ data class IntelligentUiDocument(val title: String, val nodes: List<JSONObject>,
 
 /** Deliberately a finite native component catalog, not an HTML/JS interpreter. */
 object IntelligentUiParser {
-    const val MAX_BYTES = 65536
-    val types = listOf("text", "stat", "table", "chart", "choices", "form", "calculator", "steps", "diagram", "map", "rotation3d")
+    const val MAX_BYTES = 196608
+    val types = listOf("text", "stat", "table", "chart", "choices", "form", "calculator", "steps", "diagram", "map", "rotation3d") + UiExtendedSchema.types
     private val idPattern = Regex("[A-Za-z][A-Za-z0-9_]{0,47}")
     private val common = setOf("id", "type", "title", "text")
     private val specific = mapOf(
         "text" to emptySet(), "stat" to setOf("value", "unit"),
-        "table" to setOf("columns", "rows"), "chart" to setOf("labels", "values", "style", "unit"),
-        "choices" to setOf("options", "followUp"), "form" to setOf("fields", "followUp"),
-        "calculator" to setOf("fields", "expression", "unit"),
+        "table" to setOf("columns", "rows"), "chart" to setOf("labels", "values", "style", "unit", "xLabel", "yLabel", "xValues", "series"),
+        "choices" to setOf("options", "followUp"), "form" to setOf("fields", "followUp", "submitLabel", "cancelLabel", "resetLabel"),
+        "calculator" to setOf("fields", "expression", "unit", "outputs"),
         "steps" to setOf("labels"), "diagram" to setOf("labels"),
         "map" to setOf("points"), "rotation3d" to emptySet(),
     )
     fun parse(raw: String): IntelligentUiDocument {
-        require(raw.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "UI exceeds 64 KiB" }
+        require(raw.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "UI exceeds 192 KiB" }
         val root = JSONObject(raw)
         keys(root, setOf("version", "title", "nodes"))
         require(root.optInt("version", -1) == 1) { "UI version must be 1" }
         val title = str(root, "title", 160)
         val nodes = root.getJSONArray("nodes")
-        require(nodes.length() in 1..16) { "Use 1..16 components" }
+        require(nodes.length() in 1..32) { "Use 1..32 top-level components" }
         val ids = mutableSetOf<String>()
-        val parsed = (0 until nodes.length()).map { i ->
-            val n = nodes.getJSONObject(i)
+        var count = 0
+        fun validate(n: JSONObject, depth: Int) {
+            require(depth <= 5 && ++count <= 128) { "Use at most 128 components and depth 5" }
             val type = str(n, "type", 30)
             require(type in types) { "Unsupported component: $type" }
-            keys(n, common + specific.getValue(type))
+            if (type !in UiExtendedSchema.types) keys(n, common + specific.getValue(type))
             val id = str(n, "id", 48)
             require(idPattern.matches(id) && ids.add(id)) { "Component IDs must be unique identifiers" }
             optionalText(n, "title", 200); optionalText(n, "text", 4000)
             when (type) {
+                in UiExtendedSchema.types -> UiExtendedSchema.validate(n) { validate(it, depth + 1) }
                 "text" -> str(n, "text", 4000)
                 "stat" -> { str(n, "value", 200); optionalText(n, "unit", 80) }
                 "table" -> {
@@ -51,45 +53,16 @@ object IntelligentUiParser {
                     val labels = strings(n, "labels", 1, 64, 160)
                     val values = n.getJSONArray("values"); require(values.length() == labels.size)
                     repeat(values.length()) { numeric(values.get(it)) }
-                    require(n.optString("style", "bar") in listOf("bar", "line")); optionalText(n, "unit", 80)
+                    val style = n.optString("style", "bar")
+                    require(style in listOf("bar", "line", "pie", "scatter", "histogram", "ranking"))
+                    if(style=="pie") require((0 until values.length()).all{ values.getDouble(it)>=0 } && (0 until values.length()).sumOf{values.getDouble(it)}>0)
+                    for(k in listOf("unit","xLabel","yLabel")) optionalText(n,k,80)
+                    if(n.has("xValues")) UiExtendedSchema.numbers(n,"xValues",labels.size)
+                    if(n.has("series")) { val series=UiExtendedSchema.arr(n,"series",1,6);repeat(series.length()){val x=series.getJSONObject(it);UiExtendedSchema.keys(x,setOf("name","values"));UiExtendedSchema.text(x,"name",100,true);UiExtendedSchema.numbers(x,"values",labels.size,if(style=="pie")0.0 else -1e12)} }
                 }
                 "choices" -> { strings(n, "options", 2, 12, 240); optionalText(n, "followUp", 500) }
                 "form", "calculator" -> {
-                    val fields = n.getJSONArray("fields"); require(fields.length() in 1..12)
-                    val fieldIds = mutableSetOf<String>(); val vars = mutableMapOf<String, Double>()
-                    repeat(fields.length()) { f ->
-                        val field = fields.getJSONObject(f)
-                        keys(field, setOf("id", "label", "kind", "value", "min", "max", "step", "required", "options"))
-                        val fid = str(field, "id", 48)
-                        require(idPattern.matches(fid) && fieldIds.add(fid))
-                        str(field, "label", 200)
-                        val kind = str(field, "kind", 20)
-                        require(kind in listOf("text", "number", "slider", "toggle", "select"))
-                        if (type == "calculator") require(kind in listOf("number", "slider"))
-                        if (kind in listOf("number", "slider")) {
-                            val v = numeric(field.get("value")); vars[fid] = v
-                            if (field.has("min")) require(v >= numeric(field.get("min")))
-                            if (field.has("max")) require(v <= numeric(field.get("max")))
-                            if (kind == "slider") {
-                                val min = numeric(field.get("min")); val max = numeric(field.get("max"))
-                                require(max > min && max - min <= 1e12 && max.toFloat() > min.toFloat()) { "Slider range must be representable by native controls" }
-                            }
-                            if (field.has("step")) require(numeric(field.get("step")) > 0)
-                        } else if (kind == "toggle") require(field.get("value") is Boolean)
-                        else {
-                            optionalText(field, "value", 2000)
-                            if (kind == "select") {
-                                val options = strings(field, "options", 1, 24, 200)
-                                if (field.has("value")) require(field.getString("value") in options)
-                            }
-                        }
-                        if (field.has("required")) require(field.get("required") is Boolean)
-                    }
-                    if (type == "calculator") {
-                        val expr = str(n, "expression", 512)
-                        UiExpression.evaluate(expr, vars)
-                        optionalText(n, "unit", 80)
-                    } else optionalText(n, "followUp", 500)
+                    UiFormSchema.validate(n)
                 }
                 "steps", "diagram" -> strings(n, "labels", 1, 24, 600)
                 "map" -> {
@@ -102,8 +75,8 @@ object IntelligentUiParser {
                     }
                 }
             }
-            n
         }
+        val parsed = (0 until nodes.length()).map { nodes.getJSONObject(it).also { n -> validate(n, 0) } }
         return IntelligentUiDocument(title, parsed, root)
     }
     private fun numeric(value: Any): Double {
@@ -126,7 +99,7 @@ object IntelligentUiParser {
 
     /** Only a real tap calls this. JSON quoting keeps user values separate from instructions. */
     fun followUp(title: String, component: JSONObject, values: Map<String, String>): String {
-        require(values.size <= 12 && values.all { it.key.length <= 48 && it.value.length <= 2000 })
+        require(values.size <= 32 && values.all { it.key.length <= 48 && it.value.length <= 2000 })
         return "Intelligent UI · $title\n${component.optString("followUp", component.optString("title", "Continue with my selections"))}\nUser-selected values: ${JSONObject(values).toString()}"
     }
 }
