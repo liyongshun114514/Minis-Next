@@ -288,10 +288,10 @@ object UpdateChecker {
     }
 
     /** Public so UI can deep-link users to manual download when GitHub is blocked. */
-    // [Kairos brand] Manual-download / "open releases" links follow this
+    // [Minis Next brand] Manual-download / "open releases" links follow this
     // build's own release channel (BuildConfig.RELEASE_REPO). Update decision
     // logic is untouched.
-    const val RELEASES_URL: String = "https://github.com/liyongshun114514/OpenMinis/releases"
+    const val RELEASES_URL: String = "https://github.com/liyongshun114514/Minis-Next/releases"
 
     /**
      * Stream the APK from [url] into `${cacheDir}/shared/minis-update.apk`,

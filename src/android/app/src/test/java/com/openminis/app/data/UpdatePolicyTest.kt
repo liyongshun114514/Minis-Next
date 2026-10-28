@@ -29,10 +29,10 @@ class UpdatePolicyTest {
 
     @Test
     fun `build numbers come from the APK file name`() {
-        assertEquals(31, UpdatePolicy.buildFromApkName("Kairos-1.16-beta.3-build31-arm64-v8a.apk"))
-        assertEquals(32, UpdatePolicy.buildFromApkName("Kairos-1.16-build32-arm64-v8a.apk"))
-        assertNull(UpdatePolicy.buildFromApkName("Kairos-1.14-arm64-v8a.apk"))
-        assertNull(UpdatePolicy.buildFromApkName("Kairos-1.16-buildX-arm64-v8a.apk"))
+        assertEquals(31, UpdatePolicy.buildFromApkName("MinisNext-1.16-beta.3-build31-arm64-v8a.apk"))
+        assertEquals(32, UpdatePolicy.buildFromApkName("MinisNext-1.16-build32-arm64-v8a.apk"))
+        assertNull(UpdatePolicy.buildFromApkName("MinisNext-1.14-arm64-v8a.apk"))
+        assertNull(UpdatePolicy.buildFromApkName("MinisNext-1.16-buildX-arm64-v8a.apk"))
     }
 
     @Test
@@ -48,17 +48,17 @@ class UpdatePolicyTest {
 
     @Test
     fun `the APK follows the device ABIs, best first, never a foreign ABI`() {
-        val assets = listOf(a("Kairos-1.16-build32-armeabi-v7a.apk"), a("Kairos-1.16-build32-arm64-v8a.apk"), a("latest.json"))
-        assertEquals("Kairos-1.16-build32-arm64-v8a.apk", UpdatePolicy.chooseApk(assets, listOf("arm64-v8a", "armeabi-v7a"))!!.name)
-        assertEquals("Kairos-1.16-build32-armeabi-v7a.apk", UpdatePolicy.chooseApk(assets, listOf("armeabi-v7a"))!!.name)
+        val assets = listOf(a("MinisNext-1.16-build32-armeabi-v7a.apk"), a("MinisNext-1.16-build32-arm64-v8a.apk"), a("latest.json"))
+        assertEquals("MinisNext-1.16-build32-arm64-v8a.apk", UpdatePolicy.chooseApk(assets, listOf("arm64-v8a", "armeabi-v7a"))!!.name)
+        assertEquals("MinisNext-1.16-build32-armeabi-v7a.apk", UpdatePolicy.chooseApk(assets, listOf("armeabi-v7a"))!!.name)
         assertNull(UpdatePolicy.chooseApk(assets, listOf("x86_64")))
         // A universal APK names no ABI.
-        assertEquals("Kairos-1.16-build32.apk", UpdatePolicy.chooseApk(listOf(a("Kairos-1.16-build32.apk")), listOf("x86_64"))!!.name)
+        assertEquals("MinisNext-1.16-build32.apk", UpdatePolicy.chooseApk(listOf(a("MinisNext-1.16-build32.apk")), listOf("x86_64"))!!.name)
     }
 
     // ── Channels ────────────────────────────────────────────────────────────
 
-    private fun r(tag: String, pre: Boolean = false, apk: String? = "Kairos-$tag-arm64-v8a.apk", draft: Boolean = false) =
+    private fun r(tag: String, pre: Boolean = false, apk: String? = "MinisNext-$tag-arm64-v8a.apk", draft: Boolean = false) =
         UpdatePolicy.Release(tag, "Android $tag", pre, draft, "notes $tag", listOfNotNull(apk?.let { a(it) }))
 
     @Test
@@ -81,9 +81,9 @@ class UpdatePolicyTest {
 
     @Test
     fun `versionCode decides, history without a build only counts on stable by name`() {
-        val history = cand("1.14", "Kairos-1.14-arm64-v8a.apk")
-        val beta31 = cand("0-beta-build31", "Kairos-1.16-beta.3-build31-arm64-v8a.apk", pre = true)
-        val stable32 = cand("1.16", "Kairos-1.16-build32-arm64-v8a.apk")
+        val history = cand("1.14", "MinisNext-1.14-arm64-v8a.apk")
+        val beta31 = cand("0-beta-build31", "MinisNext-1.16-beta.3-build31-arm64-v8a.apk", pre = true)
+        val stable32 = cand("1.16", "MinisNext-1.16-build32-arm64-v8a.apk")
         assertEquals(31, beta31.versionCode)
         assertEquals("the display name comes from the APK, not the tag", "1.16-beta.3", beta31.versionName)
         assertNull(history.versionCode)
@@ -93,7 +93,7 @@ class UpdatePolicyTest {
         assertEquals(stable32, UpdatePolicy.pickUpdate(listOf(history, beta31, stable32), Channel.BETA, "1.15", 29))
         assertEquals(beta31, UpdatePolicy.pickUpdate(listOf(history, beta31), Channel.BETA, "1.15", 29))
         // A newer-by-name release without a build: stable only.
-        val history16 = cand("1.16", "Kairos-1.16-arm64-v8a.apk")
+        val history16 = cand("1.16", "MinisNext-1.16-arm64-v8a.apk")
         assertEquals(history16, UpdatePolicy.pickUpdate(listOf(history16), Channel.STABLE, "1.15", 29))
         assertNull(UpdatePolicy.pickUpdate(listOf(history16), Channel.BETA, "1.15", 29))
         // Up to date.
@@ -102,16 +102,16 @@ class UpdatePolicyTest {
         assertEquals(stable32, UpdatePolicy.pickUpdate(listOf(history, stable32), Channel.STABLE, "1.16-beta.3", 31))
         assertNull(UpdatePolicy.pickUpdate(listOf(history), Channel.STABLE, "1.16-beta.3", 31))
         // A stable hotfix with a higher build beats an older beta for beta users.
-        val beta33 = cand("0-beta-build33", "Kairos-1.17-beta.1-build33-arm64-v8a.apk", pre = true)
-        val stable34 = cand("1.16.1", "Kairos-1.16.1-build34-arm64-v8a.apk")
+        val beta33 = cand("0-beta-build33", "MinisNext-1.17-beta.1-build33-arm64-v8a.apk", pre = true)
+        val stable34 = cand("1.16.1", "MinisNext-1.16.1-build34-arm64-v8a.apk")
         assertEquals(stable34, UpdatePolicy.pickUpdate(listOf(beta33, stable34), Channel.BETA, "1.16", 32))
     }
 
     @Test
     fun `beta names and builds parse from the APK name`() {
-        assertEquals("1.16-beta.3", UpdatePolicy.versionFromApkName("Kairos-1.16-beta.3-build31-arm64-v8a.apk"))
-        assertEquals("1.16", UpdatePolicy.versionFromApkName("Kairos-1.16-build32-arm64-v8a.apk"))
-        assertNull(UpdatePolicy.versionFromApkName("Kairos-1.14-arm64-v8a.apk"))
+        assertEquals("1.16-beta.3", UpdatePolicy.versionFromApkName("MinisNext-1.16-beta.3-build31-arm64-v8a.apk"))
+        assertEquals("1.16", UpdatePolicy.versionFromApkName("MinisNext-1.16-build32-arm64-v8a.apk"))
+        assertNull(UpdatePolicy.versionFromApkName("MinisNext-1.14-arm64-v8a.apk"))
         assertTrue(UpdatePolicy.isBetaTag("0-beta-build31"))
         assertFalse(UpdatePolicy.isBetaTag("1.16"))
     }
@@ -119,16 +119,16 @@ class UpdatePolicyTest {
     @Test
     fun `the file name is the protocol - version, build and ABI`() {
         val p = UpdatePolicy::parseApkName
-        assertEquals(UpdatePolicy.ApkName("1.16", 32, "arm64-v8a"), p("Kairos-1.16-build32-arm64-v8a.apk"))
-        assertEquals(UpdatePolicy.ApkName("1.16-beta.3", 31, "arm64-v8a"), p("Kairos-1.16-beta.3-build31-arm64-v8a.apk"))
-        assertEquals(UpdatePolicy.ApkName("1.16.1", 40, "armeabi-v7a"), p("Kairos-1.16.1-build40-armeabi-v7a.apk"))
-        assertEquals(UpdatePolicy.ApkName("1.16", 32, "x86_64"), p("Kairos-1.16-build32-x86_64.apk"))
+        assertEquals(UpdatePolicy.ApkName("1.16", 32, "arm64-v8a"), p("MinisNext-1.16-build32-arm64-v8a.apk"))
+        assertEquals(UpdatePolicy.ApkName("1.16-beta.3", 31, "arm64-v8a"), p("MinisNext-1.16-beta.3-build31-arm64-v8a.apk"))
+        assertEquals(UpdatePolicy.ApkName("1.16.1", 40, "armeabi-v7a"), p("MinisNext-1.16.1-build40-armeabi-v7a.apk"))
+        assertEquals(UpdatePolicy.ApkName("1.16", 32, "x86_64"), p("MinisNext-1.16-build32-x86_64.apk"))
         // The pre-build history is outside the protocol.
-        assertNull(p("Kairos-1.14-arm64-v8a.apk"))
-        assertNull(p("Kairos-0.22-preview-arm64-v8a.apk"))
+        assertNull(p("MinisNext-1.14-arm64-v8a.apk"))
+        assertNull(p("MinisNext-0.22-preview-arm64-v8a.apk"))
         // Malformed.
-        for (bad in listOf("Kairos-1.16-buildX-arm64-v8a.apk", "Kairos--build32-arm64-v8a.apk", "Kairos-1.16-build32-.apk",
-            "Other-1.16-build32-arm64-v8a.apk", "Kairos-1.16-build32-arm64-v8a.zip", "Kairos-1.16-build-arm64-v8a.apk", "")) {
+        for (bad in listOf("MinisNext-1.16-buildX-arm64-v8a.apk", "MinisNext--build32-arm64-v8a.apk", "MinisNext-1.16-build32-.apk",
+            "Other-1.16-build32-arm64-v8a.apk", "MinisNext-1.16-build32-arm64-v8a.zip", "MinisNext-1.16-build-arm64-v8a.apk", "")) {
             assertNull(bad, p(bad))
         }
     }
@@ -158,19 +158,19 @@ class UpdatePolicyTest {
 
     @Test
     fun `a build-numbered APK beats a legacy one for the same ABI`() {
-        val assets = listOf(a("Kairos-1.16-arm64-v8a.apk"), a("Kairos-1.16-build32-arm64-v8a.apk"))
-        assertEquals("Kairos-1.16-build32-arm64-v8a.apk", UpdatePolicy.chooseApk(assets, listOf("arm64-v8a"))!!.name)
+        val assets = listOf(a("MinisNext-1.16-arm64-v8a.apk"), a("MinisNext-1.16-build32-arm64-v8a.apk"))
+        assertEquals("MinisNext-1.16-build32-arm64-v8a.apk", UpdatePolicy.chooseApk(assets, listOf("arm64-v8a"))!!.name)
     }
 
-    @Test fun `Kairos ignores all older differently branded installation assets`() {
+    @Test fun `Minis Next ignores all older differently branded installation assets`() {
         val old = a("MinisApp-9.0-build999-arm64-v8a.apk")
-        val current = a("Kairos-1.0.1-build2-arm64-v8a.apk")
+        val current = a("MinisNext-1.0.1-build2-arm64-v8a.apk")
         assertNull(UpdatePolicy.parseApkName(old.name))
         assertNull(UpdatePolicy.chooseApk(listOf(old), listOf("arm64-v8a")))
         assertEquals(current, UpdatePolicy.chooseApk(listOf(old, current), listOf("arm64-v8a")))
         assertEquals(UpdatePolicy.ApkName("1.0.0", 1, "arm64-v8a"),
-            UpdatePolicy.parseApkName("Kairos-1.0.0-build1-arm64-v8a.apk"))
-        assertEquals("package", UpdatePolicy.archiveRefusal("com.openminis.app.next", 99, "com.kairos.app", 1))
+            UpdatePolicy.parseApkName("MinisNext-1.0.0-build1-arm64-v8a.apk"))
+        assertEquals("package", UpdatePolicy.archiveRefusal("com.openminis.app.next", 99, "com.openminis.app.next", 1))
     }
 
     // ── Throttle ────────────────────────────────────────────────────────────

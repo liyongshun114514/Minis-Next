@@ -13,18 +13,18 @@ A='{http://schemas.android.com/apk/res/android}'
 class KairosIdentityTest(unittest.TestCase):
     def test_independent_install_identity_and_reset_version(self):
         s=(APP/'build.gradle.kts').read_text()
-        self.assertIn('applicationId = "com.kairos.app"',s)
-        self.assertRegex(s,r'versionCode\s*=\s*3\b')
-        self.assertIn('versionName = "1.0.2"',s)
+        self.assertIn('applicationId = "com.openminis.app.next"',s)
+        self.assertRegex(s,r'versionCode\s*=\s*43\b')
+        self.assertIn('versionName = "1.15-ubuntu.8"',s)
         self.assertIn('namespace = "com.openminis.app"',s)
-        self.assertIn('"RELEASE_REPO", "\\"liyongshun114514/OpenMinis\\""',s)
+        self.assertIn('"RELEASE_REPO", "\\"liyongshun114514/Minis-Next\\""',s)
     def test_launcher_brand_and_shortcuts(self):
         strings=E.parse(RES/'values/fork_branding.xml').getroot()
-        self.assertEqual('Kairos',strings.find("string[@name='fork_app_name']").text)
+        self.assertEqual('Minis Next',strings.find("string[@name='fork_app_name']").text)
         manifest=E.parse(APP/'src/main/AndroidManifest.xml').getroot()
         self.assertEqual('@string/fork_app_name',manifest.find('application').get(A+'label'))
         for intent in E.parse(RES/'xml/shortcuts.xml').getroot().iter('intent'):
-            self.assertEqual('com.kairos.app',intent.get(A+'targetPackage'))
+            self.assertEqual('com.openminis.app.next',intent.get(A+'targetPackage'))
             self.assertEqual('com.openminis.app.MainActivity',intent.get(A+'targetClass'))
     def test_original_upstream_icons_are_byte_identical(self):
         manifest=json.loads((ROOT/'branding/kairos/upstream-icons.json').read_text())
@@ -46,19 +46,19 @@ class KairosIdentityTest(unittest.TestCase):
         self.assertFalse((RES/'drawable-nodpi/ic_launcher_monochrome_mask.png').exists())
     def test_release_uses_private_stable_identity_not_debug_or_cache(self):
         s=(APP/'build.gradle.kts').read_text().split('        release {',1)[1].split('    // [T15-channels]',1)[0]
-        self.assertIn('signingConfigs.getByName("kairosRelease")',s)
+        self.assertIn('signingConfigs.getByName("nextRelease")',s)
         self.assertNotIn('signingConfigs.getByName("debug")',s)
         workflow=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
-        self.assertIn('secrets.KAIROS_KEYSTORE_BASE64',workflow)
-        self.assertIn('secrets.KAIROS_STORE_PASSWORD',workflow)
+        self.assertIn('secrets.NEXT_KEYSTORE_BASE64',workflow)
+        self.assertIn('secrets.NEXT_STORE_PASSWORD',workflow)
         self.assertNotIn('ubuntu-next-test-signing-v1',workflow)
         self.assertIn('python3 scripts/stage_kairos_release.py',workflow)
     def test_verifier_and_asset_protocol_belong_to_kairos(self):
         verifier=(ROOT/'scripts/verify_ubuntu_apk.py').read_text()
-        self.assertIn("package = 'com.kairos.app'",verifier)
+        self.assertIn("package = 'com.openminis.app.next'",verifier)
         policy=(APP/'src/main/java/com/openminis/app/data/UpdatePolicy.kt').read_text()
-        self.assertIn('^Kairos-',policy)
-        self.assertIn('it.name.startsWith("Kairos-")',policy)
+        self.assertIn('^MinisNext-',policy)
+        self.assertIn('it.name.startsWith("MinisNext-")',policy)
         self.assertNotIn('Regex("^MinisApp-',policy)
 
 if __name__=='__main__':unittest.main()

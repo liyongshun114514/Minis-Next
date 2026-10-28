@@ -97,9 +97,9 @@ class ModelUseSubcallTest {
         // The only "You are …" text is in the --help example, never in the request path.
         val bodyBeforeHelp = src.substringBefore("private val HELP", src)
         assertFalse("a default persona must never be injected: found 'You are Minis'", bodyBeforeHelp.contains("You are Minis"))
-        assertFalse("a default persona must never be injected: found 'You are Kairos'", bodyBeforeHelp.contains("You are Kairos"))
+        assertFalse("a default persona must never be injected: found 'You are Minis Next'", bodyBeforeHelp.contains("You are Minis Next"))
         assertFalse(bodyBeforeHelp.contains("你是 Minis"))
-        assertFalse(bodyBeforeHelp.contains("你是 Kairos"))
+        assertFalse(bodyBeforeHelp.contains("你是 Minis Next"))
     }
 
     // ============================================================ one path resolver

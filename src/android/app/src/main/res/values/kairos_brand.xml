@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- [Kairos brand] Contact / community strings for Kairos builds.
+<!-- [Minis Next brand] Contact / community strings for Minis Next builds.
      Upstream attribution lives here too so it is never dropped. -->
 <resources>
-    <string name="kairos_brand_section">Kairos edition</string>
-    <string name="kairos_repo_title">Kairos GitHub repository</string>
+    <string name="kairos_brand_section">Minis Next edition</string>
+    <string name="kairos_repo_title">Minis Next GitHub repository</string>
     <string name="kairos_repo_subtitle">Source code, releases and this build\'s issue tracker</string>
     <string name="kairos_issue_title">Report an issue</string>
-    <string name="kairos_issue_subtitle">Bug reports for this Kairos build</string>
-    <string name="kairos_email_title">Email Kairos</string>
+    <string name="kairos_issue_subtitle">Bug reports for this Minis Next build</string>
+    <string name="kairos_email_title">Email Minis Next</string>
     <string name="kairos_telegram_title">Telegram</string>
     <string name="kairos_telegram_subtitle">Community &amp; support: @LYS114514</string>
-    <string name="kairos_maintainer_line">Kairos build · maintained by liyongshun114514</string>
+    <string name="kairos_maintainer_line">Minis Next build · maintained by liyongshun114514</string>
 
     <string name="kairos_upstream_section">Original project &amp; credits</string>
     <string name="kairos_upstream_title">OpenMinis (upstream)</string>
     <string name="kairos_upstream_subtitle">Original project by the OpenMinis authors · GPL-3.0</string>
     <string name="kairos_upstream_issues_title">Upstream issue tracker</string>
     <string name="kairos_upstream_issues_subtitle">For bugs reproducible in the original OpenMinis</string>
-    <string name="kairos_upstream_note">Kairos is an independent fork of OpenMinis. The original source, the GPL-3.0 license and author credits are retained.</string>
+    <string name="kairos_upstream_note">Minis Next is an independent fork of OpenMinis. The original source, the GPL-3.0 license and author credits are retained.</string>
 
-    <string name="kairos_issue_submit_title">Submit an issue on Kairos GitHub</string>
+    <string name="kairos_issue_submit_title">Submit an issue on Minis Next GitHub</string>
     <string name="kairos_feedback_upstream_title">OpenMinis upstream project</string>
     <string name="kairos_feedback_upstream_subtitle">Original project and authors</string>
     <string name="kairos_email_value" translatable="false">liyongshun114514@gmail.com</string>

@@ -287,7 +287,7 @@ class AgentForegroundService : Service() {
         if (com.openminis.app.crash.CrashFrequencyDetector.isSafeMode()) {
             try {
                 val stub = androidx.core.app.NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setContentTitle("Kairos")
+                    .setContentTitle("Minis Next")
                     .setSmallIcon(android.R.drawable.stat_sys_warning)
                     .setOngoing(false)
                     .build()
@@ -993,7 +993,7 @@ class AgentForegroundService : Service() {
      * Why not the chronometer: AOSP's chip shows the chronometer when there
      * is no short text, but at least one OEM skin (ColorOS 16 "fluid cloud")
      * ignores it and falls back to the content title — producing the
-     * stretched "Kairos is usin…" pill in the user's recording. A short text
+     * stretched "Minis Next is usin…" pill in the user's recording. A short text
      * is honoured everywhere, and the only way to keep it live is to
      * re-post. One LOW-importance, only-alert-once notify per second is
      * well under the platform's per-package enqueue rate limit and matches
@@ -1294,7 +1294,7 @@ class AgentForegroundService : Service() {
         )
 
         // T-bg-overlay phase 1: enrich the ongoing notification.
-        // Title:   "Kairos is using <Tool>"  (or session-count summary when idle/between turns)
+        // Title:   "Minis Next is using <Tool>"  (or session-count summary when idle/between turns)
         // Text:    one-line "<sessionLabel> · <elapsed>" so the always-visible row stays compact
         // BigText: full status string from SessionActivityTracker.currentToolStatus when expanded
         // Progress: indeterminate while a tool is in flight (isToolRunning), hidden otherwise
@@ -1312,9 +1312,9 @@ class AgentForegroundService : Service() {
         // glyph + tool title) / THINKING (reasoning, no text yet) /
         // GENERATING (visible reply streaming) / IDLE (presence only).
         // Previously a finished task, a running tool and plain streaming
-        // shared the generic "Kairos Agent Active" title and a grey wrench,
-        // and the tool title was the sentence "Kairos is using Shell", which
-        // OEM chips truncated to "Kairos is usin…".
+        // shared the generic "Minis Next Agent Active" title and a grey wrench,
+        // and the tool title was the sentence "Minis Next is using Shell", which
+        // OEM chips truncated to "Minis Next is usin…".
         val phase = resolveAgentPhase(
             isCompleted = isCompleted,
             toolName = toolName,

@@ -4898,7 +4898,14 @@ fun ChatScreen(
                                 toggleAnchor.captureRow(item.key, flatItems)
                                 toolFold.toggle(item.runKey)
                             }
-                            is FlatChatItem.AssistantToolUse -> if (item.block.toolName == com.openminis.app.agent.userask.UserAskPromptText.TOOL_NAME) {
+                            is FlatChatItem.AssistantToolUse -> if (item.block.toolName == com.openminis.app.intelligentui.IntelligentUiTool.NAME) {
+                                com.openminis.app.intelligentui.IntelligentUiCard(
+                                    block = item.block,
+                                    interactive = !isStreaming && !canResume,
+                                    onFollowUp = { text -> safeMutate { viewModel.sendNativeUiFollowUp(text) } },
+                                    fallback = { ToolCallPill(item.block, allToolBlocks = item.allToolBlocks, onOpenDetail = { viewModel.openToolDetail(it) }) },
+                                )
+                            } else if (item.block.toolName == com.openminis.app.agent.userask.UserAskPromptText.TOOL_NAME) {
                                 // [T-port-user-ask] A question card; a call that
                                 // never became a question shows as a plain pill.
                                 CompositionLocalProvider(LocalChatToggleAnchor provides toggleAnchor) {

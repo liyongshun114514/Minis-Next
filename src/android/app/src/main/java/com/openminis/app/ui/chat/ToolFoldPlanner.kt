@@ -210,6 +210,7 @@ object ToolFoldPlanner {
             // iOS: delegate and user_ask blocks are never folded.
             com.openminis.app.agent.jobs.HelperRunner.isSubAgentToolName(block.toolName) -> Input.Barrier
             block.toolName == com.openminis.app.agent.userask.UserAskPromptText.TOOL_NAME -> Input.Barrier
+            block.toolName == com.openminis.app.intelligentui.IntelligentUiTool.NAME -> Input.Barrier
             else -> when (block.toolStatus) {
                 ToolBlockStatus.SUCCESS -> Input.Tool(ToolOutcome.SUCCEEDED)
                 // A timed-out call ended in failure; the capsule shows it as such.

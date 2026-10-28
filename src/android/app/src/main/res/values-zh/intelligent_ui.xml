@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="intelligent_ui_send">发送所选内容</string>
+    <string name="intelligent_ui_reset">重置</string>
+    <string name="intelligent_ui_invalid_input">请在指定范围内输入有效数值。</string>
+    <string name="intelligent_ui_schematic">坐标示意图 · 非地图瓦片或已核实导航路线</string>
+    <string name="intelligent_ui_send_failed">发送失败。请检查模型配置或压缩对话后重试。</string>
+</resources>

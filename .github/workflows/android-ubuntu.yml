@@ -1,15 +1,15 @@
-name: Kairos Android APK
+name: Minis Next Android APK
 
 on:
   workflow_dispatch:
     inputs:
       variant:
-        description: APK build type (release uses private Kairos signing)
+        description: APK build type (release uses private MinisNext signing)
         type: choice
         options: [release, debug]
         default: release
   push:
-    branches: [ubuntu-chroot]
+    branches: [minis-next]
     paths: ["src/android/**", "src/shared/**", "deps/**", "scripts/**", ".github/workflows/android-ubuntu.yml"]
 
 permissions:
@@ -51,7 +51,7 @@ jobs:
     env:
       ANDROID_NDK_VERSION: 28.2.13676358
       GRADLE_OPTS: -Dorg.gradle.daemon=false
-      KAIROS_STORE_PASSWORD: ${{ secrets.KAIROS_STORE_PASSWORD }}
+      NEXT_STORE_PASSWORD: ${{ secrets.NEXT_STORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,22 +77,22 @@ jobs:
           sudo apt-get install -y make curl unzip xz-utils pkg-config libarchive-tools ripgrep gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
-      - name: Restore private Kairos release identity
+      - name: Restore private MinisNext release identity
         shell: bash
         env:
-          KAIROS_KEYSTORE_BASE64: ${{ secrets.KAIROS_KEYSTORE_BASE64 }}
-          KAIROS_STORE_PASSWORD: ${{ secrets.KAIROS_STORE_PASSWORD }}
+          NEXT_KEYSTORE_BASE64: ${{ secrets.NEXT_KEYSTORE_BASE64 }}
+          NEXT_STORE_PASSWORD: ${{ secrets.NEXT_STORE_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$KAIROS_KEYSTORE_BASE64"
-          test -n "$KAIROS_STORE_PASSWORD"
-          SIGNING_DIR="${RUNNER_TEMP}/kairos-private-signing"
+          test -n "$NEXT_KEYSTORE_BASE64"
+          test -n "$NEXT_STORE_PASSWORD"
+          SIGNING_DIR="${RUNNER_TEMP}/next-private-signing"
           mkdir -p "$SIGNING_DIR"
           chmod 700 "$SIGNING_DIR"
-          export KAIROS_KEYSTORE="$SIGNING_DIR/kairos-release.p12"
-          python3 -c 'import base64,os,pathlib; p=pathlib.Path(os.environ["KAIROS_KEYSTORE"]); p.write_bytes(base64.b64decode(os.environ["KAIROS_KEYSTORE_BASE64"],validate=True)); p.chmod(0o600)'
-          keytool -list -keystore "$KAIROS_KEYSTORE" -storepass:env KAIROS_STORE_PASSWORD -alias kairos
-          echo "KAIROS_KEYSTORE=$KAIROS_KEYSTORE" >> "$GITHUB_ENV"
+          export NEXT_KEYSTORE="$SIGNING_DIR/next-release.p12"
+          python3 -c 'import base64,os,pathlib; p=pathlib.Path(os.environ["NEXT_KEYSTORE"]); p.write_bytes(base64.b64decode(os.environ["NEXT_KEYSTORE_BASE64"],validate=True)); p.chmod(0o600)'
+          keytool -list -keystore "$NEXT_KEYSTORE" -storepass:env NEXT_STORE_PASSWORD -alias minisnext
+          echo "NEXT_KEYSTORE=$NEXT_KEYSTORE" >> "$GITHUB_ENV"
       - name: Native dependency cache
         id: native-cache
         uses: actions/cache@v4
@@ -155,6 +155,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_brand_copy.py -v
           python3 scripts/test_offload_client.py
+          python3 -m unittest discover -s scripts/tests -p test_intelligent_ui_contract.py -v
       - name: Build APK
         id: build-apk
         working-directory: src/android
@@ -194,11 +195,12 @@ jobs:
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
-            --tests '*Kairos*' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest'
+            --tests '*Kairos*' --tests '*IntelligentUi*' --tests '*UiExpressionTest' \
+            --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
-          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped Kairos acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","intelligentui.IntelligentUiParserTest","intelligentui.UiExpressionTest","intelligentui.IntelligentUiRenderTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run
@@ -239,7 +241,7 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process \
             :app:testGithubDebugUnitTest --tests '*UbuntuBundledImageCompatibilityTest'
           python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; p=Path("app/build/test-results/testGithubDebugUnitTest/TEST-com.openminis.app.sandbox.UbuntuBundledImageCompatibilityTest.xml"); r=E.parse(p).getroot(); assert int(r.get("tests",0)) > 0 and all(int(r.get(k,0)) == 0 for k in ("skipped","failures","errors")), E.tostring(r).decode(); print("PASS: final APK extracted by production Kotlin installer; no skipped acceptance tests")'
-      - name: Stage verified Kairos APK artifacts (no GitHub Release)
+      - name: Stage verified MinisNext APK artifacts (no GitHub Release)
         shell: bash
         run: |
           set -euo pipefail
@@ -248,15 +250,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -f "${RUNNER_TEMP}/kairos-private-signing/kairos-release.p12"
+          rm -f "${RUNNER_TEMP}/next-private-signing/next-release.p12"
       - name: Upload APK and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: Kairos-arm64-${{ github.run_number }}
+          name: MinisNext-arm64-${{ github.run_number }}
           path: |
-            release/kairos/*.apk
-            release/kairos/*.sha256
-            release/kairos/*.json
+            release/minis-next/*.apk
+            release/minis-next/*.sha256
+            release/minis-next/*.json
             src/android/app/build/outputs/mapping/githubRelease/mapping.txt
           if-no-files-found: error
           retention-days: 14

@@ -4,7 +4,7 @@
     <string name="network_title">Сеть</string>
     <string name="network_default_route">Маршрут по умолчанию</string>
     <string name="network_default_route_footer">Используется всеми частями приложения с настройкой «Как по умолчанию». Пока Tailscale включён, адреса вашей tailnet всегда идут через Tailscale независимо от маршрута.</string>
-    <string name="network_tailscale_footer">Работает внутри Kairos, без профиля VPN: к вашей tailnet подключаются только соединения самого Kairos и только пока Kairos запущен. «Использовать маршруты подсетей» направляет через Tailscale адреса, которыми делятся другие устройства (например, домашняя сеть).</string>
+    <string name="network_tailscale_footer">Работает внутри Minis Next, без профиля VPN: к вашей tailnet подключаются только соединения самого Minis Next и только пока Minis Next запущен. «Использовать маршруты подсетей» направляет через Tailscale адреса, которыми делятся другие устройства (например, домашняя сеть).</string>
     <string name="network_status">Статус</string>
     <string name="network_status_starting">Запуск…</string>
     <string name="network_status_connected">Подключено</string>

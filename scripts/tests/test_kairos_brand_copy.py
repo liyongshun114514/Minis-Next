@@ -2,7 +2,7 @@
 
 Guards the split that the fork must keep:
 
-  1. every user-visible string says "Kairos", never the upstream product name
+  1. every user-visible string says "Minis Next", never the upstream product name
      — the ONLY allowed "Minis" is the upstream skill gallery ("Minis Skills",
      github.com/OpenMinis/MinisSkills) and identifiers;
   2. internal compatibility tokens are NOT renamed: `minis://`, `minis-*` CLIs,
@@ -66,7 +66,8 @@ class KairosCopyTest(unittest.TestCase):
         # (strings_network.xml, strings_file_browser_delete.xml, ...).
         for path in sorted(RES.glob("values*/*.xml")):
             for name, value in string_values(path).items():
-                cleaned = value.replace(UPSTREAM, "").replace("OpenMinis", "")
+                self.assertNotIn("Kairos", value, f"Old brand in {path}:{name}")
+                cleaned = value.replace(UPSTREAM, "").replace("OpenMinis", "").replace("Minis Next", "")
                 self.assertNotIn(
                     "Minis", cleaned,
                     f"{path.parent.name}/{path.name}:{name} still says Minis: {value!r}",
@@ -89,8 +90,8 @@ class KairosCopyTest(unittest.TestCase):
 
     def test_app_name_is_kairos_everywhere_it_is_defined(self):
         brand = E.parse(RES / "values/fork_branding.xml").getroot()
-        self.assertEqual("Kairos", brand.find("string[@name='fork_app_name']").text)
-        self.assertEqual("Kairos", string_values(RES / "values/strings.xml")["app_name"])
+        self.assertEqual("Minis Next", brand.find("string[@name='fork_app_name']").text)
+        self.assertEqual("Minis Next", string_values(RES / "values/strings.xml")["app_name"])
 
     def test_builtin_sub_agent_description_stays_short(self):
         base = string_values(RES / "values/strings.xml")["sub_agent_builtin_description"]

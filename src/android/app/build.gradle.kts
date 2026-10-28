@@ -35,11 +35,11 @@ android {
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.kairos.app"
+        applicationId = "com.openminis.app.next"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 43
+        versionName = "1.15-ubuntu.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -65,7 +65,7 @@ android {
         // prerelease flag and cut a tag at its first '-') see them as version
         // 0 and never offer them. UPDATE_CHANNEL is the channel a fresh
         // install starts on; the user can switch to beta in About.
-        buildConfigField("String", "RELEASE_REPO", "\"liyongshun114514/OpenMinis\"")
+        buildConfigField("String", "RELEASE_REPO", "\"liyongshun114514/Minis-Next\"")
         buildConfigField("String", "UPDATE_CHANNEL", "\"stable\"")
 
         ndk {
@@ -93,13 +93,13 @@ android {
         if (!ciStore.isNullOrBlank()) storeFile = file(ciStore)
     }
 
-    // Kairos is an independent application with a stable private release identity.
+    // Minis Next is an independent application with a stable private release identity.
     // A release without explicit credentials must fail, never silently use debug signing.
-    signingConfigs.create("kairosRelease") {
-        storeFile = providers.environmentVariable("KAIROS_KEYSTORE").orNull?.let { file(it) }
-        storePassword = providers.environmentVariable("KAIROS_STORE_PASSWORD").orNull
-        keyAlias = "kairos"
-        keyPassword = providers.environmentVariable("KAIROS_STORE_PASSWORD").orNull
+    signingConfigs.create("nextRelease") {
+        storeFile = providers.environmentVariable("NEXT_KEYSTORE").orNull?.let { file(it) }
+        storePassword = providers.environmentVariable("NEXT_STORE_PASSWORD").orNull
+        keyAlias = "minisnext"
+        keyPassword = providers.environmentVariable("NEXT_STORE_PASSWORD").orNull
     }
 
     buildTypes {
@@ -114,7 +114,7 @@ android {
         // on `debug` therefore do not represent what users run. `perf` keeps
         // the debug server and probes (DEV_TOOLS) so the measurement harness
         // works, but is profileable/AOT-compilable like a release build.
-        // Development-only signing; cannot replace the independently signed Kairos release.
+        // Development-only signing; cannot replace the independently signed Minis Next release.
         create("perf") {
             initWith(getByName("debug"))
             isDebuggable = false
@@ -143,7 +143,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("kairosRelease")
+            signingConfig = signingConfigs.getByName("nextRelease")
         }
     }
 
@@ -197,6 +197,7 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
 
     // [T-android-downgrade-compat] MigrationTestHelper loads the exported
@@ -527,6 +528,9 @@ dependencies {
     // against a real SQLite in JVM tests; the same driver Room's compiler already uses.
     testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation(platform("androidx.compose:compose-bom:2025.09.00"))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // Testing — Instrumented (on-device) tests
     // [T-android-downgrade-compat] MigrationTestHelper replays the committed

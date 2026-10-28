@@ -182,7 +182,7 @@ class SoulIconConfigEdgeTest {
             assertEquals(v, back.metadata.icon)
             // The other keys must survive untouched. Asserted against the
             // DEFAULT rather than a literal: the shipped name was renamed
-            // (Minis -> Kairos) and the icon round trip is not the place that
+            // (Minis -> Minis Next) and the icon round trip is not the place that
             // decides the product's name. Pin the actual default elsewhere;
             // here the point is only "unchanged".
             assertEquals(SoulMetadata.DEFAULT.name, back.metadata.name)

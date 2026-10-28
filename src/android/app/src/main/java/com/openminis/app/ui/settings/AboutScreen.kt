@@ -110,7 +110,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
-            // [Kairos brand] Make the fork identity explicit; upstream credit
+            // [Minis Next brand] Make the fork identity explicit; upstream credit
             // follows in its own section below.
             Text(
                 stringResource(R.string.kairos_maintainer_line),
@@ -120,7 +120,7 @@ fun AboutScreen(onBack: () -> Unit) {
             )
         }
 
-        // [Kairos brand] All contact entries point at the Kairos repository /
+        // [Minis Next brand] All contact entries point at the Minis Next repository /
         // maintainer. They use openExternalUrl directly for the same reason as
         // the old single GitHub row: nothing wraps Settings with an
         // InAppBrowserHost, so the ambient launcher is a no-op here.
@@ -160,7 +160,7 @@ fun AboutScreen(onBack: () -> Unit) {
             )
         }
 
-        // [Kairos brand] Attribution is a first-class entry, not a footnote:
+        // [Minis Next brand] Attribution is a first-class entry, not a footnote:
         // the original project, its issue tracker and the GPL-3.0 credit stay
         // reachable from About.
         SettingsSection(header = stringResource(R.string.kairos_upstream_section)) {

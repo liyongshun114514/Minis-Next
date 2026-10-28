@@ -401,7 +401,7 @@ private fun copyAllToClipboard(context: Context, emulator: TerminalEmulator) {
     if (text.isEmpty()) return
     runCatching {
         val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newPlainText("Kairos Shell", text))
+        cb.setPrimaryClip(ClipData.newPlainText("Minis Next Shell", text))
     }.onSuccess {
         Toast.makeText(context, R.string.terminal_copied_all, Toast.LENGTH_SHORT).show()
     }.onFailure {

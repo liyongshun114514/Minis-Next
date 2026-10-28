@@ -49,7 +49,7 @@ class ApplicationSystemPromptTest {
 
     @Test fun emptyPromptKeepsIdentityAndSettingsGuidance() {
         val prompt = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT, "  \n"))
-        assertTrue(prompt.startsWith("You are Kairos,"))
+        assertTrue(prompt.startsWith("You are Minis Next,"))
         assertTrue(prompt.contains("Settings → System Prompt"))
         assertFalse(prompt.contains("Application system prompt (configured"))
         assertFalse("no empty priority banner", prompt.contains(SystemPromptBuilder.SUPREME_PREAMBLE))
@@ -122,7 +122,7 @@ class ApplicationSystemPromptTest {
         block!!
         assertTrue(block.startsWith(SystemPromptBuilder.SUPREME_PREAMBLE))
         assertTrue(block.contains("Always answer in Chinese."))
-        assertFalse(block.contains("You are Kairos,"))  // identity is not part of it
+        assertFalse(block.contains("You are Minis Next,"))  // identity is not part of it
         assertFalse(block.contains("defer"))
     }
 
@@ -151,26 +151,26 @@ class ApplicationSystemPromptTest {
     }
 
     /**
-     * [K-kairos-identity] The shipped default assistant name is Kairos, and a
+     * [K-kairos-identity] The shipped default assistant name is Minis Next, and a
      * user-authored name is never rewritten by that default.
      */
     @Test fun defaultAssistantNameIsKairosAndUserNamesWin() {
-        assertEquals("Kairos", SoulMetadata.DEFAULT.name)
-        assertTrue(SoulStore.DEFAULT_CONTENT.contains("name: \"Kairos\""))
+        assertEquals("Minis Next", SoulMetadata.DEFAULT.name)
+        assertTrue(SoulStore.DEFAULT_CONTENT.contains("name: \"Minis Next\""))
         assertFalse(SoulStore.DEFAULT_CONTENT.contains("name: \"Minis\""))
 
         // An empty body puts the identity sentence first (the app block is absent).
         val seeded = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT, "   "))
-        assertTrue(seeded.startsWith("You are Kairos,"))
+        assertTrue(seeded.startsWith("You are Minis Next,"))
 
         // An existing custom name keeps winning over the product default.
         val custom = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT.copy(name = "Nova"), "   "))
         assertTrue(custom.startsWith("You are Nova,"))
-        assertFalse(custom.contains("You are Kairos,"))
+        assertFalse(custom.contains("You are Minis Next,"))
 
         // A whitespace-only stored name falls back to the default, not to a
         // half-rendered "You are ,".
         val blank = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT.copy(name = "   "), "   "))
-        assertTrue(blank.startsWith("You are Kairos,"))
+        assertTrue(blank.startsWith("You are Minis Next,"))
     }
 }

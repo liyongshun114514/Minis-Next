@@ -431,7 +431,7 @@ fun SettingsScreen(
                         openExternalUrl(context, buildFeedbackMailto())
                     },
                 )
-                // [Kairos brand] Upstream stays one tap away from the feedback
+                // [Minis Next brand] Upstream stays one tap away from the feedback
                 // sheet so the fork never looks like an original project.
                 FeedbackSheetItem(
                     icon = Icons.Outlined.Code,
@@ -492,7 +492,7 @@ private fun FeedbackSheetItem(
  * triage instead of asking the user to fill in environment details.
  *
  * URL shape:
- *   https://github.com/liyongshun114514/OpenMinis/issues/new
+ *   https://github.com/liyongshun114514/Minis-Next/issues/new
  *     ?template=bug_report.md
  *     &title=[Bug]
  *     &body=<percent-encoded markdown>
@@ -526,7 +526,7 @@ private fun buildBugReportUrl(): String {
         |-------|-------|
         | Platform | Android |
         | OS Version | Android $osVersion (API $sdkInt) |
-        | Kairos Version | $versionName (build $versionCode) |
+        | Minis Next Version | $versionName (build $versionCode) |
         | Device Model | $manufacturer $model |
 
         ## 🔁 Steps to Reproduce
@@ -578,7 +578,7 @@ private fun buildFeedbackMailto(): String {
 
         Screenshot (optional): Please attach a screenshot if relevant.
     """.trimIndent()
-    val subject = java.net.URLEncoder.encode("Kairos Feedback", "UTF-8")
+    val subject = java.net.URLEncoder.encode("Minis Next Feedback", "UTF-8")
     val encodedBody = java.net.URLEncoder.encode(body, "UTF-8")
     return "mailto:" + KairosBrandLinks.EMAIL + "?subject=$subject&body=$encodedBody"
 }

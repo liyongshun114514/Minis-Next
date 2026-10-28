@@ -68,7 +68,7 @@ object RecognizerErrorCodes {
     /** Short English description, shown by the chat panel and the CLI. */
     fun describe(code: Int): String = when (code) {
         SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-        SpeechRecognizer.ERROR_CLIENT -> "Client error: the system could not connect Kairos to a speech recognition service"
+        SpeechRecognizer.ERROR_CLIENT -> "Client error: the system could not connect Minis Next to a speech recognition service"
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "RECORD_AUDIO required"
         SpeechRecognizer.ERROR_NETWORK -> "Network error"
         SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"

@@ -662,8 +662,8 @@ object CrashFrequencyDetector {
             val uri = FileProvider.getUriForFile(ctx, authority, zip)
             val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
             val subject = ctx.getString(R.string.crash_freq_email_subject, date)
-            // [Kairos brand] Crash reports go to this build's maintainer, not
-            // the upstream alias — the app is an independent Kairos fork.
+            // [Minis Next brand] Crash reports go to this build's maintainer, not
+            // the upstream alias — the app is an independent Minis Next fork.
             val recipient = KairosBrandLinks.EMAIL
 
             val launched: Boolean = if (emailOnly) {

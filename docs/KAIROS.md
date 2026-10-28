@@ -1,3 +1,5 @@
+> Historical Kairos 1.0.2 notes. Current app is Minis Next; see [MINIS_NEXT.md](MINIS_NEXT.md). The former 1.0.2 Release was deleted by request. Do not use old signing/package guidance for the current build.
+
 # Kairos 1.0.2
 
 Kairos is an independently packaged Android fork of [OpenMinis](https://github.com/OpenMinis/OpenMinis), maintained in [liyongshun114514/OpenMinis](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot). Existing copyright notices, authorship and GPLv3 licensing are retained.

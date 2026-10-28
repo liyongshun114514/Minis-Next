@@ -51,6 +51,7 @@ object AgentTools {
         // exist: no schema, no prompt line, no retries on it. Last, as on iOS.
         userAskExposed: Boolean = false,
     ): List<AgentToolDefinition> = buildList {
+        if (!isHelper) add(com.openminis.app.intelligentui.IntelligentUiTool.definition())
         add(shellExecuteDefinition())
         add(FileReadTool.definition())
         add(FileWriteTool.definition())

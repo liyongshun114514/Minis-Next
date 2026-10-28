@@ -1,15 +1,18 @@
-# Kairos for Android
+# Minis Next for Android
 
-Independent Android fork maintained by **liyongshun114514**. The Android application is **Kairos** (`com.kairos.app`), currently **1.0.2 / build 3** (same installation/signing identity as 1.0.0 and 1.0.1). Release assets are published only after cloud compilation and APK verification. The launcher uses the original upstream icon; the application name remains Kairos. It coexists with upstream and older Minis Next APKs and does not automatically migrate their private data.
+Native Android AI agent maintained by **liyongshun114514**, continuing the complete Kairos feature set under the **Minis Next** brand (`com.openminis.app.next`). Version **1.15-ubuntu.8 / build 43** adds native Compose Intelligent UI answers: comparisons, charts, choices, forms, calculators and step-by-step explanations directly in chat, without a WebView or an additional visualization API key.
 
-- [Kairos releases](https://github.com/liyongshun114514/OpenMinis/releases)
-- [Source branch](https://github.com/liyongshun114514/OpenMinis/tree/ubuntu-chroot)
-- [Feedback / issues](https://github.com/liyongshun114514/OpenMinis/issues)
+Existing Ubuntu terminal, PRoot/chroot, tools, global SOUL, avatars and sub-agents are retained. The original upstream icon is unchanged. This build uses a **new stable signing identity**: it cannot directly update an older differently signed Minis Next. Export a backup first; installation/uninstallation and data restore are the user's decision. No automatic migration from Kairos. This iteration builds only Actions artifacts, **not a GitHub Release**.
+
+- [Source branch](https://github.com/liyongshun114514/Minis-Next/tree/minis-next)
+- [Cloud builds / APK artifacts](https://github.com/liyongshun114514/Minis-Next/actions/workflows/android-ubuntu.yml)
+- [Native Intelligent UI scope and limitations](docs/INTELLIGENT_UI.md)
+- [Build and signing notes](docs/MINIS_NEXT.md)
+- [Feedback / issues](https://github.com/liyongshun114514/Minis-Next/issues)
 - [Telegram](https://t.me/LYS114514) · [Email](mailto:liyongshun114514@gmail.com)
-- [Kairos build and verification notes](docs/KAIROS.md)
 - [Original OpenMinis project](https://github.com/OpenMinis/OpenMinis) — original authors and GPLv3 licensing remain unchanged.
 
-The following is the retained upstream project description; upstream download badges and services describe OpenMinis, not the independently signed Kairos app.
+The following is the retained upstream project description; upstream download badges and services describe OpenMinis, not this independently signed fork.
 
 ---
 

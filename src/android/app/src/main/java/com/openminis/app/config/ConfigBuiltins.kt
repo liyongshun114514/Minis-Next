@@ -165,7 +165,7 @@ internal object ConfigBuiltins {
             PrefsBoolField(
                 path = "agentTools.userAsk.notifyInBackground",
                 displayName = "Notify about questions in the background",
-                description = "Post a notification when the assistant asks while Kairos is in the background. The question can be answered from the notification.",
+                description = "Post a notification when the assistant asks while Minis Next is in the background. The question can be answered from the notification.",
                 prefs = prefs,
                 key = spec.NOTIFY_IN_BACKGROUND_KEY,
                 defaultValue = spec.DEFAULT_NOTIFY_IN_BACKGROUND,
@@ -267,7 +267,7 @@ internal object ConfigBuiltins {
         val autoCheck = ClosureField(
             path = "updates.autoCheck",
             displayName = "Check for updates automatically",
-            description = "Whether Kairos looks for a new version by itself when it comes to the foreground (at most once a day on stable, every 6 hours on beta). false stops those requests and hides the update badges; Check for Updates in Settings still works.",
+            description = "Whether Minis Next looks for a new version by itself when it comes to the foreground (at most once a day on stable, every 6 hours on beta). false stops those requests and hides the update badges; Check for Updates in Settings still works.",
             valueSchema = ConfigSchema.Bool,
             risk = ConfigRisk.NORMAL,
             revertable = true,
@@ -287,7 +287,7 @@ internal object ConfigBuiltins {
             if (com.openminis.app.BuildConfig.AUTO_UPDATE_CHECK) {
                 autoCheck
             } else {
-                UnavailableField(autoCheck, "This build of Kairos does not check for updates by itself.")
+                UnavailableField(autoCheck, "This build of Minis Next does not check for updates by itself.")
             }
         )
     }
@@ -1408,7 +1408,7 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.name",
                 displayName = "Soul name",
-                description = "The agent's name as shown in chat bubble headers and as the system-prompt identity. Trimmed; empty falls back to \"Kairos\".",
+                description = "The agent's name as shown in chat bubble headers and as the system-prompt identity. Trimmed; empty falls back to \"Minis Next\".",
                 valueSchema = ConfigSchema.Str(maxLength = 64),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,

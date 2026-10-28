@@ -4,7 +4,7 @@
     <string name="network_title">ネットワーク</string>
     <string name="network_default_route">デフォルトルート</string>
     <string name="network_default_route_footer">「デフォルトに従う」に設定したすべての機能がこのルートを使います。Tailscale がオンのとき、tailnet 内のアドレスはルートに関係なく常に Tailscale 経由で接続します。</string>
-    <string name="network_tailscale_footer">VPN プロファイルなしで Kairos の中で動作します。tailnet に届くのは Kairos 自身の接続だけで、Kairos の実行中に限られます。「サブネットルートを使用」をオンにすると、ほかのデバイスが共有するアドレス（自宅のネットワークなど）も Tailscale 経由になります。</string>
+    <string name="network_tailscale_footer">VPN プロファイルなしで Minis Next の中で動作します。tailnet に届くのは Minis Next 自身の接続だけで、Minis Next の実行中に限られます。「サブネットルートを使用」をオンにすると、ほかのデバイスが共有するアドレス（自宅のネットワークなど）も Tailscale 経由になります。</string>
     <string name="network_status">ステータス</string>
     <string name="network_status_starting">開始中…</string>
     <string name="network_status_connected">接続済み</string>

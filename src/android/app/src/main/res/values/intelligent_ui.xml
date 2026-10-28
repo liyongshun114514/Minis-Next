@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="intelligent_ui_send">Send selections</string>
+    <string name="intelligent_ui_reset">Reset</string>
+    <string name="intelligent_ui_invalid_input">Enter valid values within the indicated range.</string>
+    <string name="intelligent_ui_schematic">Schematic coordinates only · not map tiles or verified directions</string>
+    <string name="intelligent_ui_send_failed">Could not send. Check the model configuration or compact this conversation, then try again.</string>
+</resources>

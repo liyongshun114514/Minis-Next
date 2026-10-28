@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- [Kairos brand] 中文（简体）品牌联系入口文案。
+<!-- [Minis Next brand] 中文（简体）品牌联系入口文案。
      上游致谢与许可证信息同样保留。 -->
 <resources>
-    <string name="kairos_brand_section">Kairos 版本</string>
-    <string name="kairos_repo_title">Kairos GitHub 仓库</string>
+    <string name="kairos_brand_section">Minis Next 版本</string>
+    <string name="kairos_repo_title">Minis Next GitHub 仓库</string>
     <string name="kairos_repo_subtitle">源码、发布版本与本版本的 Issue 入口</string>
     <string name="kairos_issue_title">提交 Issue</string>
-    <string name="kairos_issue_subtitle">反馈 Kairos 版本的缺陷</string>
-    <string name="kairos_email_title">邮件联系 Kairos</string>
+    <string name="kairos_issue_subtitle">反馈 Minis Next 版本的缺陷</string>
+    <string name="kairos_email_title">邮件联系 Minis Next</string>
     <string name="kairos_telegram_title">Telegram</string>
     <string name="kairos_telegram_subtitle">社区与支持：@LYS114514</string>
-    <string name="kairos_maintainer_line">Kairos 构建 · 由 liyongshun114514 维护</string>
+    <string name="kairos_maintainer_line">Minis Next 构建 · 由 liyongshun114514 维护</string>
 
     <string name="kairos_upstream_section">原项目与致谢</string>
     <string name="kairos_upstream_title">OpenMinis（原项目）</string>
     <string name="kairos_upstream_subtitle">OpenMinis 原作者项目 · GPL-3.0</string>
     <string name="kairos_upstream_issues_title">原项目 Issue</string>
     <string name="kairos_upstream_issues_subtitle">在原版 OpenMinis 中也能复现的问题</string>
-    <string name="kairos_upstream_note">Kairos 是 OpenMinis 的独立分支，保留原项目源码、GPL-3.0 许可证与作者署名。</string>
+    <string name="kairos_upstream_note">Minis Next 是 OpenMinis 的独立分支，保留原项目源码、GPL-3.0 许可证与作者署名。</string>
 
-    <string name="kairos_issue_submit_title">在 Kairos GitHub 提交 Issue</string>
+    <string name="kairos_issue_submit_title">在 Minis Next GitHub 提交 Issue</string>
     <string name="kairos_feedback_upstream_title">OpenMinis 原项目</string>
     <string name="kairos_feedback_upstream_subtitle">原项目与作者</string>
     <string name="kairos_email_value" translatable="false">liyongshun114514@gmail.com</string>
