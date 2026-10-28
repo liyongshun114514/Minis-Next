@@ -475,7 +475,10 @@ def op_write(path, args, handoff=None):
         # Exclusive creation distinguishes our new inode from existing content.
         # Existing overwrite/append retains inode, owner, mode and ACL.
         try:
-            handle = open(path, "xb")
+            # A normal output symlink may name a not-yet-created target.
+            # Open its resolved target exclusively so this new inode also
+            # participates in App ownership handoff.
+            handle = open(os.path.realpath(path), "xb")
         except FileExistsError:
             handle = open(path, "ab" if append else "wb")
         else:

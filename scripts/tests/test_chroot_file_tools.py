@@ -411,6 +411,19 @@ class HandoffTests(HelperTestCase):
         self.assertEqual((before.st_ino, before.st_uid, before.st_gid, before.st_mode),
                          (after.st_ino, after.st_uid, after.st_gid, after.st_mode))
 
+    def test_output_symlink_to_new_file_uses_the_new_inode_handoff(self):
+        from unittest.mock import patch
+        helper = self.module()
+        target = self.tmp / "actual.txt"
+        alias = self.tmp / "output-link"
+        alias.symlink_to(target.name)
+        policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
+        with patch.object(policy, "uid", os.getuid()), patch.object(policy, "gid", os.getgid()):
+            self.assertTrue(helper.op_write(str(alias), {"content": "through link"}, policy)[0])
+        self.assertEqual(target.read_text(), "through link")
+        self.assertTrue(alias.is_symlink())
+        self.assertEqual(policy.count, 1)
+
     def test_same_app_identity_creates_parents_without_changing_modes(self):
         helper = self.module()
         policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
