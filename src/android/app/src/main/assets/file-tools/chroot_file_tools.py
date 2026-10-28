@@ -19,9 +19,10 @@ RESPONSE_JSON
 
 The parent process owns Root approval, session mounts, read-only
 interception, timeouts and response-size limits.  This helper does none of
-those, and it changes no owner, mode or ACL: writes go through
-open(path, "wb") / open(path, "ab"), which keeps the target's existing inode
-and therefore its owner, mode and ACL.
+those. Existing targets keep their inode, owner, mode and ACL. A separate
+bridge-supplied app_handoff policy gives newly created objects in App-managed
+roots to the real App uid/gid using the open descriptor. It never scans or
+repairs an existing directory, changes modes/ACLs, or remaps Shell identity.
 
 Exit status is 0 whenever a response was written (even {"success": false}),
 and 1 only when the response file itself could not be written.
@@ -150,7 +151,40 @@ class ParentDirFailure(ToolError):
         )
 
 
-def _ensure_parent_dirs(target):
+class AppHandoff:
+    """Ownership of objects created by this request in App-managed bind roots.
+
+    Existing files/directories and objects outside these roots are untouched.
+    The bridge supplies this policy separately from model-controlled args.
+    """
+    def __init__(self, policy):
+        self.uid = self.gid = None
+        self.roots = []
+        self.count = 0
+        if policy is None:
+            return
+        self.uid, self.gid = policy["uid"], policy["gid"]
+        if type(self.uid) is not int or type(self.gid) is not int or self.uid <= 0 or self.gid <= 0:
+            raise ToolError("Error: invalid App handoff identity; nothing was written")
+        self.roots = [os.path.realpath(_validated_path(p)) for p in policy["roots"]]
+
+    def applies(self, path):
+        actual = os.path.realpath(path)
+        return any(actual.startswith(root.rstrip("/") + "/") for root in self.roots)
+
+    def created(self, path, fd):
+        if not self.applies(path):
+            return
+        info = os.fstat(fd)
+        if (info.st_uid, info.st_gid) != (self.uid, self.gid):
+            os.fchown(fd, self.uid, self.gid)
+        after = os.fstat(fd)
+        if (after.st_uid, after.st_gid) != (self.uid, self.gid):
+            raise OSError(errno.EIO, "App ownership handoff did not persist")
+        self.count += 1
+
+
+def _ensure_parent_dirs(target, handoff=None):
     """Create every missing ancestor of `target`, stopping at the first failure.
 
     Raises ParentDirFailure (and the caller must not open the file afterwards).
@@ -179,6 +213,12 @@ def _ensure_parent_dirs(target):
     for directory in reversed(missing):
         try:
             os.mkdir(directory, 0o777)
+            if handoff is not None and handoff.applies(directory):
+                fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                try:
+                    handoff.created(directory, fd)
+                finally:
+                    os.close(fd)
         except FileExistsError:
             if not os.path.isdir(directory):
                 raise ParentDirFailure(
@@ -411,7 +451,7 @@ def _file_length_or_none(path):
         return None
 
 
-def op_write(path, args):
+def op_write(path, args, handoff=None):
     path = _validated_path(path)
     content = args.get("content", "")
     if content is None:
@@ -428,11 +468,26 @@ def op_write(path, args):
 
     # Auto-create parents regardless of create_dirs (the existing file_write
     # behavior). A failure here stops the call: the file is never opened.
-    _ensure_parent_dirs(path)
+    _ensure_parent_dirs(path, handoff)
 
     handle = None
     try:
-        handle = open(path, "ab" if append else "wb")
+        # Exclusive creation distinguishes our new inode from existing content.
+        # Existing overwrite/append retains inode, owner, mode and ACL.
+        try:
+            handle = open(path, "xb")
+        except FileExistsError:
+            handle = open(path, "ab" if append else "wb")
+        else:
+            try:
+                if handoff is not None:
+                    handoff.created(path, handle.fileno())
+            except OSError as exc:
+                handle.close()
+                raise ToolError(
+                    "Error: App ownership handoff failed for new file %s: %s. "
+                    "An empty new file may exist; no content was written."
+                    % (path, _errno_reason(exc)))
     except OSError as exc:
         raise ToolError(
             "Error: cannot %s %s: %s\n"
@@ -602,10 +657,12 @@ def _safe(exc):
     return text or "(no message)"
 
 
-def _respond(response_path, success, text):
+def _respond(response_path, success, text, metadata=None):
     """Overwrite the pre-created response file in place with the JSON result."""
-    payload = json.dumps({"success": bool(success), "text": str(text)},
-                         ensure_ascii=False)
+    result = {"success": bool(success), "text": str(text)}
+    if metadata is not None:
+        result["execution"] = metadata
+    payload = json.dumps(result, ensure_ascii=False)
     handle = open(response_path, "w", encoding="utf-8", newline="")
     try:
         handle.write(payload)
@@ -624,6 +681,8 @@ def main(argv):
 
     success = False
     text = None
+    path = ""
+    handoff = None
     try:
         with open(request_path, "rb") as handle:
             request = json.loads(handle.read().decode("utf-8"))
@@ -645,7 +704,11 @@ def main(argv):
             raise ToolError(
                 "Error: unsupported operation: %s (expected read, write or edit)"
                 % name)
-        success, text = handler(path, args)
+        handoff = AppHandoff(request.get("app_handoff"))
+        if operation == "write":
+            success, text = handler(path, args, handoff)
+        else:
+            success, text = handler(path, args)
     except ToolError as exc:
         success, text = False, str(exc)
     except (OSError, ValueError, UnicodeDecodeError) as exc:
@@ -664,7 +727,15 @@ def main(argv):
     if text is None:
         success, text = False, "Error: no result"
     try:
-        _respond(response_path, success, text)
+        metadata = {"backend": "CHROOT", "euid": os.geteuid(), "egid": os.getegid(),
+                    "handed_off": handoff.count if handoff else 0}
+        try:
+            info = os.stat(path)
+            metadata.update(uid=info.st_uid, gid=info.st_gid,
+                            mode=format(info.st_mode & 0o7777, "04o"))
+        except (OSError, ValueError, TypeError):
+            pass
+        _respond(response_path, success, text, metadata)
     except Exception as exc:
         sys.stderr.write("chroot_file_tools: cannot write response: %s: %s\n"
                          % (type(exc).__name__, _safe(exc)))

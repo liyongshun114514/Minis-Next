@@ -89,12 +89,15 @@ def assert_ident(path, ref, label):
     ok, detail = acl_absent(path)
     need(ok, label + " ACL kept", detail)
 
-def helper_call(app_home, op, path, args):
+def helper_call(app_home, op, path, args, policy=None):
     """Call the production helper as root; the App pre-creates request/response."""
     COUNTER[0] += 1
     req = os.path.join(app_home, "req-%d.json" % COUNTER[0])
     resp = os.path.join(app_home, "resp-%d.json" % COUNTER[0])
-    app(True, "prep", req, json.dumps({"operation": op, "path": path, "args": args}), resp)
+    request = {"operation": op, "path": path, "args": args}
+    if policy is not None:
+        request["app_handoff"] = policy
+    app(True, "prep", req, json.dumps(request), resp)
     pre = os.stat(resp)
     need((pre.st_uid, pre.st_gid, pre.st_mode & 0o7777) == (APP_UID, APP_GID, 0o600),
          "response pre-created by App 0600",
@@ -199,6 +202,45 @@ def main(argv):
         helper_ok(app_home, "write", tb, {"content": "B1\n"}, "session B")
         need(open(ta, "rb").read() == b"A1\n", "session A unchanged by session B request")
         assert_ident(ta, aref, "session A after B")
+        # New shared output must remain usable after the Root operation ends.
+        policy = {"uid": APP_UID, "gid": APP_GID, "roots": [rootdir]}
+        for name, mode in (("plain", 0o755), ("masked", 0o750)):
+            directory = os.path.join(rootdir, name)
+            os.mkdir(directory); os.chmod(directory, mode)
+            if name == "masked":
+                import struct
+                acl = struct.pack("<I", 2) + b"".join(struct.pack("<HHI", tag, perm, ident)
+                    for tag, perm, ident in ((1, 7, 0xffffffff), (2, 7, APP_UID),
+                        (4, 7, 0xffffffff), (16, 5, 0xffffffff), (32, 0, 0xffffffff)))
+                os.setxattr(directory, "system.posix_acl_access", acl)
+            before_dir = state(directory)
+            target = os.path.join(directory, "new.txt")
+            result = helper_call(app_home, "write", target, {"content": "shared\n"}, policy)
+            need(result["success"], "handoff write in " + name, result["text"])
+            st = os.stat(target)
+            need((st.st_uid, st.st_gid) == (APP_UID, APP_GID), "new file belongs to App in " + name)
+            need(result["execution"]["euid"] == 0 and result["execution"]["uid"] == APP_UID,
+                 "result distinguishes Root writer and App owner")
+            app(True, "read", target); app(True, "overwrite", target, "app rewrite\n")
+            need(state(directory) == before_dir, "existing parent metadata kept in " + name)
+            if name == "masked":
+                need(os.getxattr(directory, "system.posix_acl_access") == acl, "parent mask ACL unchanged")
+        auto = os.path.join(rootdir, "auto", "nested", "out.txt")
+        result = helper_call(app_home, "write", auto, {"content": "auto\n"}, policy)
+        need(result["success"], "auto parent handoff", result["text"])
+        for path in (os.path.dirname(os.path.dirname(auto)), os.path.dirname(auto), auto):
+            st = os.stat(path)
+            need((st.st_uid, st.st_gid) == (APP_UID, APP_GID), "new ancestor/file owned by App: " + path)
+        app(True, "create", os.path.join(os.path.dirname(auto), "app-sibling"), "600", "sibling")
+        app(True, "overwrite", auto, "app rewrite\n")
+        # Policy never repairs existing root-only files or out-of-root objects.
+        result = helper_call(app_home, "write", secret, {"content": "preserved owner\n"}, policy)
+        need(result["success"] and state(secret) == sref, "existing root 0600 metadata retained with policy")
+        app(False, "read", secret)
+        outside = os.path.join(base, "outside.txt")
+        result = helper_call(app_home, "write", outside, {"content": "root\n"}, policy)
+        need(result["success"] and os.stat(outside).st_uid == 0, "outside-root creation stays Root-owned")
+
     except Failure:
         rc = 1
     except Exception as exc:

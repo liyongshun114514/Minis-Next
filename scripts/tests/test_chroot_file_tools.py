@@ -369,6 +369,59 @@ class ReadTests(HelperTestCase):
         self.assertEqual(self.body(text), "")
 
 
+class HandoffTests(HelperTestCase):
+    def module(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("file_helper", HELPER)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_failed_new_file_handoff_never_writes_content(self):
+        from unittest.mock import patch
+        helper = self.module()
+        target = self.tmp / "new.txt"
+        policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
+        with patch.object(helper.os, "fchown", side_effect=PermissionError(1, "handoff refused")):
+            with self.assertRaises(helper.ToolError) as err:
+                helper.op_write(str(target), {"content": "must not land"}, policy)
+        self.assertIn("no content was written", str(err.exception))
+        self.assertEqual(target.read_bytes(), b"")
+
+    def test_failed_new_parent_handoff_stops_before_target_open(self):
+        from unittest.mock import patch
+        helper = self.module()
+        target = self.tmp / "first" / "second" / "new.txt"
+        policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
+        with patch.object(helper.os, "fchown", side_effect=PermissionError(1, "handoff refused")):
+            with self.assertRaises(helper.ParentDirFailure):
+                helper.op_write(str(target), {"content": "must not land"}, policy)
+        self.assertFalse(target.exists())
+        self.assertFalse(target.parent.exists())
+
+    def test_existing_target_does_not_call_ownership_handoff(self):
+        from unittest.mock import patch
+        helper = self.module()
+        target = self.write_bytes("existing.txt", b"old")
+        before = target.stat()
+        policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
+        with patch.object(helper.os, "fchown", side_effect=AssertionError("existing target must not be changed")):
+            self.assertTrue(helper.op_write(str(target), {"content": "new"}, policy)[0])
+        after = target.stat()
+        self.assertEqual((before.st_ino, before.st_uid, before.st_gid, before.st_mode),
+                         (after.st_ino, after.st_uid, after.st_gid, after.st_mode))
+
+    def test_same_app_identity_creates_parents_without_changing_modes(self):
+        helper = self.module()
+        policy = helper.AppHandoff({"uid": 12345, "gid": 12345, "roots": [str(self.tmp)]})
+        target = self.tmp / "dir" / "new"
+        from unittest.mock import patch
+        with patch.object(policy, "uid", os.getuid()), patch.object(policy, "gid", os.getgid()):
+            self.assertTrue(helper.op_write(str(target), {"content": "new"}, policy)[0])
+        self.assertEqual(target.read_bytes(), b"new")
+        self.assertEqual(policy.count, 2)
+
+
 class ProtocolTests(HelperTestCase):
     def test_response_file_is_written_in_place(self):
         target = self.write_bytes("proto.txt", b"x\n")
@@ -412,8 +465,9 @@ class ProtocolTests(HelperTestCase):
     def test_helper_contains_no_shell_eval_or_permission_calls(self):
         source = HELPER.read_text(encoding="utf-8")
         for needle in ("import subprocess", "os.system(", "os.popen(",
-                       "eval(", "exec(", "os.chmod", "os.chown", "os.setuid"):
+                       "eval(", "exec(", "os.chmod", "os.chown(", "os.setuid"):
             self.assertNotIn(needle, source, needle)
+        self.assertIn("os.fchown(fd, self.uid, self.gid)", source)
 
 
 if __name__ == "__main__":

@@ -425,7 +425,18 @@ rootRequired=true and the exact per-session SessionMounts map. Each invocation
 uses the existing Root tri-state gate: Ask prompts for that operation, Deny
 executes nothing, and Allow uses the current grant. Approval shows operation
 and target path; file contents live in private request files rather than argv.
-No target chmod, chown, ACL repair, recursive scan or fallback identity occurs.
+Existing targets receive no chmod/chown/ACL repair, recursive scan or fallback identity.
+Since 1.5, the bridge supplies the real App UID/GID and the available eight
+App-managed bind roots separately from tool arguments. Only files and missing
+parents created by that file_write invocation inside those roots are handed to
+the App through open descriptors before content is written. No shell identity
+is changed. External mounts/guest paths and existing objects keep normal rules.
+Handoff failure is reported; no content is written to the new file. Existing
+Root-created parents are preserved, so a parent lacking App search permission
+still prevents App previews until the user explicitly changes that parent.
+Tool results identify execution euid/egid and target uid/gid/mode; an App-owned
+file in an existing root:root 0755 directory is App-readable/writable but cannot
+be renamed/deleted by App without write permission on that directory.
 This means an approved Root file tool can operate on root:root 0755 directories
 or 0600 files without any default ACL, just as an approved Root shell can.
 
@@ -442,8 +453,8 @@ The empty staging parent may remain for reuse and holds no request content.
 Write guards reject locked external mount paths and offload-placeholder content
 before dispatch. Kernel read-only bind mounts remain enforced. A Root file tool
 is still subject to read-only filesystems and SELinux. Existing target inodes,
-owner/mode/ACL survive overwrite/append/edit; new files use normal guest creation
-rules. A 45-second process deadline and Stop/backend-switch/Root-revocation hooks
+owner/mode/ACL survive overwrite/append/edit; new shared files keep their normal
+creation mode/ACL but receive App ownership. Other paths use normal guest rules. A 45-second process deadline and Stop/backend-switch/Root-revocation hooks
 close the client, whose disconnect kills the child process group. A timeout or
 failed result after a possible write tells the caller to re-read, never retries.
 Read output remains capped at 80,000 characters; edit input is capped at 8 MiB.

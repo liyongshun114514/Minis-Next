@@ -101,6 +101,25 @@ class ChrootFileToolsTest {
         assertFalse(timeout.success); assertTrue(timeout.timedOut)
     }
 
+    @Test fun appPolicyIsSeparateFromModelArgsAndResultsIdentifyTheRoute() = fixture { root ->
+        val policy = ChrootFileTools.appHandoff(12345, 23456, listOf("/var/minis/workspace"))
+        assertEquals(12345, policy.getInt("uid"))
+        val r = ChrootFileTools.runStaged(root, "write", JSONObject()
+            .put("path", "/var/minis/workspace/new.txt")
+            .put("app_handoff", JSONObject().put("uid", 99999)), helper.readBytes(), "t", policy) { _, job ->
+            val request = JSONObject(File(job, "request.json").readText())
+            assertEquals(12345, request.getJSONObject("app_handoff").getInt("uid"))
+            File(job, "response.json").writeText(JSONObject().put("success", true).put("text", "done")
+                .put("execution", JSONObject().put("euid", 0).put("egid", 0)
+                    .put("uid", 12345).put("gid", 23456).put("mode", "0644").put("handed_off", 1)).toString())
+            ChrootFileTools.Exit(0)
+        }
+        assertTrue(r.success)
+        assertTrue(r.output.contains("CHROOT euid=0"))
+        assertTrue(r.output.contains("target uid=12345 gid=23456"))
+        assertTrue(r.output.contains("App handoff=1"))
+    }
+
     @Test fun toolsRouteBeforeAppStatAndKeepWriteGuards() {
         for ((name, op) in listOf("FileReadTool" to "read", "FileWriteTool" to "write", "FileEditTool" to "edit")) {
             val s = ProductionSources.read("tools/$name.kt")
@@ -118,6 +137,9 @@ class ChrootFileToolsTest {
         assertTrue(bridge.contains("sessionMounts = mounts.mounts"))
         assertTrue(bridge.contains("SessionMounts.forContext(context, sessionId)"))
         assertTrue(bridge.contains("Active(executionSessionId)"))
+        assertTrue(bridge.contains("android.os.Process.myUid(), Os.getgid()"))
+        assertFalse(bridge.contains("PRootKernel.boot(context)"))
+        assertTrue(bridge.contains("manager.installIfNeeded()"))
         val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
         for (tool in listOf("FileReadTool", "FileWriteTool", "FileEditTool")) {
             assertTrue(vm.contains("$tool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId)"))

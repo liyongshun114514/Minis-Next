@@ -3,7 +3,6 @@ package com.openminis.app.tools
 import android.content.Context
 import android.system.Os
 import com.openminis.app.sandbox.ChrootKernel
-import com.openminis.app.sandbox.PRootKernel
 import com.openminis.app.sandbox.RootfsManager
 import com.openminis.app.sandbox.SandboxBackend
 import com.openminis.app.sandbox.SandboxBackendStore
@@ -18,7 +17,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /** File tools share CHROOT's identity, namespace and per-operation Root gate.
- * No chmod/chown/ACL repair of the target, no retry after a possibly partial write.
+ * Existing inode metadata stays intact. New objects in App-managed roots are
+ * handed to the App UID/GID; no recursive repair or retry of partial writes.
  * Payloads stay in private App-owned staging files, never argv, logs or stdout.
  */
 internal object ChrootFileTools {
@@ -57,15 +57,20 @@ internal object ChrootFileTools {
             if (!selected(context)) return@withContext ToolExecutionResult(
                 "Error: execution backend changed before file_$operation; retry with the current backend.", false, toolTitle = title,
             )
-            if (!PRootKernel.isBooted) PRootKernel.boot(context)
+            val manager = RootfsManager.getInstance(context)
+            manager.rootfsMigrationError?.let { error(it) }
+            manager.installIfNeeded()
             val mounts = SessionMounts.forContext(context, sessionId)
             val unavailable = mounts.skipped.firstOrNull { path == it || path.startsWith("$it/") }
             if (unavailable != null) return@withContext ToolExecutionResult(
                 "Error: session mount $unavailable is unavailable; file_$operation was not started.", false, toolTitle = title,
             )
-            val rootfs = RootfsManager.getInstance(context).rootfsDir
+            val rootfs = manager.rootfsDir
             val script = context.assets.open(ASSET).use { it.readBytes() }
-            runStaged(rootfs, operation, args, script, title) { command, job ->
+            val managedRoots = (SessionMounts.SESSION_SUBDIRS + SessionMounts.GLOBAL_SUBDIRS)
+                .map { "/var/minis/$it" }.filter { mounts.mounts.containsKey(it) }
+            val handoff = appHandoff(android.os.Process.myUid(), Os.getgid(), managedRoots)
+            runStaged(rootfs, operation, args, script, title, handoff) { command, job ->
                 // Direct CHROOT route: switching backends cannot silently run this as App UID.
                 if (call.stopped.get()) return@runStaged Exit(130, "Cancelled before Root authorization.")
                 val spawn = ChrootKernel.spawn(context, SandboxCommandSpec(
@@ -106,8 +111,15 @@ internal object ChrootFileTools {
         }
     }
 
+    internal fun appHandoff(uid: Int, gid: Int, roots: List<String>): JSONObject {
+        require(uid > 0 && gid > 0) { "App identity is unavailable" }
+        return JSONObject().put("uid", uid).put("gid", gid)
+            .put("roots", org.json.JSONArray(roots))
+    }
+
     internal suspend fun runStaged(
         rootfs: File, operation: String, args: JSONObject, script: ByteArray, title: String,
+        appHandoff: JSONObject? = null,
         run: suspend (String, File) -> Exit,
     ): ToolExecutionResult {
         val path = args.optString("path", "")
@@ -126,7 +138,8 @@ internal object ChrootFileTools {
             val helper = File(job, "helper.py")
             helper.writeBytes(script)
             val request = File(job, "request.json")
-            request.writeText(JSONObject().put("operation", operation).put("path", path).put("args", args).toString())
+            request.writeText(JSONObject().put("operation", operation).put("path", path).put("args", args)
+                .apply { if (appHandoff != null) put("app_handoff", appHandoff) }.toString())
             val response = File(job, "response.json")
             check(response.createNewFile())
             for (f in listOf(helper, request, response)) Os.chmod(f.path, 384) // 0600
@@ -145,7 +158,15 @@ internal object ChrootFileTools {
             )
             val result = JSONObject(response.readText())
             require(result.has("success") && result.get("success") is Boolean && result.get("text") is String) { "Invalid file-tool response" }
-            return ToolExecutionResult(result.getString("text"), result.getBoolean("success"), toolTitle = title)
+            val identity = result.optJSONObject("execution")
+            val details = identity?.let {
+                "CHROOT euid=${it.optInt("euid", -1)} egid=${it.optInt("egid", -1)}; " +
+                    "target uid=${it.optInt("uid", -1)} gid=${it.optInt("gid", -1)} " +
+                    "mode=${it.optString("mode", "unknown")}; App handoff=${it.optInt("handed_off", 0)}"
+            } ?: "CHROOT; identity metadata unavailable"
+            com.openminis.app.logging.AppLogger.info("ChrootFileTools", "file_$operation $path: $details")
+            // Prefix preserves the read body and its pagination header at the end.
+            return ToolExecutionResult("[$details]\n" + result.getString("text"), result.getBoolean("success"), toolTitle = title)
         } finally {
             // App pre-creates every transport file; root opens in place, so cleanup needs no Root.
             if (!job.deleteRecursively()) com.openminis.app.logging.AppLogger.warning("ChrootFileTools", "could not remove request staging ${job.name}")
