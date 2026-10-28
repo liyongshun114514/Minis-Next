@@ -170,7 +170,9 @@ class UpdatePolicyTest {
         assertEquals(current, UpdatePolicy.chooseApk(listOf(old, current), listOf("arm64-v8a")))
         assertEquals(UpdatePolicy.ApkName("1.0.0", 1, "arm64-v8a"),
             UpdatePolicy.parseApkName("MinisNext-1.0.0-build1-arm64-v8a.apk"))
-        assertEquals("package", UpdatePolicy.archiveRefusal("com.openminis.app.next", 99, "com.openminis.app.next", 1))
+        assertEquals("package", UpdatePolicy.archiveRefusal("com.kairos.app", 99, "com.openminis.app.next", 1))
+        assertEquals("package", UpdatePolicy.archiveRefusal("com.openminis.app", 99, "com.openminis.app.next", 1))
+        assertNull(UpdatePolicy.archiveRefusal("com.openminis.app.next", 99, "com.openminis.app.next", 1))
     }
 
     // ── Throttle ────────────────────────────────────────────────────────────

@@ -18,19 +18,19 @@ import java.io.ByteArrayInputStream
  *
  * This half needs `BitmapFactory`, so it runs under Robolectric with NATIVE
  * graphics — the same configuration the project's other graphics tests use
- * (`@Config(manifest = Config.NONE, sdk = [35])`, [GraphicsMode.Mode.NATIVE]) and the same generator
+ * (`@Config(manifest = Config.NONE, sdk = [35], application = android.app.Application::class)`, [GraphicsMode.Mode.NATIVE]) and the same generator
  * (`CtxKit`). It must NOT be downgraded to a plan-only assertion: the plan is
  * covered by [SoulIconImportPlanTest], and these tests are the ones that would
  * catch a decode that silently crops, skips the sampler, or refuses a picture.
  *
- * `@Config(manifest = Config.NONE, sdk = [35])` is explicit rather than
+ * `@Config(manifest = Config.NONE, sdk = [35], application = android.app.Application::class)` is explicit rather than
  * inherited: NONE keeps the real Application (native libs, databases, network)
  * out of these BitmapFactory/Canvas tests, and the pinned SDK makes a missing
  * runtime fail loudly here instead of the suite quietly passing without ever
  * decoding a bitmap.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE, sdk = [35])
+@Config(manifest = Config.NONE, sdk = [35], application = android.app.Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class SoulIconImportRoboTest {
 
