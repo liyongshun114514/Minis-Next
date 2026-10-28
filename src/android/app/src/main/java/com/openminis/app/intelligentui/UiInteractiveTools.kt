@@ -257,6 +257,7 @@ private fun UiBudgetTool(n: JSONObject) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth().testTag("ui-budget-expense-$i"),
                 )
+                if (amount == null) UiToolError(l("支出必须是 0 到 1 万亿之间的数值；此项暂不计入合计。", "Expense must be a number between 0 and 1 trillion; this item is excluded from the total until corrected."))
             }
         }
     }
