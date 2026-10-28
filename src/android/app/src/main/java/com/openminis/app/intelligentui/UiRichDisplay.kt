@@ -117,12 +117,20 @@ private fun RichImage(url: String, description: String?, modifier: Modifier) {
     if (override != null) {
         override(url, description, modifier)
     } else {
-        AsyncImage(
-            model = url,
-            contentDescription = description,
-            contentScale = ContentScale.Crop,
-            modifier = modifier,
-        )
+        var failed by remember(url) { mutableStateOf(false) }
+        Box(modifier, contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = url,
+                contentDescription = description,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onError = { failed = true },
+                onSuccess = { failed = false },
+            )
+            if (failed) Text(UiRichLocale.t("图片加载失败", "Image unavailable"),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(8.dp).testTag("ui-rich-image-error"))
+        }
     }
 }
 
@@ -190,7 +198,6 @@ private fun RichCard(n: JSONObject) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("ui-rich-card")
             .testTag("ui-rich-card-$variant"),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
@@ -860,7 +867,7 @@ private fun RichChart(n: JSONObject) {
     val multi = data.series.isNotEmpty()
     val description = remember(data, hiddenCsv) { chartDescription(data, visibleSeries) }
 
-    Column(Modifier.fillMaxWidth().testTag("ui-rich-chart").testTag("ui-rich-chart-$style"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().testTag("ui-rich-chart-$style"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (visibleSeries.isEmpty()) {
             Text(
                 UiRichLocale.t("所有数据系列已隐藏", "All series are hidden"),
@@ -1061,7 +1068,8 @@ private fun pickChartIndex(
     }
     if (style == "ranking") {
         val idx = floor((tap.y - top) / ((height - top - bottom).coerceAtLeast(1f)) * count).toInt()
-        return idx.coerceIn(0, count - 1)
+        val order = visible.firstOrNull()?.values?.indices?.sortedByDescending { visible.first().values[it] } ?: return -1
+        return order[idx.coerceIn(0, count - 1)]
     }
     if ((style == "line" || style == "scatter") && data.xValues != null) {
         val xs = data.xValues

@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
@@ -17,6 +18,7 @@ import org.json.JSONObject
 @Composable
 internal fun UiLayout(n:JSONObject, render:@Composable (JSONObject)->Unit) {
     val type=n.getString("type")
+    val saved = rememberSaveableStateHolder()
     val children=if(n.has("children"))n.getJSONArray("children") else null
     fun childList():List<JSONObject> = (0 until (children?.length()?:0)).map{children!!.getJSONObject(it)}
     when(type) {
@@ -28,10 +30,10 @@ internal fun UiLayout(n:JSONObject, render:@Composable (JSONObject)->Unit) {
             } else Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {items.chunked(columns).forEach { row-> Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach { item->Column(Modifier.weight(1f)){key(item.getString("id")){render(item)}} };repeat(columns-row.size){Spacer(Modifier.weight(1f))}}}}
         }
         "row" -> Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(12.dp)){childList().forEach{item->Column(Modifier.width(260.dp)){key(item.getString("id")){render(item)}}}}
-        "carousel"->{var selected by rememberSaveable { mutableIntStateOf(0) };val items=childList();key(items[selected].getString("id")){render(items[selected])};Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){OutlinedButton(onClick={selected--},enabled=selected>0){Text("‹")};Text("${selected+1} / ${items.size}",Modifier.padding(top=12.dp));OutlinedButton(onClick={selected++},enabled=selected<items.lastIndex){Text("›")}}}
+        "carousel"->{var selected by rememberSaveable { mutableIntStateOf(0) };val items=childList();saved.SaveableStateProvider(items[selected].getString("id")){render(items[selected])};Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){OutlinedButton(onClick={selected--},enabled=selected>0){Text("‹")};Text("${selected+1} / ${items.size}",Modifier.padding(top=12.dp));OutlinedButton(onClick={selected++},enabled=selected<items.lastIndex){Text("›")}}}
         "tabs"->{val tabs=n.getJSONArray("items");var selected by rememberSaveable{mutableIntStateOf(0)}
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){repeat(tabs.length()){i->FilterChip(selected=selected==i,onClick={selected=i},label={Text(tabs.getJSONObject(i).getString("label"))})}}
-            val nodes=tabs.getJSONObject(selected).getJSONArray("nodes");repeat(nodes.length()){val item=nodes.getJSONObject(it);key(item.getString("id")){render(item)}}
+            saved.SaveableStateProvider("tab_$selected") { val nodes=tabs.getJSONObject(selected).getJSONArray("nodes");repeat(nodes.length()){val item=nodes.getJSONObject(it);key(item.getString("id")){render(item)}} }
         }
         "accordion"->{var expanded by rememberSaveable{mutableStateOf(n.optBoolean("expanded",false))};OutlinedButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth()){Text(n.optString("label",if(expanded)"收起 / Collapse" else "展开 / Expand"))};if(expanded)childList().forEach{item->key(item.getString("id")){render(item)}}}
         "popover","tooltip","details"->{var open by rememberSaveable{mutableStateOf(false)};OutlinedButton(onClick={open=true}){Text(n.optString("label","查看详情 / Details"))};if(open)AlertDialog(onDismissRequest={open=false},title={Text(n.optString("title","详情 / Details"))},text={Column(Modifier.heightIn(max=480.dp).verticalScrollCompat(),verticalArrangement=Arrangement.spacedBy(8.dp)){childList().forEach{item->key(item.getString("id")){render(item)}}}},confirmButton={TextButton(onClick={open=false}){Text("关闭 / Close")}})}

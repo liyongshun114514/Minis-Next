@@ -103,7 +103,7 @@ class IntelligentUiToolsRenderTest {
     }
 
     @Test fun budgetMarksInvalidExpenseAndKeepsRunningTotalBounded() {
-        show("""{"type":"budget","income":100,"items":[{"label":"Only","amount":150}]}""")
+        show("""{"type":"budget","currency":"CNY","income":100,"items":[{"label":"Only","amount":150}]}""")
         compose.onNodeWithTag("ui-budget-balance").assertTextEquals("\u00A5-50.00")
         compose.onNodeWithTag("ui-budget-expense-0").performTextReplacement("oops")
         compose.onNodeWithTag("ui-tool-error").assertExists()
@@ -162,7 +162,7 @@ class IntelligentUiToolsRenderTest {
 
         compose.onNodeWithTag("ui-directory-cat-all").performScrollTo().performClick()
         compose.onNodeWithTag("ui-directory-item-0").performScrollTo().performClick()
-        compose.onNodeWithTag("ui-directory-detail-0").assertTextContains("Alpha detail text")
+        compose.onNodeWithTag("ui-directory-detail-0", useUnmergedTree = true).assertTextContains("Alpha detail text")
         compose.onNodeWithText("本地示例数据", substring = true).assertExists()
     }
 
@@ -180,8 +180,8 @@ class IntelligentUiToolsRenderTest {
         compose.onNodeWithTag("ui-quiz-submit").performScrollTo().performClick()
 
         compose.onNodeWithTag("ui-quiz-score").assertTextEquals("得分 1 / 2 · 50%")
-        compose.onNodeWithTag("ui-quiz-feedback-0").assertTextContains("回答正确")
-        compose.onNodeWithTag("ui-quiz-feedback-1").assertTextContains("回答错误")
+        compose.onNodeWithTag("ui-quiz-feedback-0").assertTextEquals("✓ 回答正确")
+        compose.onNodeWithTag("ui-quiz-feedback-1").assertTextEquals("✗ 回答错误")
         compose.onNodeWithText("解析：It is four.").assertExists()
 
         compose.onNodeWithTag("ui-quiz-reset").performScrollTo().performClick()

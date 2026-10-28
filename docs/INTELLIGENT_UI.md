@@ -39,6 +39,7 @@
 ## 扩展目录与附件逐项对照（ubuntu.9）
 
 公开参考已联网核对：
+- [Intelligent UI in ChatGPT（官方帮助）](https://help.openai.com/en/articles/20001598-intelligent-ui-in-chatgpt)：根据任务组合文字、图形、可点击按钮、表单、图表与交互解释；简单问题仍可纯文字。部分组件状态可在线程刷新后保留，非跨线程共享。本文不是其内部 SDK 的公开承诺。
 - [OpenAI UI guidelines](https://developers.openai.com/plugins/concepts/ui-guidelines)：inline cards、carousel、展开工作区、明确动作、系统字体/暗色/响应式及可访问性。
 - [OpenAI Apps SDK UI](https://openai.github.io/apps-sdk-ui/?path=/docs/overview-introduction--docs) 与 [源码](https://github.com/openai/apps-sdk-ui)：公开 Input/Textarea/RadioGroup/Checkbox/Select/SegmentedControl/Slider/DatePicker/Popover/Tooltip 等。该库是 React/Tailwind，未导入 Android、未访问隐藏 API；这里独立 Compose 实现对应交互，不承诺 ChatGPT 产品内部能力或协议完全兼容。
 

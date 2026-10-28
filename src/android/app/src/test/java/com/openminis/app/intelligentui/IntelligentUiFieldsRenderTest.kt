@@ -68,6 +68,32 @@ class IntelligentUiFieldsRenderTest {
         compose.onNodeWithText("确认 / Confirm").performClick()
         compose.runOnIdle { assertTrue(sent!!.contains("Continue")) }
     }
+    @Test fun datePickerOpensAndCancelKeepsChosenDate() {
+        show("""{"id":"f","type":"form","fields":[{"id":"day","label":"Date","kind":"date","value":"2026-10-28"}]}""")
+        compose.onNodeWithTag("field_day").performClick()
+        compose.onNodeWithText("OK").assertExists()
+        compose.onAllNodesWithText("Cancel").onLast().performClick()
+        compose.onNodeWithTag("field_day").assertTextContains("2026-10-28")
+        compose.runOnIdle { assertNull(sent) }
+    }
+    @Test fun segmentRadioCheckboxAndSelectKeepActualUserValues() {
+        show("""{"id":"f","type":"form","fields":[{"id":"s","label":"Segment","kind":"segmented","value":"Day","options":["Day","Week"]},{"id":"r","label":"Radio","kind":"radio","value":"A","options":["A","B"]},{"id":"m","label":"Multi","kind":"multiselect","value":[],"options":["One","Two"]}]}""")
+        compose.onNodeWithTag("field_s_Week").performClick()
+        compose.onNodeWithText("B").performClick()
+        compose.onNodeWithText("Two").performClick()
+        compose.onNodeWithTag("ui_submit").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(sent!!.contains("Week")); assertTrue(sent!!.contains("Two")); assertTrue(sent!!.contains("B")) }
+    }
+    @Test fun tabSwitchRetainsUnsentFormDraft() {
+        val n=JSONObject("""{"id":"tabs","type":"tabs","items":[{"label":"Edit","nodes":[{"id":"f","type":"form","fields":[{"id":"draft","label":"Draft","kind":"text","value":""}]}]},{"label":"Away","nodes":[{"id":"a","type":"text","text":"Other page"}]}]}""")
+        compose.setContent { MaterialTheme { Column { UiNode("Tabs",n,true,{sent=it}) } } }
+        compose.onNodeWithTag("field_draft").performTextReplacement("keep this draft")
+        compose.onNodeWithText("Away").performClick()
+        compose.onNodeWithText("Other page").assertExists()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNodeWithTag("field_draft").assertTextContains("keep this draft")
+        compose.runOnIdle { assertNull(sent) }
+    }
     @Test fun tabsCarouselAndAccordionRenderActualSelectedContent() {
         val n=JSONObject("""{"id":"tabs","type":"tabs","items":[{"label":"First tab","nodes":[{"id":"one","type":"text","text":"First content"}]},{"label":"Second tab","nodes":[{"id":"fold","type":"accordion","label":"Toggle fold","children":[{"id":"nested","type":"text","text":"Expanded content"}]}]}]}""")
         compose.setContent { MaterialTheme { Column { UiNode("Layout",n,true,{sent=it}) } } }
