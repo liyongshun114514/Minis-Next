@@ -827,7 +827,12 @@ class MinisApp : Application(), ImageLoaderFactory {
         // fail Application.onCreate (that is what made a held socket name an
         // endless crash loop: "Unable to create application").
         try {
-            NativeOffloadServer.start(RootfsManager.getInstance(this).rootfsDir)
+            val rootfs = RootfsManager.getInstance(this)
+            if (rootfs.rootfsMigrationError == null) {
+                NativeOffloadServer.start(rootfs.rootfsDir)
+            } else {
+                Log.e("MinisApp", "native offload paused: ${rootfs.rootfsMigrationError}")
+            }
         } catch (t: Throwable) {
             Log.e("MinisApp", "native offload server failed to start; continuing without it", t)
         }

@@ -14,16 +14,13 @@ import java.io.File
  * Everything in this file is either a constant or a pure function so it can be
  * unit-tested on the JVM without an Android runtime.
  *
- * ## On-disk layout (deliberately unchanged)
+ * ## On-disk layout
  *
- * [ROOTFS_DIR_NAME] is still `alpine-rootfs`. That name is a *path*, not a
- * distribution statement: five files outside this module's ownership
- * (`ShellTransparentNet`, `StorageUsageViewModel`, `FileBrowserViewModel`,
- * `AppNavigation`, `RootfsManagementScreen`) and one instrumented test hardcode
- * it, and a rename would make them read a directory that no longer exists.
- * Which distribution actually lives there is recorded by [MARKER_FILE]
- * (`.distro`) — see [isUbuntuRootfs]. The rename is tracked as an external
- * follow-up in `docs/android-ubuntu.md`.
+ * [ROOTFS_DIR_NAME] is `Ubuntu-rootfs` (case-sensitive). Before any reader
+ * observes it, [RootfsDirectoryMigration] renames the legacy directory without
+ * copying or unpacking over user data. Historical names are kept only for
+ * migration/backup discovery. The `.distro` marker, not a directory rename,
+ * identifies the actual guest distribution — see [isUbuntuRootfs].
  */
 object SandboxDistribution {
 
@@ -42,18 +39,20 @@ object SandboxDistribution {
 
     // ── rootfs paths / markers ───────────────────────────────────────────────
 
-    /**
-     * Legacy on-disk directory name. Kept so every unmodified reader
-     * (`filesDir/alpine-rootfs/...`) keeps working; the marker inside decides
-     * which distro is installed. See the class comment.
-     */
-    const val ROOTFS_DIR_NAME = "alpine-rootfs"
+    /** Canonical Android guest directory. All current readers use this path. */
+    const val ROOTFS_DIR_NAME = "Ubuntu-rootfs"
 
-    /** Sibling that a pre-Ubuntu (Alpine) or broken rootfs is moved to. Never deleted. */
-    const val LEGACY_BACKUP_PREFIX = "alpine-rootfs.pre-ubuntu-"
+    /** Read only for an upgrade rename; never the destination of a new install. */
+    const val LEGACY_ROOTFS_DIR_NAME = "alpine-rootfs"
+
+    /** Sibling that a previous or broken rootfs is preserved in. Never auto-deleted. */
+    const val LEGACY_BACKUP_PREFIX = "Ubuntu-rootfs.previous-"
+
+    /** Historical backups remain discoverable without renaming user backups. */
+    const val HISTORICAL_BACKUP_PREFIX = "alpine-rootfs.pre-ubuntu-"
 
     /** Extraction staging directory; swapped in only after a complete extract. */
-    const val STAGING_DIR_NAME = "alpine-rootfs.staging"
+    const val STAGING_DIR_NAME = "Ubuntu-rootfs.staging"
 
     /** Rootfs marker: exact contents of `.arch` for a usable install. */
     const val ARCH_MARKER_FILE = ".arch"

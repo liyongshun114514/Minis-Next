@@ -31,6 +31,14 @@ data class RootfsManagementUiState(
      * most recent migration, or null. Never deleted automatically.
      */
     val legacyBackupPath: String? = null,
+    /**
+     * Non-null while [RootfsManager.rootfsMigrationError] blocks the canonical
+     * `Ubuntu-rootfs` directory. Installation and every reader are stopped in
+     * that state, so the screen must say why instead of offering an install
+     * that will immediately fail. Filled by [refresh], i.e. as soon as the
+     * screen appears; the default UiState is the pre-context placeholder.
+     */
+    val migrationError: String? = null,
 )
 
 class RootfsManagementViewModel : ViewModel() {
@@ -86,6 +94,7 @@ class RootfsManagementViewModel : ViewModel() {
             distributionName = SandboxDistribution.DISPLAY_NAME,
             legacyBackupPath = manager.lastLegacyBackup?.absolutePath
                 ?: manager.legacyBackupDirs.lastOrNull()?.absolutePath,
+            migrationError = manager.rootfsMigrationError,
         )
 
         if (manager.isInstalled) {
@@ -99,6 +108,20 @@ class RootfsManagementViewModel : ViewModel() {
     }
 
     fun install(context: Context) {
+        val manager = RootfsManager.getInstance(context)
+        val migrationError = manager.rootfsMigrationError
+        if (migrationError != null) {
+            // Never start an install over a blocked migration: the old tree may
+            // still hold the user's data under the legacy name.
+            _uiState.value = _uiState.value.copy(
+                isProcessing = false,
+                lastOperationSuccess = false,
+                resultMessage = migrationError,
+                installProgress = null,
+                migrationError = migrationError,
+            )
+            return
+        }
         _uiState.value = _uiState.value.copy(
             isProcessing = true,
             statusMessage = "Installing ${SandboxDistribution.DISPLAY_NAME} rootfs…",
@@ -106,7 +129,6 @@ class RootfsManagementViewModel : ViewModel() {
             installProgress = 0f,
         )
 
-        val manager = RootfsManager.getInstance(context)
         observeInstallProgress(manager)
         viewModelScope.launch {
             try {

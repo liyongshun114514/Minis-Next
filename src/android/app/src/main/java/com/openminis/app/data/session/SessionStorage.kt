@@ -223,7 +223,7 @@ class SessionStorage(private val filesDir: File) {
          * walk behaved like `du -L`, not `du`:
          *
          *   - a symlink to a FILE was counted as a second full copy of the
-         *     target's bytes (the Alpine rootfs ships ~335 of these — busybox
+         *     target's bytes (the Alpine rootfs shipped ~335 of these — busybox
          *     applets — and a user's apk installs add more);
          *   - a symlink to a DIRECTORY was DESCENDED INTO, so the whole target
          *     subtree was counted again, once per link pointing at it. This is

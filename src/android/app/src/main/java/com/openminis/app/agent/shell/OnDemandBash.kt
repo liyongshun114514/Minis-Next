@@ -12,12 +12,12 @@ import kotlinx.coroutines.withContext
  * (T-bash-on-demand §2/§3, F2/M5). Isomorphic to iOS OnDemandBash.swift:
  *   - tri-state availability cache (unavailable has a 10-min TTL; available
  *     self-heals on a later 127),
- *   - host-side 5s network precheck before running apk (F2),
+ *   - host-side 5s network precheck before running apt (F2),
  *   - persistent failure backoff (24h / 3-strikes) via SharedPreferences (F2),
  *   - one install attempt per process launch.
  *
- * On Android PRoot runs `apk add` natively (~1-3s), so the wait is minor; the
- * guards still matter for the offline / broken-source case.
+ * Ubuntu ships bash preinstalled. An explicit repair uses apt in the guest;
+ * the guards still matter for the offline / broken-source case.
  */
 object OnDemandBash {
 
@@ -32,7 +32,7 @@ object OnDemandBash {
     /** [FIX-261025-05] FreshProcessShell.CANCELLED_EXIT: the user pressed Stop. */
     private const val STOPPED_EXIT = 130
     const val STOPPED_REASON = "stopped by the user"
-    private const val APK_PROBE_URL = "https://ports.ubuntu.com/ubuntu-ports/"
+    private const val APT_PROBE_URL = "https://ports.ubuntu.com/ubuntu-ports/"
 
     private sealed class Availability {
         object Unknown : Availability()
@@ -85,7 +85,7 @@ object OnDemandBash {
 
         if (!networkReachable()) {
             recordFailure(context); markUnavailable()
-            return Outcome.Unavailable("network/apk mirror unreachable")
+            return Outcome.Unavailable("network/Ubuntu apt mirror unreachable")
         }
 
         Log.i(TAG, "installing bash (budget ${INSTALL_BUDGET_MS / 1000}s)…")
@@ -103,7 +103,7 @@ object OnDemandBash {
             clearFailure(context)
             availability = Availability.Available
             // A SUCCESSFUL install re-arms the per-launch guard (M5 self-heal:
-            // if the user later apk-del's bash this session, one fresh reinstall
+            // if the user later removes bash this session, one fresh reinstall
             // is still allowed). The guard only blocks repeated FAILING installs.
             attemptedInstallThisLaunch = false
             Log.i(TAG, "bash installed OK")
@@ -114,7 +114,7 @@ object OnDemandBash {
         return Outcome.Unavailable("apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y bash failed (rc=$rc)")
     }
 
-    /** Called when `bash <file>` itself returned 127 (user apk del'd) — M5. */
+    /** Called when `bash <file>` itself returned 127 (bash was removed) — M5. */
     suspend fun markDisappeared() = lock.withLock { availability = Availability.Unknown }
 
     private fun markUnavailable() {
@@ -143,10 +143,10 @@ object OnDemandBash {
 
     private suspend fun networkReachable(): Boolean = withContext(Dispatchers.IO) {
         try {
-            // [FEAT-261021-16] Probe the way the shell's `apk add` will go: its
+            // [FEAT-261021-16] Probe the way the shell's apt request will go: its
             // route in Settings > Network (unrouted: the same HttpURLConnection HEAD).
             val code = com.openminis.app.network.NetworkUrlRequest.open(
-                com.openminis.app.network.NetworkScope.SHELL.tag, APK_PROBE_URL, "HEAD",
+                com.openminis.app.network.NetworkScope.SHELL.tag, APT_PROBE_URL, "HEAD",
                 connectTimeoutMs = 5000, readTimeoutMs = 5000,
             ).use { it.code }
             code in 200..499

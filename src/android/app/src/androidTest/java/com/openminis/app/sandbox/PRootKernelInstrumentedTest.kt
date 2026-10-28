@@ -45,10 +45,10 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun bootSetsIsBootedTrue() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
 
         PRootKernel.boot(context)
         assertTrue(PRootKernel.isBooted)
@@ -56,10 +56,10 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun bootIsIdempotent() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
 
         PRootKernel.boot(context)
         PRootKernel.boot(context) // Should not throw
@@ -101,16 +101,20 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun buildProotCommandIncludesBasicFlags() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
         PRootKernel.boot(context)
 
         val cmd = PRootKernel.buildProotCommand("echo hello")
 
         // Should contain proot binary path
-        assertTrue("Should start with proot binary", cmd[0].endsWith("proot-aarch64"))
+        assertEquals(
+            "Should start with the extracted PRoot binary",
+            RootfsManager.getInstance(context).prootBinary.absolutePath,
+            cmd[0],
+        )
 
         // Should have -0 flag (fake root)
         assertTrue("Should contain -0 flag", cmd.contains("-0"))
@@ -118,7 +122,7 @@ class PRootKernelInstrumentedTest {
         // Should have -r flag with rootfs
         val rIndex = cmd.indexOf("-r")
         assertTrue("Should contain -r flag", rIndex >= 0)
-        assertTrue("Rootfs path should follow -r", cmd[rIndex + 1].contains("alpine-rootfs"))
+        assertTrue("Rootfs path should follow -r", cmd[rIndex + 1].contains(SandboxDistribution.ROOTFS_DIR_NAME))
 
         // Should bind /dev, /proc, /sys
         assertTrue("Should bind /dev", cmd.contains("/dev"))
@@ -139,10 +143,10 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun buildProotCommandIncludesBindMounts() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
         PRootKernel.boot(context)
 
         PRootKernel.addBindMount("/var/minis/workspace", "/data/user/0/com.openminis.app/workspace")
@@ -156,10 +160,10 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun buildProotCommandWithMultipleBindMounts() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
         PRootKernel.boot(context)
 
         PRootKernel.addBindMount("/mnt/a", "/host/a")
@@ -225,16 +229,16 @@ class PRootKernelInstrumentedTest {
 
     @Test
     fun resolveHostPathFallsBackToRootfs() = runBlocking {
-        if (!canBoot()) {
-            println("SKIP: assets not available for boot")
-            return@runBlocking
-        }
+        org.junit.Assume.assumeTrue(
+            "Ubuntu rootfs asset and the extracted proot binary are required",
+            canBoot(),
+        )
         PRootKernel.boot(context)
 
         // No bind mounts → should resolve relative to rootfsDir
         val result = PRootKernel.resolveHostPath("/etc/resolv.conf")
         assertNotNull(result)
-        assertTrue("Should resolve inside rootfs", result!!.path.contains("alpine-rootfs"))
+        assertTrue("Should resolve inside rootfs", result!!.path.contains(SandboxDistribution.ROOTFS_DIR_NAME))
         assertTrue("Should end with etc/resolv.conf", result.path.endsWith("etc/resolv.conf"))
     }
 
@@ -263,14 +267,30 @@ class PRootKernelInstrumentedTest {
 
     // ==================== Helpers ====================
 
+    /**
+     * Booting needs what the current build actually ships: the Ubuntu base
+     * archive (compressed, or the uncompressed fallback AAPT may produce) and
+     * the PRoot binary RootfsManager resolves in nativeLibraryDir. The legacy
+     * guest archive and the old asset-located proot binary are gone, so
+     * checking them would always answer false.
+     */
     private fun canBoot(): Boolean {
-        return try {
-            context.assets.open("alpine-minirootfs.tar.gz").use { }
-            context.assets.open("proot-aarch64").use { }
-            true
-        } catch (_: Exception) {
-            false
+        val hasArchive = listOf(
+            SandboxDistribution.ROOTFS_ASSET,
+            SandboxDistribution.ROOTFS_ASSET_TAR,
+        ).any { name ->
+            try {
+                context.assets.open(name).use { }
+                true
+            } catch (_: Exception) {
+                false
+            }
         }
+        if (!hasArchive) return false
+        val manager = RootfsManager.getInstance(context)
+        if (manager.rootfsMigrationError != null) return false
+        val proot = manager.prootBinary
+        return proot.isFile && proot.canExecute()
     }
 
     private fun resetKernel() {

@@ -287,21 +287,40 @@ class ShellExecutorInstrumentedTest {
 
     // ==================== Helpers ====================
 
+    /**
+     * The Ubuntu rootfs archive (compressed, or AAPT's uncompressed fallback)
+     * must be packaged and RootfsManager's binary must exist; the legacy
+     * guest archive and asset-located proot binary this used to check no
+     * longer exist in the build.
+     */
     private fun canBoot(): Boolean {
-        return try {
-            context.assets.open("alpine-minirootfs.tar.gz").use { }
-            context.assets.open("proot-aarch64").use { }
-            true
-        } catch (_: Exception) {
-            false
+        val hasArchive = listOf(
+            SandboxDistribution.ROOTFS_ASSET,
+            SandboxDistribution.ROOTFS_ASSET_TAR,
+        ).any { name ->
+            try {
+                context.assets.open(name).use { }
+                true
+            } catch (_: Exception) {
+                false
+            }
         }
+        if (!hasArchive) return false
+        val manager = RootfsManager.getInstance(context)
+        if (manager.rootfsMigrationError != null) return false
+        val proot = manager.prootBinary
+        return proot.isFile && proot.canExecute()
     }
 
+    /**
+     * JUnit's assumption failure marks the test skipped instead of passed: an
+     * uninstrumented environment must never look like a green run.
+     */
     private fun skipIfNoBoot() {
-        if (!PRootKernel.isBooted) {
-            println("SKIP: PRoot not booted (assets not available)")
-            return
-        }
+        org.junit.Assume.assumeTrue(
+            "PRoot not booted: Ubuntu rootfs asset / extracted proot binary missing or migration blocked",
+            PRootKernel.isBooted,
+        )
     }
 
     private fun resetKernel() {

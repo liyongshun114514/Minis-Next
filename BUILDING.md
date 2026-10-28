@@ -1,14 +1,16 @@
 # Building Minis
 
 > **Ubuntu Android fork:** see [docs/UBUNTU_FORK.md](docs/UBUNTU_FORK.md).
-> The `ubuntu-chroot` branch builds `com.openminis.app.next` (Minis Next) with Ubuntu 24.04
+> The `minis-next` branch builds `com.openminis.app.next` (Minis Next) with Ubuntu 24.04
 > arm64 via GitHub Actions. Android no longer bundles Alpine; iOS is unchanged.
 > Chroot helpers are built with `scripts/build_chroot_helpers.sh` after PRoot.
 
 Minis ships a full Linux sandbox inside the app, so a first build is not just
 "open the project and press Run": the native dependencies (iSH on iOS, PRoot on
-Android, FFmpeg, LAME) and the Alpine rootfs are **built from source by the
-scripts in `deps/`**, not committed as binaries. Budget ~30–60 minutes for the
+Android, FFmpeg, LAME) are **built from source by the scripts in `deps/`**.
+iOS prepares its Alpine guest there; Android uses the verified Ubuntu base
+and preinstalled toolset described in [docs/android-ubuntu.md](docs/android-ubuntu.md),
+installed at `filesDir/Ubuntu-rootfs`. Generated binaries are not committed. Budget ~30–60 minutes for the
 first build; afterwards the artifacts are cached on disk and normal builds are
 fast.
 
@@ -181,7 +183,7 @@ image.
 
 ```sh
 ./deps/build_proot.sh              # → assets/proot-aarch64, jniLibs/arm64-v8a/*.so
-./scripts/prepare_android_sandbox.sh   # → assets/alpine-minirootfs.tar.gz
+./scripts/prepare_android_sandbox.sh   # → assets/ubuntu-base-arm64.tar.gz (Ubuntu delegate)
 ./deps/build_rclone_android.sh     # → deps/build/rclone/rclone.aar
 mkdir -p src/android/app/libs && cp deps/build/rclone/rclone.aar src/android/app/libs/
 ```
@@ -194,7 +196,7 @@ mkdir -p src/android/app/libs && cp deps/build/rclone/rclone.aar src/android/app
 
   The loaders are required, not optional. Android 10+ enforces W^X for
   `untrusted_app`: nothing labelled `app_data_file` — which includes the whole
-  extracted Alpine rootfs under the app's `files/` dir — can ever be executed.
+  extracted Ubuntu rootfs under the app's `files/Ubuntu-rootfs/` dir — can ever be executed.
   Only `nativeLibraryDir`, populated from `lib/**/*.so` in the APK, is
   executable, so the loader lives there and maps guest binaries itself instead
   of relying on the kernel's `execve`. (proot can normally extract an embedded

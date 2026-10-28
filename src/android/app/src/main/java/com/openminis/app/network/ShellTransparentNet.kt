@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import com.openminis.app.logging.AppLogger
+import com.openminis.app.sandbox.RootfsManager
 import java.io.File
 import java.net.Inet4Address
 import java.net.Inet6Address
@@ -52,8 +53,8 @@ object ShellTransparentNet {
 
     private lateinit var routesFile: File
     private lateinit var mapDir: File
-    /** The sandbox's /etc/resolv.conf (RootfsManager.rootfsDir): the shell's nameservers. */
-    private lateinit var guestResolvConf: File
+    /** Only used to resolve [guestResolvConf] through RootfsManager on the worker thread. */
+    private var appContext: Context? = null
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "xnet-sync").apply { isDaemon = true } }
 
     @Volatile
@@ -77,7 +78,7 @@ object ShellTransparentNet {
         val dir = File(context.filesDir, "net").apply { mkdirs() }
         routesFile = File(dir, "xnet.routes")
         mapDir = File(dir, "xnet-map")
-        guestResolvConf = File(context.filesDir, "alpine-rootfs/etc/resolv.conf")
+        appContext = context.applicationContext
         routesPath = routesFile.absolutePath
         // A file from an earlier process names a listener that is gone.
         if (routesFile.delete()) AppLogger.info(TAG, "[Net][Xparent] removed the routes file of an earlier process")
@@ -221,11 +222,31 @@ object ShellTransparentNet {
         }
 
     /**
+     * The sandbox's `/etc/resolv.conf`, resolved through the same
+     * [RootfsManager] path every shell uses. Null - and never created here -
+     * while the directory migration is blocked, the guest is not installed,
+     * the canonical directory is missing, or the file is not there yet. A
+     * blocked migration means the old tree may still sit under a legacy name;
+     * writing or reading a newly created `Ubuntu-rootfs/etc/resolv.conf`
+     * would then hand the shell nameservers it never configured.
+     */
+    private fun guestResolvConf(): File? {
+        val context = appContext ?: return null
+        val manager = runCatching { RootfsManager.getInstance(context) }.getOrNull() ?: return null
+        if (manager.rootfsMigrationError != null) return null
+        if (!manager.isInstalled) return null
+        if (!manager.rootfsDir.isDirectory) return null
+        return File(manager.rootfsDir, "etc/resolv.conf").takeIf { it.isFile }
+    }
+
+    /**
      * The nameservers of the sandbox's /etc/resolv.conf (ContainerDns' auto
      * or custom list; never changed here). Pure parsing in [parseResolvers].
      */
-    private fun guestResolvers(): List<String> =
-        runCatching { parseResolvers(guestResolvConf.readText()) }.getOrDefault(emptyList())
+    private fun guestResolvers(): List<String> {
+        val resolvConf = guestResolvConf() ?: return emptyList()
+        return runCatching { parseResolvers(resolvConf.readText()) }.getOrDefault(emptyList())
+    }
 
     internal fun parseResolvers(text: String): List<String> = text.lineSequence()
         .map { it.substringBefore('#').trim().split(Regex("\\s+")) }

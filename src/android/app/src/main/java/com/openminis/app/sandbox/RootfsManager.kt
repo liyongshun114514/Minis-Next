@@ -40,26 +40,42 @@ sealed class RootfsInstallState {
  * Distribution-specific constants, apt sources and the guest defaults live in
  * [SandboxDistribution]. Two properties of this class are load-bearing:
  *
- * 1. The directory is still named `alpine-rootfs` (see
- *    [SandboxDistribution.ROOTFS_DIR_NAME]) because unmodified readers hardcode
- *    that path. The `.distro` marker, not the name, identifies the guest.
- * 2. An existing rootfs is **never deleted or overwritten in place**. A
- *    complete tree is extracted into [SandboxDistribution.STAGING_DIR_NAME]
- *    first; only then is the old tree renamed to an
- *    `alpine-rootfs.pre-ubuntu-<timestamp>` sibling (data preserved) and the
- *    staging directory renamed into place. A failed extract leaves the previous
- *    guest untouched.
+ * 1. The canonical directory is `Ubuntu-rootfs`. The old path is renamed
+ *    before installation state or other readers can observe it; an upgrade
+ *    preserves the existing tree without re-extraction. Conflicts remain
+ *    intact and surface as [rootfsMigrationError], not a fresh install.
+ * 2. An existing rootfs is **never deleted or overwritten in place** during
+ *    installation. A complete tree is extracted into
+ *    [SandboxDistribution.STAGING_DIR_NAME] first; only then is the previous
+ *    tree preserved as `Ubuntu-rootfs.previous-<timestamp>` and the staging
+ *    tree renamed into place. Failed extraction leaves the old guest intact.
  *
  * Corresponds to iOS RootfsManager.swift, which is unchanged.
  */
 class RootfsManager private constructor(private val context: Context) {
 
-    /** See [SandboxDistribution.ROOTFS_DIR_NAME] — legacy path, not the distro. */
-    val rootfsDir: File = File(context.filesDir, SandboxDistribution.ROOTFS_DIR_NAME)
+    /** Captured before any state/reader can create or inspect the new tree. */
+    private val directoryMigration = runCatching { RootfsDirectoryMigration.migrate(context.filesDir) }
+
+    /** A visible, non-destructive stop; a migration error must not crash application startup. */
+    val rootfsMigrationError: String? = directoryMigration.exceptionOrNull()?.let {
+        "Ubuntu rootfs directory migration stopped: ${it.message ?: it.javaClass.simpleName}. " +
+            "Existing data was preserved; resolve the directory conflict and restart the app."
+    }
+
+    /** Canonical path, including when migration is blocked (never silently fall back). */
+    val rootfsDir: File = directoryMigration.getOrElse {
+        File(context.filesDir, SandboxDistribution.ROOTFS_DIR_NAME)
+    }
     val prootBinary: File = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
+    private fun requireDirectoryReady() {
+        rootfsMigrationError?.let { throw IOException(it) }
+    }
+
     val isInstalled: Boolean
-        get() = SandboxDistribution.isUbuntuRootfs(rootfsDir) && UbuntuToolsetStatus.isReady(rootfsDir)
+        get() = rootfsMigrationError == null && SandboxDistribution.isUbuntuRootfs(rootfsDir) &&
+            UbuntuToolsetStatus.isReady(rootfsDir)
 
     /**
      * Directory that received the previous (Alpine/broken) rootfs during the
@@ -83,7 +99,11 @@ class RootfsManager private constructor(private val context: Context) {
     val legacyBackupDirs: List<File>
         get() = context.filesDir.listFiles()
             ?.filter {
-                it.isDirectory && it.name.startsWith(SandboxDistribution.LEGACY_BACKUP_PREFIX)
+                !java.nio.file.Files.isSymbolicLink(it.toPath()) && it.isDirectory &&
+                    (it.name.startsWith(SandboxDistribution.LEGACY_BACKUP_PREFIX) ||
+                        it.name.startsWith(SandboxDistribution.HISTORICAL_BACKUP_PREFIX) ||
+                        it.name == SandboxDistribution.LEGACY_ROOTFS_DIR_NAME ||
+                        it.name == "alpine-rootfs.staging")
             }
             ?.sortedBy { it.name }
             ?: emptyList()
@@ -95,7 +115,8 @@ class RootfsManager private constructor(private val context: Context) {
      * `Failed` on error so callers can surface retry affordances.
      */
     private val _installState = MutableStateFlow<RootfsInstallState>(
-        if (isInstalled) RootfsInstallState.Installed else RootfsInstallState.Idle
+        rootfsMigrationError?.let { RootfsInstallState.Failed(it) }
+            ?: if (isInstalled) RootfsInstallState.Installed else RootfsInstallState.Idle
     )
     val installState: StateFlow<RootfsInstallState> = _installState.asStateFlow()
 
@@ -105,12 +126,13 @@ class RootfsManager private constructor(private val context: Context) {
      * Flow: extract the whole archive into a staging directory (hardened
      * POSIX/GNU/PAX tar parser — see [extractTar]), write the distro/arch
      * markers and the apt/DNS/hosts/profile defaults, then swap it in. The
-     * previous tree is renamed to an `alpine-rootfs.pre-ubuntu-*` sibling, so
+     * previous tree is renamed to a `Ubuntu-rootfs.previous-*` sibling, so
      * migrating from Alpine preserves every byte of user data; nothing is
      * deleted. Progress is published to [installState] (Preparing →
      * Extracting(f) → Finalizing → Installed / Failed).
      */
     suspend fun installIfNeeded() = withContext(Dispatchers.IO) {
+        requireDirectoryReady()
         if (isInstalled) {
             Log.d(TAG, "Rootfs already installed at $rootfsDir")
             _installState.value = RootfsInstallState.Installed
@@ -343,7 +365,7 @@ class RootfsManager private constructor(private val context: Context) {
      * leaving `groups` printing numeric ids.
      */
     fun syncGuestGroupNames(): GuestGroupNames.Outcome? {
-        if (!rootfsDir.isDirectory) return null
+        if (rootfsMigrationError != null || !rootfsDir.isDirectory) return null
         val outcome = runCatching { GuestSupplementaryGroups.ensure(rootfsDir) }
             .getOrElse { t ->
                 lastGuestGroupWarning = "${t.javaClass.simpleName}: ${t.message}"
@@ -399,6 +421,7 @@ class RootfsManager private constructor(private val context: Context) {
             suffix++
         }
         val legacy = SandboxDistribution.isLegacyNonUbuntuRootfs(rootfsDir)
+        requireDirectoryReady()
         if (!rootfsDir.renameTo(backup)) {
             throw IOException(
                 "Could not preserve the existing rootfs at ${rootfsDir.absolutePath}. " +
@@ -407,7 +430,7 @@ class RootfsManager private constructor(private val context: Context) {
         }
         Log.w(
             TAG,
-            "[Migration] ${if (legacy) "legacy Alpine" else "previous"} rootfs moved to " +
+            "[Migration] ${if (legacy) "legacy non-Ubuntu" else "previous"} rootfs moved to " +
                 "${backup.name} (preserved, not deleted)"
         )
         context.getSharedPreferences(PREFS_MIRROR_SETTINGS, Context.MODE_PRIVATE)
@@ -456,6 +479,7 @@ class RootfsManager private constructor(private val context: Context) {
      * Returns the backup directory if keepUserData is true, null otherwise.
      */
     suspend fun reset(keepUserData: Boolean = false): File? = withContext(Dispatchers.IO) {
+        requireDirectoryReady()
         var backupDir: File? = null
 
         if (keepUserData) {
@@ -492,6 +516,7 @@ class RootfsManager private constructor(private val context: Context) {
      * Restore user data from a backup directory into /root.
      */
     suspend fun restoreUserData(backupDir: File) = withContext(Dispatchers.IO) {
+        requireDirectoryReady()
         if (!backupDir.exists()) return@withContext
         val rootHome = File(rootfsDir, "root")
         rootHome.mkdirs()
@@ -545,7 +570,7 @@ class RootfsManager private constructor(private val context: Context) {
      * daemon runs inside PRoot and writing through the link would fail.
      */
     fun refreshDns() {
-        if (!rootfsDir.exists()) return
+        if (rootfsMigrationError != null || !rootfsDir.exists()) return
 
         // [T-container-network-dns] (OpenMinis#396) Custom mode: the user's
         // servers, verbatim, on every call — install, boot and each network
@@ -637,6 +662,7 @@ class RootfsManager private constructor(private val context: Context) {
      * No-op when the asset dir is missing or the rootfs hasn't been extracted.
      */
     suspend fun applyDefaultMountOverlay() = withContext(Dispatchers.IO) {
+        requireDirectoryReady()
         if (!rootfsDir.exists()) {
             Log.d(TAG, "[DefaultMount] rootfs missing, skipping overlay")
             return@withContext
@@ -674,7 +700,7 @@ class RootfsManager private constructor(private val context: Context) {
         }
 
         // Mirror iOS removeExternallyManagedMarker() — drop PEP 668 marker so
-        // `pip install` Just Works inside this embedded Alpine rootfs even
+        // `pip install` works inside this embedded Ubuntu rootfs even
         // when the shipped pip.conf isn't being read (e.g. pip invoked with
         // --isolated or via a venv). Safe: this is a single-tenant sandbox.
         val markerRemoved = removeExternallyManagedMarker()

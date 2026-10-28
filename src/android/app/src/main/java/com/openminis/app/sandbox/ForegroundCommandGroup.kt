@@ -31,8 +31,8 @@ package com.openminis.app.sandbox
  *
  * The kernel already tracks exactly this, so ask it instead. Each foreground
  * command runs under `setsid`, which puts it in a brand-new session and
- * process group whose pgid equals its pid. Verified in this project's own
- * Alpine guest (`/proc/<pid>/stat` field 5):
+ * process group whose pgid equals its pid. Verified on the earlier Alpine
+ * guest (`/proc/<pid>/stat` field 5; unchanged POSIX behaviour):
  *
  *     shell           pid=23997  pgid=946     <- the persistent shell
  *     setsid child    pid=24027  pgid=24027   <- its own group
@@ -61,7 +61,7 @@ package com.openminis.app.sandbox
  */
 internal object ForegroundCommandGroup {
 
-    /** Guest path to `setsid`, present in the shipped Alpine rootfs. */
+    /** Guest path to `setsid`, present in the shipped Ubuntu rootfs. */
     const val SETSID = "/usr/bin/setsid"
 
     /**

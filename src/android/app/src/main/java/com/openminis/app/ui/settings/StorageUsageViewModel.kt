@@ -11,6 +11,7 @@ import com.openminis.app.data.session.OrphanedSessionFiles
 import com.openminis.app.data.session.SessionStorage
 import com.openminis.app.data.session.SessionTree
 import com.openminis.app.logging.AppLogger
+import com.openminis.app.sandbox.RootfsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.file.Files
 
 /** One row of the storage list: a ROOT session with its hidden children folded in. */
 internal data class SessionStorageInfo(
@@ -175,6 +177,29 @@ internal class StorageUsageViewModel(
         scanAll()
     }
 
+    /**
+     * The guest trees that count as "Rootfs" storage: the canonical
+     * [RootfsManager.rootfsDir] plus every preserved pre-Ubuntu tree
+     * ([RootfsManager.legacyBackupDirs]). Resolved from the manager, never a
+     * hard-coded directory name, so a rename or a blocked migration cannot
+     * make the page measure a path that does not exist (or, worse, a legacy
+     * name that is no longer the live guest).
+     *
+     * Symbolic links are skipped instead of followed: the migration refuses a
+     * symlinked rootfs, but a partially migrated tree can still contain one,
+     * and following it would count data outside the app's own directories.
+     */
+    private fun rootfsStorageDirs(): List<File> {
+        val manager = RootfsManager.getInstance(appContext)
+        return (listOf(manager.rootfsDir) + manager.legacyBackupDirs)
+            .distinctBy { it.absolutePath }
+            .filter { dir ->
+                runCatching {
+                    !Files.isSymbolicLink(dir.toPath()) && dir.isDirectory
+                }.getOrDefault(false)
+            }
+    }
+
     /** The one full measurement of a visit. */
     private fun scanAll() {
         viewModelScope.launch {
@@ -199,9 +224,7 @@ internal class StorageUsageViewModel(
                 }
                 UiState(
                     isLoading = false,
-                    shellSize = (listOf(File(appContext.filesDir, "alpine-rootfs")) +
-                        com.openminis.app.sandbox.RootfsManager.getInstance(appContext).legacyBackupDirs)
-                        .sumOf { SessionStorage.directorySize(it) },
+                    shellSize = rootfsStorageDirs().sumOf { SessionStorage.directorySize(it) },
                     dbSize = databaseSize(appContext),
                     logsCachesSize = LogsAndCachesCleaner.size(appContext),
                     orphanBytes = orphanScan.totalBytes,
@@ -222,9 +245,7 @@ internal class StorageUsageViewModel(
         shellStale = false
         viewModelScope.launch {
             val size = withContext(Dispatchers.IO) {
-                (listOf(File(appContext.filesDir, "alpine-rootfs")) +
-                        com.openminis.app.sandbox.RootfsManager.getInstance(appContext).legacyBackupDirs)
-                        .sumOf { SessionStorage.directorySize(it) }
+                rootfsStorageDirs().sumOf { SessionStorage.directorySize(it) }
             }
             _state.update { it.copy(shellSize = size) }
         }

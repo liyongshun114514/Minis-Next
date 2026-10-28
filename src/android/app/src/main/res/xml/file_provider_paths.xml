@@ -16,8 +16,10 @@
          user saw "分享失败" toasts instead of the share sheet. -->
     <cache-path name="share" path="share/" />
     <!-- PRoot rootfs — expose so inline video/audio cards can hand the host
-         file to the system player via ACTION_VIEW. -->
-    <files-path name="rootfs" path="alpine-rootfs/" />
+         file to the system player via ACTION_VIEW. Only the canonical
+         Ubuntu-rootfs tree is shared; legacy/backup trees stay private and
+         the root stays scoped to that one directory (never filesDir). -->
+    <files-path name="rootfs" path="Ubuntu-rootfs/" />
     <!-- Per-session attachments/workspace/etc. where agent downloads land. -->
     <files-path name="sessions" path="minis-sessions/" />
     <files-path name="global" path="minis-global/" />

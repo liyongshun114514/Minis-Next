@@ -162,6 +162,29 @@ fun RootfsManagementScreen(
                 }
             }
 
+            state.migrationError?.let { migrationError ->
+                SettingsSection(title = "Rootfs 目录迁移") {
+                    ListItem(
+                        headlineContent = { Text("迁移未完成，安装与读取已停止") },
+                        supportingContent = {
+                            Text(
+                                migrationError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Filled.Cancel,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        colors = transparentListItemColors(),
+                    )
+                }
+            }
+
             state.legacyBackupPath?.let { backupPath ->
                 SettingsSection(title = "迁移保留的旧环境") {
                     ListItem(
@@ -224,7 +247,7 @@ fun RootfsManagementScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickableListItem(
-                                enabled = !state.isProcessing,
+                                enabled = !state.isProcessing && state.migrationError == null,
                                 onClick = { viewModel.install(context) },
                             ),
                         colors = transparentListItemColors(),
@@ -316,6 +339,8 @@ fun RootfsManagementScreen(
             }
 
             // --- Info section ---
+            // Ubuntu 24.04 LTS guest: text comes from the localized resources,
+            // the same DISPLAY_NAME the rest of the app uses.
             SettingsSection(title = stringResource(R.string.rootfs_info_section)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -324,17 +349,13 @@ fun RootfsManagementScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "The rootfs contains the Alpine Linux filesystem used by " +
-                            "the sandbox. Resetting will delete all data and restore to " +
-                            "factory state.",
+                        text = stringResource(R.string.rootfs_about_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Reset: Delete everything\n" +
-                            "Backup: Save /root directory\n" +
-                            "Restore: Recover saved data",
+                        text = stringResource(R.string.rootfs_about_operations),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -1,8 +1,8 @@
 """Runtime dependency auto-resolution for STDIO MCP servers.
 
 When a server's `command` is something like `npx`/`uvx` that isn't installed in
-the minimal Alpine rootfs, resolve it silently (log only, never touch stdout)
-so the agent's `minis-mcp-cli call` just works. Shared iOS/Android.
+the Ubuntu 24.04 Android rootfs, resolve it silently (log only, never touch
+stdout) so the agent's `minis-mcp-cli call` just works. Uses apt, not apk.
 """
 
 import os
@@ -38,12 +38,21 @@ def _run(cmd):
 
 
 # command-name -> install command(s) to try in order.
+def _apt_install(packages):
+    return (
+        "apt-get -qq update && "
+        "DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends "
+        + packages
+    )
+
+
 _RESOLVERS = {
-    "npx": ["apk add --quiet nodejs npm"],
-    "node": ["apk add --quiet nodejs npm"],
-    "npm": ["apk add --quiet nodejs npm"],
-    "python3": ["apk add --quiet python3 py3-pip"],
-    "pip": ["apk add --quiet python3 py3-pip"],
+    "npx": [_apt_install("nodejs npm")],
+    "node": [_apt_install("nodejs npm")],
+    "npm": [_apt_install("nodejs npm")],
+    "python3": [_apt_install("python3 python3-pip")],
+    "pip": [_apt_install("python3 python3-pip")],
+    "pip3": [_apt_install("python3 python3-pip")],
     "uvx": ["pip install --quiet uv", "pip install --quiet --break-system-packages uv"],
     "uv": ["pip install --quiet uv", "pip install --quiet --break-system-packages uv"],
 }

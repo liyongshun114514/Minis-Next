@@ -118,7 +118,7 @@ object NetworkShellEnvironment {
  * with `curl --proxy` or by routing the Shell scope.
  *
  * [iOS 62f3577a3] HTTP(S)_PROXY name the entry's HTTP front (http://), not
- * the SOCKS entry: BusyBox wget, Alpine apk (libfetch) and Python urllib /
+ * the SOCKS entry: some wget variants and Python urllib /
  * pip / requests cannot use a socks5h:// HTTP(S)_PROXY, and wget's error
  * then printed the URL, entry password included, into the agent's
  * transcript. Without the front they are left unset (those tools connect

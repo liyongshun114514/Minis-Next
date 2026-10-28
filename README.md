@@ -1,6 +1,6 @@
 # Minis Next for Android
 
-Native Android AI agent maintained by **liyongshun114514**, continuing the complete Kairos feature set under the **Minis Next** brand (`com.openminis.app.next`). Version **1.1 / build 46** fixes plot dragging/hit-testing, makes Intelligent UI sliders continuous, restores original composer corners with more bottom clearance, adds custom balance URLs and authoritative live model-list refresh. It includes bounded native math displays with locally adjustable function plots and expands native Compose Intelligent UI: rich cards, nested layouts/navigation, validated forms/dates, live budgets/converters/decisions, searchable catalogs, local practice quizzes, interactive charts, galleries/video previews, actions/sources, and six composite demonstrations. Open the card's **Showcase** button or ask for a component demo. Actual controls run directly in chat, without a WebView or an additional visualization API key. See the documented limits for media, maps and state persistence.
+Native Android AI agent maintained by **liyongshun114514**, continuing the complete Kairos feature set under the **Minis Next** brand (`com.openminis.app.next`). Version **1.2 / build 47** fixes the Android guest directory: the live rootfs is now `Ubuntu-rootfs`, staging is `Ubuntu-rootfs.staging`, and a guest replaced by a new install is preserved as `Ubuntu-rootfs.previous-<stamp>`. A first launch renames an existing `alpine-rootfs` without copying, unpacking over it, or losing bytes/mtimes, installed packages or settings. Because PRoot `--link2symlink` `.l2s` sentinels and older host-absolute references can still name the old path, an upgraded install keeps exactly one relative compatibility alias `alpine-rootfs → Ubuntu-rootfs` (a symlink, not a data copy; every current reader uses the new directory). A parent-directory pending journal recovers an interruption between the rename and the alias. If both old and new directories contain data, the conflict is kept and shown as an error that blocks install/reset. Fresh installs do not create the old name. Historical `alpine-rootfs.pre-ubuntu-*` backups and an old `alpine-rootfs.staging` stay discoverable rather than being deleted. The 1.1 interactive features are unchanged: plot dragging/hit-testing, continuous Intelligent UI sliders, the composer's original corners with bottom clearance, custom balance URLs and authoritative live model-list refresh. The native Intelligent UI catalog is also retained — rich cards, nested layouts/navigation, validated forms/dates, budgets/converters/decisions, searchable catalogs, practice quizzes, interactive charts, galleries/video previews, actions/sources and six composite demonstrations. Open the card's **Showcase** button or ask for a component demo. Actual controls run directly in chat, without a WebView or an additional visualization API key. See the documented limits for media, maps and state persistence.
 
 Existing Ubuntu terminal, PRoot/chroot, tools, global SOUL, avatars and sub-agents are retained. The original upstream icon is unchanged. This build uses a **new stable signing identity**: it cannot directly update an older differently signed Minis Next. Export a backup first; installation/uninstallation and data restore are the user's decision. No automatic migration from Kairos. This iteration builds only Actions artifacts, **not a GitHub Release**.
 
@@ -54,7 +54,7 @@ Official website: **[openminis.app](https://openminis.app)**
 | | |
 |---|---|
 | **Bring your own model** | Claude, GPT, Gemini and other providers, via your own API keys or account sign-in. |
-| **A real Linux shell** | A sandboxed Alpine Linux environment runs on-device — the agent can install packages, run scripts, and work with real files. |
+| **A real Linux shell** | A sandboxed Linux environment runs on-device — Ubuntu 24.04 on Android, Alpine under iSH on iOS — so the agent can install packages, run scripts, and work with real files. |
 | **Device integration** | Health, Calendar, Reminders, Contacts, HomeKit, Bluetooth, Clipboard, Media, Alarms and more, exposed to the agent as tools. |
 | **Browser automation** | The agent can browse and interact with the web on your behalf. |
 | **Skills & memory** | Extensible skills plus persistent memory across sessions. |
@@ -137,8 +137,9 @@ always carries the latest APK.
 ## Building from source
 
 Minis ships a Linux sandbox inside the app, so the native dependencies (iSH on
-iOS, PRoot on Android, FFmpeg, LAME, rclone) and the Alpine rootfs are **built
-from source** rather than committed as binaries.
+iOS, PRoot on Android, FFmpeg, LAME, rclone) and the guest rootfs images
+(Alpine for iOS, Ubuntu 24.04 for Android) are **built from source** rather
+than committed as binaries.
 
 **→ See [BUILDING.md](BUILDING.md) for the full first-build guide.**
 
@@ -195,7 +196,10 @@ terms, is in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 - **[PRoot](https://github.com/termux/proot)** (GPLv2) — user-space chroot for the
   Android sandbox, via [our fork](https://github.com/OpenMinis/proot);
   **[talloc](https://talloc.samba.org)** (LGPLv3+) underpins it.
-- **[Alpine Linux](https://alpinelinux.org)** — the minirootfs the sandbox boots.
+- **[Alpine Linux](https://alpinelinux.org)** — the minirootfs the iOS/iSH
+  sandbox boots.
+- **[Ubuntu base 24.04 LTS](https://cdimage.ubuntu.com/ubuntu-base/)** — the
+  arm64 rootfs the Android sandbox boots.
 
 **Media & text** — [FFmpeg](https://ffmpeg.org) (LGPL-2.1+),
 [LAME](https://lame.sourceforge.io) (LGPL), [cppjieba](https://github.com/yanyiwu/cppjieba) (MIT),

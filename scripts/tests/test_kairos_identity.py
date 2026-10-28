@@ -14,8 +14,8 @@ class KairosIdentityTest(unittest.TestCase):
     def test_independent_install_identity_and_reset_version(self):
         s=(APP/'build.gradle.kts').read_text()
         self.assertIn('applicationId = "com.openminis.app.next"',s)
-        self.assertRegex(s,r'versionCode\s*=\s*46\b')
-        self.assertIn('versionName = "1.1"',s)
+        self.assertRegex(s,r'versionCode\s*=\s*47\b')
+        self.assertIn('versionName = "1.2"',s)
         self.assertNotRegex(s,r'versionName\s*=\s*"[^"]*ubuntu')
         self.assertIn('namespace = "com.openminis.app"',s)
         self.assertIn('"RELEASE_REPO", "\\"liyongshun114514/Minis-Next\\""',s)

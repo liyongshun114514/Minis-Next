@@ -1,6 +1,6 @@
 # Minis Next · Native Intelligent UI
 
-基于 Kairos 1.0.2 源码延续全部既有功能；仅显示品牌更名为 Minis Next、安装包名改为 `com.openminis.app.next`，版本 `1.1` / code 46（公开版本纯数字迭代，内部 Android 升级序号保持递增），并新增本功能。内部 namespace、数据库、CLI、minis:// 协议、全局 SOUL、Root/PRoot/chroot 与子代理行为不因更名改写。使用新的稳定私有签名，不兼容旧 Next 或 Kairos 的签名；不得宣传为可直接覆盖旧安装。先在旧应用导出备份，再由用户决定安装/恢复，不自动迁移、不自动卸载。
+基于 Kairos 1.0.2 源码延续全部既有功能；仅显示品牌更名为 Minis Next、安装包名改为 `com.openminis.app.next`，版本 `1.2` / code 47（公开版本纯数字迭代，内部 Android 升级序号保持递增；本版规范 Android `Ubuntu-rootfs` 目录，保留 1.1 交互功能），并新增本功能。内部 namespace、数据库、CLI、minis:// 协议、全局 SOUL、Root/PRoot/chroot 与子代理行为不因更名改写。使用新的稳定私有签名，不兼容旧 Next 或 Kairos 的签名；不得宣传为可直接覆盖旧安装。先在旧应用导出备份，再由用户决定安装/恢复，不自动迁移、不自动卸载。
 
 ## 来源与原生适配
 

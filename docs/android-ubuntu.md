@@ -1,12 +1,18 @@
 # Android guest: Ubuntu 24.04 LTS (arm64)
 
-Status: **source-complete, not device-verified.** This change was written and
-reviewed on a Linux host without an Android SDK/NDK, and no APK was built or
-run. Everything below marked “verified” was verified on the host against the
-real Ubuntu archive; everything marked “review only” still needs a device run.
+Status: **source-complete; device validation is tracked separately.** This
+document was originally written and reviewed on a Linux host without an Android
+SDK/NDK. Host checks against the real Ubuntu archive are marked “verified”;
+anything that needs a device is marked “review only” or listed in §9. The 1.2
+directory scheme has JVM coverage (rename, empty-directory and two-directory
+conflict cases); this text does not claim an on-device run.
 
 iOS is **unchanged**: it keeps its Alpine/iSH guest (`src/ios/iSH`,
 `deps/prepare_alpine_rootfs.sh`). This document is Android-only.
+
+This revision describes the **1.2 / build 47** directory contract. The matching
+Actions APK is `MinisNext-1.2-build47-arm64-v8a.apk`; CI builds and verifies it
+but does not install or launch it on a device.
 
 ---
 
@@ -19,7 +25,10 @@ iOS is **unchanged**: it keeps its Alpine/iSH guest (`src/ios/iSH`,
 | Rootfs source | dl-cdn.alpinelinux.org, no checksum | cdimage.ubuntu.com, **signed SHA256SUMS + pinned SHA-256** |
 | Package manager | `apk` | `apt` / deb822 `ubuntu.sources` |
 | Init/system | n/a | `_apt` sandbox + seccomp disabled for PRoot; bootstrap list |
-| Existing Alpine data | deleted on reinstall | **renamed aside, never deleted** |
+| Live rootfs directory | `filesDir/alpine-rootfs` | **`filesDir/Ubuntu-rootfs`** (1.2) |
+| Staging directory | `filesDir/alpine-rootfs.staging` | **`filesDir/Ubuntu-rootfs.staging`** (1.2) |
+| Backup directory | `filesDir/alpine-rootfs.pre-ubuntu-<stamp>` | **`filesDir/Ubuntu-rootfs.previous-<stamp>`** (1.2) |
+| Existing data | deleted on reinstall | **renamed aside, never deleted** |
 
 Touched files (all within the delegated scope):
 
@@ -115,24 +124,60 @@ source asset; accepting `.tar` does not skip the payload check.
 
 ---
 
-## 3. Installation flow and “never delete Alpine silently”
+## 3. Installation flow and “never delete the previous guest silently”
 
-`RootfsManager.installIfNeeded()`:
+`RootfsManager` constructs `RootfsDirectoryMigration.migrate(filesDir)` before
+any state or reader can observe the rootfs path. Migration is a one-time,
+byte-preserving rename:
 
-1. **Stage.** Extract into `filesDir/alpine-rootfs.staging`, never into the
+1. **Serialize.** A lock file (`filesDir/.ubuntu-rootfs-migration.lock`) is
+   opened with `NOFOLLOW_LINKS` and locked, so two app processes cannot migrate
+   (or install) concurrently.
+2. **Validate.** A symlink or non-directory at `alpine-rootfs` / `Ubuntu-rootfs`
+   is an error; nothing is changed.
+3. **Rename, never copy.** If only `alpine-rootfs` exists it is renamed to
+   `Ubuntu-rootfs` with `Files.move` (no `REPLACE_EXISTING`, no copy fallback,
+   no traversal). Bytes, mtimes, installed packages and settings are untouched;
+   nothing is unpacked over the old tree.
+4. **Compatibility alias.** PRoot `--link2symlink` `.l2s` records and older
+   host-absolute references can still name the old path after a pure rename.
+   The migration therefore creates exactly one relative symlink
+   `alpine-rootfs → Ubuntu-rootfs`. It is an alias, **not** a data copy, and all
+   current readers use `Ubuntu-rootfs`. A fresh install (no legacy directory)
+   does not create it. Only this exact relative link is accepted as an alias; a
+   real directory there is validated as legacy data.
+5. **Journaled recovery.** Before the rename, a journal
+   `filesDir/.ubuntu-rootfs-migration.pending` is written with the exact content
+   `Ubuntu-rootfs\n` and fsynced. It is deleted after the alias exists. If the
+   process dies between rename and alias, the next launch sees the journal and
+   the existing target, creates the alias and clears the journal. A missing
+   target with a pending journal, or an unrecognised journal, aborts with no
+   changes. If creating the alias fails, the rename is rolled back.
+6. **Empty directory only.** If both paths exist and one is empty, that empty
+   directory is deleted and the rename proceeds. If both are non-empty, both
+   are left intact and `migrate` throws. `RootfsManager.rootfsMigrationError`
+   exposes the conflict in the UI, and `installIfNeeded()`, `reset()` and the
+   rootfs writers refuse to run until the user resolves it.
+
+`installIfNeeded()` then:
+
+1. **Stage.** Extract into `filesDir/Ubuntu-rootfs.staging`, never into the
    live directory. A crash or a corrupt archive leaves the previous guest
    untouched (only the staging tree is removed).
-2. **Marker check.** After extraction, require `<staging>/bin/sh` (dash) and
-   `<staging>/lib/ld-linux-aarch64.so.1` (glibc loader). A truncated archive
-   fails here instead of being promoted to “installed”.
+2. **Marker check.** After extraction, require `<staging>/bin/sh` (dash),
+   `<staging>/lib/ld-linux-aarch64.so.1` (glibc loader) and a complete
+   preinstalled toolset (`usr/local/share/minis/toolset-manifest.json`,
+   `var/lib/minis/bootstrap.done`, the package set in `/var/lib/dpkg/status`
+   and the expected commands). A truncated archive fails here instead of being
+   promoted to “installed”.
 3. **Markers.** `.arch` = `aarch64` (unchanged contract) and `.distro` =
-   `ubuntu-24.04-arm64` (new). `isInstalled` requires both;
-   `SandboxDistribution.isUbuntuRootfs` also recognises an Ubuntu tree that only
-   has `.arch` by checking `/usr/bin/apt` + `/var/lib/dpkg/status` +
-   `/etc/os-release`, so an interrupted future build is not needlessly
-   re-extracted.
-4. **Preserve.** The live `alpine-rootfs` (Alpine, older Ubuntu, or partial) is
-   renamed to **`alpine-rootfs.pre-ubuntu-<yyyyMMdd-HHmmss>[-n]`**. Rename, not
+   `ubuntu-24.04-arm64`. `isInstalled` requires both, the toolset check, and no
+   pending directory-migration error; `SandboxDistribution.isUbuntuRootfs`
+   also recognises an Ubuntu tree that only has `.arch` by checking
+   `/usr/bin/apt` + `/var/lib/dpkg/status` + `/etc/os-release`, so an
+   interrupted future build is not needlessly re-extracted.
+4. **Preserve.** The live `Ubuntu-rootfs` (Alpine, older Ubuntu, or partial) is
+   renamed to **`Ubuntu-rootfs.previous-<yyyyMMdd-HHmmss>[-n]`**. Rename, not
    copy, then not delete. If the rename fails, the install aborts — there is no
    fallback to `deleteRecursively`.
 5. **Swap.** `renameTo(rootfsDir)`; on failure the preserved tree is renamed
@@ -142,26 +187,39 @@ source asset; accepting `.tar` does not skip the payload check.
 Consequences / limits:
 
 - A user upgrading from Alpine keeps every file under
-  `filesDir/alpine-rootfs.pre-ubuntu-*`. The parent agent still needs a UI
-  affordance to show/free those backups (see §9).
+  `Ubuntu-rootfs.previous-*`; older installs may also have
+  `alpine-rootfs.pre-ubuntu-*` backups. `RootfsManager.legacyBackupDirs`
+  reports all of these, plus a leftover `alpine-rootfs` directory and the
+  historical `alpine-rootfs.staging` name, so none of them becomes invisible.
+- The `alpine-rootfs` compatibility symlink is deliberately excluded from that
+  backup listing: it is not a backup, is never counted as one and must not be
+  deleted as one (removing it only breaks stale old-path references).
 - `reset()` remains an explicit destructive action (the UI asks for
   confirmation); it deletes only `rootfsDir`, never the sibling backups.
 - `isInstalled` is false for an Alpine tree, which is what makes
   `PRootKernel.boot()` migrate on the first launch after the update. That is
   intentional (the default guest is now Ubuntu) and logged as
-  `[Migration] legacy Alpine rootfs moved to …`.
+  `[Migration] legacy non-Ubuntu rootfs moved to …`.
 
-### Why the directory is still called `alpine-rootfs`
+### Directory names and historical paths
 
-Five files outside the delegated scope hardcode `filesDir/alpine-rootfs`
-(`ShellTransparentNet`, `StorageUsageViewModel`, `FileBrowserViewModel`,
-`AppNavigation`, `RootfsManagementScreen`) plus a unit test. Renaming the
-directory would silently break resolv.conf writes and storage accounting.
-`SandboxDistribution.ROOTFS_DIR_NAME` documents this and is the single place to
-change once those files are updated. The marker, not the path, identifies the
-distribution.
+`Ubuntu-rootfs` (capital U) is the only live destination;
+`Ubuntu-rootfs.staging` is the only extraction target;
+`Ubuntu-rootfs.previous-` is the only new backup prefix. These constants live in
+`SandboxDistribution`. `alpine-rootfs` and `alpine-rootfs.pre-ubuntu-` remain as
+**legacy identifiers** for the one-time rename, for backup discovery, and for
+compatibility with data created before 1.2. They no longer identify the live
+guest and are not the install path. The `.distro`/`.arch` markers, not the
+directory name, identify the distribution.
 
----
+On an upgraded install the old name still exists on disk as exactly one relative
+symlink `alpine-rootfs → Ubuntu-rootfs`; a fresh install has no such entry. This
+document therefore does **not** claim that the string `alpine` is absent from
+the device. It can legitimately remain in: that compatibility alias, historical
+`alpine-rootfs.pre-ubuntu-*` backups or an old `alpine-rootfs.staging`, guest
+files or PRoot `.l2s` sentinels that recorded old host-absolute paths, the iOS
+iSH guest and its `deps/prepare_alpine_rootfs.sh`, and comments/tests that
+describe real Alpine history or legacy-compatibility fallbacks.
 
 ## 4. Extraction safety
 
@@ -219,7 +277,8 @@ never fires on a legitimate archive (asserted by
   `vim`, `jq`, `rg`, `unzip`, `ca-certificates` → see the bootstrap list.
 - `PRootKernel` already seeds `PATH`, `HOME`, `BROWSER`, `GIT_CONFIG_*`,
   `UV_LINK_MODE` and the POSIX `TZ` for every process, so non-login shells work
-  without `/etc/profile`. Its comments still say “Alpine”; cosmetic (§9).
+  without `/etc/profile`. Its guest-distribution comments were corrected for
+  Ubuntu in 1.2; legacy busybox fallbacks remain for old trees.
 - Ubuntu base ships `/etc/hosts` as a **0-byte file** and `/etc/hostname` with a
   build-host name; both are replaced at install.
 - `/etc/os-release` is a symlink to `usr/lib/os-release` (present in the
@@ -362,70 +421,55 @@ the Android SDK), and the new JVM tests were not executed because JUnit is not
 available in this environment. No APK was produced and no on-device claim is
 made. The final integration retains ordinary configuration tests and official-archive metadata inspection only. Security-trigger fixtures were removed and are not part of CI. The integrator separately compiled and ran `UbuntuNormalCompatibilityTest` and `NativeRootPolicyTest`: 7 ordinary tests passed; these do not establish device operation.
 
----
-
-## 9. Required changes outside the delegated scope (not done here)
-
-Ordered by impact. Files marked ★ are behaviour-breaking for Ubuntu.
-
-1. ★ `sandbox/PRootKernel.kt` — `installShellWrappers()` writes
-   `/usr/local/bin/top` that ends in
-   `/bin/busybox ps -o pid,user,stat,rss,ppid,comm`. Ubuntu has no
-   `/bin/busybox`, so the wrapper shadows a real `top` with a broken script.
-2. ★ `sandbox/PRootKernel.kt` — `installMountWriteGuards()` wrappers for
-   `touch tee cp mv mkdir rm rmdir ln dd` end in `exec /bin/busybox $name`.
-   With any read-only mounted folder configured, every one of those commands
-   breaks in the Ubuntu guest. Gate on `File(rootfs, "bin/busybox").exists()`
-   and fall back to `exec /usr/bin/$name`, or port the wrappers to coreutils.
-3. ★ Hook `RootfsManager.isBootstrapComplete` / `bootstrapCommand()` into
-   `ShellExecutor` (or `OnDemandBash` / `AgentTools`) so the first
-   non-interactive agent command installs the toolset. Today it runs on the
-   first *interactive* shell only (explicit and logged, but later than users
-   expect). Without it `python3` is missing and the bundled `minis-mcp-cli`
-   cannot run; neither can pip/curl/git.
-4. ★ `ui/chat/ChatViewModel.kt` (≈16372–16419) — the agent system prompt still
-   instructs `apk add`, `apk search py3-*`, “musllinux_aarch64 wheels”, “Alpine's
-   native packages”. Must become apt/Ubuntu guidance
-   (`apt-get update && apt-get install -y`, `python3-*` packages, manylinux
-   wheels). `agent/SoulStore.kt:541` and `agent/jobs/HelperRunner.kt:320` also
-   tell the model it is on “Alpine Linux”.
-5. ★ `ui/sandbox/RootfsManagementScreen.kt:306` — hardcoded “The rootfs contains
-   the **Alpine Linux** filesystem …” (file was out of scope). Also this screen
-   has no way to show or delete `alpine-rootfs.pre-ubuntu-*` backups; storage UI
-   (`ui/settings/StorageUsageViewModel.kt:202,223`) only counts
-   `filesDir/alpine-rootfs`, so preserved backups are invisible.
-6. `agent/shell/OnDemandBash.kt` — already switched to `apt-get` by the main
-   agent; the constant name `APK_PROBE_URL` and its comment are now stale.
-7. `.gitignore:129` — still ignores only `alpine-minirootfs.tar.gz`. Add
-   `src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz` (keep the old
-   entry) or a 28 MB binary can be committed by accident.
-8. `res/values/strings.xml` + 20 locales — `settings_storage_subtitle` and
-   `rootfs_about_description` say “Alpine Linux”.
-9. `BUILDING.md` (≈179, 203, 270) and `README.md` (≈142) describe
-   `prepare_android_sandbox.sh` as downloading Alpine; the command still works,
-   the text is stale.
-10. `assets/default_mount/etc/profile.d/minis.sh` — ash-specific (`ENV=.ashrc`,
-    `.ash_history`); it sorts after `50-minis-ubuntu.sh`, so it overrides
-    `HISTFILE` with `.ash_history`. Harmless but should be split per shell.
-11. `network/ShellTransparentNet.kt:80` — writes `alpine-rootfs/etc/resolv.conf`
-    with a plain `File.writeText`; add the same symlink/unlink guard as
-    `RootfsManager.writeResolvConfTo` for defense in depth. Path itself remains
-    valid (see §3).
-12. `.github/workflows/android-ubuntu.yml:85` — the cache key is
-    `ubuntu-base-24.04.3-arm64-v1` while the pinned script default is 24.04.5;
-    bump the key to `ubuntu-base-24.04.5-arm64-v1` or the cache never hits.
-13. `THIRD_PARTY_LICENSES.md` — add the Ubuntu base image notice (mixed
-    GPL/LGPL/BSD contents) before shipping.
-14. Cosmetic “Alpine” comments/log strings: `ForegroundCommandGroup.kt:64`,
-    `ShellTimeoutPolicy.kt`, `SeccompFallbackPolicy.kt`, `SpawnSignalMask.kt`,
-    `NetworkShellEnvironment.kt:121`, `SessionStorage.kt:226`,
-    `FileBrowserViewModel.kt:213`, `AppNavigation.kt:1240`,
-    `PRootKernel.kt:154,213,586,701,883`, `SandboxDistribution` consumers.
-15. Optional: rename `filesDir/alpine-rootfs` → `filesDir/linux-rootfs`
-    (with a one-time migration) once items 5/11 and `FileBrowserViewModel` /
-    `AppNavigation` are updated.
+The 1.2 directory tests are JVM tests wired into `android-ubuntu.yml`.
+`RootfsDirectoryMigrationTest` builds a real hard link with
+`Files.createLink`, migrates the tree and asserts `Files.isSameFile` on the
+linked pair — it has no `assume`/skip branch, so an unsupported filesystem fails
+rather than silently passing. It also asserts the old name is one relative
+symlink (`isSymbolicLink` true, `isDirectory(NOFOLLOW_LINKS)` false), that the
+journal recovers a rename without an alias, and that a misdirected or absolute
+alias is rejected. `RootfsDirectoryMigrationIntegrationTest` covers the same
+contract through `RootfsManager`.
 
 ---
+
+## 9. Remaining work outside this documentation change
+
+The 1.2 directory work is in place: `RootfsDirectoryMigration`,
+`SandboxDistribution`, `RootfsManager`, `StorageUsageViewModel` (counts live +
+preserved trees), the rootfs management screen/state (shows the migration error
+and preserved path), and `ShellTransparentNet` (resolves `etc/resolv.conf`
+through `RootfsManager.rootfsDir`). The agent prompt no longer claims Alpine.
+
+Still open:
+
+1. `ui/sandbox/RootfsManagementScreen.kt` shows only the latest preserved
+   backup path. It has no list or delete affordance for every
+   `Ubuntu-rootfs.previous-*` / historical `alpine-rootfs.pre-ubuntu-*` tree,
+   although `RootfsManager.legacyBackupDirs` already returns the complete list.
+2. `BUILDING.md:10,184` still says the Android build produces
+   `assets/alpine-minirootfs.tar.gz` and calls the guest “Alpine”. The command
+   block is obsolete; `BUILDING.md` was outside this change's scope.
+3. Non-interactive agent shells still do not run `minis-bootstrap`; only
+   `/etc/profile.d/99-minis-bootstrap.sh` triggers it for interactive shells.
+   This matters only if a plain base image (rather than the preinstalled
+   toolset image) is ever shipped again.
+4. Cosmetic “Alpine” comments/log strings in files not owned by this change:
+   `ShellTimeoutPolicy.kt`, `SeccompFallbackPolicy.kt`, `SpawnSignalMask.kt`,
+   `NetworkShellEnvironment.kt:121`.
+
+Intentionally **not** changed:
+
+- `deps/prepare_alpine_rootfs.sh`, `deps/build_ish.sh` and all `src/ios/` files —
+  iOS/iSH still runs Alpine; relabelling them as Ubuntu would be false.
+- `deps/aot/**` and `src/ios/AOJITRestore/**` — Alpine 3.21 packages pinned to
+  the AOT images; genuine historical/other-platform facts.
+- Historical-measurement comments such as `ForegroundCommandGroup.kt`'s
+  `/proc/<pid>/stat` numbers and `SessionStorage.kt`'s “Alpine rootfs shipped
+  ~335 symlinks” — they describe measurements taken on the Alpine guest.
+- Legacy-compatibility fallbacks in `PRootKernel` (`/bin/busybox` presence check)
+  and `SandboxDistribution.LEGACY_ASSET` / `LEGACY_ROOTFS_DIR_NAME`, which exist
+  only to recognise or migrate old data.
 
 ## 10. Rebuild / release checklist
 
@@ -435,7 +479,12 @@ Ordered by impact. Files marked ★ are behaviour-breaking for Ubuntu.
 cd src/android && ./gradlew assembleDebug  # not run here
 ```
 
-On a device: fresh install, upgrade-from-Alpine (check the
-`alpine-rootfs.pre-ubuntu-*` backup exists and the old files are intact),
-`apt-get update` in the shell, `minis-bootstrap`, mirror switch on/off, DNS
-change, reset with/without `/root` backup.
+On a device: fresh install (no `alpine-rootfs` entry is created), upgrade from
+Alpine (confirm the old tree became `Ubuntu-rootfs` in place — same files/mtimes
+— that `alpine-rootfs` is now a relative symlink to it, and that a
+`Ubuntu-rootfs.previous-*` / historical `alpine-rootfs.pre-ubuntu-*` backup
+exists with its files intact), an interrupted migration (force-stop between
+rename and alias; the next launch must restore the alias without copying), a
+both-directories-non-empty conflict (install and reset must refuse with a
+visible error), `apt-get update` in the shell, `minis-bootstrap`, mirror switch
+on/off, DNS change, reset with/without `/root` backup.

@@ -163,7 +163,7 @@ object PRootKernel {
         if (loaderPath.exists()) prootLoaderPath = loaderPath.absolutePath
         if (loader32Path.exists()) prootLoader32Path = loader32Path.absolutePath
 
-        // Set default PATH for Alpine Linux
+        // Set default PATH for the Ubuntu guest.
         customEnvironment.putIfAbsent("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin")
         customEnvironment.putIfAbsent("HOME", "/root")
 
@@ -222,11 +222,11 @@ object PRootKernel {
             customEnvironment.putIfAbsent("GIT_CONFIG_VALUE_0", "rename")
         }
 
-        // Inject device timezone so Alpine userspace sees local time.
+        // Inject device timezone so the guest userspace sees local time.
         // Mirrors iOS ISHShellExecutor.m:335-353 — uses POSIX TZ format with a
         // fixed name ("LCL") to avoid abbreviations like "GMT+8" which contain
-        // +/- and confuse musl's TZ parser. POSIX sign is reversed from UTC
-        // offset (UTC+8 → "LCL-8"), matching iOS exactly.
+        // +/- and confuse the guest libc's TZ parser. POSIX sign is reversed
+        // from UTC offset (UTC+8 → "LCL-8"), matching iOS exactly.
         customEnvironment["TZ"] = posixTz()
 
         // Propagate the Android system HTTP proxy into every sandboxed
@@ -742,11 +742,12 @@ object PRootKernel {
         // T141: Translate hardlink() syscalls to symlink(). Android's /data
         // (ext4/F2FS as mounted by zygote) refuses cross-directory hardlinks
         // for app uids, so PRoot would otherwise pass link() straight through
-        // to the host kernel and the host kernel rejects with EPERM. Alpine's
-        // apk installs busybox-applet packages (binutils, gcc deps, etc.) by
-        // hardlinking ar/ld/nm/strip → busybox; without this flag every such
-        // install fails with "Permission denied". Symlinks are functionally
-        // equivalent for the apk consumer.
+        // to the host kernel and the host kernel rejects with EPERM. The Alpine
+        // apk era installed busybox-applet packages this way; Ubuntu's dpkg
+        // also links files (e.g. usr/bin/uncompress -> usr/bin/gunzip) and
+        // apt reuses hardlinks for identical files, so the flag is still
+        // required: without it such installs fail with "Permission denied".
+        // Symlinks are functionally equivalent for the package consumers.
         cmd.add("--link2symlink")
 
         // Set rootfs
