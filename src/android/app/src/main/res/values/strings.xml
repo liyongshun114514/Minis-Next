@@ -302,6 +302,25 @@
     <!-- T-soul-md — SOUL.md personality / identity settings -->
     <string name="settings_soul">System Prompt</string>
     <string name="settings_soul_subtitle">System prompt and identity (SOUL.md)</string>
+    <string name="settings_workspace_instructions">Workspace Instructions</string>
+    <string name="settings_workspace_instructions_subtitle">Project AGENTS.md / CLAUDE.md</string>
+    <string name="workspace_instructions_title">Workspace Instructions</string>
+    <string name="workspace_instructions_note">These files reach the model as a user-role message wrapped in a system reminder. More specific files take precedence over broader ones, and none of them override the system prompt, developer instructions, or what you type directly.</string>
+    <string name="workspace_scope_title">Scope</string>
+    <string name="workspace_scope_project_root">Project root</string>
+    <string name="workspace_scope_working_directory">Working directory</string>
+    <string name="workspace_scope_hint">The chain runs from the project root down to the working directory. A .git marker on the path moves the root to that directory.</string>
+    <string name="workspace_budget">Budget: %1$d bytes per chain</string>
+    <string name="workspace_section_global">User-global</string>
+    <string name="workspace_section_project">Project chain</string>
+    <string name="workspace_global_row_subtitle">Applies to every chat</string>
+    <string name="workspace_project_row_subtitle">%1$d characters</string>
+    <string name="workspace_project_empty">No project instruction file yet. The chain also loads AGENTS.md and CLAUDE.md from every directory between the project root and the working directory.</string>
+    <string name="workspace_create_project_file">Tap to create</string>
+    <string name="workspace_file_missing">Not created yet</string>
+    <string name="workspace_save">Save</string>
+    <string name="workspace_saved">Saved</string>
+    <string name="workspace_editor_placeholder">Write instructions for the agent…</string>
     <string name="soul_settings_title">System Prompt</string>
     <string name="soul_section_preview">Preview</string>
     <string name="soul_section_identity">Identity</string>

@@ -183,6 +183,11 @@ object Routes {
     const val MCP = "mcp"
     /** [T-soul-md] SOUL.md editor. */
     const val SOUL = "soul"
+    /** [T-workspace-instructions] AGENTS.md / CLAUDE.md editor. */
+    const val WORKSPACE_INSTRUCTIONS = "workspace_instructions"
+    const val WORKSPACE_INSTRUCTION_EDIT = "workspace_instruction_edit/{path}"
+    fun workspaceInstructionEdit(path: String) =
+        "workspace_instruction_edit/" + android.net.Uri.encode(path)
     const val MEMORY_FILE_EDIT = "memory_file/{fileName}/{isGlobal}"
     const val PERMISSIONS = "permissions"
     /**
@@ -662,6 +667,7 @@ fun AppNavigation(
                 onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
                 onMcpClick = { navController.safeNavigate(Routes.MCP) },
                 onSoulClick = { navController.safeNavigate(Routes.SOUL) },
+                onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
                 onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
                 onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
                 onAppearanceClick = { navController.safeNavigate(Routes.APPEARANCE) },
@@ -1431,6 +1437,24 @@ fun AppNavigation(
         // [T-soul-md] SOUL.md editor.
         composable(Routes.SOUL) {
             com.openminis.app.ui.settings.SoulSettingsScreen(
+                onBack = { navController.safePopBackStack() },
+            )
+        }
+
+        // [T-workspace-instructions] AGENTS.md / CLAUDE.md chain.
+        composable(Routes.WORKSPACE_INSTRUCTIONS) {
+            com.openminis.app.ui.settings.WorkspaceInstructionsScreen(
+                onBack = { navController.safePopBackStack() },
+                onEdit = { path -> navController.safeNavigate(Routes.workspaceInstructionEdit(path)) },
+            )
+        }
+        composable(
+            route = Routes.WORKSPACE_INSTRUCTION_EDIT,
+            arguments = listOf(navArgument("path") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val path = backStackEntry.arguments?.getString("path") ?: return@composable
+            com.openminis.app.ui.settings.WorkspaceInstructionEditorScreen(
+                linuxPath = path,
                 onBack = { navController.safePopBackStack() },
             )
         }

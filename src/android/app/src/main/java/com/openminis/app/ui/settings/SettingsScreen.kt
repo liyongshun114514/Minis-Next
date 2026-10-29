@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Lan
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Router
@@ -107,6 +108,8 @@ fun SettingsScreen(
     // Agent Runtime section; default no-op for callers that haven't wired
     // the route yet.
     onSoulClick: () -> Unit = {},
+    /** [T-workspace-instructions] Settings › Workspace Instructions. */
+    onWorkspaceInstructionsClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
     onUsageClick: () -> Unit = {},
     onAppearanceClick: () -> Unit = {},
@@ -231,6 +234,16 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_soul),
                     subtitle = stringResource(R.string.settings_soul_subtitle),
                     onClick = onSoulClick,
+                )
+                // [T-workspace-instructions] Directly below System Prompt: the
+                // global prompt is what the agent IS, this is the guidance the
+                // project's own AGENTS.md / CLAUDE.md files add on top of it.
+                SettingsItem(
+                    icon = Icons.Outlined.Description,
+                    iconColor = Color(0xFF34C759),
+                    title = stringResource(R.string.settings_workspace_instructions),
+                    subtitle = stringResource(R.string.settings_workspace_instructions_subtitle),
+                    onClick = onWorkspaceInstructionsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Psychology,

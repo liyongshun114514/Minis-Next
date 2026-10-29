@@ -12040,6 +12040,21 @@ class ChatViewModel(
                         // [T-ctx-measure-outbound] Record our estimate of THIS request
                         // (pre-budget, like every measurement) so the provider's count
                         // for it calibrates the meter, and size max_tokens from it.
+                        // [T-workspace-instructions] dsh's pre-step: reconcile
+                        // the AGENTS.md / CLAUDE.md chain before THIS request is
+                        // assembled. Running per request (not once per loop) is
+                        // what makes a nested instruction file touched by a
+                        // file tool visible on the very next turn, as in dsh.
+                        // The row is a durable user-role <system-reminder>, so it
+                        // replays with history and keeps dsh's precedence: below
+                        // system/developer/direct user instructions.
+                        try {
+                            reconcileWorkspaceInstructions()
+                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                            throw ce
+                        } catch (t: Throwable) {
+                            AppLogger.warning(TAG_STREAM, "[workspace] reconcile failed: ${t.javaClass.simpleName}: ${t.message}")
+                        }
                         var dispatchInputTokens = 0
                         val requestContext = RequestContextBuilder.build(requestContextInput()) { outboundHistory ->
                             dispatchInputTokens = recordContextDispatch(outboundHistory, currentProvider.model)
@@ -16443,6 +16458,200 @@ class ChatViewModel(
         ToolResultWrap.persist(parts, durationsMs, { realSessionId.ifEmpty { sessionId } }) { sid, role, partsJson ->
             chatRepository.appendMessage(sid, role, partsJson).id
         }
+
+    // ── [T-workspace-instructions] AGENTS.md / CLAUDE.md injection ─────────
+    //
+    // Ported from DeepSeek Harness (`@deepseek-ai/dsh-agent-instructions`).
+    // The model-facing contract is dsh's, unchanged:
+    //
+    //   • the baseline travels as ONE durable user-role message wrapped in a
+    //     <system-reminder> frame, so it replays, compacts, and resumes with
+    //     the rest of the history instead of being rebuilt per request;
+    //   • precedence is stated in the frame itself: more specific files win
+    //     over broader ones, and none of them override system, developer, or
+    //     direct user instructions. It is NOT hoisted into the system channel
+    //     — promoting it there would be a different (higher) priority than
+    //     dsh's, which is exactly what this port must not do;
+    //   • a change is delivered as a reconciliation batch, and a state that
+    //     cannot be reconciled incrementally (a cold start that only has the
+    //     rendered text, not the per-file digests) falls back to dsh's
+    //     replacement baseline rather than duplicating or dropping content.
+    //
+    // Live state is deliberately not persisted: dsh reconciles against the
+    // visible baseline on resume, and the visible text is what the model saw.
+    // Keeping a second, invisible cache on disk would let the two disagree.
+
+    /** One file of the last reconciled state: enough to render a removal later. */
+    private data class WorkspaceKnownFile(
+        val displayPath: String,
+        val content: String,
+        val isUserGlobal: Boolean,
+    )
+
+    /** null = this session has not reconciled yet; empty = reconciled, nothing loaded. */
+    private var workspaceKnown: LinkedHashMap<String, WorkspaceKnownFile>? = null
+
+    /** A `<system-reminder>` row that only this feature writes. */
+    private fun isWorkspaceInstructionMessage(text: String): Boolean {
+        val trimmed = text.trimStart()
+        if (!trimmed.startsWith(com.openminis.app.agent.workspace.WorkspaceInstructionRender.SYSTEM_REMINDER_OPEN)) {
+            return false
+        }
+        return trimmed.contains("The following workspace instructions may be relevant") ||
+            trimmed.contains("This complete workspace instruction baseline replaces") ||
+            trimmed.contains("Additional instructions from: ") ||
+            trimmed.contains("Updated instructions from: ") ||
+            trimmed.contains("Instructions removed: ")
+    }
+
+    /**
+     * Reconcile the session against the AGENTS.md / CLAUDE.md chain on disk.
+     *
+     * Runs after [loadSession] rebuilds the history and before each outgoing
+     * request, matching dsh's "first eligible pre-step" plus touch-driven
+     * refresh. Scanning every turn is intentional: Minis' file tools are plain
+     * Java I/O, not a filesystem seam the app can subscribe to, so a digest
+     * comparison per turn is the reliable equivalent of dsh's touch tracking —
+     * and it also catches edits made from a shell or another app.
+     */
+    private suspend fun reconcileWorkspaceInstructions() {
+        if (isHelper) return
+        val sid = activeSessionId
+        if (sid.isEmpty()) return
+        val ctx = context.applicationContext
+        val maxBytes = com.openminis.app.agent.workspace.WorkspaceInstructionStore.maxBytes(ctx)
+        val snapshot = runCatching {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.openminis.app.agent.workspace.WorkspaceInstructionStore.snapshot(ctx, sid)
+            }
+        }.getOrElse { error ->
+            AppLogger.warning(TAG, "[workspace] discovery failed: ${error.message}")
+            return
+        }
+        val files = snapshot.files
+
+        val known = workspaceKnown
+        if (known == null) {
+            val previous = agentHistory.lastOrNull { isWorkspaceInstructionMessage(it.content) }?.content
+            val baseline = com.openminis.app.agent.workspace.WorkspaceInstructionRender
+                .renderBaseline(files, maxBytes)
+            if (previous != null && previous == baseline.text) {
+                workspaceKnown = toKnownMap(files)
+                return
+            }
+            if (previous == null && files.isEmpty()) {
+                workspaceKnown = linkedMapOf()
+                return
+            }
+            // Cold start with a visible predecessor that does not match what is
+            // on disk now, or with nothing visible yet: dsh's replacement
+            // baseline is the only honest choice, because the per-file digests
+            // behind the old text are not reconstructable from it.
+            val rendered = com.openminis.app.agent.workspace.WorkspaceInstructionRender
+                .renderBaseline(files, maxBytes, replacePrevious = previous != null)
+            if (rendered.text.isNotBlank()) {
+                injectWorkspaceMessage(sid, rendered.text)
+            }
+            workspaceKnown = toKnownMap(files)
+            if (snapshot.error != null) {
+                AppLogger.warning(TAG, "[workspace] ${snapshot.error}")
+            }
+            return
+        }
+
+        val current = toKnownMap(files)
+        val items = mutableListOf<com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeItem>()
+        for (file in files) {
+            val old = known[file.absolutePath]
+            when {
+                old == null -> items += com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeItem(
+                    action = com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeAction.SET,
+                    file = file,
+                )
+                old.content != file.content -> items += com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeItem(
+                    action = com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeAction.REPLACE,
+                    file = file,
+                )
+            }
+        }
+        val currentPaths = files.mapTo(mutableSetOf()) { it.absolutePath }
+        for ((path, old) in known) {
+            if (path in currentPaths) continue
+            items += com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeItem(
+                action = com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeAction.REMOVE,
+                file = com.openminis.app.agent.workspace.WorkspaceInstructionRender.InstructionFile(
+                    absolutePath = path,
+                    displayPath = old.displayPath,
+                    // A removal never writes back; the display path is the only
+                    // field the renderer reads for it.
+                    linuxPath = old.displayPath,
+                    content = "",
+                    isUserGlobal = old.isUserGlobal,
+                ),
+            )
+        }
+        if (items.isEmpty()) {
+            workspaceKnown = current
+            return
+        }
+        val (text, applied) = com.openminis.app.agent.workspace.WorkspaceInstructionRender
+            .renderChanges(items, maxBytes)
+        if (text.isBlank()) {
+            // Everything was dropped by the byte budget: keep the old state so
+            // the next pass retries instead of pretending it was delivered.
+            return
+        }
+        injectWorkspaceMessage(sid, text)
+        val next = LinkedHashMap(known)
+        for (item in applied) {
+            when (item.action) {
+                com.openminis.app.agent.workspace.WorkspaceInstructionRender.ChangeAction.REMOVE ->
+                    next.remove(item.file.absolutePath)
+                else -> next[item.file.absolutePath] = WorkspaceKnownFile(
+                    displayPath = item.file.displayPath,
+                    content = item.file.content,
+                    isUserGlobal = item.file.isUserGlobal,
+                )
+            }
+        }
+        workspaceKnown = next
+    }
+
+    private fun toKnownMap(
+        files: List<com.openminis.app.agent.workspace.WorkspaceInstructionRender.InstructionFile>,
+    ): LinkedHashMap<String, WorkspaceKnownFile> {
+        val map = LinkedHashMap<String, WorkspaceKnownFile>()
+        for (file in files) {
+            map[file.absolutePath] = WorkspaceKnownFile(file.displayPath, file.content, file.isUserGlobal)
+        }
+        return map
+    }
+
+    /**
+     * Deliver one reconciliation message: in memory for this turn, and in the
+     * DB so a reopen or a compaction sees exactly what the model saw. Mirrors
+     * the hidden `<system-reminder>` rows this file already writes for
+     * scheduled nudges — a row that starts with the frame never gets a bubble.
+     */
+    private suspend fun injectWorkspaceMessage(sessionId: String, text: String) {
+        agentHistory.add(
+            LLMMessage(
+                role = LLMMessage.Role.USER,
+                content = text,
+                contentParts = listOf(AgentContentPart.Text(text)),
+            ),
+        )
+        runCatching {
+            chatRepository.appendMessage(
+                sessionId,
+                "user",
+                """[{"type":"text","value":${escapeJson(text)}}]""",
+            )
+        }.onFailure {
+            AppLogger.warning(TAG, "[workspace] instruction row not stored: ${it.message}")
+        }
+        AppLogger.info(TAG, "[workspace] injected ${text.length} chars sid=${sessionId.take(8)}")
+    }
 
     private fun buildSystemPrompt(): String? {
         // Cache-friendly layout: keep `base` byte-stable by stripping out anything
