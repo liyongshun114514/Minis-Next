@@ -86,6 +86,10 @@ class SystemChannelPlacementTest {
         val idx = anthropic.indexOf("val parts = listOfNotNull(appPrompt, userPrompt?.takeIf { it.isNotEmpty() })")
         assertTrue("application prompt is element 0 of the joined text", idx > 0)
         assertTrue(anthropic.contains("put(\"text\", parts.joinToString(\"\\n\\n\"))"))
+        val fn = anthropic.indexOf("internal fun resolveSystemPrompt(")
+        val oauthBranch = anthropic.indexOf("if (isOAuth) {", fn)
+        val oauthConfig = anthropic.indexOf("val claudeCodePrefix =", fn)
+        assertTrue("API-key system blocks must not depend on OAuth configuration", oauthBranch in fn until oauthConfig)
     }
 
     // ── Gemini: start of systemInstruction ──────────────────────────────────

@@ -153,9 +153,11 @@ internal fun ComposerMenuHeader(text: String) {
  *    trailing weight spacer competing for the same space.
  *  - level chip 13sp bold, 64dp minimum width (0dp when compact), 10dp side
  *    padding, 15dp corner radius, 13% alpha of the blue→violet level colour;
- *  - compact mode prints the English tier name (`low` / `medium` / `high` /
- *    `xhigh` / `max` / `ultra` / `off`) because that is the value sent to the
- *    model; the accessibility description stays localized;
+ *  - compact mode prints the English tier name in the same sentence case as
+ *    `ThinkingLevel.displayName` (`Off` / `Low` / `Medium` / `High` / `XHigh` /
+ *    `Max` / `Ultra`) — the wording it maps to on the wire is lowercase, but the
+ *    visible label is a label, not a wire token; the accessibility description
+ *    stays localized;
  *  - non-reasoning model (or fewer than two levels): chip is dimmed to 45%,
  *    grey, and not clickable — same disabled look as upstream.
  *
@@ -296,11 +298,13 @@ internal fun ComposerModelThinkingBar(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    // Compact prints the English tier (`medium`, `xhigh`, …):
-                    // it is the reasoning-effort value the request carries and
-                    // matches what the sheet shows. The wider, non-compact
-                    // toolbar keeps the localized name.
-                    text = if (compact) level.displayName.lowercase() else levelLabel,
+                    // Compact prints the English tier (`Medium`, `XHigh`, …)
+                    // straight from displayName: it names the reasoning-effort
+                    // level the request carries and matches the effort slider
+                    // ticks, which use the same sentence case. Lowercasing it
+                    // turned `XHigh` into `xhigh`, which reads as a typo. The
+                    // wider, non-compact toolbar keeps the localized name.
+                    text = if (compact) level.displayName else levelLabel,
                     fontSize = 13.sp,
                     lineHeight = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -453,8 +457,9 @@ internal fun ComposerEffortSlider(
         }.getOrDefault(false)
     }
 
-    // Wire values in English (off / low / medium / high / xhigh / max / ultra):
-    // they are what the request carries and they match the compact chip.
+    // English tier names in sentence case (Off / Low / Medium / High / XHigh /
+    // Max / Ultra), the same labels the compact composer chip prints. The
+    // request's wire token is the lowercased level id; the tick is a label.
     val labels = remember(levels) { levels.map { it.effortSliderLabel() } }
     val count = levels.size
 

@@ -305,7 +305,7 @@
     <string name="settings_workspace_instructions">Workspace Instructions</string>
     <string name="settings_workspace_instructions_subtitle">Project AGENTS.md / CLAUDE.md</string>
     <string name="workspace_instructions_title">Workspace Instructions</string>
-    <string name="workspace_instructions_note">These files reach the model as a user-role message wrapped in a system reminder. More specific files take precedence over broader ones, and none of them override the system prompt, developer instructions, or what you type directly.</string>
+    <string name="workspace_instructions_note">These files use the native system channel as the highest-priority application configuration. Each turn reads AGENTS.md before SOUL.md and sends workspace instructions → SOUL.md → generated runtime instructions. More specific workspace files take precedence over broader ones. The fixed priority header is outside the file budget. This ordering does not override service-side rules, safety requirements, or device permissions.</string>
     <string name="workspace_scope_title">Scope</string>
     <string name="workspace_scope_project_root">Project root</string>
     <string name="workspace_scope_working_directory">Working directory</string>

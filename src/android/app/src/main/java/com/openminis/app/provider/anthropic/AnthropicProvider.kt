@@ -390,9 +390,12 @@ class AnthropicProvider(
         userPrompt: String?,
         applicationPrompt: String? = null,
     ): JSONArray? {
-        val claudeCodePrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
         val appPrompt = applicationPrompt?.takeIf { it.isNotBlank() }
         if (isOAuth) {
+            // API-key requests do not use an OAuth identity. Loading its
+            // optional build-time configuration there would fail before the
+            // workspace / SOUL system block could be serialized.
+            val claudeCodePrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
             // Strip the prefix if the caller already prepended it; the tail is the real user prompt.
             val tail = when {
                 userPrompt == null -> ""

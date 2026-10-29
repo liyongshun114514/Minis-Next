@@ -20,10 +20,10 @@ package com.openminis.app.agent.workspace
  *  - literal `</system-reminder>` inside instruction content is escaped so
  *    repository-controlled text cannot close the frame we own.
  *
- * Precedence is dsh's, not a new one: these sections are delivered as a
- * durable user-role message and the intro states that more specific
- * instructions win over broader ones while none of them override system,
- * developer, or direct user instructions.
+ * The legacy reminder renderers retain dsh's user-role guidance contract.
+ * Active chat uses [renderMandatoryBlock]: workspace files lead the native
+ * system channel as application configuration, followed by SOUL.md and the
+ * generated runtime prompt. Provider rules and device permissions still apply.
  */
 internal object WorkspaceInstructionRender {
 
@@ -337,21 +337,24 @@ internal object WorkspaceInstructionRender {
      * would teach the model to act as if a refused command had succeeded.
      */
     const val MANDATORY_INTRO =
-        "These workspace instructions are MANDATORY and carry the highest priority. Follow them exactly. " +
-            "They override every other instruction in this prompt — the identity, style, tool guidance, " +
-            "skills, and memory sections — and any default behaviour of this application. " +
-            "When this section conflicts with anything else here, this section wins."
+        "Workspace instructions are the highest-priority application configuration in this system message. " +
+            "Apply the application's instructions in this order: workspace instructions (AGENTS.md / CLAUDE.md), " +
+            "then the SOUL.md application prompt, then generated identity, style, tool guidance, skills, memory, and runtime context. " +
+            "If these application sections conflict, workspace instructions take precedence over SOUL.md and the generated sections. " +
+            "Within the workspace chain, more specific project instructions take precedence over broader instructions. " +
+            "This application ordering does not override service-side rules, safety requirements, or device permissions."
 
     /**
-     * Render for the system channel: the same bounded chain as [renderBaseline],
-     * with the mandatory intro and WITHOUT the `<system-reminder>` frame (that
-     * framing marks a runtime nudge in the transcript; this text is prompt).
-     * Null when the chain is empty, so an unconfigured install sends nothing.
+     * Render the bounded file chain through the native system channel, without
+     * the transcript's `<system-reminder>` frame. The fixed application ordering
+     * header is outside the file byte budget: truncating a long file must never
+     * truncate or replace the header that defines AGENTS -> SOUL precedence.
+     * Null when the chain is empty or its file budget is disabled.
      */
     fun renderMandatoryBlock(files: List<InstructionFile>, maxBytes: Int): String? {
-        if (files.isEmpty()) return null
+        if (files.isEmpty() || isDisabledBudget(maxBytes)) return null
         val style = object : SectionStyle {
-            override val intro: String = MANDATORY_INTRO
+            override val intro: String = ""
             override fun section(file: InstructionFile): String = sectionText(file)
         }
         val rendered = renderChains(files, maxBytes, style)
@@ -360,7 +363,7 @@ internal object WorkspaceInstructionRender {
             .removeSuffix(SYSTEM_REMINDER_CLOSE)
             .replace("<\\/system-reminder>", SYSTEM_REMINDER_CLOSE)
             .trim()
-        return text.ifBlank { null }
+        return text.takeIf { it.isNotBlank() }?.let { MANDATORY_INTRO + "\n\n" + it }
     }
 
     /** Render the baseline. `replacePrevious` mirrors dsh's replacement baseline. */

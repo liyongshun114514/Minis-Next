@@ -348,8 +348,8 @@ commit/push. Temporary helper script lived only under
 - 删除了原先把 chip 固定到语音键槽位的独立 `ComposerThinkingChip` 组件与调用；同时删除条内
   末尾的 `Spacer(weight(1f))` 和 compact 模式的 `widthIn(max = 150.dp)` 硬上限（长名会被截在
   150dp，等级无法被挤到右边界）。
-- 等级文案：compact 模式显示英文档位 `level.displayName.lowercase()`（off/low/medium/high/
-  xhigh/max/ultra），与请求里的 reasoning effort 一致；无障碍描述仍是中文
+- 等级文案：compact 模式直接显示 `level.displayName`（Off/Low/Medium/High/
+  XHigh/Max/Ultra），与思考等级选择器统一首字母大写；请求里的 reasoning effort 仍用原有小写值。无障碍描述仍是中文
   `当前思考等级 <本地化名>，点击选择`，点击仍打开 `showThinkingLevelSheet`。
 - 动态控件：编辑退出 pill 只在 `editingMessageId != null` 时出现，朗读 pill 只在语音面板且非
   编辑态出现（二者互斥），语言 pill 只在录音/启动识别时出现；它们都在 bar 之后、以固定间距

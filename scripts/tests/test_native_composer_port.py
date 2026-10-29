@@ -172,8 +172,10 @@ def main() -> int:
        "a standalone level chip is still rendered at the right edge")
     ok("ComposerThinkingChip" not in extras,
        "the retired standalone chip is still defined")
-    ok("level.displayName.lowercase()" in extras,
-       "the level chip is not labelled with the English level name")
+    ok("text = if (compact) level.displayName else levelLabel" in extras,
+       "the level chip must display the capitalized English level name")
+    ok("level.displayName.lowercase()" not in extras,
+       "the compact level chip must not lowercase its display label")
     # The row has exactly one weighted slot (the bar). A second weighted spacer
     # splits the slack with the bar and caps a long name at part of the row —
     # the bug this layout replaces.
@@ -204,7 +206,7 @@ def main() -> int:
     ok("Spacer(modifier = Modifier.weight(1f))" not in bar,
        "the bar still ends in a trailing weight spacer")
     model_at = bar.index("text = modelLabel")
-    chip_at = bar.index("text = if (compact) level.displayName.lowercase() else levelLabel")
+    chip_at = bar.index("text = if (compact) level.displayName else levelLabel")
     ok(model_at < chip_at, "the level chip is not drawn after the model name")
     # The chip is a non-weighted sibling: Row measures it at its intrinsic
     # width FIRST, so its width is reserved before the name is measured.
@@ -278,8 +280,9 @@ def main() -> int:
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")
-    ok("it.effortSliderLabel()" in extras and "displayName.lowercase()" in extras,
-       "slider modes do not use English names")
+    ok("it.effortSliderLabel()" in extras and
+       "fun ThinkingLevel.effortSliderLabel(): String = displayName" in extras,
+       "slider modes must use the same capitalized English display names")
     ok("ThinkingSliderGeometry.track(" in extras and "track.labelX(i)" in extras
        and "track.tickX(i)" in extras and "track.valueForX(" in extras,
        "drawing, labels and hit testing do not share geometry")

@@ -11237,22 +11237,20 @@ class ChatViewModel(
         //  - the body is placed exactly once, in `applicationSystemPrompt`,
         //    never concatenated into `loopSystemPrompt` (no duplicate text).
         // A sub agent gets null: it has its own identity text and no Settings
-        // page.
-        val soulFileForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
-        } else {
-            null
-        }
-        // [T-workspace-instructions] The AGENTS.md block goes FIRST, ahead of
-        // the SOUL body, inside the same native system channel. It is the top
-        // of the application's own instruction stack: the render states that it
-        // overrides the identity/tool/skills/memory sections, and placing it
-        // before the SOUL body makes the wire order match that claim.
+        // page. Read AGENTS before SOUL, matching their application priority
+        // and their order in every provider's native system channel.
         val workspaceBlockForTurn = if (helperConfig == null) {
             runCatching {
                 com.openminis.app.agent.workspace.WorkspaceInstructionStore
                     .mandatoryBlock(context, activeSessionId)
+            }.onFailure {
+                AppLogger.warning(TAG_STREAM, "Workspace instructions could not be loaded: ${it.javaClass.simpleName}")
             }.getOrNull()
+        } else {
+            null
+        }
+        val soulFileForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
         } else {
             null
         }

@@ -47,16 +47,14 @@ import java.io.File
 /**
  * [T-workspace-instructions] Settings → Workspace Instructions.
  *
- * Edits the AGENTS.md / CLAUDE.md chain the agent reads as workspace guidance
- * (dsh semantics, ported in `agent/workspace`). The page is an editor, not a
- * prompt field: it exposes the same files dsh discovers on disk, in the same
- * broad-to-specific order, so what the user sees here is exactly the chain the
- * next request carries.
+ * Edits the AGENTS.md / CLAUDE.md chain sent first in the native system
+ * channel, ahead of SOUL.md and generated runtime instructions. It exposes
+ * the discovered files in broad-to-specific order; more specific workspace
+ * files take precedence within the chain.
  *
- * The two user-global files and the project chain are listed separately because
- * they are budgeted separately (65,536 bytes each by default) and because the
- * precedence rule the model is told — more specific wins, none override system,
- * developer, or direct user instructions — depends on that separation.
+ * The single user-global file and the project chain are listed separately
+ * because their file budgets are separate (65,536 bytes each by default).
+ * The fixed application ordering header is outside those file budgets.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

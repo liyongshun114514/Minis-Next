@@ -51,6 +51,23 @@ class SystemPromptInjectionWiringTest {
     }
 
     @Test
+    fun `workspace is loaded before soul and sent first in the frozen block`() {
+        val workspace = vm.indexOf("val workspaceBlockForTurn = if (helperConfig == null)")
+        val soul = vm.indexOf("val soulFileForTurn = if (helperConfig == null)")
+        val application = vm.indexOf("val applicationPromptForTurn = if (helperConfig == null)")
+        assertTrue("workspace snapshot precedes SOUL read", workspace >= 0 && workspace < soul)
+        assertTrue("SOUL read precedes assembly", soul < application)
+        val assembly = vm.substring(application,
+            vm.indexOf("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)", application))
+        assertTrue("workspace precedes SOUL on the wire",
+            assembly.indexOf("workspaceBlockForTurn,") < assembly.indexOf("SystemPromptBuilder.applicationPrompt(soulFileForTurn)"))
+        val fallback = body("private fun applyApplicationSystemPromptGlobal(provider: LLMProvider)")
+        assertTrue(fallback.indexOf(".mandatoryBlock(context, activeSessionId)") <
+            fallback.indexOf("SystemPromptBuilder.applicationPrompt(context)"))
+        assertTrue(fallback.contains("listOfNotNull(workspace, soul)"))
+    }
+
+    @Test
     fun `every request and every switch reuses the frozen block`() {
         assertTrue(vm.contains("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)"))
         val requestLoop = vm.indexOf("while (!collectDone)")

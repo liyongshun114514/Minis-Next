@@ -264,7 +264,7 @@
     <string name="settings_workspace_instructions">工作区指令</string>
     <string name="settings_workspace_instructions_subtitle">项目 AGENTS.md / CLAUDE.md</string>
     <string name="workspace_instructions_title">工作区指令</string>
-    <string name="workspace_instructions_note">这些文件以 system-reminder 包裹的用户消息发给模型。越具体的文件优先级越高，但它们都不会覆盖系统提示词、开发者指令或你直接输入的内容。</string>
+    <string name="workspace_instructions_note">这些文件通过模型原生系统通道注入，作为应用内最高优先级配置。每轮先读取 AGENTS.md，再读取 SOUL.md；发送顺序为工作区指令 → SOUL.md → 应用运行时提示词。链内越具体的文件优先级越高。文件预算不包含固定的优先级说明。此顺序不覆盖模型服务端规则、安全要求或设备权限。</string>
     <string name="workspace_scope_title">作用域</string>
     <string name="workspace_scope_project_root">项目根目录</string>
     <string name="workspace_scope_working_directory">工作目录</string>

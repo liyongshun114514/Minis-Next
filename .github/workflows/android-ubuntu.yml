@@ -188,6 +188,7 @@ jobs:
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
             --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' --tests '*ChrootFileToolsTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
+            --tests '*WorkspaceSystemPromptTest' --tests '*WorkspaceSystemChannelTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
             --tests '*SystemChannelPlacementTest' --tests '*SoulIcon*' --tests '*SoulAvatar*' \
