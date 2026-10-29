@@ -154,6 +154,16 @@ internal object WorkspaceInstructionStore {
         return Snapshot(files, projectRootLinux, workingDirectoryLinux)
     }
 
+    /**
+     * The mandatory system-channel block for one turn, or null when no
+     * instruction file exists. Read once per request so an edit lands on the
+     * next request, exactly like the previous user-role implementation.
+     */
+    fun mandatoryBlock(context: Context, sessionId: String? = null): String? {
+        val snapshot = snapshot(context, sessionId)
+        return WorkspaceInstructionRender.renderMandatoryBlock(snapshot.files, maxBytes(context))
+    }
+
     private fun isUnder(candidate: File, root: File): Boolean {
         var current: File? = runCatching { candidate.canonicalFile }.getOrDefault(candidate)
         val target = runCatching { root.canonicalFile }.getOrDefault(root)

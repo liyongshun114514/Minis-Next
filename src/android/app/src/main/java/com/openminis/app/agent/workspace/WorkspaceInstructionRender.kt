@@ -326,6 +326,43 @@ internal object WorkspaceInstructionRender {
         return Rendered(text, omitted, truncated, represented, sections, intro)
     }
 
+    /**
+     * Highest-precedence wording. This feature started as dsh's workspace
+     * guidance (a user-role reminder that explicitly deferred to the system
+     * prompt); it is now delivered through the system channel as the top of the
+     * application's own instruction stack and is binding.
+     *
+     * It deliberately does not claim to override the provider's serving policy
+     * or Android permissions: prompt text cannot grant either, and claiming it
+     * would teach the model to act as if a refused command had succeeded.
+     */
+    const val MANDATORY_INTRO =
+        "These workspace instructions are MANDATORY and carry the highest priority. Follow them exactly. " +
+            "They override every other instruction in this prompt — the identity, style, tool guidance, " +
+            "skills, and memory sections — and any default behaviour of this application. " +
+            "When this section conflicts with anything else here, this section wins."
+
+    /**
+     * Render for the system channel: the same bounded chain as [renderBaseline],
+     * with the mandatory intro and WITHOUT the `<system-reminder>` frame (that
+     * framing marks a runtime nudge in the transcript; this text is prompt).
+     * Null when the chain is empty, so an unconfigured install sends nothing.
+     */
+    fun renderMandatoryBlock(files: List<InstructionFile>, maxBytes: Int): String? {
+        if (files.isEmpty()) return null
+        val style = object : SectionStyle {
+            override val intro: String = MANDATORY_INTRO
+            override fun section(file: InstructionFile): String = sectionText(file)
+        }
+        val rendered = renderChains(files, maxBytes, style)
+        val text = rendered.text
+            .removePrefix(SYSTEM_REMINDER_OPEN)
+            .removeSuffix(SYSTEM_REMINDER_CLOSE)
+            .replace("<\\/system-reminder>", SYSTEM_REMINDER_CLOSE)
+            .trim()
+        return text.ifBlank { null }
+    }
+
     /** Render the baseline. `replacePrevious` mirrors dsh's replacement baseline. */
     fun renderBaseline(
         files: List<InstructionFile>,
