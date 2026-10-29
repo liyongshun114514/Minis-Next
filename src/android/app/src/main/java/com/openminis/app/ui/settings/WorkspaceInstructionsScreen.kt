@@ -78,12 +78,12 @@ fun WorkspaceInstructionsScreen(
         }
     }
 
+    // [T-workspace-instructions] One user-global file, not two: see
+    // WorkspaceInstructionDiscovery.globalChain.
     val globalPaths = listOf(
         WorkspaceInstructionDiscovery.DSH_HOME_LINUX + "/" + WorkspaceInstructionDiscovery.USER_GLOBAL_FILE,
-        WorkspaceInstructionDiscovery.AGENTS_HOME_LINUX + "/" + WorkspaceInstructionDiscovery.USER_GLOBAL_FILE,
     )
     val projectFiles = snapshot.files.filterNot { it.isUserGlobal }
-    val projectRootFile = "$projectRoot/${WorkspaceInstructionDiscovery.USER_GLOBAL_FILE}"
 
     Scaffold(
         topBar = {
@@ -159,20 +159,16 @@ fun WorkspaceInstructionsScreen(
                 SectionHeader(stringResource(R.string.workspace_section_project))
             }
             if (projectFiles.isEmpty()) {
+                // No create row here on purpose: the page keeps ONE editable
+                // AGENTS.md. A project file appears the moment it exists on
+                // disk (created from the file browser or by the agent), so the
+                // empty state stays a sentence instead of a second entry.
                 item {
                     Text(
                         text = stringResource(R.string.workspace_project_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                item {
-                    InstructionRow(
-                        linuxPath = projectRootFile,
-                        subtitle = stringResource(R.string.workspace_create_project_file),
-                        createHint = true,
-                        onClick = { onEdit(projectRootFile) },
                     )
                 }
             } else {

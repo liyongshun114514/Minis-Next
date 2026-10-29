@@ -36,7 +36,6 @@ internal object WorkspaceInstructionDiscovery {
 
     /** Linux-visible roots; resolved to host files through the bind-mount table. */
     const val DSH_HOME_LINUX = "/var/minis/memory"
-    const val AGENTS_HOME_LINUX = "/var/minis/shared/.agents"
 
     const val USER_GLOBAL_FILE = "AGENTS.md"
 
@@ -108,10 +107,18 @@ internal object WorkspaceInstructionDiscovery {
         file.readText(Charsets.UTF_8)
     }.getOrNull()
 
-    /** The two user-global files, broad-to-specific, deduplicated as one candidate group. */
+    /**
+     * The single user-global file.
+     *
+     * dsh loads a second user-global root (`~/.agents/AGENTS.md`). Minis keeps
+     * ONE, at `$DSH_HOME/AGENTS.md`: two near-identical paths in Settings read
+     * as a duplicate rather than as two scopes, and the shared root has no
+     * separate meaning on a phone. The project chain is untouched — that is
+     * where per-project scoping actually lives.
+     */
     fun globalChain(): List<InstructionFile> {
         val loaded = mutableListOf<InstructionFile>()
-        for (linuxRoot in listOf(DSH_HOME_LINUX, AGENTS_HOME_LINUX)) {
+        for (linuxRoot in listOf(DSH_HOME_LINUX)) {
             val linuxPath = "$linuxRoot/$USER_GLOBAL_FILE"
             val host = existingFile(linuxPath) ?: continue
             val content = readCapped(host) ?: continue

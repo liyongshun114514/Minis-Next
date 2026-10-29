@@ -928,5 +928,11 @@ internal fun ComposerEffortSlider(
     }
 }
 
-/** Compact, always-English slider tick name (`off`, `low`, `xhigh`, …). */
-private fun ThinkingLevel.effortSliderLabel(): String = displayName.lowercase()
+/**
+ * Compact, always-English slider tick name (`Off`, `Low`, `XHigh`, …).
+ *
+ * Sentence case, not lowercase: these ticks sit under the composer beside
+ * every other sentence-case label in the app, and `xhigh` read as a typo of
+ * a single lowercase word rather than as the name of a setting.
+ */
+private fun ThinkingLevel.effortSliderLabel(): String = displayName
