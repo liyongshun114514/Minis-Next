@@ -238,6 +238,9 @@ class HTTPTransport:
         # _session_id because a stateless server never sets _session_id yet
         # still must not be re-initialized.
         self._initialized = False
+        # Streamable HTTP requires the negotiated version on every request
+        # after initialize, including notifications/initialized.
+        self._protocol_version = None
 
     def _next_id(self):
         self._id += 1
@@ -332,11 +335,13 @@ class HTTPTransport:
         # "content-type" (any casing) or an incomplete Accept that omits
         # text/event-stream would slip through and some gateways reject it
         # (e.g. 401 "oauth token is not found"). Drop any case-variant of these
-        # two keys, then set the canonical values; all other headers
-        # (Authorization, etc.) keep their original casing and value.
+        # keys and transport-owned session/version headers, then set canonical
+        # values. A configured stale version must not override negotiation;
+        # fresh handshakes must not inherit a configured session or version.
+        # Other headers (Authorization, etc.) retain their casing and value.
         headers = {
             k: v for k, v in self.headers.items()
-            if k.lower() not in ("accept", "content-type")
+            if k.lower() not in ("accept", "content-type", "mcp-session-id", "mcp-protocol-version")
         }
         headers["Content-Type"] = "application/json"
         headers["Accept"] = "application/json, text/event-stream"
@@ -347,6 +352,8 @@ class HTTPTransport:
                 force_refresh=_oauth_retried)
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id
+        if self._protocol_version:
+            headers["MCP-Protocol-Version"] = self._protocol_version
         try:
             resp = httpx.post(
                 self.url, json=body, headers=headers, timeout=TIMEOUT_SECONDS,
@@ -379,19 +386,31 @@ class HTTPTransport:
         return rpc.get("result") if isinstance(rpc, dict) else rpc
 
     def initialize(self):
-        result = self._post(
-            "initialize",
-            {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "minis-mcp-cli", "version": "1.0.0"},
-            },
-        )
-        # MCP requires a notifications/initialized after a successful init.
+        # Every explicit handshake starts fresh, including ping/reconnect and
+        # retrying an interrupted handshake. Never reuse the old version header.
+        self._reset_session()
         try:
+            result = self._post(
+                "initialize",
+                {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "minis-mcp-cli", "version": "1.0.0"},
+                },
+            )
+            version = result.get("protocolVersion") if isinstance(result, dict) else None
+            # Do not hard-code the offered version: a server can negotiate a
+            # different one. Reject malformed values before using them in HTTP.
+            if (not isinstance(version, str) or not version
+                    or any(ord(c) < 33 or ord(c) > 126 for c in version)):
+                raise MCPError("PROTOCOL_ERROR", "initialize returned an invalid protocolVersion")
+            self._protocol_version = version
             self._post("notifications/initialized", notify=True)
-        except MCPError:
-            pass
+        except Exception:
+            # A failed notification is a failed handshake, not a healthy ping.
+            # Clear the half-open state so the next attempt can start cleanly.
+            self._reset_session()
+            raise
         self._initialized = True
         return result
 
@@ -409,6 +428,7 @@ class HTTPTransport:
         scratch. Used for self-healing when the server reports the session is
         stale/unknown."""
         self._session_id = None
+        self._protocol_version = None
         self._initialized = False
 
     @staticmethod

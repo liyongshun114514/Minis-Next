@@ -138,7 +138,7 @@ class ShiftingSessionServer:
                 headers={"Mcp-Session-Id": self.session_id,
                          "content-type": "application/json"},
                 text=json.dumps({"jsonrpc": "2.0", "id": body.get("id"),
-                                 "result": {}}),
+                                 "result": {"protocolVersion": "2025-06-18"}}),
             )
             # Shift AFTER responding, so the id the client caches is never the
             # one the next non-init call is validated against.
