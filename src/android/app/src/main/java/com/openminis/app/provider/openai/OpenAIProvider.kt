@@ -1200,14 +1200,26 @@ class OpenAIProvider private constructor(
         }
 
         // Chat Completions: tool calls are streamed as deltas keyed by index.
-        data class ToolCallAccumulator(var id: String = "", var name: String = "", val args: StringBuilder = StringBuilder(), var started: Boolean = false)
+        data class ToolCallAccumulator(var id: String = "", var name: String = "", val args: ToolArgumentBuffer = ToolArgumentBuffer(), var started: Boolean = false)
         val toolCallAccumulators = mutableMapOf<Int, ToolCallAccumulator>()
+        val toolCallIndex = ChatToolCallIndex()
         // Responses API: function_call items are keyed by their item_id (fc_…). We store
         // the call_id separately because the agent loop needs the call_id to correlate
         // tool results, but the next request must echo back the item_id verbatim — so we
         // emit a combined "callId|fcId" identifier that splitResponsesAPIIds() unpacks.
-        data class ResponsesToolCallAccumulator(var callId: String = "", var name: String = "", val args: StringBuilder = StringBuilder(), var started: Boolean = false)
-        val responsesToolCalls = mutableMapOf<String, ResponsesToolCallAccumulator>()
+        val responsesToolCalls = ResponsesToolCallAssembler()
+        suspend fun startResponsesCall(acc: ResponsesToolCallAssembler.Call) {
+            if (!acc.started && acc.callId.isNotBlank() && acc.name.isNotBlank()) {
+                send(LLMStreamChunk.ToolUseStart(combineResponsesAPIIds(acc.callId, acc.itemId), acc.name))
+                acc.started = true
+            }
+        }
+        suspend fun completeResponsesCall(acc: ResponsesToolCallAssembler.Call) {
+            startResponsesCall(acc)
+            val parsed = acc.args.finish()
+            send(LLMStreamChunk.ToolCallComplete(combineResponsesAPIIds(acc.callId, acc.itemId), acc.name, parsed.args,
+                rawArguments = parsed.raw, argumentError = responsesToolCalls.associationError ?: parsed.error))
+        }
         // One-shot info log the first time the Responses API streams a reasoning
         // delta — useful for confirming the Thinking pipeline is wired up when
         // diagnosing "I set thinking high but see nothing" reports.
@@ -1393,59 +1405,23 @@ class OpenAIProvider private constructor(
                             val delta = event.optString("delta", "")
                             if (delta.isNotEmpty()) send(LLMStreamChunk.Text(delta))
                         }
-                        // function_call item announced — capture call_id + name, start accumulator.
                         type == "response.output_item.added" -> {
-                            val item = event.optJSONObject("item") ?: continue
-                            val itemType = item.optString("type", "")
-                            if (itemType == "function_call") {
-                                val itemId = item.optString("id", "")
-                                val callId = item.optString("call_id", "")
-                                val name = item.optString("name", "")
-                                if (itemId.isNotEmpty() && callId.isNotEmpty() && name.isNotEmpty()) {
-                                    responsesToolCalls[itemId] = ResponsesToolCallAccumulator(callId = callId, name = name)
-                                    val combined = combineResponsesAPIIds(callId, itemId)
-                                    android.util.Log.d("ToolChain[Provider]", "→ ToolUseStart (Responses) id=$combined name=$name")
-                                    send(LLMStreamChunk.ToolUseStart(combined, name))
-                                    responsesToolCalls[itemId]?.started = true
-                                }
+                            responsesToolCalls.added(event)?.let { startResponsesCall(it) }
+                        }
+                        type == "response.function_call_arguments.delta" ||
+                            type == "response.function_call_arguments.done" -> {
+                            val acc = responsesToolCalls.arguments(event, snapshot = type.endsWith(".done"))
+                            if (acc != null) {
+                                startResponsesCall(acc)
+                                if (acc.started) send(LLMStreamChunk.ToolInputDelta(
+                                    combineResponsesAPIIds(acc.callId, acc.itemId), acc.args.toString()))
+                            } else {
+                                com.openminis.app.logging.AppLogger.warning("OpenAIProvider",
+                                    "Responses argument event could not be associated with a call")
                             }
                         }
-                        type == "response.function_call_arguments.delta" -> {
-                            val itemId = event.optString("item_id", "")
-                            val delta = event.optString("delta", "")
-                            val acc = responsesToolCalls[itemId]
-                            if (acc != null && delta.isNotEmpty()) {
-                                acc.args.append(delta)
-                                val combined = combineResponsesAPIIds(acc.callId, itemId)
-                                send(LLMStreamChunk.ToolInputDelta(combined, acc.args.toString()))
-                            } else if (acc == null) {
-                                // Pre-T107 this branch silently dropped the entire tool call
-                                // because no accumulator was set up — leaving the model with
-                                // no real tool channel and provoking <tool_call>{...} text
-                                // hallucinations. Keep a warn so any future regression here
-                                // surfaces in the daily log instead of a silent failure.
-                                com.openminis.app.logging.AppLogger.warning(
-                                    "OpenAIProvider",
-                                    "Responses API: function_call_arguments.delta for unknown item_id=$itemId — dropping"
-                                )
-                            }
-                        }
-                        // The accumulator is finalized at response.output_item.done, when the
-                        // arguments stream has flushed. The completed item carries `arguments`
-                        // as a JSON string — we prefer that authoritative value over our own
-                        // streamed buffer in case the API ever emits a corrected payload.
                         type == "response.output_item.done" -> {
-                            val item = event.optJSONObject("item") ?: continue
-                            val itemType = item.optString("type", "")
-                            if (itemType == "function_call") {
-                                val itemId = item.optString("id", "")
-                                val acc = responsesToolCalls.remove(itemId) ?: continue
-                                val argsStr = item.optString("arguments", acc.args.toString())
-                                val args = try { JSONObject(argsStr) } catch (_: Exception) { JSONObject() }
-                                val combined = combineResponsesAPIIds(acc.callId, itemId)
-                                android.util.Log.d("ToolChain[Provider]", "→ ToolCallComplete (Responses) id=$combined name=${acc.name} args=${args.toString().take(300)}")
-                                send(LLMStreamChunk.ToolCallComplete(combined, acc.name, args))
-                            }
+                            responsesToolCalls.done(event)?.let { completeResponsesCall(it) }
                         }
                         type == "response.failed" -> {
                             // [T-responses-terminal-events] Explicit terminal
@@ -1580,7 +1556,8 @@ class OpenAIProvider private constructor(
                             // When the model emitted tool calls the API returns status=completed
                             // with no stop_reason; surface "tool_use" so the agent loop knows to
                             // dispatch the calls instead of treating the turn as final.
-                            val sawToolCalls = responsesToolCalls.isNotEmpty() ||
+                            responsesToolCalls.flush(resp).forEach { completeResponsesCall(it) }
+                            val sawToolCalls = responsesToolCalls.sawCalls ||
                                 (resp?.optJSONArray("output")?.let { out ->
                                     var found = false
                                     for (i in 0 until out.length()) {
@@ -1726,17 +1703,23 @@ class OpenAIProvider private constructor(
                         }
 
                         // Tool calls (parallel: keyed by index)
-                        val toolCalls = delta?.optJSONArray("tool_calls")
+                        // Some compatible relays send the final full message rather
+                        // than more deltas. Its arguments replace (not append to) the buffer.
+                        val toolSnapshot = choice.optJSONObject("message")?.optJSONArray("tool_calls")
+                        val toolCalls = toolSnapshot ?: delta?.optJSONArray("tool_calls")
                         if (toolCalls != null) {
                             for (i in 0 until toolCalls.length()) {
                                 val tc = toolCalls.getJSONObject(i)
-                                val idx = tc.optInt("index", 0)
+                                val idx = toolCallIndex.resolve(tc, i, toolCalls.length()) ?: continue
                                 val acc = toolCallAccumulators.getOrPut(idx) { ToolCallAccumulator() }
 
                                 tc.safeOptString("id", "").let { if (it.isNotEmpty()) acc.id = it }
                                 tc.optJSONObject("function")?.let { fn ->
                                     fn.safeOptString("name", "").let { if (it.isNotEmpty()) acc.name = it }
-                                    fn.safeOptString("arguments", "").let { if (it.isNotEmpty()) acc.args.append(it) }
+                                    fn.safeOptString("arguments", "").let {
+                                        if (toolSnapshot != null) acc.args.snapshot(it)
+                                        else if (it.isNotEmpty()) acc.args.append(it)
+                                    }
                                 }
 
                                 // Emit start exactly once per tool call
@@ -1802,9 +1785,12 @@ class OpenAIProvider private constructor(
             // Emit ToolCallComplete for all accumulated tool calls
             for ((_, acc) in toolCallAccumulators) {
                 if (acc.id.isNotEmpty() && acc.name.isNotEmpty()) {
-                    val args = try { JSONObject(acc.args.toString()) } catch (_: Exception) { JSONObject() }
-                    android.util.Log.d("ToolChain[Provider]", "→ ToolCallComplete id=${acc.id} name=${acc.name} args=${args.toString().take(300)}")
-                    send(LLMStreamChunk.ToolCallComplete(acc.id, acc.name, args))
+                    val parsed = acc.args.finish()
+                    com.openminis.app.logging.AppLogger.info("ToolChain[Provider]",
+                        "ToolCallComplete name=${acc.name} argsLen=${parsed.raw.length} parseError=${parsed.error != null}")
+                    send(LLMStreamChunk.ToolCallComplete(acc.id, acc.name, parsed.args,
+                        rawArguments = parsed.raw, argumentError = if (toolCallIndex.ambiguous)
+                            "Parallel tool argument fragment lacked an unambiguous index or call ID." else parsed.error))
                 }
             }
             // Drain Responses-API tool accumulators that didn't get an output_item.done
@@ -1813,18 +1799,7 @@ class OpenAIProvider private constructor(
             // ChatViewModel.toolCalls empty: the agent loop sees no tool calls, exits,
             // and the UI hangs with the tool thumbnail spinning while the stop button
             // disappears (T247 root cause; same path hit by T237 DeepSeek truncation).
-            for ((itemId, acc) in responsesToolCalls) {
-                if (acc.callId.isNotEmpty() && acc.name.isNotEmpty()) {
-                    val args = try { JSONObject(acc.args.toString()) } catch (_: Exception) { JSONObject() }
-                    val combined = combineResponsesAPIIds(acc.callId, itemId)
-                    com.openminis.app.logging.AppLogger.warning(
-                        "OpenAIProvider",
-                        "Stream ended mid-tool-call id=$combined name=${acc.name} argsLen=${acc.args.length} — flushing as ToolCallComplete (T248)",
-                    )
-                    send(LLMStreamChunk.ToolCallComplete(combined, acc.name, args))
-                }
-            }
-            responsesToolCalls.clear()
+            responsesToolCalls.flush(null).forEach { completeResponsesCall(it) }
 
             // T321: stream ended — final tally + warning if we never saw a
             // finish_reason. The latter is the strongest signal of a server-

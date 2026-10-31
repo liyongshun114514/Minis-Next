@@ -335,5 +335,68 @@ class ToolCallDeltaAccumulationTest {
             chunks.filterIsInstance<LLMStreamChunk.ToolInputDelta>().last().accumulated,
         )
         assertNull(chunks.filterIsInstance<LLMStreamChunk.Finished>().firstOrNull()?.stopReason)
+        assertTrue(done.argumentError != null)
+        assertEquals("""{"path":"/x","content":"partia""", done.rawArguments)
+    }
+
+    @Test fun `recovering a complete file write snapshot is not tagged as truncation`() {
+        val args = JSONObject()
+        val tags = ToolJsonRepair.repair("file_write", args, """{"path":"/a","content":"complete"}""",
+            listOf(AgentToolDefinition("file_write", "", mapOf("path" to AgentToolParam("string", ""),
+                "content" to AgentToolParam("string", "")), listOf("path", "content"))))
+        assertEquals("complete", args.getString("content"))
+        assertEquals(listOf("snapshot-recovered"), tags)
+        assertFalse(tags.any { it.startsWith("truncation+") })
+    }
+
+    @Test fun `responses arguments done only is consumed by provider`() {
+        val chunks = stream(sse(
+            """{"type":"response.output_item.added","item":{"type":"function_call","id":"fc1","call_id":"c1","name":"shell_execute"}}""",
+            """{"type":"response.function_call_arguments.done","item_id":"fc1","arguments":"{\"command\":\"pwd\"}"}""",
+            """{"type":"response.output_item.done","item":{"type":"function_call","id":"fc1","call_id":"c1","name":"shell_execute","arguments":""}}""",
+            """{"type":"response.completed","response":{"status":"completed"}}""",
+        ), responses = true)
+        val done = completes(chunks).single()
+        assertEquals("pwd", done.args.getString("command"))
+        assertNull(done.argumentError)
+    }
+
+    @Test fun `completed output only creates one tool call`() {
+        val chunks = stream(sse(
+            """{"type":"response.completed","response":{"status":"completed","output":[{"type":"function_call","id":"fc1","call_id":"c1","name":"shell_execute","arguments":"{\"command\":\"pwd\"}"}]}}""",
+        ), responses = true)
+        assertEquals("pwd", completes(chunks).single().args.getString("command"))
+        assertEquals(1, starts(chunks).size)
+    }
+
+    @Test fun `indexless calls in separate deltas remain separate`() {
+        val chunks = stream(sse(
+            toolDeltas(JSONObject().put("id", "ca").put("function", JSONObject().put("name", "shell_execute").put("arguments", """{"command":"echo A"}"""))),
+            toolDeltas(JSONObject().put("id", "cb").put("function", JSONObject().put("name", "shell_execute").put("arguments", """{"command":"echo B"}"""))),
+            finishToolCalls,
+        ))
+        val calls = completes(chunks).associateBy { it.id }
+        assertEquals(2, calls.size)
+        assertEquals("echo A", calls.getValue("ca").args.getString("command"))
+        assertEquals("echo B", calls.getValue("cb").args.getString("command"))
+    }
+
+    @Test fun `full message snapshot replaces partial delta`() {
+        val full = JSONObject().put("id", "ca").put("type", "function").put("function",
+            JSONObject().put("name", "shell_execute").put("arguments", """{"command":"pwd"}"""))
+        val chunks = stream(sse(
+            toolDelta(0, "ca", "shell_execute", """{"command":"p"""),
+            """{"choices":[{"index":0,"message":{"role":"assistant","tool_calls":[$full]},"finish_reason":"tool_calls"}]}""",
+        ))
+        val done = completes(chunks).single()
+        assertEquals("pwd", done.args.getString("command"))
+        assertNull(done.argumentError)
+    }
+
+    @Test fun `malformed nonempty arguments retain error rather than pretending model sent empty object`() {
+        val chunks = stream(sse(toolDelta(0, "ca", "shell_execute", """{"command":"cut"""), finishToolCalls))
+        val done = completes(chunks).single()
+        assertTrue(done.argumentError != null)
+        assertEquals("""{"command":"cut""", done.rawArguments)
     }
 }

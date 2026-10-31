@@ -53,8 +53,10 @@ object ToolJsonRepair {
                 val candidate = tail + suffix
                 val parsed = tryParseObject(candidate) ?: continue
                 val keys = parsed.keys().asSequence().toList()
+                if (keys.isEmpty()) break
                 for (k in keys) args.put(k, parsed.opt(k))
-                repairs.add("truncation+" + if (suffix.isEmpty()) "noop" else suffix)
+                // A complete snapshot recovered unchanged is not a truncated write.
+                repairs.add(if (suffix.isEmpty()) "snapshot-recovered" else "truncation+" + suffix)
                 break
             }
         }

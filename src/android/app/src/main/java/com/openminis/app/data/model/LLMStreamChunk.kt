@@ -37,6 +37,10 @@ sealed class LLMStreamChunk {
         // the historical functionCall or the next request 400s. Null for every
         // other provider (only Gemini populates it).
         val thoughtSignature: String? = null,
+        /** Wire payload retained independently of UI throttling / chunk rings. */
+        val rawArguments: String? = null,
+        /** Non-null means parsing failed; consumers must not execute this call. */
+        val argumentError: String? = null,
     ) : LLMStreamChunk()
 
     /**

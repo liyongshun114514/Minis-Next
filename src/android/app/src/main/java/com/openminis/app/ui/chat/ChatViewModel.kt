@@ -11861,6 +11861,8 @@ class ChatViewModel(
             // [T-android-gemini3-thoughtsig / #179] toolCallId -> Gemini 3.x
             // thoughtSignature for this turn's calls (null for other providers).
             val toolCallSignatures = mutableMapOf<String, String>()
+            // Kept per response attempt; parse failures must never be repaired into commands.
+            val toolArgumentErrors = mutableMapOf<String, String>()
 
             // [T-dedupe-toolcallid 03fbcbfd] Per-turn dedupe of tool_call_id.
             // Some upstream OpenAI-compatible gateways occasionally emit
@@ -12408,6 +12410,13 @@ class ChatViewModel(
                         val toolCompleteId = dedupeToolCompleteId(chunk.id)
                         android.util.Log.d("ToolChain[VM]", "[turn=$turn] ToolCallComplete id=$toolCompleteId name=${chunk.name} args=${chunk.args.toString().take(300)}")
                         toolCalls.add(Triple(toolCompleteId, chunk.name, chunk.args))
+                        chunk.argumentError?.let { toolArgumentErrors[toolCompleteId] = it }
+                        chunk.rawArguments?.let { raw ->
+                            // A final snapshot may be the ONLY argument event the relay sent.
+                            val ring = toolInputChunkRings.getOrPut(toolCompleteId) { mutableListOf() }
+                            ring.add(raw)
+                            if (ring.size > TOOL_INPUT_CHUNK_RING_MAX) ring.removeAt(0)
+                        }
                         // [T-android-gemini3-thoughtsig / #179] Stash the Gemini
                         // 3.x thought signature keyed by the (deduped) tool call id.
                         chunk.thoughtSignature?.let { toolCallSignatures[toolCompleteId] = it }
@@ -12701,6 +12710,7 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
+                        toolArgumentErrors.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // T94 fix 2 + T256: throttle bookkeeping is per-stream
                         // attempt; reset alongside the partial-block rollback so
@@ -12792,6 +12802,7 @@ class ChatViewModel(
                             turnTextBlockIdx = -1
                             turnThinking.clear()
                             toolCalls.clear()
+                            toolArgumentErrors.clear()
                             toolCallSignatures.clear()
                             continue
                         }
@@ -12925,6 +12936,7 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
+                        toolArgumentErrors.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // loop continues — will retry collect with currentProvider
                     } else {
@@ -13657,7 +13669,8 @@ class ChatViewModel(
                         // Mutates `args` in place; downstream argsStr and preflight see
                         // the repaired payload. Mirrors iOS repairToolArgs in
                         // AIChatViewModel.swift.
-                        val repairs = com.openminis.app.provider.ToolJsonRepair.repair(
+                        val argumentError = toolArgumentErrors[id]
+                        val repairs = if (argumentError != null) emptyList() else com.openminis.app.provider.ToolJsonRepair.repair(
                             name, args, toolInputChunkRings[id]?.lastOrNull(), agentTools,
                         )
                         if (repairs.isNotEmpty()) {
@@ -13784,7 +13797,7 @@ class ChatViewModel(
                         // AIChatViewModel.swift. Synthesizes a tool_result error so the
                         // model can self-correct on the next turn without us spawning
                         // shells or touching the filesystem on `{}` args.
-                        val preflightError = preflightValidateToolCall(name, args, agentTools)
+                        val preflightError = argumentError ?: preflightValidateToolCall(name, args, agentTools)
                         if (preflightError != null) {
                             val chunkRing: List<String> = toolInputChunkRings.remove(id) ?: emptyList()
                             AppLogger.warning(
@@ -13792,20 +13805,19 @@ class ChatViewModel(
                                 "BLOCKED tool=$name id=$id reason=\"$preflightError\" " +
                                     "argsKeys=[${args.keys().asSequence().toList().sorted().joinToString(",")}] " +
                                     "chunkCount=${chunkRing.size} " +
-                                    "lastChunk=<<<${chunkRing.lastOrNull()?.take(500) ?: ""}>>>"
+                                    "argumentParseError=${argumentError != null} " +
+                                    "rawBytes=${chunkRing.lastOrNull()?.toByteArray(Charsets.UTF_8)?.size ?: 0}"
                             )
-                            chunkRing.forEachIndexed { i, snap ->
-                                AppLogger.warning(
-                                    "ToolPreflight",
-                                    "  chunk[$i] bytes=${snap.toByteArray(Charsets.UTF_8).size} raw=<<<${snap.take(500)}>>>"
-                                )
-                            }
                             // English literal — string resource lookup intentionally
                             // avoided to keep this commit independent of any in-flight
                             // strings.xml refactor in other sessions. Promote to a
                             // localized R.string entry in a follow-up if needed.
                             val uiMessage = "Blocked invalid tool call"
-                            val modelMessage = "Error: Tool call rejected before execution. $preflightError The arguments your client sent were empty or missing required fields — re-issue the call with all required parameters filled in. Do not retry with the same empty arguments."
+                            val modelMessage = if (argumentError != null) {
+                                "Error: Tool call rejected before execution. $argumentError No operation was performed. Re-issue a complete JSON object with all required parameters; split large payloads into smaller calls. Do not repeat the same malformed arguments."
+                            } else {
+                                "Error: Tool call rejected before execution. $preflightError The received arguments were empty or missing required fields — re-issue the call with all required parameters filled in. Do not retry with the same empty arguments."
+                            }
                             val blockIdxPre = allToolBlocks.indexOfFirst { it.id == id }
                             if (blockIdxPre >= 0) {
                                 val elapsedPre = System.currentTimeMillis() - allToolBlocks[blockIdxPre].startTimeMs
