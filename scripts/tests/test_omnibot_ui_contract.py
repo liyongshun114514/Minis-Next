@@ -168,6 +168,34 @@ class UntouchedLogicTest(unittest.TestCase):
                              f"{rel}: the port removed/renamed a function signature: {removed_functions}")
 
 
+class PaletteParityTest(unittest.TestCase):
+    def test_reference_light_and_dark_tokens_are_exact(self):
+        text = (JAVA / 'ui/theme/OmniPalette.kt').read_text()
+        fields = 'pageBackground surfacePrimary surfaceSecondary surfaceElevated borderSubtle borderStrong textPrimary textSecondary textTertiary accentPrimary brandPrimary brandSurface segmentTrack segmentThumb overlayScrim previewFallback shadowColor'.split()
+        expected = {
+            'Light': 'FFF6F6F6 FFFFFFFF FFF0F0F0 FFE7E7E7 FFE4E4E4 FFCECECE FF161616 FF777777 FF929292 FF161616 FF2C7FEB FFE6EDFF FFF0F0F0 FFFFFFFF 4D000000 FFF6F6F6 0D000000',
+            'Dark': 'FF151515 FF202020 FF292929 FF333333 FF383838 FF4A4A4A FFF3F3F3 FFB0B0B0 FF8E8E8E FFF3F3F3 FF98AD90 FF2E382D FF292929 FF3A3A3A A6000000 FF1B1B1B 26000000',
+        }
+        for mode, values in expected.items():
+            body = text.split('val Omni' + mode + 'Palette = OmniPalette(', 1)[1].split('\n)', 1)[0]
+            actual = dict(re.findall(r'(\w+)\s*=\s*Color\(0x([0-9A-Fa-f]{8})\)', body))
+            self.assertEqual(dict(zip(fields, values.split())), {field: actual.get(field) for field in fields})
+
+    def test_primary_roles_and_user_bubbles_are_not_old_accent_colors(self):
+        text = (JAVA / 'ui/theme/Theme.kt').read_text()
+        for mode in ('Light', 'Dark'):
+            self.assertIn('primary = Omni' + mode + 'Palette.accentPrimary', text)
+        self.assertNotIn('TealPrimary', text)
+        chat = (JAVA / 'ui/theme/ChatColors.kt').read_text()
+        self.assertEqual(2, chat.count('userBubble = p.surfaceElevated'))
+
+    def test_ci_executes_render_tests_without_skipping(self):
+        workflow = (ROOT / '.github/workflows/android-ubuntu.yml').read_text()
+        self.assertIn("--tests '*OmniPresentationRenderTest'", workflow)
+        self.assertIn('Missing or skipped UI acceptance tests', workflow)
+        self.assertIn('test_omnibot_ui_contract.py', workflow)
+
+
 class HomeFunctionPreservationTest(unittest.TestCase):
     def test_empty_home_still_has_task_and_shell_entries(self):
         text = (JAVA / 'ui/sessions/SessionListScreen.kt').read_text()

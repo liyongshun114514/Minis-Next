@@ -73,7 +73,7 @@ private fun chatPaletteFor(p: OmniPalette): ChatPalette = if (!p.isDark) {
         secondaryText = p.textSecondary,
         tertiaryText = p.textTertiary,
         disabledText = p.textTertiary,
-        userBubble = Color(0x1E787880),
+        userBubble = p.surfaceElevated,
         toolBg = p.surfaceSecondary,
         toolBorder = p.borderSubtle,
         toolCapsuleBg = p.surfaceSecondary,
@@ -111,12 +111,9 @@ private fun chatPaletteFor(p: OmniPalette): ChatPalette = if (!p.isDark) {
         secondaryText = p.textSecondary,
         tertiaryText = p.textTertiary,
         disabledText = p.textTertiary,
-        // [T-android-user-bubble-dark-contrast] The old 0x247676D7 was a 14%-alpha
-        // translucent blue-grey that washed out to near-invisible on the #000 chat
-        // background on real (≈500-nit) displays. Keep the OPAQUE cool slate-blue so
-        // the user's own messages read as a distinct accent; white/f3 text stays
-        // legible on it. The new #151515 page does not change that reasoning.
-        userBubble = Color(0xFF2F3A5C),
+        // The reference's default theme-driven user bubble is the elevated
+        // neutral surface, not the previous blue-grey accent.
+        userBubble = p.surfaceElevated,
         toolBg = p.surfaceSecondary,
         toolBorder = p.borderSubtle,
         toolCapsuleBg = p.surfacePrimary,
