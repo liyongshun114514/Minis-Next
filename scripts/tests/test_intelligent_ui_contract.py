@@ -46,8 +46,15 @@ class IntelligentUiContractTest(unittest.TestCase):
  def test_composer_uses_shared_geometry_for_safe_edges_and_corners(self):
   s=(JAVA/'ui/chat/ChatScreen.kt').read_text()
   self.assertIn('ComposerSurfaceGeometry.bottomPaddingDp(',s)
-  self.assertIn('ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()',s)
-  self.assertIn('cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp',s)
+  self.assertIn('.composerMorphSurface(',s)
+  self.assertIn('morph = composerMorph,',s)
+  motion=(JAVA/'ui/chat/ChatComposerMotion.kt').read_text()
+  self.assertIn('val ShellRadius: Dp = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp',motion)
+  self.assertIn('ComposerMorphMath.cornerRadiusPx(',motion)
+  self.assertIn('restingRadiusPx = restingRadius.toPx()',motion)
+  # The resting radius stays single-source, while focus may animate from a
+  # stadium. A fixed call-site radius would break that visual contract.
+  self.assertNotIn('cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp,',s)
  def test_cloud_build_has_no_release_publication(self):
   s=(ROOT/'.github/workflows/android-ubuntu.yml').read_text()
   self.assertNotIn('contents: write',s)
