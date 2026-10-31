@@ -34,6 +34,28 @@ class UbuntuDirectoryWiringTest(unittest.TestCase):
         self.assertNotIn('Alpine Linux filesystem', text)
         self.assertIn('Ubuntu', text)
 
+    def test_rootfs_screen_omits_legacy_guest_notice(self):
+        text = (JAVA / 'ui/sandbox/RootfsManagementScreen.kt').read_text()
+        for removed in ('迁移保留的旧环境', '原客体数据已保留', 'legacyBackupPath'):
+            self.assertNotIn(removed, text)
+        # Real migration failures must remain visible, not be hidden with the notice.
+        self.assertIn('state.migrationError', text)
+
+    def test_rootfs_ui_state_no_longer_tracks_legacy_notice_path(self):
+        text = (JAVA / 'ui/sandbox/RootfsManagementViewModel.kt').read_text()
+        self.assertNotIn('legacyBackupPath', text)
+        self.assertNotIn('manager.legacyBackupDirs', text)
+        self.assertIn('migrationError = manager.rootfsMigrationError', text)
+
+    def test_removing_notice_does_not_auto_delete_migration_backups(self):
+        # This is source wiring validation; actual migration behavior is covered
+        # by RootfsDirectoryMigration{,Integration}Test in the Android CI job.
+        manager = (JAVA / 'sandbox/RootfsManager.kt').read_text()
+        self.assertIn('val preserved = preserveExistingRootfs()', manager)
+        self.assertIn('lastLegacyBackup = preserved', manager)
+        storage = (JAVA / 'ui/settings/StorageUsageViewModel.kt').read_text()
+        self.assertIn('manager.legacyBackupDirs', storage)
+
     def test_cloud_requires_real_migration_reports(self):
         text = (ROOT / '.github/workflows/android-ubuntu.yml').read_text()
         for name in ('RootfsDirectoryMigrationTest', 'RootfsDirectoryMigrationIntegrationTest'):

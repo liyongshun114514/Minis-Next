@@ -185,16 +185,6 @@ fun RootfsManagementScreen(
                 }
             }
 
-            state.legacyBackupPath?.let { backupPath ->
-                SettingsSection(title = "迁移保留的旧环境") {
-                    ListItem(
-                        headlineContent = { Text("原客体数据已保留，未自动删除") },
-                        supportingContent = { Text(backupPath, style = MaterialTheme.typography.bodySmall) },
-                        colors = transparentListItemColors(),
-                    )
-                }
-            }
-
             if (state.isInstalled) {
                 // --- Browse section ---
                 SettingsSection(title = stringResource(R.string.rootfs_browse_section)) {

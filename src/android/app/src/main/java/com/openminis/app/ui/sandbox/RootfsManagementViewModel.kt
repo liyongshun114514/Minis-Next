@@ -27,11 +27,6 @@ data class RootfsManagementUiState(
     /** Guest distribution label, for screens that surface it. */
     val distributionName: String = SandboxDistribution.DISPLAY_NAME,
     /**
-     * Where the previous (Alpine or broken) rootfs was preserved during the
-     * most recent migration, or null. Never deleted automatically.
-     */
-    val legacyBackupPath: String? = null,
-    /**
      * Non-null while [RootfsManager.rootfsMigrationError] blocks the canonical
      * `Ubuntu-rootfs` directory. Installation and every reader are stopped in
      * that state, so the screen must say why instead of offering an install
@@ -92,8 +87,6 @@ class RootfsManagementViewModel : ViewModel() {
             isInstalled = manager.isInstalled,
             rootfsPath = manager.rootfsDir.absolutePath,
             distributionName = SandboxDistribution.DISPLAY_NAME,
-            legacyBackupPath = manager.lastLegacyBackup?.absolutePath
-                ?: manager.legacyBackupDirs.lastOrNull()?.absolutePath,
             migrationError = manager.rootfsMigrationError,
         )
 
