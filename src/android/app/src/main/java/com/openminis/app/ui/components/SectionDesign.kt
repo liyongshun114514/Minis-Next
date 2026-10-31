@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,102 +14,106 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.openminis.app.ui.theme.OmniColors
+import com.openminis.app.ui.theme.OmniDimens
+import com.openminis.app.ui.theme.omniTextStyle
 
 /**
  * Single source of truth for Settings section-card visual rhythm.
- * Mirror of iOS SwiftUI Form / List grouped style; the values below are
- * derived from the iOS reference screenshot and its pixel measurements.
  *
- * All Settings screens (ProviderDetail / MountedFolders / MountDetail /
- * ModelGroups / EnvironmentVariables / etc.) MUST consume from this
- * object rather than hard-coding values inline. When a value changes
- * here every screen updates atomically.
+ * [T-omnibot-ui-port] Re-parameterised from the iOS SwiftUI Form measurements to
+ * the OmniBot inset-grouped language (visual params only — the OmniBot source is
+ * AGPL+commercial and was not copied; see OmniPalette.kt):
+ *
+ *   • 22dp page inset, 22dp flat card (no shadow, no tonal elevation)
+ *   • rows separated by 0.65dp hairlines inset to the title column (54dp)
+ *   • 26dp between groups, 16dp from a group label to its card
+ *   • 14sp regular tertiary label instead of a semi-bold onSurface title
+ *
+ * All Settings screens (ProviderDetail / MountedFolders / ModelGroups /
+ * EnvironmentVariables / …) MUST consume from this object rather than
+ * hard-coding values inline; when a value changes here every screen updates
+ * atomically.
  */
 object SectionDesign {
-    /** Outer column padding from screen edge. iOS UIKit insets.left/.right = 16. */
-    val ScreenHorizontalPadding = 16.dp
+    /** Outer column padding from screen edge. Flutter settings page inset = 22dp. */
+    val ScreenHorizontalPadding = OmniDimens.PageHorizontal
 
-    /** Card corner radius. iOS UITableViewCell rounded section uses ~10pt. */
-    val CardShape = RoundedCornerShape(12.dp)
+    /** Card corner radius. Omni groups/cards use a flat 22dp surface. */
+    val CardShape = RoundedCornerShape(22.dp)
 
     /** Distance from screen top → first section header. */
-    val FirstSectionTopGap = 16.dp
+    val FirstSectionTopGap = OmniDimens.PageVerticalTop
 
     /** Distance from previous section's footer → next section header. */
-    val SectionTopGap = 24.dp
+    val SectionTopGap = OmniDimens.SectionGap
 
-    /** Distance from a section header → its card. */
-    val HeaderToCardGap = 8.dp
+    /** Distance from a section header → its card (Omni label padding-bottom). */
+    val HeaderToCardGap = 16.dp
 
     /** Distance from card → its footer caption. */
     val CardToFooterGap = 8.dp
 
-    /** Distance between adjacent rows / cards inside the same section
-     *  (e.g. mount list rows). iOS uses no gap with internal dividers
-     *  but Android's surfaceContainer color contrast is weaker so keep
-     *  a tight 8dp visual break. */
-    val InterRowGap = 8.dp
+    /** Distance between adjacent rows / cards inside the same section.
+     *  Omni groups are divider-separated, so there is no gap between rows. */
+    val InterRowGap = 0.dp
 
-    /** Standard row height inside a card. iOS row ≈ 44pt. */
-    val RowMinHeight = 44.dp
+    /** Standard row height inside a card (one- and two-line rows match). */
+    val RowMinHeight = OmniDimens.RowMinHeight
 
-    /** [T-android-settings-ui-md3] #3 Single-line text-field min height. MD3
-     *  text fields are 56dp; the section rows were normalized to the same 56dp
-     *  so an input field lines up with the toggle/value rows around it instead
-     *  of reading as the old ~44/24dp mix. Kept separate from [RowMinHeight] so
-     *  dropdowns / plain rows that intentionally sit tighter are unaffected. */
+    /** [T-android-settings-ui-md3] #3 Single-line text-field min height.
+     *  Kept equal to [RowMinHeight] so an input lines up with the toggle/value
+     *  rows around it. */
     val TextFieldMinHeight = 56.dp
 
     /** Horizontal padding inside the card (from card-inner-edge to row content). */
-    val RowHorizontalPadding = 16.dp
+    val RowHorizontalPadding = OmniDimens.RowHorizontal
 
     /** Vertical padding inside a row (top + bottom each). */
-    val RowVerticalPadding = 10.dp
+    val RowVerticalPadding = OmniDimens.RowVertical
 
     /** Vertical padding wrapping the inner Column of a [SectionCard], so the
-     *  first/last row don't hug the card's top/bottom edge. iOS Settings
-     *  reserves a small gap here even though row dividers stay flush. */
-    val CardInnerVerticalPadding = 6.dp
+     *  first/last row don't hug the card's top/bottom edge. Omni rows already
+     *  carry their own 16dp, so the card adds none. */
+    val CardInnerVerticalPadding = 0.dp
 
-    /** Inner-card divider thickness. */
-    val DividerThickness = 0.5.dp
+    /** Inner-card divider thickness (OmniBot hairline). */
+    val DividerThickness = OmniDimens.DividerThickness
 
-    /** Inner-card divider left inset (so it tucks under content text rather
-     *  than touching the card edge — matches iOS). */
-    val DividerStartInset = 16.dp
+    /** Inner-card divider left inset: 18 (row inset) + 22 (icon box) + 14 (gap),
+     *  so the rule starts exactly under the row title. */
+    val DividerStartInset = OmniDimens.DividerStartInset
 
-    /** Card background — match iOS pure surface (white in light, near-black in dark).
-     *  T313 follow-up: The app theme deliberately overrides Material3 semantics —
-     *  `surface` is the page-level grouped background (gray / black) while
-     *  `surfaceContainerLow` is the brighter card foreground. Using
-     *  `surfaceContainerLow` here gives us the card color iOS Settings expects. */
+    /** Card background — the flat Omni `surfacePrimary` (white / #202020).
+     *  Deliberately NOT `surfaceContainerLow`: Omni cards are shadowless and
+     *  untinted, and the Material scheme is aligned to the same table anyway. */
     @Composable
     @ReadOnlyComposable
-    fun cardColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
+    fun cardColor(): Color = OmniColors.surfacePrimary
 
-    /** Section background (the gray behind the cards) — match iOS systemGroupedBackground.
-     *  Pairs with [cardColor]: this token is the dimmer page-level surface
-     *  (`background` = light gray / near-black), so cards painted in
-     *  `surfaceContainerLow` stand out against it. */
+    /** Section background (the grey behind the cards) — `pageBackground`
+     *  (#F6F6F6 light / #151515 dark). */
     @Composable
     @ReadOnlyComposable
-    fun screenBackgroundColor(): Color = MaterialTheme.colorScheme.background
+    fun screenBackgroundColor(): Color = OmniColors.pageBackground
 
-    /** Inner-card divider color — match iOS systemFill α 0.3. */
+    /** Inner-card divider colour — Omni fades the hairline on dark surfaces. */
     @Composable
     @ReadOnlyComposable
-    fun dividerColor(): Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    fun dividerColor(): Color = OmniColors.borderSubtle.copy(
+        alpha = if (OmniColors.isDark) 0.55f else 0.75f,
+    )
 
-    /** Footer caption color (gray text below cards). */
+    /** Footer caption colour (tertiary text below cards). */
     @Composable
     @ReadOnlyComposable
-    fun footerColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant
+    fun footerColor(): Color = OmniColors.textTertiary
 }
 
 /**
- * Section title above a card. iOS reference uses 17pt SemiBold sentence-case
- * onSurface — bigger and more present than Material's labelMedium ALL CAPS
- * onSurfaceVariant which fades into the background.
+ * Group label above a card. Omni uses 14sp regular tertiary text — quieter than
+ * Material's labelMedium and deliberately not upper-cased.
  */
 @Composable
 fun SectionHeader(
@@ -119,9 +122,12 @@ fun SectionHeader(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = omniTextStyle(
+            size = OmniDimens.GroupLabelSize,
+            color = OmniColors.textTertiary,
+            weight = FontWeight.Normal,
+            lineHeight = 19.sp,
+        ),
         modifier = modifier.padding(
             start = SectionDesign.ScreenHorizontalPadding,
             end = SectionDesign.ScreenHorizontalPadding,
@@ -131,7 +137,7 @@ fun SectionHeader(
 }
 
 /**
- * Footer caption below a card. iOS reference uses 13pt secondary onSurfaceVariant.
+ * Footer caption below a card. Omni uses 12sp tertiary text, 8dp under the card.
  */
 @Composable
 fun SectionFooter(
@@ -140,22 +146,23 @@ fun SectionFooter(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = SectionDesign.footerColor(),
+        style = omniTextStyle(
+            size = OmniDimens.FooterSize,
+            color = SectionDesign.footerColor(),
+            lineHeight = 17.5.sp,
+        ),
         modifier = modifier.padding(
-            start = SectionDesign.ScreenHorizontalPadding,
-            end = SectionDesign.ScreenHorizontalPadding,
+            start = SectionDesign.ScreenHorizontalPadding + 6.dp,
+            end = SectionDesign.ScreenHorizontalPadding + 6.dp,
             top = SectionDesign.CardToFooterGap,
         ),
     )
 }
 
 /**
- * Container for one or more rows in a settings section. Replaces ad-hoc
- * Surface(surfaceContainerLow, RoundedCornerShape(12.dp)) call sites that
- * each pick their own color / shape / padding. Pass child rows; they get
- * the card background + corner clipping and divide themselves with
- * [SectionDivider] when stacked.
+ * Container for one or more rows in a settings section: the flat Omni card
+ * (shadowless, 22dp, surfacePrimary). Pass child rows; they divide themselves
+ * with [SectionDivider] when stacked.
  */
 @Composable
 fun SectionCard(
@@ -165,6 +172,8 @@ fun SectionCard(
     Surface(
         color = SectionDesign.cardColor(),
         shape = SectionDesign.CardShape,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = SectionDesign.ScreenHorizontalPadding),
@@ -176,7 +185,7 @@ fun SectionCard(
     }
 }
 
-/** Divider between rows inside a [SectionCard]. */
+/** Hairline between rows inside a [SectionCard], inset to the title column. */
 @Composable
 fun SectionDivider() {
     HorizontalDivider(
@@ -188,23 +197,13 @@ fun SectionDivider() {
 
 /**
  * Inline label placed directly above a [SectionTextField] (or
- * [SectionDropdown]) when several labelled fields share a section but
- * each row needs its own short caption — too small a scope for a full
- * [SectionHeader]. Used by ModelEntryDetail / AddCustomModel /
- * AddProvider for fields like "Model ID" / "Display Name" / "Context Window".
+ * [SectionDropdown]) when several labelled fields share a section but each row
+ * needs its own short caption — too small a scope for a full [SectionHeader].
  *
- * The previous `label =` slot on [SectionTextField] used Material3's
- * floating-label DecorationBox, but the row's tight `RowVerticalPadding`
- * (10dp) leaves no headroom — input glyphs overlap the floating label.
- * iOS Form puts every label outside its cell, so we follow the same
- * pattern: render the caption with this composable, then drop the
- * field below it.
- *
- * Horizontal padding is 0: callsites place this inside [SettingsCardBlock]
- * (or a manually padded Column) which already adds the 16dp inset. Adding
- * our own 16dp on top would double-indent the label relative to sibling
- * SectionHeader / description text / radio rows — see T353. Mirrors
- * SectionTextField's contentPadding=0 from T352.
+ * Horizontal padding is 0: callsites place this inside [SettingsCardBlock] (or a
+ * manually padded Column) which already adds the 18dp inset. Adding our own
+ * inset on top would double-indent the label relative to sibling
+ * SectionHeader / description text / radio rows — see T353.
  */
 @Composable
 fun RowLabel(
@@ -213,8 +212,10 @@ fun RowLabel(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = omniTextStyle(
+            size = OmniDimens.RowSubtitleSize,
+            color = OmniColors.textSecondary,
+        ),
         modifier = modifier.padding(bottom = 6.dp),
     )
 }

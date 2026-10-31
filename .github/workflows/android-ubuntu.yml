@@ -8,6 +8,10 @@ on:
         type: choice
         options: [release, debug]
         default: release
+      ui_preview:
+        description: Isolated UI acceptance package (never replaces production data)
+        type: boolean
+        default: false
   push:
     branches: [minis-next]
     paths: ["src/android/**", "src/shared/**", "deps/**", "scripts/**", ".github/workflows/android-ubuntu.yml"]
@@ -28,6 +32,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 0
       - name: Install rootfs build prerequisites on CI runner
         run: |
           sudo apt-get update
@@ -52,10 +57,12 @@ jobs:
       ANDROID_NDK_VERSION: 28.2.13676358
       GRADLE_OPTS: -Dorg.gradle.daemon=false
       NEXT_STORE_PASSWORD: ${{ secrets.NEXT_STORE_PASSWORD }}
+      MINIS_UI_PREVIEW: ${{ inputs.ui_preview && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 0
       - name: Initialize Android PRoot source only
         run: git submodule update --init --depth 1 deps/proot
       - uses: actions/setup-java@v4
@@ -167,6 +174,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_mcp_runtime.py -v
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_directory_wiring.py -v
           python3 scripts/tests/test_native_composer_port.py
+          python3 -m unittest discover -s scripts/tests -p test_omnibot_ui_contract.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_brand_copy.py -v
           python3 scripts/test_offload_client.py
@@ -195,6 +203,7 @@ jobs:
           GRADLE_ARGS=(--no-daemon --max-workers=1 --no-parallel
             "-Dorg.gradle.jvmargs=-Xmx${HEAP_MB}m -XX:+UseG1GC -Dfile.encoding=UTF-8"
             -Pkotlin.compiler.execution.strategy=in-process)
+          if [ "$MINIS_UI_PREVIEW" = true ]; then GRADLE_ARGS+=(-PminisUiPreview=true); fi
           ./gradlew "${GRADLE_ARGS[@]}" \
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
             --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
@@ -223,7 +232,8 @@ jobs:
             --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
             --tests '*ToolArgumentBufferTest' --tests '*ResponsesToolCallAssemblerTest' --tests '*ChatToolCallIndexTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest' \
-            --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest'
+            --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
+            --tests '*OmniMotionTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions

@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -54,11 +54,11 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,12 +73,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openminis.app.ui.theme.OmniColors
+import com.openminis.app.ui.theme.OmniDimens
+import com.openminis.app.ui.theme.omniTextStyle
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.BuildConfig
 import com.openminis.app.KairosBrandLinks
 import com.openminis.app.R
 import com.openminis.app.ui.components.openExternalUrl
-import com.openminis.app.i18n.uppercaseForDisplay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,8 +135,19 @@ fun SettingsScreen(
     var showFeedbackSheet by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+            // [T-omnibot-ui-port] Omni bar: centred 17sp medium title over the
+            // page background (no tinted or elevated app bar).
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.settings_title),
+                        style = omniTextStyle(
+                            size = OmniDimens.BarTitleSize,
+                            color = OmniColors.textPrimary,
+                            weight = FontWeight.Medium,
+                        ),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -143,8 +156,14 @@ fun SettingsScreen(
                         )
                     }
                 },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = OmniColors.pageBackground,
+                    titleContentColor = OmniColors.textPrimary,
+                    navigationIconContentColor = OmniColors.textPrimary,
+                ),
             )
         },
+        containerColor = OmniColors.pageBackground,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -410,7 +429,8 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            // Omni page bottom inset.
+            Spacer(Modifier.height(OmniDimens.PageVerticalBottom))
         }
     }
 
@@ -471,27 +491,28 @@ private fun FeedbackSheetItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = OmniDimens.RowHorizontal, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(22.dp),
+            tint = OmniColors.textPrimary,
+            modifier = Modifier.size(OmniDimens.LeadingIconSize),
         )
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(OmniDimens.LeadingIconGap))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = omniTextStyle(size = OmniDimens.RowTitleSize, color = OmniColors.textPrimary),
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = omniTextStyle(
+                        size = OmniDimens.RowSubtitleSize,
+                        color = OmniColors.textSecondary,
+                    ),
                 )
             }
         }
@@ -597,7 +618,12 @@ private fun buildFeedbackMailto(): String {
 }
 
 /**
- * A grouped settings section with header and optional footer, matching iOS grouped List sections.
+ * A grouped settings section: 22dp page inset, flat 22dp `surfacePrimary` card,
+ * 14sp tertiary label 16dp above it, 12sp tertiary footer 8dp below, and 26dp
+ * of page background between groups.
+ *
+ * [T-omnibot-ui-port] Replaces the iOS-grouped variant (upper-cased 11sp label,
+ * 12dp `surfaceContainerLow` card, 20dp top padding).
  */
 @Composable
 private fun SettingsSection(
@@ -608,45 +634,61 @@ private fun SettingsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 20.dp),
+            .padding(top = OmniDimens.SectionGap),
     ) {
-        // Section header
+        // Group label
         Text(
-            text = title.uppercaseForDisplay(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.5.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            text = title,
+            style = omniTextStyle(
+                size = OmniDimens.GroupLabelSize,
+                color = OmniColors.textTertiary,
+                lineHeight = 19.sp,
+            ),
+            modifier = Modifier.padding(
+                start = OmniDimens.PageHorizontal,
+                end = OmniDimens.PageHorizontal,
+                bottom = 16.dp,
+            ),
         )
 
-        // Section card
+        // Flat group surface
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(color = MaterialTheme.colorScheme.surfaceContainerLow),
+                .padding(horizontal = OmniDimens.PageHorizontal)
+                .clip(RoundedCornerShape(OmniDimens.SurfaceRadius))
+                .background(color = OmniColors.surfacePrimary),
         ) {
             content()
         }
 
-        // Section footer
+        // Footer caption
         if (footer != null) {
             Text(
                 text = footer,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                lineHeight = 16.sp,
+                style = omniTextStyle(
+                    size = OmniDimens.FooterSize,
+                    color = OmniColors.textTertiary,
+                    lineHeight = 17.sp,
+                ),
+                modifier = Modifier.padding(
+                    start = OmniDimens.PageHorizontal + 6.dp,
+                    end = OmniDimens.PageHorizontal + 6.dp,
+                    top = 8.dp,
+                    bottom = 4.dp,
+                ),
             )
         }
     }
 }
 
 /**
- * A single settings row item with colored icon, title, optional subtitle, and chevron.
- * Styled to match iOS settings rows with SF Symbol-like colored circle icons.
+ * A single settings row: bare 20dp leading glyph on a 22dp box, 15sp title,
+ * 12sp secondary subtitle, optional update dot and an 18dp tertiary chevron.
+ *
+ * [T-omnibot-ui-port] The filled round colour chip gave way to Omni's bare
+ * glyph (the caller's `iconColor` is kept as the tint so the existing per-row
+ * colour coding survives), and insets/heights now come from [OmniDimens].
  */
 @Composable
 private fun SettingsItem(
@@ -663,45 +705,47 @@ private fun SettingsItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = OmniDimens.RowMinHeight)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = OmniDimens.RowHorizontal, vertical = OmniDimens.RowVertical),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Colored circle icon (matching iOS settings style)
+            // Leading glyph (Omni rows are monochrome: no colour chip)
             Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .background(
-                        color = iconColor,
-                        shape = CircleShape,
-                    ),
+                modifier = Modifier.size(OmniDimens.LeadingIconBox),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp),
+                    tint = iconColor,
+                    modifier = Modifier.size(OmniDimens.LeadingIconSize),
                 )
             }
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(OmniDimens.LeadingIconGap))
 
             // Title + subtitle
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(2.5.dp),
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = omniTextStyle(
+                        size = OmniDimens.RowTitleSize,
+                        color = OmniColors.textPrimary,
+                        lineHeight = 20.7.sp,
+                    ),
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = omniTextStyle(
+                            size = OmniDimens.RowSubtitleSize,
+                            color = OmniColors.textSecondary,
+                            lineHeight = 17.4.sp,
+                        ),
                     )
                 }
             }
@@ -715,21 +759,24 @@ private fun SettingsItem(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp),
+                tint = OmniColors.textTertiary,
+                modifier = Modifier.size(18.dp),
             )
         }
 
-        // Divider between items (inset to match icon alignment)
+        // Hairline between rows, inset to the title column
         if (showDivider) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 58.dp, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .padding(start = OmniDimens.DividerStartInset, end = OmniDimens.RowHorizontal)
+                    .height(OmniDimens.DividerThickness)
+                    .background(
+                        OmniColors.borderSubtle.copy(
+                            alpha = if (OmniColors.isDark) 0.55f else 0.75f,
+                        ),
+                    ),
             )
         }
     }
 }
-

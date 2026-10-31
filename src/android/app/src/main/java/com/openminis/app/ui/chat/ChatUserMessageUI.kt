@@ -387,7 +387,11 @@ internal fun UserMessageBubble(
                     ) {
                         val textColor = if (isQueued) secondaryTextColor else MaterialTheme.colorScheme.onSurface
                         val bubbleBg = if (isQueued) Color.Transparent else userBubbleColor
-                        val shape = RoundedCornerShape(18.dp)
+                        // [T-omnibot-message-bubble] 16dp corners (OmniBot's
+                        // message_bubble.dart: BorderRadius.circular(16)) — one
+                        // step softer than the old 18dp so the bubble reads as a
+                        // card rather than a capsule at the composer's 20dp.
+                        val shape = RoundedCornerShape(16.dp)
                         val dashedStroke = if (isQueued) {
                             Modifier.drawBehind {
                                 val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
@@ -396,7 +400,7 @@ internal fun UserMessageBubble(
                                         floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f
                                     ),
                                 )
-                                val r = 18.dp.toPx()
+                                val r = 16.dp.toPx()
                                 drawRoundRect(
                                     color = secondaryTextColor.copy(alpha = 0.5f),
                                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
@@ -443,7 +447,12 @@ internal fun UserMessageBubble(
                                         .background(bubbleBg, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        // [T-omnibot-message-bubble] 14×10 content
+                                        // padding (OmniBot message_bubble.dart
+                                        // user bubble) — the extra 2dp of vertical
+                                        // air keeps two-line bubbles from reading
+                                        // as cramped against the 16dp corners.
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
                                 )
                             }
                         }

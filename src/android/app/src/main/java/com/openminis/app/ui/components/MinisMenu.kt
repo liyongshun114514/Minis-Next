@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.Surface
@@ -40,10 +39,13 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.openminis.app.ui.theme.ChatColors
+import com.openminis.app.ui.theme.OmniColors
+import com.openminis.app.ui.theme.OmniDimens
+import com.openminis.app.ui.theme.omniTextStyle
 
 /**
  * App-wide popup menu with a unified look: softer rounded corners, a lifted
@@ -60,20 +62,15 @@ fun MinisMenu(
     offset: DpOffset = DpOffset(0.dp, 0.dp),
     scrollState: ScrollState = rememberScrollState(),
     properties: PopupProperties = PopupProperties(focusable = true),
-    // [T-android-menu-launcher-shadow] 20dp (was 14) — moved toward the Pixel
-    // Launcher shortcut popup's plumper corner language the user asked us to
-    // mirror (the launcher itself sits near 28dp, but that reads bloated on a
-    // dense 8-item list menu).
-    shape: Shape = RoundedCornerShape(20.dp),
-    // [T-android-popup-dark-bg] In dark mode bare `surface` is nearly the same
-    // as the chat/list background, so these popups (session-row long-press menu,
-    // top-bar tools menu, message-bubble menu) read as near-invisible light
-    // cards. Use the distinctly-elevated `surfaceContainerHigh` (a lighter grey
-    // in dark, a subtle shade in light) so the menu pops out — same fix already
-    // validated on the text-selection toolbar (T-android-text-toolbar-dark-
-    // visibility). The dark-mode `border` below adds the extra edge definition.
-    containerColor: Color = if (ChatColors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else Color.White,
-    tonalElevation: Dp = 3.dp,
+    // [T-omnibot-ui-port] OmniBot menu panel radius (OmniMenuStyle.panelRadius
+    // = 24dp); rows inside use the 16dp row radius.
+    shape: Shape = RoundedCornerShape(24.dp),
+    // [T-omnibot-ui-port] Omni menus sit on the flat `surfacePrimary`
+    // (#FFFFFF / #202020) — lighter than the #151515 dark page, so the popup
+    // still pops out of the chat background — with a hairline edge instead of
+    // M3's tonal tint.
+    containerColor: Color = OmniColors.surfacePrimary,
+    tonalElevation: Dp = 0.dp,
     // [T-android-menu-shadow-clip] Surface's own shadow, capped at
     // [MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION] (8dp).
     //
@@ -92,13 +89,10 @@ fun MinisMenu(
     // content at least as wide as the shadow's spread, with that padding
     // subtracted again in the position provider — deliberately not done.
     shadowElevation: Dp = 6.dp,
-    // Light mode also gets a hairline: the popup's edge needs a subtle line
-    // of its own to stay crisply bounded on light surfaces.
-    border: BorderStroke? = if (ChatColors.isDark) {
-        BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-    } else {
-        BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
-    },
+    // Hairline edge in BOTH themes (Omni panel has no tonal fill difference, so
+    // the border is what bounds it against the page in light mode and against
+    // #151515 in dark mode).
+    border: BorderStroke? = BorderStroke(0.75.dp, OmniColors.borderSubtle),
     minWidth: Dp = 180.dp,
     // T238: when true, anchor the menu's RIGHT edge to the anchor box's
     // right edge instead of Material3 DropdownMenu's default left-anchor
@@ -270,11 +264,10 @@ internal object MinisMenuPosition {
  */
 @Composable
 fun MinisMenuDivider(modifier: Modifier = Modifier) {
-    val tint = if (ChatColors.isDark) Color.White else Color.Black
     HorizontalDivider(
-        modifier = modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-        thickness = 1.dp,
-        color = tint.copy(alpha = 0.12f),
+        modifier = modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        thickness = OmniDimens.DividerThickness,
+        color = OmniColors.borderSubtle.copy(alpha = if (OmniColors.isDark) 0.55f else 0.75f),
     )
 }
 
@@ -284,13 +277,14 @@ fun MinisMenuDivider(modifier: Modifier = Modifier) {
  * that matches the iOS context-menu look.
  */
 object MinisMenuDefaults {
-    val ItemPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+    /** Omni row inset (panel padding 8 + content padding 4 ≈ 12dp). */
+    val ItemPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
 
     @Composable
     fun itemColors(
-        textColor: Color = MaterialTheme.colorScheme.onSurface,
-        leadingIconColor: Color = MaterialTheme.colorScheme.primary,
-        trailingIconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textColor: Color = OmniColors.textPrimary,
+        leadingIconColor: Color = OmniColors.textPrimary,
+        trailingIconColor: Color = OmniColors.textSecondary,
     ): MenuItemColors = MenuDefaults.itemColors(
         textColor = textColor,
         leadingIconColor = leadingIconColor,
@@ -299,8 +293,15 @@ object MinisMenuDefaults {
 
     @Composable
     fun destructiveItemColors(): MenuItemColors = MenuDefaults.itemColors(
-        textColor = MaterialTheme.colorScheme.error,
-        leadingIconColor = MaterialTheme.colorScheme.error,
-        trailingIconColor = MaterialTheme.colorScheme.error,
+        textColor = OmniColors.destructive,
+        leadingIconColor = OmniColors.destructive,
+        trailingIconColor = OmniColors.destructive,
+    )
+
+    /** Omni menu row label: 15sp regular, textPrimary (OmniMenuStyle.labelStyle). */
+    @Composable
+    fun itemTextStyle(): androidx.compose.ui.text.TextStyle = omniTextStyle(
+        size = 15.sp,
+        color = OmniColors.textPrimary,
     )
 }

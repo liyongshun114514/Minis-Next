@@ -49,7 +49,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.openminis.app.i18n.uppercaseForDisplay
+import com.openminis.app.ui.theme.OmniColors
+import com.openminis.app.ui.theme.OmniDimens
+import com.openminis.app.ui.theme.omniTextStyle
 
 /**
  * Shared primitives for settings pages. Grouped-card layout (iOS inset-grouped style).
@@ -79,10 +81,10 @@ fun SettingsScaffold(
     // edit screens. When null, the slot falls back to the back arrow iff
     // onBack is set, so every existing caller renders unchanged.
     navigation: @Composable (() -> Unit)? = null,
-    // [T-android-modeldetail-savecancel-ios-parity] Center the title
-    // (CenterAlignedTopAppBar) for iOS-modal-style edit screens. Default
-    // keeps the start-aligned TopAppBar.
-    centerTitle: Boolean = false,
+    // [T-omnibot-ui-port] Omni screens centre their bar title (17sp) on EVERY
+    // settings page, so centring is now the default; the start-aligned
+    // TopAppBar is still reachable with centerTitle = false.
+    centerTitle: Boolean = true,
     floatingActionButton: @Composable (() -> Unit)? = null,
     scrollable: Boolean = true,
     // [T-android-storage-usage-cache] Optional bottom action bar (e.g. a
@@ -94,8 +96,14 @@ fun SettingsScaffold(
         topBar = {
             val titleSlot: @Composable () -> Unit = {
                 Text(
-                    title,
-                    fontWeight = FontWeight.SemiBold,
+                    text = title,
+                    style = omniTextStyle(
+                        size = OmniDimens.BarTitleSize,
+                        color = OmniColors.textPrimary,
+                        weight = FontWeight.Medium,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             val navigationSlot: @Composable () -> Unit = {
@@ -112,7 +120,10 @@ fun SettingsScaffold(
                     navigationIcon = navigationSlot,
                     actions = { actions?.invoke() },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = OmniColors.pageBackground,
+                        titleContentColor = OmniColors.textPrimary,
+                        navigationIconContentColor = OmniColors.textPrimary,
+                        actionIconContentColor = OmniColors.textPrimary,
                     ),
                 )
             } else {
@@ -121,14 +132,17 @@ fun SettingsScaffold(
                     navigationIcon = navigationSlot,
                     actions = { actions?.invoke() },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = OmniColors.pageBackground,
+                        titleContentColor = OmniColors.textPrimary,
+                        navigationIconContentColor = OmniColors.textPrimary,
+                        actionIconContentColor = OmniColors.textPrimary,
                     ),
                 )
             }
         },
         floatingActionButton = { floatingActionButton?.invoke() },
         bottomBar = { bottomBar?.invoke() },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = OmniColors.pageBackground,
     ) { padding ->
         // T183: imePadding() shrinks the scroll container by the IME's
         // height while the keyboard is up, giving Modifier.bringIntoView()
@@ -187,7 +201,7 @@ fun SettingsSwitch(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    colors: androidx.compose.material3.SwitchColors = SwitchDefaults.colors(),
+    colors: androidx.compose.material3.SwitchColors = omniSwitchColors(),
 ) {
     CompositionLocalProvider(
         LocalMinimumInteractiveComponentSize provides Dp.Unspecified,
@@ -202,11 +216,37 @@ fun SettingsSwitch(
     }
 }
 
+/**
+ * [T-omnibot-ui-port] Monochrome Omni switch: `accentPrimary` track with a
+ * page-coloured thumb when on, `segmentTrack`/`segmentThumb` when off. No M3
+ * primary tint, so the toggle reads as chrome rather than an accent.
+ */
+@Composable
+fun omniSwitchColors(): androidx.compose.material3.SwitchColors = SwitchDefaults.colors(
+    checkedThumbColor = OmniColors.pageBackground,
+    checkedTrackColor = OmniColors.accentPrimary,
+    checkedBorderColor = Color.Transparent,
+    uncheckedThumbColor = OmniColors.segmentThumb,
+    uncheckedTrackColor = OmniColors.segmentTrack,
+    uncheckedBorderColor = OmniColors.borderStrong,
+    disabledCheckedThumbColor = OmniColors.pageBackground,
+    disabledCheckedTrackColor = OmniColors.surfaceElevated,
+    disabledUncheckedThumbColor = OmniColors.segmentThumb,
+    disabledUncheckedTrackColor = OmniColors.segmentTrack,
+)
+
 // ─── Section ───────────────────────────────────────────────────────────────────
 
 /**
- * A grouped section — optional small-caps header + rounded card + optional footer caption.
- * Children (SettingsRow / SettingsSwitchRow / …) appear inside the card; dividers auto-inset.
+ * A grouped section — optional 14sp tertiary label + flat 22dp card + optional
+ * 12sp footer caption, separated by 26dp of page background.
+ *
+ * [T-omnibot-ui-port] Was an upper-cased 11sp `onSurfaceVariant` label over a
+ * 14dp `surfaceContainerLow` card inside a 24dp top-padded Column. Now: 22dp
+ * page inset, 22dp `surfacePrimary` card with no vertical padding (rows carry
+ * their own 16dp), 14sp regular `textTertiary` label 16dp above the card, 12sp
+ * tertiary footer 8dp below. Children (SettingsRow / SettingsSwitchRow / …)
+ * stay unchanged and auto-inset their dividers.
  */
 @Composable
 fun SettingsSection(
@@ -215,58 +255,48 @@ fun SettingsSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // [T-android-settings-ui-md3] Section vertical rhythm normalized to the 4dp
-    // grid (fix_android_settings_ui.md #13): 24dp between sections instead of the
-    // off-grid 20dp. Applied as top padding so the first section under a TopAppBar
-    // keeps a consistent gap too.
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 24.dp),
+            .padding(top = OmniDimens.SectionGap),
     ) {
         if (header != null) {
             Text(
-                text = header.uppercaseForDisplay(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp,
-                // [T-android-settings-ui-md3] #5 header→card gap = 8dp (was 6dp,
-                // off-grid). Horizontal stays 32dp to align the header text with
-                // the inset card's content.
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp, bottom = 8.dp),
+                text = header,
+                style = omniTextStyle(
+                    size = OmniDimens.GroupLabelSize,
+                    color = OmniColors.textTertiary,
+                    lineHeight = 19.sp,
+                ),
+                modifier = Modifier.padding(
+                    start = OmniDimens.PageHorizontal,
+                    end = OmniDimens.PageHorizontal,
+                    bottom = 16.dp,
+                ),
             )
         }
-        // [T-android-settings-section-symmetry] The card carries NO vertical
-        // padding of its own: rows already supply 12dp top AND bottom, so any
-        // tail here makes the gap below the content read larger than the gap
-        // above it. An unconditional 8dp bottom pad used to live on this
-        // Column to stop a trailing divider sitting flush against the rounded
-        // edge — but every section either suppresses its last divider
-        // (showDivider = false, or an `index < size - 1` guard) or follows it
-        // with more content, so nothing actually needed the clearance. The
-        // asymmetry it cost was invisible in a tall multi-row card and glaring
-        // in a single-row one ("Status / Enabled", "Voice Services", the
-        // thinking-rules note).
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .padding(horizontal = OmniDimens.PageHorizontal)
+                .clip(RoundedCornerShape(OmniDimens.SurfaceRadius))
+                .background(OmniColors.surfacePrimary),
             content = content,
         )
         if (footer != null) {
             Text(
                 text = footer,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                // [T-android-settings-ui-md3] #6 explanatory footer: 8dp below the
-                // card, 4dp before the next section (the parent's 24dp top padding
-                // already provides separation, so keep the footer's own bottom
-                // tight at 4dp).
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 4.dp),
-                lineHeight = 16.sp,
+                style = omniTextStyle(
+                    size = OmniDimens.FooterSize,
+                    color = OmniColors.textTertiary,
+                    lineHeight = 17.sp,
+                ),
+                modifier = Modifier.padding(
+                    start = OmniDimens.PageHorizontal + 6.dp,
+                    end = OmniDimens.PageHorizontal + 6.dp,
+                    top = 8.dp,
+                    bottom = 4.dp,
+                ),
             )
         }
     }
@@ -288,7 +318,7 @@ fun SettingsRow(
     onClick: (() -> Unit)? = null,
     showChevron: Boolean = onClick != null,
     showDivider: Boolean = true,
-    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    titleColor: Color = OmniColors.textPrimary,
     trailing: (@Composable () -> Unit)? = null,
     // [T-android-settings-ui-md3] #8 single-line List Item is 56dp; a caller with
     // two-line content (e.g. the model list: name + id) passes 72dp for the MD3
@@ -317,44 +347,53 @@ fun SettingsRow(
                         else -> Modifier
                     },
                 )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                // [T-omnibot-ui-port] 18dp row inset / 16dp vertical, matching
+                // OmniSettingsTile's EdgeInsets.symmetric(horizontal: 18, vertical: 16).
+                .padding(horizontal = OmniDimens.RowHorizontal, vertical = OmniDimens.RowVertical),
             // #10 keep the trailing control (Switch/value) vertically centered
             // against the title — already centered, kept explicit.
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
+                // Omni rows carry a bare 20dp glyph on a 22dp leading box, not a
+                // filled colour chip. The caller's iconColor is kept as the tint
+                // so existing per-row colour semantics survive the port.
                 Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .background(iconColor, RoundedCornerShape(8.dp)),
+                    modifier = Modifier.size(OmniDimens.LeadingIconBox),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
+                        tint = iconColor,
+                        modifier = Modifier.size(OmniDimens.LeadingIconSize),
                     )
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(OmniDimens.LeadingIconGap))
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(2.5.dp),
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = titleColor,
+                    style = omniTextStyle(
+                        size = OmniDimens.RowTitleSize,
+                        color = titleColor,
+                        lineHeight = 20.7.sp,
+                    ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = omniTextStyle(
+                            size = OmniDimens.RowSubtitleSize,
+                            color = OmniColors.textSecondary,
+                            lineHeight = 17.4.sp,
+                        ),
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -367,24 +406,31 @@ fun SettingsRow(
             }
 
             if (showChevron) {
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(6.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(20.dp),
+                    // Omni chevron: 18dp hairline in textTertiary.
+                    tint = OmniColors.textTertiary,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
 
         if (showDivider) {
-            val insetStart = if (icon != null) 58.dp else 14.dp
+            // Hairline starts under the title (54dp = 18 + 22 + 14), or at the
+            // row inset when there is no leading icon.
+            val insetStart = if (icon != null) OmniDimens.DividerStartInset else OmniDimens.RowHorizontal
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = insetStart, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .padding(start = insetStart, end = OmniDimens.RowHorizontal)
+                    .height(OmniDimens.DividerThickness)
+                    .background(
+                        OmniColors.borderSubtle.copy(
+                            alpha = if (OmniColors.isDark) 0.55f else 0.75f,
+                        ),
+                    ),
             )
         }
     }
@@ -415,7 +461,7 @@ fun SettingsSwitchRow(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
-                colors = SwitchDefaults.colors(),
+                colors = omniSwitchColors(),
             )
         },
     )
@@ -429,7 +475,7 @@ fun SettingsValueRow(
     subtitle: String? = null,
     icon: ImageVector? = null,
     iconColor: Color = MaterialTheme.colorScheme.primary,
-    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    valueColor: Color = OmniColors.textSecondary,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
 ) {
@@ -444,8 +490,7 @@ fun SettingsValueRow(
         trailing = {
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = valueColor,
+                style = omniTextStyle(size = OmniDimens.RowValueSize, color = valueColor),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -468,9 +513,9 @@ fun SettingsChoiceRow(
                 .fillMaxWidth()
                 // [T-android-settings-ui-md3] #1 match SettingsRow's 56dp min so
                 // choice/radio rows line up with toggle/value rows in mixed lists.
-                .heightIn(min = 56.dp)
+                .heightIn(min = OmniDimens.RowMinHeight)
                 .clickable(onClick = onSelect)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = OmniDimens.RowHorizontal, vertical = OmniDimens.RowVertical),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) {
@@ -479,15 +524,14 @@ fun SettingsChoiceRow(
             }
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = omniTextStyle(size = OmniDimens.RowTitleSize, color = OmniColors.textPrimary),
                 modifier = Modifier.weight(1f),
             )
             if (selected) {
                 Icon(
                     Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = OmniColors.accentPrimary,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -496,9 +540,13 @@ fun SettingsChoiceRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .padding(start = OmniDimens.DividerStartInset, end = OmniDimens.RowHorizontal)
+                    .height(OmniDimens.DividerThickness)
+                    .background(
+                        OmniColors.borderSubtle.copy(
+                            alpha = if (OmniColors.isDark) 0.55f else 0.75f,
+                        ),
+                    ),
             )
         }
     }
@@ -515,7 +563,7 @@ fun SettingsCardBlock(
 ) {
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = OmniDimens.RowHorizontal, vertical = 12.dp)
             .fillMaxWidth(),
         content = content,
     )

@@ -293,7 +293,10 @@ internal fun AttachmentChip(
     // (a 20dp circle offset by -6dp / -6dp). The outer Box is sized 72dp
     // so the badge isn't clipped; the chip itself stays exactly 64dp,
     // padded into the Box at TopStart.
-    val chipShape = RoundedCornerShape(8.dp)
+    // [T-omnibot-composer-attachments] 12dp corners, matching the OmniBot
+    // attachment tile radius (chat_input_attachments.dart) and the 12dp tool
+    // card above it. The 64dp chip keeps Minis's iOS-derived square.
+    val chipShape = RoundedCornerShape(12.dp)
     // Outer Box gives the badge room to "spill out" past the chip's
     // top-right corner without being clipped: chip is 64dp at TopStart,
     // badge is 20dp at TopEnd, so the outer needs 64 + half(badge) ≈ 72dp
@@ -382,6 +385,7 @@ internal fun InputCircleButton(
 ) {
     Box(
         modifier = Modifier
+            // Keep the established touch target while changing the shell style.
             .size(38.dp)
             .background(ChatColors.inputIconBg, CircleShape)
             .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
@@ -418,6 +422,7 @@ internal fun MicButton(
     val borderColor = if (isRecording) Color.Transparent else ChatColors.inputIconBorder
     Box(
         modifier = Modifier
+            // Preserve the existing mic target and long-press admission.
             .size(38.dp)
             .background(bg, CircleShape)
             .border(0.5.dp, borderColor, CircleShape)
@@ -1130,9 +1135,14 @@ internal fun FloatingToolStatusBar(
                 .fillMaxWidth()
                 .height(barHeight)
                 .align(Alignment.BottomCenter)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(10.dp), ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
-                .background(ChatColors.inputBg, RoundedCornerShape(10.dp))
-                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp))
+                // [T-omnibot-tool-card] Card language ported from the OmniBot
+                // tool/status surfaces: 12dp corners (was 10dp), the tool
+                // capsule fill instead of the composer's input fill so the bar
+                // reads as a *card floating over* the composer rather than a
+                // second input row, and a lighter 6dp shadow with a hairline.
+                .shadow(elevation = 6.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black.copy(alpha = 0.04f), spotColor = Color.Black.copy(alpha = 0.10f))
+                .background(ChatColors.toolCapsuleBg, RoundedCornerShape(12.dp))
+                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(12.dp))
                 .padding(start = barStartPadding, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

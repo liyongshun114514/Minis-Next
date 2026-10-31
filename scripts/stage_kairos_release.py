@@ -10,6 +10,8 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'com.openminis.app.next'
+if os.environ.get('MINIS_UI_PREVIEW') == 'true':
+    PACKAGE += '.ui'
 CERT_SHA256 = 'f1464cfe2b280348ee1fa611733dc55818bdcdcae659dd4fcbf27421a5a1065f'
 
 def stage():
@@ -33,7 +35,8 @@ def stage():
     assert sidecar.is_file() and sidecar.read_text().split()[0] == digest, 'Missing prior production verification digest'
     out = ROOT / 'release/minis-next'
     out.mkdir(parents=True, exist_ok=True)
-    name = f'MinisNext-{version}-build{code}-arm64-v8a.apk'
+    prefix = 'MinisNext-UI' if PACKAGE.endswith('.ui') else 'MinisNext'
+    name = f'{prefix}-{version}-build{code}-arm64-v8a.apk'
     target = out / name
     shutil.copy2(apk, target)
     target.with_suffix('.apk.sha256').write_text(f'{digest}  {name}\n')

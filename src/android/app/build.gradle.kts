@@ -36,6 +36,10 @@ android {
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
         applicationId = "com.openminis.app.next"
+        // Opt-in isolated UI acceptance APK; production updates keep their identity.
+        if (providers.gradleProperty("minisUiPreview").orNull == "true") {
+            applicationId = "com.openminis.app.next.ui"
+        }
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
@@ -175,6 +179,12 @@ android {
             buildConfigField("boolean", "SELF_UPDATE", "true")
             buildConfigField("boolean", "AUTO_UPDATE_CHECK", "false")
             buildConfigField("boolean", "IN_APP_INSTALL", "true")
+        }
+    }
+
+    if (providers.gradleProperty("minisUiPreview").orNull == "true") {
+        listOf("debug", "release", "perf").forEach { buildType ->
+            sourceSets.getByName(buildType).res.srcDir("src/uiPreview/res")
         }
     }
 

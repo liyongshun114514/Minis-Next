@@ -26,6 +26,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.openminis.app.ui.theme.OmniColors
+import com.openminis.app.ui.theme.OmniDimens
+import com.openminis.app.ui.theme.omniTextStyle
 
 /**
  * Text input for use inside a [SectionCard]. Wraps a BasicTextField in
@@ -92,7 +95,7 @@ fun SectionTextField(
         focusedBorderColor = Color.Transparent,
         unfocusedBorderColor = Color.Transparent,
         disabledBorderColor = Color.Transparent,
-        errorBorderColor = MaterialTheme.colorScheme.error,
+        errorBorderColor = OmniColors.destructive,
         focusedContainerColor = Color.Transparent,
         unfocusedContainerColor = Color.Transparent,
         disabledContainerColor = Color.Transparent,
@@ -134,9 +137,13 @@ fun SectionTextField(
         // overload's behavior on the same transition.
         fieldValue = TextFieldValue(value, TextRange(value.length))
     }
+    // [T-omnibot-ui-port] Omni field = flat surfacePrimary on a 22dp radius,
+    // hairline border only while focused/error.
     Surface(
-        color = containerColor ?: SectionDesign.cardColor(),
+        color = containerColor ?: OmniColors.surfacePrimary,
         shape = SectionDesign.CardShape,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         BasicTextField(
@@ -153,8 +160,8 @@ fun SectionTextField(
                 .then(fieldModifier),
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = mergedTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            textStyle = mergedTextStyle.copy(color = OmniColors.textPrimary),
+            cursorBrush = SolidColor(OmniColors.brandPrimary),
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
@@ -166,7 +173,14 @@ fun SectionTextField(
                     value = fieldValue.text,
                     visualTransformation = visualTransformation,
                     innerTextField = innerTextField,
-                    placeholder = placeholder?.let { { Text(it) } },
+                    placeholder = placeholder?.let { hint ->
+                        {
+                            Text(
+                                text = hint,
+                                style = omniTextStyle(size = OmniDimens.RowTitleSize, color = OmniColors.textTertiary),
+                            )
+                        }
+                    },
                     label = null,
                     trailingIcon = trailingIcon,
                     singleLine = singleLine,

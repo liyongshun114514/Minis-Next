@@ -6037,6 +6037,22 @@ fun ChatScreen(
                         isAntiAlias = true
                     }
                 }
+                // [T-omnibot-composer-surface] Hairline edge for the composer
+                // card. OmniBot's shell paints an inner 1px `borderSubtle` ring
+                // (chat_input_area_composer.dart innerBorderColor); we keep the
+                // single-layer Compose surface (no blur/shader claim) but draw
+                // the same hairline so the card does not dissolve into a light
+                // wallpaper. Palette-driven, so a theme swap recolours it.
+                val composerIsDark = ChatColors.isDark
+                val hairlineArgb = ChatColors.toolBorder.toArgb()
+                val hairlinePaint = remember(hairlineArgb) {
+                    android.graphics.Paint().apply {
+                        color = hairlineArgb
+                        isAntiAlias = true
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeWidth = 1f
+                    }
+                }
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6173,25 +6189,40 @@ fun ChatScreen(
                             // 20dp corner shape, including the matching glow.
                             val radiusPx = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()
                             val canvas = drawContext.canvas.nativeCanvas
-                            // Pass 1: symmetric ambient halo — small blur, low alpha.
+                            // [T-omnibot-composer-surface] Shadow ramp ported
+                            // from OmniBot's ChatComposerSurface / composer
+                            // shell: blur 20 offset (0, 6) at 0.07 light /
+                            // 0.18 dark, plus a 1px contact shadow so the card
+                            // still sits on the page when the soft pass is all
+                            // but invisible on white.
+                            // Pass 1: ambient + key light (0, 6).
                             shadowPaint.setShadowLayer(
-                                6.dp.toPx(), 0f, 0f,
-                                android.graphics.Color.argb(22, 0, 0, 0),
+                                (if (composerIsDark) 22f else 20f).dp.toPx(),
+                                0f, 6.dp.toPx(),
+                                android.graphics.Color.argb(if (composerIsDark) 46 else 18, 0, 0, 0),
                             )
                             canvas.drawRoundRect(
                                 0f, 0f, size.width, size.height,
                                 radiusPx, radiusPx,
                                 shadowPaint,
                             )
-                            // Pass 2: soft downward shadow (spot light).
+                            // Pass 2: tight contact shadow.
                             shadowPaint.setShadowLayer(
-                                10.dp.toPx(), 0f, 3.dp.toPx(),
-                                android.graphics.Color.argb(24, 0, 0, 0),
+                                3.dp.toPx(), 0f, 1.dp.toPx(),
+                                android.graphics.Color.argb(if (composerIsDark) 54 else 22, 0, 0, 0),
                             )
                             canvas.drawRoundRect(
                                 0f, 0f, size.width, size.height,
                                 radiusPx, radiusPx,
                                 shadowPaint,
+                            )
+                            // Pass 3: 1px hairline on the card edge.
+                            val hairlineInset = 0.5.dp.toPx()
+                            canvas.drawRoundRect(
+                                hairlineInset, hairlineInset,
+                                size.width - hairlineInset, size.height - hairlineInset,
+                                radiusPx - hairlineInset, radiusPx - hairlineInset,
+                                hairlinePaint,
                             )
                         }
                         // [T-android-context-usage-hint] Ambient inner glow
@@ -7132,9 +7163,12 @@ fun ChatScreen(
                                     // jog where the text started further
                                     // right than every other composer
                                     // element.
+                                    // [T-omnibot-composer-surface] vertical 7→8
+                                    // to match the reference composer's 8dp
+                                    // content padding top/bottom.
                                     contentPadding = PaddingValues(
                                         horizontal = 12.dp,
-                                        vertical = 7.dp,
+                                        vertical = 8.dp,
                                     ),
                                 )
                             },

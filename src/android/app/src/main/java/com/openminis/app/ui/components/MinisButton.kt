@@ -2,6 +2,7 @@ package com.openminis.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -17,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import com.openminis.app.ui.theme.OmniColors
 
 // Material3 ButtonDefaults.MinHeight = 40dp; tuned to 48dp for touch
 // ergonomics on phones. IconButton family is unaffected (icon-sized).
@@ -31,14 +33,55 @@ val MinisSmallButtonHeight = 32.dp
 
 private val SmallButtonContentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
 
+/**
+ * [T-omnibot-ui-port] Omni button language: 14dp rounded rectangle (was a
+ * Material pill), 48dp tall, 15sp medium label, filled with the monochrome
+ * `accentPrimary` — OmniBot's confirm/primary fill (utils/ui.dart, 44–48dp,
+ * 14dp radius) rather than a brand-tinted Material primary.
+ *
+ * The `colors`/`shape` parameters are kept on all six entry points, so any
+ * caller that passes its own styling renders exactly as before.
+ */
+private val OmniButtonShape = RoundedCornerShape(14.dp)
+
+/** Filled: accent fill + page-coloured label (Omni inverts light/dark). */
+@Composable
+fun omniFilledButtonColors(): ButtonColors = ButtonDefaults.buttonColors(
+    containerColor = OmniColors.accentPrimary,
+    contentColor = OmniColors.pageBackground,
+    disabledContainerColor = OmniColors.surfaceElevated,
+    disabledContentColor = OmniColors.textTertiary,
+)
+
+/** Outlined: transparent fill + hairline `borderStrong`, text in textPrimary. */
+@Composable
+fun omniOutlinedButtonColors(): ButtonColors = ButtonDefaults.outlinedButtonColors(
+    contentColor = OmniColors.textPrimary,
+    disabledContentColor = OmniColors.textTertiary,
+)
+
+/** Text: accent label, no container. */
+@Composable
+fun omniTextButtonColors(): ButtonColors = ButtonDefaults.textButtonColors(
+    contentColor = OmniColors.accentPrimary,
+    disabledContentColor = OmniColors.textTertiary,
+)
+
+/** Hairline outline for the outlined variants. */
+@Composable
+fun omniOutlinedButtonBorder(enabled: Boolean = true): BorderStroke = BorderStroke(
+    0.75.dp,
+    if (enabled) OmniColors.borderStrong else OmniColors.borderSubtle,
+)
+
 @Composable
 fun MinisButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.shape,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
-    elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniFilledButtonColors(),
+    elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
@@ -63,10 +106,10 @@ fun MinisOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.outlinedShape,
-    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniOutlinedButtonColors(),
     elevation: ButtonElevation? = null,
-    border: BorderStroke? = ButtonDefaults.outlinedButtonBorder(enabled = enabled),
+    border: BorderStroke? = omniOutlinedButtonBorder(enabled = enabled),
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
@@ -90,8 +133,8 @@ fun MinisTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.textShape,
-    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniTextButtonColors(),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
@@ -120,9 +163,9 @@ fun MinisSmallButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.shape,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
-    elevation: ButtonElevation? = ButtonDefaults.buttonElevation(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniFilledButtonColors(),
+    elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
     contentPadding: PaddingValues = SmallButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
@@ -149,10 +192,10 @@ fun MinisSmallOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.outlinedShape,
-    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniOutlinedButtonColors(),
     elevation: ButtonElevation? = null,
-    border: BorderStroke? = ButtonDefaults.outlinedButtonBorder(enabled = enabled),
+    border: BorderStroke? = omniOutlinedButtonBorder(enabled = enabled),
     contentPadding: PaddingValues = SmallButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
@@ -178,8 +221,8 @@ fun MinisSmallTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = ButtonDefaults.textShape,
-    colors: ButtonColors = ButtonDefaults.textButtonColors(),
+    shape: Shape = OmniButtonShape,
+    colors: ButtonColors = omniTextButtonColors(),
     elevation: ButtonElevation? = null,
     border: BorderStroke? = null,
     contentPadding: PaddingValues = SmallButtonContentPadding,

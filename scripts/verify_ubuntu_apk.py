@@ -734,6 +734,8 @@ def verify(apk: Path, source_rootfs=None, require_toolset=None):
     tools = sdk / 'build-tools' / '35.0.0'
     badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
     package = 'com.openminis.app.next'
+    if os.environ.get('MINIS_UI_PREVIEW') == 'true':
+        package += '.ui'
     assert f"package: name='{package}'" in badging, 'wrong installation package id'
     # aapt2 badging omits `launchable-activity` when the launcher entry is an
     # <activity-alias> (the dynamic-icon case), so the compiled manifest is the

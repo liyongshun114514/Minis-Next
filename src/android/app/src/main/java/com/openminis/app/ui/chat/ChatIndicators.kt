@@ -52,15 +52,23 @@ internal fun BouncingDots(color: Color) {
     // composition and animated through PADDING — a layout-phase property, so
     // every frame recomposed and re-laid-out the row. Now one shared 30 fps
     // tick, read inside the layer lambda, moving translationY only.
+    // [T-omnibot-thinking-dots] Geometry/curve ported from the OmniBot
+    // reference `ThinkingDotsIndicator`: 8dp dots, 4dp gaps, a 4dp lift and an
+    // alpha ramp of 0.4→1.0 shared with the travel, one 600 ms cycle per dot
+    // staggered by 150 ms so the wave reads left-to-right. The tick is still
+    // the shared 30 fps one, so this stays a draw-phase-only change.
     val tick = rememberDecorativeTick()
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    val dotSize = 5.dp
+    val lift = 4.dp
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(3) { i ->
             Box(
                 modifier = Modifier
-                    .size(4.dp)
+                    .size(dotSize)
                     .graphicsLayer {
-                        val p = decorativePingPong(decorativePhase(tick.value, 700, i * 120))
-                        translationY = -2.dp.toPx() * p
+                        val p = decorativePingPong(decorativePhase(tick.value, 600, i * 150))
+                        translationY = -lift.toPx() * p
+                        alpha = 0.4f + 0.6f * p
                     }
                     .background(color, CircleShape),
             )
@@ -200,9 +208,9 @@ internal fun TypingIndicator(
     retryMax: Int = 0,
     onRetryBadgeClick: (() -> Unit)? = null,
 ) {
-    // [T-android-decorative-anim-perf] Shared 30 fps tick instead of a private
-    // 90 fps infinite transition; the layer-lambda read below was already right.
-    val tick = rememberDecorativeTick()
+    // [T-android-decorative-anim-perf] The dot marks now come from
+    // [BouncingDots], which owns the shared 30 fps tick; this row no longer
+    // needs a tick of its own.
     // Live Soul name → "<custom name> is thinking…" when the user renamed
     // the assistant in Soul settings. SoulStore.cachedMetadata is a StateFlow
     // that's updated on save (SoulSettingsScreen) and at app start
@@ -225,19 +233,17 @@ internal fun TypingIndicator(
             fontSize = 15.sp,
             color = ChatColors.tertiaryText,
         )
-        // Animated bouncing dots
-        val dots = listOf(".", ".", ".")
-        dots.forEachIndexed { index, dot ->
-            Text(
-                text = dot,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = ChatColors.tertiaryText,
-                modifier = Modifier.graphicsLayer {
-                    val p = decorativePingPong(decorativePhase(tick.value, 800, index * 150))
-                    translationY = -6.dp.toPx() * p
-                },
-            )
+        // [T-omnibot-thinking-dots] The trailing "..." glyphs are replaced by
+        // the same dot primitive the streaming rows use, so the thinking row
+        // and every other "alive" affordance share one visual language. The
+        // "<name> is thinking…" label is kept verbatim (a11y + i18n string
+        // resource) — only the dot marks changed.
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .padding(start = 6.dp),
+        ) {
+            BouncingDots(ChatColors.tertiaryText)
         }
     }
 }
