@@ -149,8 +149,14 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/mcp-http-tests"
           "$RUNNER_TEMP/mcp-http-tests/bin/python" -m pip install httpx==0.26.0
           "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_http_*.py' -v
-          MINIS_MCP_CLI_DIR="$GITHUB_WORKSPACE/src/ios/default_mount/usr/local/lib/minis-mcp-cli" \
-            "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_http_*.py' -v
+          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_android_*.py' -v
+          for test_file in test_http_protocol_version.py test_http_reinit.py; do
+            MINIS_MCP_CLI_DIR="$GITHUB_WORKSPACE/src/ios/default_mount/usr/local/lib/minis-mcp-cli" \
+              "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p "$test_file" -v
+          done
+          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m pip install httpx==0.28.1
+          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_http_*.py' -v
+          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_android_*.py' -v
       - name: Check APK verifier compatibility
         run: |
           python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v

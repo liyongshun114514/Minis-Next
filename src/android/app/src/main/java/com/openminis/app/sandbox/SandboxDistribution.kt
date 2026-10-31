@@ -110,8 +110,8 @@ object SandboxDistribution {
      * Default guest toolset. ubuntu-base ships bash/apt/dpkg/perl/ps/gzip/tar
      * but **no** python3, curl, wget, git, ssh, less, ip, unzip, jq or rg —
      * which the agent prompt and the bundled `minis-mcp-cli` (python3) assume.
-     * The build preinstalls exactly this list into the shipped rootfs; nothing
-     * installs it at first run. [bootstrapScript] is only the explicit repair
+     * The build preinstalls this baseline plus [MCP_RUNTIME_PACKAGES] into the
+     * shipped rootfs; nothing installs it at first run. [bootstrapScript] is only the explicit repair
      * entry point for a changed rootfs.
      */
     val BOOTSTRAP_PACKAGES: List<String> = listOf(
@@ -131,6 +131,16 @@ object SandboxDistribution {
         "python3",
         "python3-pip",
         "python3-venv",
+    )
+
+    /** Preinstalled for fresh images; minis-mcp-cli repairs older guests via apt.
+     * Keep out of the baseline readiness check: upgrading the app must NOT
+     * mark a working old rootfs uninstalled or replace it for missing httpx.
+     */
+    val MCP_RUNTIME_PACKAGES: List<String> = listOf(
+        "python3-httpx",
+        "python3-httpcore",
+        "python3-socksio",
     )
 
     // ── detection ────────────────────────────────────────────────────────────

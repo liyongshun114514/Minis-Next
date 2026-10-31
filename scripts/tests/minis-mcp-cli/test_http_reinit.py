@@ -195,6 +195,9 @@ class _PatchedTransport:
 
     def __enter__(self):
         def _post(url, **kwargs):
+            # Routing belongs to the mock Client constructor, not Client.post.
+            for key in ('proxy', 'proxies', 'trust_env'):
+                kwargs.pop(key, None)
             return self._client.post(url, **kwargs)
         http_mod.httpx.post = _post
         return self

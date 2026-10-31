@@ -64,13 +64,17 @@ class StaticContractTests(unittest.TestCase):
         self.assertIsNotNone(match, "BOOTSTRAP_PACKAGES not found")
         kotlin = re.findall(r'"([a-z0-9+.-]+)"', match.group(1))
         self.assertEqual(len(kotlin), 16)
-        self.assertEqual(kotlin, read_packages())
-        self.assertEqual(len(set(kotlin)), 16)
+        runtime = re.search(r"val MCP_RUNTIME_PACKAGES: List<String> = listOf\((.*?)\n\s*\)", text, re.S)
+        self.assertIsNotNone(runtime)
+        mcp = re.findall(r'"([a-z0-9+.-]+)"', runtime.group(1))
+        self.assertEqual(mcp, ['python3-httpx', 'python3-httpcore', 'python3-socksio'])
+        self.assertEqual(kotlin + mcp, read_packages())
+        self.assertEqual(len(set(kotlin + mcp)), 19)
 
     def test_package_list_is_one_flat_file(self):
         raw = PACKAGES.read_text()
         self.assertNotIn("ubuntu-toolset-packages.d", raw)
-        self.assertEqual(len(read_packages()), 16)
+        self.assertEqual(len(read_packages()), 19)
 
     def test_base_pin_matches_prepare_script(self):
         build = SCRIPT.read_text()
@@ -97,6 +101,8 @@ class StaticContractTests(unittest.TestCase):
                 self.assertRegex(text, rf"'{re.escape(key)}\|")
         self.assertIn("python3 -m venv /tmp/minis-venv-check", text)
         self.assertIn("python3 -m pip --version", text)
+        self.assertIn("'mcp-http|/usr/bin/python3 -I -c", text)
+        self.assertIn("import httpx, httpcore, socksio", text)
 
     def test_output_and_archive_contract(self):
         text = SCRIPT.read_text()

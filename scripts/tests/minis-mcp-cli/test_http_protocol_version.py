@@ -278,6 +278,9 @@ class _PatchedTransport:
 
     def __enter__(self):
         def _post(url, **kwargs):
+            # The fake Client handles routing; Client.post has no proxy kwargs.
+            for key in ('proxy', 'proxies', 'trust_env'):
+                kwargs.pop(key, None)
             return self._client.post(url, **kwargs)
 
         def _client(*args, **kwargs):

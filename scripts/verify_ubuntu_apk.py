@@ -103,6 +103,7 @@ REQUIRED_TOOLSET_PACKAGES = (
     'bash', 'ca-certificates', 'curl', 'wget', 'git', 'openssh-client',
     'less', 'procps', 'iproute2', 'unzip', 'xz-utils', 'jq', 'ripgrep',
     'python3', 'python3-pip', 'python3-venv',
+    'python3-httpx', 'python3-httpcore', 'python3-socksio',
 )
 
 # Version probes recorded in the manifest. Each tuple is an alias group: the
@@ -111,7 +112,7 @@ REQUIRED_TOOLSET_PACKAGES = (
 # ca-certificates store check; these are the agent-facing essentials.
 REQUIRED_TOOLSET_COMMANDS = (
     ('bash',), ('python3',), ('git',), ('curl',), ('wget',), ('ssh',),
-    ('rg',), ('jq',), ('pip', 'pip3'), ('venv',),
+    ('rg',), ('jq',), ('pip', 'pip3'), ('venv',), ('mcp-http',),
 )
 
 # Ordinary guest executables. Any of reg/sym/lnk counts; python3 is a symlink

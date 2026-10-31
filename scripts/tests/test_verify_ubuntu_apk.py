@@ -96,11 +96,15 @@ TOOLSET_VERSIONS = {
     'python3': '3.12.3-0ubuntu2',
     'python3-pip': '24.0+dfsg-1ubuntu1.2',
     'python3-venv': '3.12.3-0ubuntu2',
+    'python3-httpx': '0.26.0-2',
+    'python3-httpcore': '1.0.2-2',
+    'python3-socksio': '1.0.0-3',
 }
 
 TOOLSET_COMMANDS = {
     'bash': 'GNU bash, version 5.2.21(1)-release (aarch64-unknown-linux-gnu)',
     'python3': 'Python 3.12.3',
+    'mcp-http': '0.26.0',
     'git': 'git version 2.43.0',
     'curl': 'curl 8.5.0 (aarch64-unknown-linux-gnu)',
     'wget': 'GNU Wget 1.21.4',
@@ -546,6 +550,30 @@ class ToolsetContractTests(unittest.TestCase):
         self.validate(make_toolset_tar(packages=packages, status=status))
 
 
+class McpRuntimeArchiveContractTests(unittest.TestCase):
+    """Clearly synthetic archives; never execute the invented package data."""
+    def test_missing_mcp_runtime_package_is_rejected(self):
+        for missing in ('python3-httpx', 'python3-httpcore', 'python3-socksio'):
+            packages = dict(TOOLSET_VERSIONS)
+            del packages[missing]
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as tmp:
+                archive = Path(tmp) / 'guest.zip'
+                with zipfile.ZipFile(archive, 'w') as out:
+                    out.writestr('guest.tar', make_toolset_tar(packages=packages))
+                with zipfile.ZipFile(archive) as z, self.assertRaises(AssertionError):
+                    verifier.validate_rootfs_archive(z, 'guest.tar', min_bytes=0, require_toolset=True)
+
+    def test_missing_http_import_evidence_is_rejected(self):
+        commands = dict(TOOLSET_COMMANDS)
+        del commands['mcp-http']
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / 'guest.zip'
+            with zipfile.ZipFile(archive, 'w') as out:
+                out.writestr('guest.tar', make_toolset_tar(manifest=toolset_manifest(commands=commands)))
+            with zipfile.ZipFile(archive) as z, self.assertRaises(AssertionError):
+                verifier.validate_rootfs_archive(z, 'guest.tar', min_bytes=0, require_toolset=True)
+
+
 class ToolsetPackageListDriftTests(unittest.TestCase):
     """The verifier's required set must stay the shipped toolset."""
 
@@ -556,7 +584,7 @@ class ToolsetPackageListDriftTests(unittest.TestCase):
         listed = [line.strip() for line in list_file.read_text().splitlines()
                   if line.strip()]
         self.assertEqual(set(listed), set(verifier.REQUIRED_TOOLSET_PACKAGES))
-        self.assertEqual(len(listed), 16)
+        self.assertEqual(len(listed), 19)
 
     def test_paths_and_pin_match_builder(self):
         script = REPO / 'scripts' / 'build_ubuntu_toolset.sh'

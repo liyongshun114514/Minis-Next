@@ -34,7 +34,7 @@ import time
 # The daemon is launched as a fresh interpreter (fork of the CLI) whose cwd /
 # sys.path may not include the package dir, so anchor imports explicitly.
 import sys
-sys.path.insert(0, "/usr/local/lib/minis-mcp-cli")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from transport.http import HTTPTransport, MCPError, expand_env  # noqa: E402
 from utils import config  # noqa: E402
@@ -353,8 +353,9 @@ class MCPHTTPSession:
 # --- connection pool --------------------------------------------------------
 
 class MCPPool:
-    """Owns one live session per server. STDIO_CRASH / TIMEOUT evict + respawn
-    with a single retry; other errors propagate. When the pool empties it calls
+    """Owns one live session per server. STDIO_CRASH / STDIO TIMEOUT evict +
+    respawn once. HTTP timeouts are never replayed: the remote tool may already
+    have executed even if its response was lost. When the pool empties it calls
     on_empty so the daemon can start its exit grace timer."""
 
     def __init__(self, on_empty, on_active=None):
@@ -502,6 +503,11 @@ class MCPPool:
             try:
                 return fn(session)
             except MCPError as exc:
+                if isinstance(session, MCPHTTPSession) and exc.code == "TIMEOUT":
+                    # Delivery is ambiguous. Discard the session for the next
+                    # explicit request, but never silently repeat a remote call.
+                    self.evict(name)
+                    raise
                 if exc.code in ("STDIO_CRASH", "TIMEOUT") and attempt == 0:
                     log.warning("[%s] %s, retrying", name, exc.code)
                     self.evict(name)

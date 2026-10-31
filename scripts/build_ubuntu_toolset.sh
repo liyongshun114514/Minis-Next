@@ -22,7 +22,7 @@
 #      verifies the signed SHA256SUMS + pinned digest.
 #   2. The verified tarball is extracted into $TMP/ubuntu-preinstall-agent.XXX.
 #   3. In a private mount namespace (procfs + a tiny tmpfs /dev), apt installs
-#      the 16-package toolset from scripts/ubuntu-toolset-packages.txt.
+#      the 19-package toolset from scripts/ubuntu-toolset-packages.txt.
 #      Bootstrap uses the official http://ports.ubuntu.com archive (ubuntu-base
 #      has no ca-certificates yet); once ca-certificates is installed the
 #      sources are switched to https://ports.ubuntu.com and refreshed before
@@ -57,7 +57,7 @@ BASE_VERSION="24.04.5"
 # Trust anchor: official ubuntu-base 24.04.5 arm64 (see
 # scripts/prepare_android_ubuntu.sh). Bump both scripts together.
 BASE_SHA256="a91d5a93010193712d346d761372b7c9db6dfcf093893161c64ca107f05914f2"
-EXPECTED_PACKAGE_COUNT=16
+EXPECTED_PACKAGE_COUNT=19
 
 DEFAULT_OUTPUT="$PROJECT_ROOT/deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz"
 OUTPUT="${UBUNTU_TOOLSET_OUTPUT:-$DEFAULT_OUTPUT}"
@@ -497,6 +497,7 @@ $audit"
 COMMAND_SPECS=(
     'bash|bash --version'
     'python3|python3 --version'
+    'mcp-http|/usr/bin/python3 -I -c "import httpx, httpcore, socksio; httpx.Client(trust_env=False).close(); print(httpx.__version__)"'
     'git|git --version'
     'curl|curl --version'
     'wget|wget --version'
