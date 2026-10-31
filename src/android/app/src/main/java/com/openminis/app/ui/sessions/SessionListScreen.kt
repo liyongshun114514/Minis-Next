@@ -23,6 +23,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -111,7 +112,11 @@ import com.openminis.app.ui.components.MinisMenuDivider
 import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+// [ui/omnibot-port] Same ModalBottomSheet contract (state, insets, dismiss,
+// back policy), re-skinned with the source 24dp top corners, neutral
+// scrim and the 0.55 bounded over-pull. Alias keeps every call site
+// and parameter name unchanged.
+import com.openminis.app.ui.components.OmniBottomSheet as ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Badge
@@ -161,7 +166,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
@@ -170,6 +178,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -755,6 +764,28 @@ fun SessionListScreen(
     var showBrowserSettings by remember { mutableStateOf(false) }
     val browserTabPool = remember { com.openminis.app.browser.BrowserTabPool(context) }
 
+    // ─── [ui/omnibot-port] Kept-alive page hygiene ─────────────────────────
+    // The root shell keeps all four destinations composed while it shows one,
+    // so a page's plain `remember` state survives a tab switch. The price is
+    // that this page's transient WINDOWS (dialogs, sheets, popups) would keep
+    // floating over whatever tab is on screen. Drop them the moment this page
+    // stops being the visible one, instead of leaving them orphaned.
+    val omniPageActive = com.openminis.app.ui.navigation.LocalOmniPageActive.current
+    LaunchedEffect(omniPageActive) {
+        if (omniPageActive) return@LaunchedEffect
+        showDeleteDialog = false
+        deleteTargetId = null
+        showBulkDeleteDialog = false
+        folderToRename = null
+        folderToDissolve = null
+        folderToDelete = null
+        editSession = null
+        showOverflowMenu = false
+        showBrowserSheet = false
+        showBrowserSettings = false
+        multiExportResult = null
+    }
+
     // [T-android-session-grouping] Groups are pulled out FIRST; only the
     // leftovers go through date bucketing. Assembly order below is
     // Pinned → group block → date buckets, matching iOS.
@@ -967,9 +998,45 @@ fun SessionListScreen(
     val scheduledBadgeCount = com.openminis.app.scheduled.ScheduledTaskStore
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
+    // ─── [ui/omnibot-port] Header search source-control morph ─────────────
+    // The reference opens search by growing the field out of the button that
+    // was pressed and shrinking it back on close, so the surface the user
+    // touched becomes the field. These are that control's and the header's
+    // rectangles, measured in window px, plus the root box they are relative to.
+    var morphRootOrigin by remember { mutableStateOf(IntOffset.Zero) }
+    var morphRootSize by remember { mutableStateOf(IntSize.Zero) }
+    var searchToolbarBounds by remember { mutableStateOf<Rect?>(null) }
+    var searchSourceBounds by remember { mutableStateOf<Rect?>(null) }
+    val searchFieldFocus = remember { FocusRequester() }
+    val morphKeyboard = LocalSoftwareKeyboardController.current
+    // Existing behaviour, moved with the field: opening search focuses the
+    // input and raises the keyboard one frame later.
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            kotlinx.coroutines.delay(60)
+            runCatching { searchFieldFocus.requestFocus() }
+            morphKeyboard?.show()
+        } else {
+            morphKeyboard?.hide()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                val origin = coords.positionInWindow()
+                morphRootOrigin = IntOffset(origin.x.roundToInt(), origin.y.roundToInt())
+                morphRootSize = coords.size
+            },
+    ) {
     Scaffold(
         topBar = {
             OmniHomeTopBar(
+                // [ui/omnibot-port] Where the search capsule settles.
+                modifier = Modifier.onGloballyPositioned {
+                    searchToolbarBounds = it.boundsInWindow()
+                },
                 title = {
                     if (isSelecting) {
                         Text(
@@ -1046,15 +1113,36 @@ fun SessionListScreen(
                             Icon(Icons.Outlined.Schedule,
                                 contentDescription = stringResource(R.string.sessionlist_scheduled_tasks))
                         }
+                        // [ui/omnibot-port] The header's own search control —
+                        // the source rectangle the capsule morphs out of (the
+                        // dock's search item reports the same way).
+                        if (sessions.isNotEmpty() || isSearchActive) {
+                            Box(
+                                modifier = Modifier.onGloballyPositioned {
+                                    searchSourceBounds = it.boundsInWindow()
+                                },
+                            ) {
+                                IconButton(onClick = { viewModel.isSearchActive.value = true }) {
+                                    Icon(Icons.Outlined.Search,
+                                        contentDescription = stringResource(R.string.sessionlist_search_action))
+                                }
+                            }
+                        }
                         Box {
                             IconButton(onClick = { showOverflowMenu = true }) {
                                 Icon(Icons.Outlined.Terminal,
                                     contentDescription = stringResource(R.string.sessionlist_shell))
                             }
-                            MinisMenu(
+                            // [ui/omnibot-port] Anchor fix: the popup used to be
+                            // hosted by the button's 44dp SLOT, so it opened from
+                            // the slot's LEFT edge and the window clamp then slid
+                            // the panel away from the button it belongs to.
+                            // OmniAnchoredMenu pins a 1dp anchor to the button's
+                            // bottom-end corner and right-aligns the panel there.
+                            OmniAnchoredMenu(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
-                                offset = DpOffset(0.dp, 0.dp),
+                                modifier = Modifier.align(Alignment.BottomEnd),
                             ) {
                                 if (sessions.isNotEmpty()) {
                                     DropdownMenuItem(
@@ -1548,14 +1636,15 @@ fun SessionListScreen(
                 // having to rediscover the search FAB after a 0-hit query.
                 OmniHomeDockBar(
                     isDark = isDark,
+                    active = omniPageActive,
                     newChatLabel = stringResource(R.string.new_chat),
                     searchLabel = stringResource(R.string.sessionlist_search_action),
-                    searchPlaceholder = stringResource(R.string.search_chats_placeholder),
-                    searchDismissLabel = stringResource(R.string.sessionlist_dismiss),
                     isSearchActive = isSearchActive,
-                    searchQuery = searchQuery,
-                    isSearching = isSearching,
                     hasSessions = sessions.isNotEmpty() || isSearchActive,
+                    // The dock no longer hosts the field; it reports where its
+                    // search control is so the header capsule can morph out of
+                    // whichever control was actually tapped.
+                    onSearchControlBounds = { searchSourceBounds = it },
                     onNewChat = {
                         scope.launch {
                             val sessionId = viewModel.createNewSession()
@@ -1577,11 +1666,6 @@ fun SessionListScreen(
                             viewModel.isSearchActive.value = true
                         }
                     },
-                    onSearchQueryChange = { viewModel.searchQuery.value = it },
-                    onSearchDismiss = {
-                        viewModel.searchQuery.value = ""
-                        viewModel.isSearchActive.value = false
-                    },
                     // [ui/omnibot-port] Entries hoisted out of the toolbar into
                     // the floating dock. Same callbacks, same labels.
                     extraItems = listOf(
@@ -1598,6 +1682,54 @@ fun SessionListScreen(
                         ),
                     ),
                     modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        }
+    }
+
+        // ─── Header search morph ───────────────────────────────────────────
+        // Drawn ABOVE the Scaffold (that is why the screen is wrapped in an
+        // outer Box): the capsule animates from the tapped control's rectangle
+        // to this band of the header, so the toolbar's title row is what the
+        // field grows over — the reference's rectangle morph, not a second
+        // floating field at the bottom of the screen.
+        val morphDensity = LocalDensity.current
+        val morphTarget = omniSearchMorphTarget(
+            toolbarBounds = searchToolbarBounds,
+            rootOrigin = morphRootOrigin,
+            rootWidthPx = morphRootSize.width.toFloat(),
+            edgePx = with(morphDensity) { OmniHomeSpec.ToolbarEdge.toPx() },
+            heightPx = with(morphDensity) { OmniHomeSpec.SearchFieldHeight.toPx() },
+        )
+        val morphSource = remember(searchSourceBounds, morphRootOrigin) {
+            searchSourceBounds?.translate(
+                -morphRootOrigin.x.toFloat(),
+                -morphRootOrigin.y.toFloat(),
+            )
+        }
+        OmniSearchMorph(
+            visible = isSearchActive,
+            source = morphSource,
+            target = morphTarget,
+            modifier = Modifier.align(Alignment.TopStart),
+        ) { alpha ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { this.alpha = alpha },
+            ) {
+                OmniSearchCapsule(
+                    value = searchQuery,
+                    onValueChange = { viewModel.searchQuery.value = it },
+                    isSearching = isSearching,
+                    onDismiss = {
+                        viewModel.searchQuery.value = ""
+                        viewModel.isSearchActive.value = false
+                    },
+                    placeholder = stringResource(R.string.search_chats_placeholder),
+                    dismissContentDescription = stringResource(R.string.sessionlist_dismiss),
+                    focusRequester = searchFieldFocus,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -1813,6 +1945,34 @@ fun SessionListScreen(
         com.openminis.app.ui.browser.BrowserSettingsSheet(
             tabPool = browserTabPool,
             onDismiss = { showBrowserSettings = false },
+        )
+    }
+}
+
+/**
+ * [ui/omnibot-port] A [MinisMenu] anchored to the CONTROL that opened it.
+ *
+ * `MinisMenu` is a Compose `Popup`: it positions itself against the layout node
+ * that hosts it. Dropped straight into a toolbar `Box`, that node is the whole
+ * 44-48dp button slot, so the panel opened from the slot's left edge and — being
+ * wider than the slot — the window clamp then slid it even further from the
+ * button. Hosting the popup in a 1dp node pinned to the anchor's bottom-end
+ * corner, right-aligned, makes it hang off the button that was tapped.
+ */
+@Composable
+private fun OmniAnchoredMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(modifier = modifier.size(1.dp)) {
+        MinisMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            alignEnd = true,
+            offset = DpOffset(0.dp, 4.dp),
+            content = content,
         )
     }
 }

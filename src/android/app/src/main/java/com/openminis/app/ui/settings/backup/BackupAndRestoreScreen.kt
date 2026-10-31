@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings.backup
 
+import com.openminis.app.ui.theme.OmniColors
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -383,7 +385,6 @@ private fun BackupTab(
             CategorySwitchRow(
                 title = stringResource(categoryNameRes(cat)),
                 icon = categoryIcon(cat),
-                iconColor = categoryTint(cat),
                 checked = cat in selected,
                 onCheckedChange = { vm.toggleCategory(cat, it) },
                 enabled = !running,
@@ -422,7 +423,6 @@ private fun BackupTab(
         CategorySwitchRow(
             title = stringResource(R.string.backup_encrypt_backup),
             icon = Icons.Outlined.Lock,
-            iconColor = Color(0xFF34C759),
             checked = encrypt,
             onCheckedChange = { vm.setEncrypt(it) },
             enabled = !running,
@@ -784,7 +784,6 @@ private fun BackupHistorySection(
         if (!expanded && records.size > shown.size) {
             RestoreSourceRow(
                 icon = Icons.Outlined.History,
-                iconColor = Color(0xFF8E8E93),
                 label = stringResource(
                     R.string.backup_history_show_all,
                     records.size,
@@ -1048,7 +1047,6 @@ private fun RestoreTab(
                 serverDestinations.forEachIndexed { i, r ->
                     RestoreSourceRow(
                         icon = Icons.Outlined.Cloud,
-                        iconColor = Color(0xFFAF52DE),
                         label = r.name,
                         subtitle = stringResource(
                             R.string.backup_dest_row_subtitle,
@@ -1075,7 +1073,6 @@ private fun RestoreTab(
             // folder support is untouched — only this duplicate entry is gone.
             RestoreSourceRow(
                 icon = Icons.Outlined.Description,
-                iconColor = Color(0xFF007AFF),
                 label = if (running) status ?: stringResource(R.string.backup_reading)
                 else stringResource(R.string.backup_choose_file),
                 enabled = !running,
@@ -1084,7 +1081,6 @@ private fun RestoreTab(
             )
             RestoreSourceRow(
                 icon = Icons.Outlined.Cloud,
-                iconColor = Color(0xFFAF52DE),
                 label = stringResource(R.string.backup_choose_server),
                 enabled = !running,
                 // [T-android-restore-server-list] ALWAYS the same destination:
@@ -1166,7 +1162,6 @@ private fun RestoreTab(
                 title = stringResource(categoryNameRes(cat)),
                 subtitle = stat?.let { categoryCountLabel(cat, it) },
                 icon = categoryIcon(cat),
-                iconColor = categoryTint(cat),
                 checked = cat in restoreSelected,
                 onCheckedChange = { vm.toggleRestoreCategory(cat, it) },
                 enabled = !running,
@@ -1393,7 +1388,6 @@ private fun DestinationsSection(
         // knew what either did.
         RestoreSourceRow(
             icon = Icons.Outlined.Add,
-            iconColor = Color(0xFF34C759),
             label = stringResource(R.string.backup_manage_destinations),
             enabled = enabled,
             onClick = onManage,
@@ -1653,7 +1647,8 @@ private fun backupResultFooter(r: com.openminis.app.backup.BackupRunController.R
 // its rows with the same shape as the restore sources they follow from.
 internal fun RestoreSourceRow(
     icon: ImageVector,
-    iconColor: Color,
+    // Neutral Omni tint unless the caller states an accent.
+    iconColor: Color = OmniColors.textPrimary,
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -1785,7 +1780,7 @@ private fun InfoLine(label: String, value: String) {
 private fun CategorySwitchRow(
     title: String,
     icon: ImageVector,
-    iconColor: Color,
+    iconColor: Color = OmniColors.textPrimary,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     subtitle: String? = null,

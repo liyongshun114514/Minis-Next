@@ -37,8 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.repository.SkillRepository
+import com.openminis.app.ui.components.OmniSettingsTopBar
+import com.openminis.app.ui.components.omniSettingsTopBarColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,7 +97,7 @@ fun MinisSkillsBrowserScreen(
             // would fight the WebView measure pass. Match the SettingsScaffold
             // bar styling (background colour + SemiBold title) so the visual
             // signature stays consistent with the rest of the settings stack.
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.skills_browser_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
@@ -124,7 +124,7 @@ fun MinisSkillsBrowserScreen(
                         Text(stringResource(R.string.skills_browser_import_button), style = MaterialTheme.typography.titleMedium)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = omniSettingsTopBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )

@@ -549,6 +549,57 @@ fun AppNavigation(
         quickActionStart != null -> quickActionStart
         else -> Routes.SESSION_LIST
     }
+    // ─── [ui/omnibot-port] Root tab pages ─────────────────────────────────
+    // The root shell shows four destinations in place: the conversation home
+    // (the split list/detail scaffold), the sub-agent roster, token usage and
+    // Settings. Each is the SAME screen its route renders — defined once here
+    // and used by both the tab and the `composable(...)` destination, so a tab
+    // and a pushed route can never drift apart, and no route, callback or
+    // deep-link entry point is lost by adding the in-place shell.
+    val omniSettingsPage: @Composable (onBack: () -> Unit) -> Unit = { onBack ->
+        SettingsScreen(
+            onBack = onBack,
+            onProvidersClick = { navController.safeNavigate(Routes.PROVIDER_LIST) },
+            onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
+            onRootfsClick = { navController.safeNavigate(Routes.STORAGE) },
+            onBackupClick = { navController.safeNavigate(Routes.BACKUP) },
+            onEnvVarsClick = { navController.safeNavigate(Routes.ENV_VARS) },
+            onNetworkClick = { navController.safeNavigate(Routes.NETWORK) },
+            onTailscaleClick = { navController.safeNavigate(Routes.NETWORK_TAILSCALE) },
+            onProxiesClick = { navController.safeNavigate(Routes.NETWORK_PROXIES) },
+            onContainerDnsClick = { navController.safeNavigate(Routes.CONTAINER_DNS) },
+            onSkillsClick = { navController.safeNavigate(Routes.SKILLS) },
+            onTerminalClick = { navController.safeNavigate(Routes.terminal()) },
+            onMemoryClick = { navController.safeNavigate(Routes.MEMORY) },
+            onAgentsClick = { navController.safeNavigate(Routes.AGENTS) },
+            onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
+            onMcpClick = { navController.safeNavigate(Routes.MCP) },
+            onSoulClick = { navController.safeNavigate(Routes.SOUL) },
+            onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
+            onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
+            onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
+            onAppearanceClick = { navController.safeNavigate(Routes.APPEARANCE) },
+            onBackgroundClick = { navController.safeNavigate(Routes.BACKGROUND) },
+            onLogsClick = { navController.safeNavigate(Routes.LOGS) },
+            onAboutClick = { navController.safeNavigate(Routes.ABOUT) },
+            onMountedFoldersClick = { navController.safeNavigate(Routes.MOUNTED_FOLDERS) },
+            onSharedFoldersClick = { navController.safeNavigate(Routes.SHARED_FOLDERS) },
+        )
+    }
+    val omniAgentsPage: @Composable (onBack: () -> Unit) -> Unit = { onBack ->
+        com.openminis.app.ui.settings.SubAgentsScreen(
+            onBack = onBack,
+            onOpen = { id -> navController.navigate("sub_agent/$id") },
+        )
+    }
+    val omniUsagePage: @Composable (onBack: () -> Unit) -> Unit = { onBack ->
+        UsageStatsScreen(
+            chatDao = chatRepository.dao,
+            providerConfig = providerRepository.config.value,
+            onBack = onBack,
+        )
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -581,14 +632,27 @@ fun AppNavigation(
         },
         popEnterTransition = {
             slideInHorizontally(
-                animationSpec = tween(OmniMotion.PageDuration, easing = OmniMotion.PageEasing),
+                animationSpec = tween(
+                    OmniMotion.BackSettleDuration,
+                    easing = OmniMotion.PageEasing,
+                ),
                 initialOffsetX = { -it / 4 },
             ) + fadeIn(animationSpec = tween(OmniMotion.FadeInDuration,
                 delayMillis = OmniMotion.FadeInDelay, easing = OmniMotion.FadeInEasing))
         },
+        // Interactive back: Navigation 2.8 runs the gesture itself (its
+        // `NavHost` drives `androidx.activity.compose.PredictiveBackHandler`, and
+        // the manifest sets `android:enableOnBackInvokedCallback="true"`), seeking
+        // these very transitions under the finger. Only the COMMITTED settle is
+        // timed here, and the reference settles in 350ms rather than the 450ms
+        // push. No in-screen drag handler is added on purpose: a full-surface
+        // gesture would fight the session list's own horizontal drags.
         popExitTransition = {
             slideOutHorizontally(
-                animationSpec = tween(OmniMotion.PageDuration, easing = OmniMotion.PageEasing),
+                animationSpec = tween(
+                    OmniMotion.BackSettleDuration,
+                    easing = OmniMotion.PageEasing,
+                ),
                 targetOffsetX = { it / 4 },
             ) + fadeOut(animationSpec = tween(OmniMotion.FadeOutDuration))
         },
@@ -602,15 +666,28 @@ fun AppNavigation(
         // them keeps working unchanged. On a phone the scaffold resolves to a
         // single pane, so those pushes look and behave exactly as before.
         composable(Routes.SESSION_LIST) {
-            ChatSplitScaffoldRoute(
-                initialSessionId = null,
-                navController = navController,
-                chatRepository = chatRepository,
-                providerRepository = providerRepository,
-                memoryRepository = memoryRepository,
-                skillRepository = skillRepository,
-                mcpRepository = mcpRepository,
-            )
+            // [ui/omnibot-port] One root shell owns the four kept-alive
+            // surfaces. Selecting a tab does NOT navigate: it swaps the page and
+            // the previous one keeps its state (pager + SaveableStateHolder).
+            // Every push from inside a page still goes through this NavHost, so
+            // chat, settings sub-pages, terminal and file previews behave
+            // exactly as they did, and back from a tab returns to Home.
+            OmniRootNavigation { tab, onNavigateUp ->
+                when (tab) {
+                    OmniRootTab.Home -> ChatSplitScaffoldRoute(
+                        initialSessionId = null,
+                        navController = navController,
+                        chatRepository = chatRepository,
+                        providerRepository = providerRepository,
+                        memoryRepository = memoryRepository,
+                        skillRepository = skillRepository,
+                        mcpRepository = mcpRepository,
+                    )
+                    OmniRootTab.Agents -> omniAgentsPage(onNavigateUp)
+                    OmniRootTab.Activity -> omniUsagePage(onNavigateUp)
+                    OmniRootTab.Settings -> omniSettingsPage(onNavigateUp)
+                }
+            }
         }
 
         composable(
@@ -630,34 +707,8 @@ fun AppNavigation(
         }
 
         composable(Routes.SETTINGS) {
-            SettingsScreen(
-                onBack = { navController.safePopBackStack() },
-                onProvidersClick = { navController.safeNavigate(Routes.PROVIDER_LIST) },
-                onModelGroupsClick = { navController.safeNavigate(Routes.MODEL_GROUPS) },
-                onRootfsClick = { navController.safeNavigate(Routes.STORAGE) },
-                onBackupClick = { navController.safeNavigate(Routes.BACKUP) },
-                onEnvVarsClick = { navController.safeNavigate(Routes.ENV_VARS) },
-                onNetworkClick = { navController.safeNavigate(Routes.NETWORK) },
-                onTailscaleClick = { navController.safeNavigate(Routes.NETWORK_TAILSCALE) },
-                onProxiesClick = { navController.safeNavigate(Routes.NETWORK_PROXIES) },
-                onContainerDnsClick = { navController.safeNavigate(Routes.CONTAINER_DNS) },
-                onSkillsClick = { navController.safeNavigate(Routes.SKILLS) },
-                onTerminalClick = { navController.safeNavigate(Routes.terminal()) },
-                onMemoryClick = { navController.safeNavigate(Routes.MEMORY) },
-                onAgentsClick = { navController.safeNavigate(Routes.AGENTS) },
-                onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
-                onMcpClick = { navController.safeNavigate(Routes.MCP) },
-                onSoulClick = { navController.safeNavigate(Routes.SOUL) },
-                onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
-                onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
-                onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
-                onAppearanceClick = { navController.safeNavigate(Routes.APPEARANCE) },
-                onBackgroundClick = { navController.safeNavigate(Routes.BACKGROUND) },
-                onLogsClick = { navController.safeNavigate(Routes.LOGS) },
-                onAboutClick = { navController.safeNavigate(Routes.ABOUT) },
-                onMountedFoldersClick = { navController.safeNavigate(Routes.MOUNTED_FOLDERS) },
-                onSharedFoldersClick = { navController.safeNavigate(Routes.SHARED_FOLDERS) },
-            )
+            // Same screen as the root shell's Settings tab, one definition.
+            omniSettingsPage { navController.safePopBackStack() }
         }
 
         composable(Routes.BACKUP) { entry ->
@@ -1484,11 +1535,8 @@ fun AppNavigation(
         }
 
         composable(Routes.USAGE_STATS) {
-            UsageStatsScreen(
-                chatDao = chatRepository.dao,
-                providerConfig = providerRepository.config.value,
-                onBack = { navController.safePopBackStack() },
-            )
+            // Same screen as the root shell's Activity tab.
+            omniUsagePage { navController.safePopBackStack() }
         }
 
         composable(Routes.APPEARANCE) {
@@ -1515,10 +1563,8 @@ fun AppNavigation(
         // Kept as a route rather than deleted: `minis://settings/agents` is a
         // published deep link, so it must keep resolving.
         composable(Routes.AGENTS) {
-            com.openminis.app.ui.settings.SubAgentsScreen(
-                onBack = { navController.safePopBackStack() },
-                onOpen = { id -> navController.navigate("sub_agent/$id") },
-            )
+            // Same roster as the root shell's Agents tab.
+            omniAgentsPage { navController.safePopBackStack() }
         }
 
         composable(Routes.SUB_AGENTS) {

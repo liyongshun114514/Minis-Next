@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -39,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
+import com.openminis.app.ui.components.OmniSettingsTopBar
 
 /**
  * Detail screen for a single shared folder. Mirrors the iOS Folder Details
@@ -64,7 +64,7 @@ fun SharedFolderDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.shared_folder_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -130,7 +130,7 @@ private fun HeaderCard(folder: SharedFolderEntry) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(folder.iconColor),
+                    .background(folder.iconColor ?: MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

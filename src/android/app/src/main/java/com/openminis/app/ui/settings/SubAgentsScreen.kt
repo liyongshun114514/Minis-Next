@@ -19,7 +19,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import com.openminis.app.ui.components.OmniBottomSheet as ModalBottomSheet
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -462,7 +462,6 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
                     persist()
                 },
                 icon = Icons.Default.Psychology,
-                iconColor = Color(0xFFAF52DE),
                 showDivider = on,
             )
             if (on) {

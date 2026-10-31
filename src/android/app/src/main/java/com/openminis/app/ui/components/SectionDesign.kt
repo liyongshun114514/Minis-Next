@@ -43,6 +43,26 @@ object SectionDesign {
     /** Card corner radius. Omni groups/cards use a flat 22dp surface. */
     val CardShape = RoundedCornerShape(22.dp)
 
+    /** [T-omnibot-ui-port] Settings header height — the reference's 72dp toolbar
+     *  (not Material3's fixed 64dp, and not the old 17sp centred bar). Every
+     *  settings page, root or sub-page, uses this through `OmniSettingsTopBar`. */
+    val HeaderHeight = 72.dp
+
+    /** Large settings title: 28sp, w600, 1.2 line-height. Scaled by the user's
+     *  font size through `omniTextStyle`, exactly like the 15/12sp row text. */
+    val HeaderTitleSize = 28.sp
+    val HeaderTitleLineHeight = 33.6.sp
+
+    /** Bar controls keep a 16dp edge inset; the title then lands on the 22dp
+     *  page gutter used by every section card below it. */
+    val HeaderEdgeInset = 16.dp
+    val HeaderTitleInset = 6.dp
+
+    /** Row container transform: a row starts from the grouped card's 22dp radius
+     *  (same measured value as [OmniMorphMotion.RowSourceRadius], which the
+     *  transform itself consumes). */
+    val RowSourceRadius = 22.dp
+
     /** Distance from screen top → first section header. */
     val FirstSectionTopGap = OmniDimens.PageVerticalTop
 

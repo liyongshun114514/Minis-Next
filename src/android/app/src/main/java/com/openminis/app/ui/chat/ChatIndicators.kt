@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,22 +55,35 @@ internal fun BouncingDots(color: Color) {
     // every frame recomposed and re-laid-out the row. Now one shared 30 fps
     // tick, read inside the layer lambda, moving translationY only.
     // [T-omnibot-thinking-dots] Geometry/curve ported from the OmniBot
-    // reference `ThinkingDotsIndicator`: 8dp dots, 4dp gaps, a 4dp lift and an
-    // alpha ramp of 0.4→1.0 shared with the travel, one 600 ms cycle per dot
-    // staggered by 150 ms so the wave reads left-to-right. The tick is still
-    // the shared 30 fps one, so this stays a draw-phase-only change.
+    // reference `ThinkingDotsIndicator`: 8dp dots (its `dotSize` default),
+    // 4dp gaps, a 4dp lift and an alpha ramp of 0.4→1.0 shared with the
+    // travel, one 600 ms cycle per dot staggered by 150 ms so the wave reads
+    // left-to-right. The tick is still the shared 30 fps one, so this stays a
+    // draw-phase-only change.
+    //
+    // [T-omnibot-composer-motion] Dot size corrected 5dp → 8dp: the comment
+    // above has claimed 8dp since the port landed, and 8dp is what the
+    // reference actually draws; 5dp made the "is thinking" row read as a
+    // shimmer rather than three dots.
     val tick = rememberDecorativeTick()
-    val dotSize = 5.dp
-    val lift = 4.dp
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    val dotSize = ThinkingDotsSpec.DotSize
+    val lift = ThinkingDotsSpec.Lift
+    Row(horizontalArrangement = Arrangement.spacedBy(ThinkingDotsSpec.Spacing)) {
         repeat(3) { i ->
             Box(
                 modifier = Modifier
                     .size(dotSize)
                     .graphicsLayer {
-                        val p = decorativePingPong(decorativePhase(tick.value, 600, i * 150))
+                        val p = decorativePingPong(
+                            decorativePhase(
+                                nanos = tick.value,
+                                periodMs = ThinkingDotsSpec.CYCLE_MS,
+                                offsetMs = i * ThinkingDotsSpec.STAGGER_MS,
+                            ),
+                        )
                         translationY = -lift.toPx() * p
-                        alpha = 0.4f + 0.6f * p
+                        alpha = ThinkingDotsSpec.ALPHA_MIN +
+                            (ThinkingDotsSpec.ALPHA_MAX - ThinkingDotsSpec.ALPHA_MIN) * p
                     }
                     .background(color, CircleShape),
             )
@@ -96,6 +111,144 @@ internal fun StreamingDotsText() {
                 },
             )
         }
+    }
+}
+
+/**
+ * [T-omnibot-thinking-dots] Measured geometry of the reference
+ * `ThinkingDotsIndicator`, kept in one place so the thinking row and any future
+ * "alive" affordance cannot drift apart.
+ */
+internal object ThinkingDotsSpec {
+
+    /** Reference `dotSize` default: 8. */
+    val DotSize = 8.dp
+
+    /** Reference `spacing` default: 4 (half of it on each side of a dot). */
+    val Spacing = 4.dp
+
+    /** `Transform.translate(offset: Offset(0, -4 * value))`. */
+    val Lift = 4.dp
+
+    /** One cycle per dot, `Curves.easeInOut`, `repeat(reverse: true)`. */
+    const val CYCLE_MS = 600
+
+    /** Per-dot start delay, so the wave reads left to right. */
+    const val STAGGER_MS = 150
+
+    /** `alpha: 0.4 + 0.6 * value`. */
+    const val ALPHA_MIN = 0.4f
+    const val ALPHA_MAX = 1f
+}
+
+/**
+ * [T-omnibot-chat-empty-greeting] The line the conversation area shows while a
+ * chat has no messages yet.
+ *
+ * ## What it is
+ *
+ * The reference's `ChatEmptyGreeting` ported structurally, not textually: a
+ * headline over a rotating hint, entering as one block with a 420 ms
+ * `easeOutCubic` fade and a 10 dp rise ([ChatEmptyGreetingSpec]). Reduce motion
+ * takes the end state immediately, exactly like the reference's
+ * `disableAnimations` branch.
+ *
+ * ## Why it reads the existing copy instead of new copy
+ *
+ * The headline is the app's existing localized welcome string, and the rotating
+ * line is the EXISTING composer hint pool resolved through
+ * `composerPlaceholderText` — the same strings the composer placeholder already
+ * rotates, in the same translations. The rotation is
+ * [ComposerPlaceholderRotation.nextIndex], i.e. the shipped index rules (never
+ * repeat what is on screen, screen reader pins it) rather than a second random
+ * scheme. Nothing here invents product copy, feature names or figures: the
+ * empty state cannot claim anything the app does not already say elsewhere.
+ *
+ * ## Rotation cadence
+ *
+ * The composer rotates on the focus edge because a static composer has no other
+ * signal; the greeting is static by definition, so it advances on the
+ * reference's 1800 ms `_rotationInterval` instead. The two focus guards of
+ * [ComposerPlaceholderRotation.nextIndex] ("first focus in an empty session
+ * keeps the default", "a session with messages rotates at once") describe that
+ * focus edge and would freeze the greeting forever, so both are passed as
+ * "this is a visit" here — the timer IS the visit.
+ */
+@Composable
+internal fun ChatEmptyGreeting(
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
+    val soulName = soulMeta.name.trim().ifEmpty { "Minis Next" }
+    val screenReaderOn = rememberScreenReaderEnabled()
+    val animate = !animationsDisabled(context)
+    val headline = stringResource(R.string.onboarding_welcome_title)
+
+    // rememberSaveable: a rotation or a dark-mode switch must not restart the
+    // greeting's entrance, which the user has already seen.
+    var hintIndex by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableIntStateOf(ComposerPlaceholderRotation.DEFAULT_INDEX)
+    }
+    LaunchedEffect(screenReaderOn, animate) {
+        // TalkBack: a line that changes under the reader is noise, and the
+        // rotation would retrigger announcements mid-read. Same rule as the
+        // composer placeholder, same reason.
+        if (screenReaderOn) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(ChatEmptyGreetingSpec.ROTATE_MS)
+            hintIndex = ComposerPlaceholderRotation.nextIndex(
+                current = hintIndex,
+                hasFocusedBefore = true,
+                sessionHasMessages = true,
+                screenReaderOn = false,
+                randomIndex = { bound -> kotlin.random.Random.nextInt(bound) },
+            )
+        }
+    }
+
+    val enter = remember {
+        androidx.compose.animation.core.Animatable(if (animate) 0f else 1f)
+    }
+    LaunchedEffect(Unit) {
+        if (animate) {
+            enter.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = ChatEmptyGreetingSpec.ENTER_MS,
+                    easing = ChatEmptyGreetingSpec.Easing,
+                ),
+            )
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = ChatEmptyGreetingSpec.SIDE_PADDING_DP.dp)
+            // Read in the layer lambda: one 420 ms entrance must not recompose
+            // the greeting (or the chat list behind it) per frame.
+            .graphicsLayer {
+                alpha = enter.value
+                translationY = ChatEmptyGreetingSpec.riseDp(enter.value).dp.toPx()
+            },
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = headline,
+            fontSize = 19.sp,
+            lineHeight = 24.7.sp,
+            fontWeight = FontWeight.Normal,
+            color = ChatColors.primaryText,
+        )
+        Text(
+            text = composerPlaceholderText(ComposerPlaceholderPool.textIndex(hintIndex), soulName),
+            fontSize = 15.sp,
+            lineHeight = 19.5.sp,
+            color = ChatColors.secondaryText,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
     }
 }
 

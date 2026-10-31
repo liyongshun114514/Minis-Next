@@ -52,7 +52,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -83,6 +82,7 @@ import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionDivider
 import com.openminis.app.ui.components.SectionFooter
 import com.openminis.app.ui.components.SectionHeader
+import com.openminis.app.ui.components.OmniSettingsTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,7 +159,7 @@ fun ModelGroupsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.model_groups_model_groups)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -54,11 +54,10 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.openminis.app.ui.components.OmniBottomSheet as ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -133,305 +132,253 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var showFeedbackSheet by remember { mutableStateOf(false) }
-    Scaffold(
-        topBar = {
-            // [T-omnibot-ui-port] Omni bar: centred 17sp medium title over the
-            // page background (no tinted or elevated app bar).
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.settings_title),
-                        style = omniTextStyle(
-                            size = OmniDimens.BarTitleSize,
-                            color = OmniColors.textPrimary,
-                            weight = FontWeight.Medium,
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_back),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = OmniColors.pageBackground,
-                    titleContentColor = OmniColors.textPrimary,
-                    navigationIconContentColor = OmniColors.textPrimary,
-                ),
-            )
-        },
-        containerColor = OmniColors.pageBackground,
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
+    // [T-omnibot-ui-port] The settings root now uses the same shared scaffold as
+    // every sub-page: one 72dp header with a 28sp/w600 leading title, and the
+    // row→page container transform (a tapped row expands into its destination
+    // over 300ms fastOutSlowIn). Title, back action and callbacks are unchanged.
+    SettingsScaffold(
+        title = stringResource(R.string.settings_title),
+        onBack = onBack,
+    ) {
+        // -- LLM Providers --
+        SettingsSection(
+            header = stringResource(R.string.settings_section_llm_providers),
+            footer = stringResource(R.string.settings_section_llm_providers_footer),
         ) {
-            // -- LLM Providers --
-            SettingsSection(
-                title = stringResource(R.string.settings_section_llm_providers),
-                footer = stringResource(R.string.settings_section_llm_providers_footer),
-            ) {
-                SettingsItem(
-                    icon = Icons.Outlined.Lock,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_manage_providers),
-                    subtitle = stringResource(R.string.settings_manage_providers_subtitle),
-                    onClick = onProvidersClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Settings,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_model_groups),
-                    subtitle = stringResource(R.string.settings_model_groups_subtitle),
-                    onClick = onModelGroupsClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.BarChart,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_token_usage),
-                    subtitle = stringResource(R.string.settings_token_usage_subtitle),
-                    onClick = onUsageClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Appearance --
-            SettingsSection(title = stringResource(R.string.settings_section_appearance)) {
-                SettingsItem(
-                    icon = Icons.Outlined.Palette,
-                    iconColor = Color(0xFF5856D6),
-                    title = stringResource(R.string.settings_section_appearance),
-                    subtitle = stringResource(R.string.settings_appearance_subtitle),
-                    onClick = onAppearanceClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Agent Runtime --
-            // [T-android-settings-runtime-order] Row order matches iOS
-            // (ContentView.swift, Section "Agent Runtime"): Agent Tools, Sub
-            // Agents, Skills, Soul, Memory, MCP, Environment Variables.
-            //
-            // The order is not alphabetical or historical — it runs from what
-            // the agent may DO (tools, and who it may hand work to) to what it
-            // is made OF (skills, identity, memory) and finally to what it
-            // connects to (MCP, env). Android had grown its own order simply by
-            // appending each row as it landed, which put the two capability
-            // switches in the middle of the identity rows.
-            SettingsSection(title = stringResource(R.string.settings_section_agent_runtime)) {
-                // [T-tools-granular-switches] Which optional tools the agent may use.
-                SettingsItem(
-                    icon = Icons.Outlined.Handyman,
-                    iconColor = Color(0xFF5E5CE6),
-                    title = stringResource(R.string.settings_agent_tools),
-                    subtitle = stringResource(R.string.settings_agent_tools_subtitle),
-                    onClick = onAgentToolsClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Groups,
-                    iconColor = com.openminis.app.ui.chat.HelperAccentStatic,
-                    title = stringResource(R.string.settings_agents),
-                    subtitle = stringResource(R.string.settings_agents_subtitle),
-                    onClick = onAgentsClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Extension,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_skills),
-                    subtitle = stringResource(R.string.settings_skills_subtitle),
-                    onClick = onSkillsClick,
-                )
-                // [T-soul-md] Between Skills and Memory, as on iOS.
-                SettingsItem(
-                    icon = Icons.Outlined.AutoAwesome,
-                    iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.settings_soul),
-                    subtitle = stringResource(R.string.settings_soul_subtitle),
-                    onClick = onSoulClick,
-                )
-                // [T-workspace-instructions] Directly below System Prompt: the
-                // global prompt is what the agent IS, this is the guidance the
-                // project's own AGENTS.md / CLAUDE.md files add on top of it.
-                SettingsItem(
-                    icon = Icons.Outlined.Description,
-                    iconColor = Color(0xFF34C759),
-                    title = stringResource(R.string.settings_workspace_instructions),
-                    subtitle = stringResource(R.string.settings_workspace_instructions_subtitle),
-                    onClick = onWorkspaceInstructionsClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Psychology,
-                    iconColor = Color(0xFF5856D6),
-                    title = stringResource(R.string.settings_memory),
-                    subtitle = stringResource(R.string.settings_memory_subtitle),
-                    onClick = onMemoryClick,
-                )
-                // [T-mcp-integration-android] MCP Integrations — below Memory.
-                // [T-android-mcp-icon-distinct] Dashboard (2x2 block grid) instead of
-                // Extension so MCP no longer shares the Skills row's puzzle-piece icon —
-                // the grid reads as "multiple composed blocks/servers". teal unchanged.
-                SettingsItem(
-                    icon = Icons.Outlined.Dashboard,
-                    iconColor = Color(0xFF30B0C7),
-                    title = stringResource(R.string.settings_mcp),
-                    subtitle = stringResource(R.string.settings_mcp_subtitle),
-                    onClick = onMcpClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Terminal,
-                    iconColor = Color(0xFF34C759),
-                    title = stringResource(R.string.settings_env_vars),
-                    subtitle = stringResource(R.string.settings_env_vars_subtitle),
-                    onClick = onEnvVarsClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Storage --
-            SettingsSection(title = stringResource(R.string.settings_section_storage)) {
-                SettingsItem(
-                    icon = Icons.Outlined.Inventory2,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_section_storage),
-                    subtitle = stringResource(R.string.settings_storage_subtitle),
-                    onClick = onRootfsClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Folder,
-                    iconColor = Color(0xFF34C759),
-                    title = stringResource(R.string.settings_shared_folders),
-                    subtitle = stringResource(R.string.settings_shared_folders_subtitle),
-                    onClick = onSharedFoldersClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.FolderShared,
-                    iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.settings_mount_external_folders),
-                    subtitle = stringResource(R.string.settings_mount_external_folders_subtitle),
-                    onClick = onMountedFoldersClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Backup,
-                    iconColor = Color(0xFF34C759),
-                    title = stringResource(R.string.settings_backup_restore),
-                    subtitle = stringResource(R.string.settings_backup_restore_subtitle),
-                    onClick = onBackupClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Network -- [FEAT-261021-04, iOS c77be4fb6] its own section below
-            // Storage: Network Routing, Tailscale, Proxies and the Shell
-            // Container DNS (until now only on the Rootfs page).
-            SettingsSection(title = stringResource(R.string.network_title)) {
-                SettingsItem(
-                    icon = Icons.Outlined.Lan,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.network_routing_title),
-                    subtitle = null,
-                    onClick = onNetworkClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.VpnLock,
-                    iconColor = Color(0xFF5856D6),
-                    title = stringResource(R.string.network_tailscale),
-                    subtitle = null,
-                    onClick = onTailscaleClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Router,
-                    iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.network_proxies),
-                    subtitle = null,
-                    onClick = onProxiesClick,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Dns,
-                    iconColor = Color(0xFF8E8E93),
-                    title = stringResource(R.string.network_container_dns),
-                    subtitle = null,
-                    onClick = onContainerDnsClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Permissions --
-            SettingsSection(title = stringResource(R.string.settings_section_permissions)) {
-                SettingsItem(
-                    icon = Icons.Outlined.Shield,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_section_permissions),
-                    subtitle = stringResource(R.string.settings_permissions_subtitle),
-                    onClick = onPermissionsClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Background & Notifications (T50) --
-            SettingsSection(
-                title = stringResource(R.string.bg_section_header),
-                footer = stringResource(R.string.bg_section_footer),
-            ) {
-                SettingsItem(
-                    icon = Icons.Outlined.BatteryFull,
-                    iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.bg_section_header),
-                    subtitle = stringResource(R.string.bg_section_subtitle),
-                    onClick = onBackgroundClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- Logs --
-            SettingsSection(title = stringResource(R.string.settings_section_logs)) {
-                SettingsItem(
-                    icon = Icons.Outlined.Description,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_section_logs),
-                    subtitle = stringResource(R.string.settings_logs_subtitle),
-                    onClick = onLogsClick,
-                    showDivider = false,
-                )
-            }
-
-            // -- About --
-            SettingsSection(title = stringResource(R.string.settings_section_about)) {
-                // [T-update-channels] The update badge's Settings layer.
-                val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
-                SettingsItem(
-                    icon = Icons.Outlined.Info,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_about_minis),
-                    subtitle = stringResource(R.string.settings_about_subtitle),
-                    onClick = onAboutClick,
-                    badge = updateBadge,
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.FrontHand,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_privacy_policy),
-                    subtitle = null,
-                    // iOS canonical URL — ContentView.swift / AddProviderView.swift
-                    onClick = { openExternalUrl(context, "https://openminis.github.io/privacy-policy.html") },
-                )
-                SettingsItem(
-                    icon = Icons.Outlined.Feedback,
-                    iconColor = Color(0xFF007AFF),
-                    title = stringResource(R.string.settings_feedback),
-                    subtitle = null,
-                    onClick = { showFeedbackSheet = true },
-                    showDivider = false,
-                )
-            }
-
-            // Omni page bottom inset.
-            Spacer(Modifier.height(OmniDimens.PageVerticalBottom))
+            SettingsRow(
+                icon = Icons.Outlined.Lock,
+                title = stringResource(R.string.settings_manage_providers),
+                subtitle = stringResource(R.string.settings_manage_providers_subtitle),
+                onClick = onProvidersClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Settings,
+                title = stringResource(R.string.settings_model_groups),
+                subtitle = stringResource(R.string.settings_model_groups_subtitle),
+                onClick = onModelGroupsClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.BarChart,
+                title = stringResource(R.string.settings_token_usage),
+                subtitle = stringResource(R.string.settings_token_usage_subtitle),
+                onClick = onUsageClick,
+                showDivider = false,
+            )
         }
+
+        // -- Appearance --
+        SettingsSection(header = stringResource(R.string.settings_section_appearance)) {
+            SettingsRow(
+                icon = Icons.Outlined.Palette,
+                title = stringResource(R.string.settings_section_appearance),
+                subtitle = stringResource(R.string.settings_appearance_subtitle),
+                onClick = onAppearanceClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Agent Runtime --
+        // [T-android-settings-runtime-order] Row order matches iOS
+        // (ContentView.swift, Section "Agent Runtime"): Agent Tools, Sub
+        // Agents, Skills, Soul, Memory, MCP, Environment Variables.
+        //
+        // The order is not alphabetical or historical — it runs from what
+        // the agent may DO (tools, and who it may hand work to) to what it
+        // is made OF (skills, identity, memory) and finally to what it
+        // connects to (MCP, env). Android had grown its own order simply by
+        // appending each row as it landed, which put the two capability
+        // switches in the middle of the identity rows.
+        SettingsSection(header = stringResource(R.string.settings_section_agent_runtime)) {
+            // [T-tools-granular-switches] Which optional tools the agent may use.
+            SettingsRow(
+                icon = Icons.Outlined.Handyman,
+                title = stringResource(R.string.settings_agent_tools),
+                subtitle = stringResource(R.string.settings_agent_tools_subtitle),
+                onClick = onAgentToolsClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Groups,
+                title = stringResource(R.string.settings_agents),
+                subtitle = stringResource(R.string.settings_agents_subtitle),
+                onClick = onAgentsClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Extension,
+                title = stringResource(R.string.settings_skills),
+                subtitle = stringResource(R.string.settings_skills_subtitle),
+                onClick = onSkillsClick,
+            )
+            // [T-soul-md] Between Skills and Memory, as on iOS.
+            SettingsRow(
+                icon = Icons.Outlined.AutoAwesome,
+                title = stringResource(R.string.settings_soul),
+                subtitle = stringResource(R.string.settings_soul_subtitle),
+                onClick = onSoulClick,
+            )
+            // [T-workspace-instructions] Directly below System Prompt: the
+            // global prompt is what the agent IS, this is the guidance the
+            // project's own AGENTS.md / CLAUDE.md files add on top of it.
+            SettingsRow(
+                icon = Icons.Outlined.Description,
+                title = stringResource(R.string.settings_workspace_instructions),
+                subtitle = stringResource(R.string.settings_workspace_instructions_subtitle),
+                onClick = onWorkspaceInstructionsClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Psychology,
+                title = stringResource(R.string.settings_memory),
+                subtitle = stringResource(R.string.settings_memory_subtitle),
+                onClick = onMemoryClick,
+            )
+            // [T-mcp-integration-android] MCP Integrations — below Memory.
+            // [T-android-mcp-icon-distinct] Dashboard (2x2 block grid) instead of
+            // Extension so MCP no longer shares the Skills row's puzzle-piece icon —
+            // the grid reads as "multiple composed blocks/servers". teal unchanged.
+            SettingsRow(
+                icon = Icons.Outlined.Dashboard,
+                title = stringResource(R.string.settings_mcp),
+                subtitle = stringResource(R.string.settings_mcp_subtitle),
+                onClick = onMcpClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Terminal,
+                title = stringResource(R.string.settings_env_vars),
+                subtitle = stringResource(R.string.settings_env_vars_subtitle),
+                onClick = onEnvVarsClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Storage --
+        SettingsSection(header = stringResource(R.string.settings_section_storage)) {
+            SettingsRow(
+                icon = Icons.Outlined.Inventory2,
+                title = stringResource(R.string.settings_section_storage),
+                subtitle = stringResource(R.string.settings_storage_subtitle),
+                onClick = onRootfsClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Folder,
+                title = stringResource(R.string.settings_shared_folders),
+                subtitle = stringResource(R.string.settings_shared_folders_subtitle),
+                onClick = onSharedFoldersClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.FolderShared,
+                title = stringResource(R.string.settings_mount_external_folders),
+                subtitle = stringResource(R.string.settings_mount_external_folders_subtitle),
+                onClick = onMountedFoldersClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Backup,
+                title = stringResource(R.string.settings_backup_restore),
+                subtitle = stringResource(R.string.settings_backup_restore_subtitle),
+                onClick = onBackupClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Network -- [FEAT-261021-04, iOS c77be4fb6] its own section below
+        // Storage: Network Routing, Tailscale, Proxies and the Shell
+        // Container DNS (until now only on the Rootfs page).
+        SettingsSection(header = stringResource(R.string.network_title)) {
+            SettingsRow(
+                icon = Icons.Outlined.Lan,
+                title = stringResource(R.string.network_routing_title),
+                subtitle = null,
+                onClick = onNetworkClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.VpnLock,
+                title = stringResource(R.string.network_tailscale),
+                subtitle = null,
+                onClick = onTailscaleClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Router,
+                title = stringResource(R.string.network_proxies),
+                subtitle = null,
+                onClick = onProxiesClick,
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Dns,
+                title = stringResource(R.string.network_container_dns),
+                subtitle = null,
+                onClick = onContainerDnsClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Permissions --
+        SettingsSection(header = stringResource(R.string.settings_section_permissions)) {
+            SettingsRow(
+                icon = Icons.Outlined.Shield,
+                title = stringResource(R.string.settings_section_permissions),
+                subtitle = stringResource(R.string.settings_permissions_subtitle),
+                onClick = onPermissionsClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Background & Notifications (T50) --
+        SettingsSection(
+            header = stringResource(R.string.bg_section_header),
+            footer = stringResource(R.string.bg_section_footer),
+        ) {
+            SettingsRow(
+                icon = Icons.Outlined.BatteryFull,
+                title = stringResource(R.string.bg_section_header),
+                subtitle = stringResource(R.string.bg_section_subtitle),
+                onClick = onBackgroundClick,
+                showDivider = false,
+            )
+        }
+
+        // -- Logs --
+        SettingsSection(header = stringResource(R.string.settings_section_logs)) {
+            SettingsRow(
+                icon = Icons.Outlined.Description,
+                title = stringResource(R.string.settings_section_logs),
+                subtitle = stringResource(R.string.settings_logs_subtitle),
+                onClick = onLogsClick,
+                showDivider = false,
+            )
+        }
+
+        // -- About --
+        SettingsSection(header = stringResource(R.string.settings_section_about)) {
+            // [T-update-channels] The update badge's Settings layer.
+            val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
+            SettingsRow(
+                icon = Icons.Outlined.Info,
+                title = stringResource(R.string.settings_about_minis),
+                subtitle = stringResource(R.string.settings_about_subtitle),
+                onClick = onAboutClick,
+                // The update dot sits just before the chevron, as before.
+                trailing = if (updateBadge) {
+                    { UpdateBadgeDot() }
+                } else {
+                    null
+                },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.FrontHand,
+                title = stringResource(R.string.settings_privacy_policy),
+                subtitle = null,
+                // iOS canonical URL — ContentView.swift / AddProviderView.swift
+                onClick = { openExternalUrl(context, "https://openminis.github.io/privacy-policy.html") },
+            )
+            SettingsRow(
+                icon = Icons.Outlined.Feedback,
+                title = stringResource(R.string.settings_feedback),
+                subtitle = null,
+                onClick = { showFeedbackSheet = true },
+                showDivider = false,
+            )
+        }
+
+        // Omni page bottom inset.
+        Spacer(Modifier.height(OmniDimens.PageVerticalBottom))
     }
 
     if (showFeedbackSheet) {
@@ -615,168 +562,4 @@ private fun buildFeedbackMailto(): String {
     val subject = java.net.URLEncoder.encode("Minis Next Feedback", "UTF-8")
     val encodedBody = java.net.URLEncoder.encode(body, "UTF-8")
     return "mailto:" + KairosBrandLinks.EMAIL + "?subject=$subject&body=$encodedBody"
-}
-
-/**
- * A grouped settings section: 22dp page inset, flat 22dp `surfacePrimary` card,
- * 14sp tertiary label 16dp above it, 12sp tertiary footer 8dp below, and 26dp
- * of page background between groups.
- *
- * [T-omnibot-ui-port] Replaces the iOS-grouped variant (upper-cased 11sp label,
- * 12dp `surfaceContainerLow` card, 20dp top padding).
- */
-@Composable
-private fun SettingsSection(
-    title: String,
-    footer: String? = null,
-    content: @Composable () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = OmniDimens.SectionGap),
-    ) {
-        // Group label
-        Text(
-            text = title,
-            style = omniTextStyle(
-                size = OmniDimens.GroupLabelSize,
-                color = OmniColors.textTertiary,
-                lineHeight = 19.sp,
-            ),
-            modifier = Modifier.padding(
-                start = OmniDimens.PageHorizontal,
-                end = OmniDimens.PageHorizontal,
-                bottom = 16.dp,
-            ),
-        )
-
-        // Flat group surface
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = OmniDimens.PageHorizontal)
-                .clip(RoundedCornerShape(OmniDimens.SurfaceRadius))
-                .background(color = OmniColors.surfacePrimary),
-        ) {
-            content()
-        }
-
-        // Footer caption
-        if (footer != null) {
-            Text(
-                text = footer,
-                style = omniTextStyle(
-                    size = OmniDimens.FooterSize,
-                    color = OmniColors.textTertiary,
-                    lineHeight = 17.sp,
-                ),
-                modifier = Modifier.padding(
-                    start = OmniDimens.PageHorizontal + 6.dp,
-                    end = OmniDimens.PageHorizontal + 6.dp,
-                    top = 8.dp,
-                    bottom = 4.dp,
-                ),
-            )
-        }
-    }
-}
-
-/**
- * A single settings row: bare 20dp leading glyph on a 22dp box, 15sp title,
- * 12sp secondary subtitle, optional update dot and an 18dp tertiary chevron.
- *
- * [T-omnibot-ui-port] The filled round colour chip gave way to Omni's bare
- * glyph (the caller's `iconColor` is kept as the tint so the existing per-row
- * colour coding survives), and insets/heights now come from [OmniDimens].
- */
-@Composable
-private fun SettingsItem(
-    icon: ImageVector,
-    iconColor: Color,
-    title: String,
-    subtitle: String?,
-    onClick: () -> Unit,
-    showDivider: Boolean = true,
-    // [T-update-channels] A small dot before the chevron.
-    badge: Boolean = false,
-) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = OmniDimens.RowMinHeight)
-                .clickable(onClick = onClick)
-                .padding(horizontal = OmniDimens.RowHorizontal, vertical = OmniDimens.RowVertical),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Leading glyph (Omni rows are monochrome: no colour chip)
-            Box(
-                modifier = Modifier.size(OmniDimens.LeadingIconBox),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(OmniDimens.LeadingIconSize),
-                )
-            }
-
-            Spacer(Modifier.width(OmniDimens.LeadingIconGap))
-
-            // Title + subtitle
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.5.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = omniTextStyle(
-                        size = OmniDimens.RowTitleSize,
-                        color = OmniColors.textPrimary,
-                        lineHeight = 20.7.sp,
-                    ),
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = omniTextStyle(
-                            size = OmniDimens.RowSubtitleSize,
-                            color = OmniColors.textSecondary,
-                            lineHeight = 17.4.sp,
-                        ),
-                    )
-                }
-            }
-
-            if (badge) {
-                UpdateBadgeDot()
-                Spacer(Modifier.width(8.dp))
-            }
-
-            // Chevron
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = OmniColors.textTertiary,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-
-        // Hairline between rows, inset to the title column
-        if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = OmniDimens.DividerStartInset, end = OmniDimens.RowHorizontal)
-                    .height(OmniDimens.DividerThickness)
-                    .background(
-                        OmniColors.borderSubtle.copy(
-                            alpha = if (OmniColors.isDark) 0.55f else 0.75f,
-                        ),
-                    ),
-            )
-        }
-    }
 }

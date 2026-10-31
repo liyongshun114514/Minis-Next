@@ -43,7 +43,6 @@ import com.openminis.app.ui.components.openExternalUrl
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val tileBlue = Color(0xFF007AFF)
 
     SettingsScaffold(title = stringResource(R.string.about_title), onBack = onBack) {
         Column(
@@ -127,7 +126,6 @@ fun AboutScreen(onBack: () -> Unit) {
         SettingsSection(header = stringResource(R.string.kairos_brand_section)) {
             SettingsRow(
                 icon = Icons.Outlined.Code,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_repo_title),
                 subtitle = stringResource(R.string.kairos_repo_subtitle),
                 onClick = { openExternalUrl(context, KairosBrandLinks.REPOSITORY_URL) },
@@ -135,7 +133,6 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             SettingsRow(
                 icon = Icons.Outlined.BugReport,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_issue_title),
                 subtitle = stringResource(R.string.kairos_issue_subtitle),
                 onClick = { openExternalUrl(context, KairosBrandLinks.NEW_ISSUE_URL) },
@@ -143,7 +140,6 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             SettingsRow(
                 icon = Icons.Outlined.Email,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_email_title),
                 subtitle = stringResource(R.string.kairos_email_value),
                 onClick = { openExternalUrl(context, "mailto:" + KairosBrandLinks.EMAIL) },
@@ -151,7 +147,6 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             SettingsRow(
                 icon = Icons.AutoMirrored.Outlined.Send,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_telegram_title),
                 subtitle = stringResource(R.string.kairos_telegram_subtitle),
                 onClick = { openExternalUrl(context, KairosBrandLinks.TELEGRAM_URL) },
@@ -166,7 +161,6 @@ fun AboutScreen(onBack: () -> Unit) {
         SettingsSection(header = stringResource(R.string.kairos_upstream_section)) {
             SettingsRow(
                 icon = Icons.Outlined.Code,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_upstream_title),
                 subtitle = stringResource(R.string.kairos_upstream_subtitle),
                 onClick = { openExternalUrl(context, KairosBrandLinks.UPSTREAM_REPOSITORY_URL) },
@@ -174,7 +168,6 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             SettingsRow(
                 icon = Icons.Outlined.BugReport,
-                iconColor = tileBlue,
                 title = stringResource(R.string.kairos_upstream_issues_title),
                 subtitle = stringResource(R.string.kairos_upstream_issues_subtitle),
                 onClick = { openExternalUrl(context, KairosBrandLinks.UPSTREAM_ISSUES_URL) },

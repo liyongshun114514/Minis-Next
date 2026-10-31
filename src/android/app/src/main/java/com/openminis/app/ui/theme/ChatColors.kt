@@ -60,7 +60,7 @@ data class ChatPalette(
  * [LightChatPalette]/[DarkChatPalette] and `LocalOmniPalette` is one decision,
  * not two tables that can silently disagree.
  */
-private fun chatPaletteFor(p: OmniPalette): ChatPalette = if (!p.isDark) {
+internal fun chatPaletteFor(p: OmniPalette): ChatPalette = if (!p.isDark) {
     ChatPalette(
         isDark = false,
         background = p.pageBackground,

@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import com.openminis.app.ui.theme.OmniColors
+
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -39,7 +41,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +65,7 @@ import com.openminis.app.MinisApp
 import com.openminis.app.R
 import com.openminis.app.power.PowerOptimizationManager
 import com.openminis.app.i18n.uppercaseForDisplay
+import com.openminis.app.ui.components.OmniSettingsTopBar
 
 /**
  * T50 settings screen — surfaces the two pieces of background-keep-alive
@@ -143,7 +145,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.bg_section_header)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -168,7 +170,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             BgSectionTitle(stringResource(R.string.settings_section_notifications))
             BgToggleRow(
                 icon = Icons.Outlined.NotificationsActive,
-                iconColor = Color(0xFF007AFF),
                 title = stringResource(R.string.settings_task_notifications),
                 checked = taskNotificationsEnabled,
                 onCheckedChange = { backgroundRepo.setTaskNotificationsEnabled(it) },
@@ -183,7 +184,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(8.dp))
             BgToggleRow(
                 icon = Icons.Outlined.Layers,
-                iconColor = Color(0xFF5856D6),
                 title = stringResource(R.string.settings_bg_overlay),
                 // [T-android-overlay-toggle-reflects-intent] Reflect the user's
                 // PERSISTED intent, not the derived ready-state. Previously this
@@ -239,7 +239,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(8.dp))
             BgToggleRow(
                 icon = Icons.Outlined.Bolt,
-                iconColor = Color(0xFF34C759),
                 title = stringResource(R.string.settings_dynamic_island),
                 checked = dynamicIslandEnabled && dynamicIslandCapable,
                 enabled = dynamicIslandCapable,
@@ -268,7 +267,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Box {
                 BgRow(
                     icon = Icons.Outlined.Timer,
-                    iconColor = Color(0xFFFF9500),
                     title = stringResource(R.string.settings_scheduled_countdown),
                     subtitle = countdownLabels.getOrNull(scheduledCountdownLead),
                     onClick = { countdownMenu = true },
@@ -294,7 +292,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             BgSectionTitle(stringResource(R.string.battery_opt_section_title))
             BgRow(
                 icon = Icons.Outlined.BatteryFull,
-                iconColor = if (ignoringOptimizations) Color(0xFF34C759) else Color(0xFFFF9500),
                 title = stringResource(R.string.battery_opt_row_title),
                 subtitle = if (ignoringOptimizations) {
                     stringResource(R.string.battery_opt_already_exempt)
@@ -314,7 +311,6 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
                 BgSectionTitle(stringResource(R.string.rom_autostart_section_title))
                 BgRow(
                     icon = Icons.Outlined.PhoneAndroid,
-                    iconColor = Color(0xFFFF9500),
                     title = stringResource(R.string.rom_autostart_row_title),
                     subtitle = stringResource(
                         R.string.rom_autostart_row_subtitle,
@@ -360,7 +356,8 @@ private fun BgFooter(text: String) {
 @Composable
 private fun BgToggleRow(
     icon: ImageVector,
-    iconColor: Color,
+    // Neutral Omni tint unless the caller states an accent.
+    iconColor: Color = OmniColors.textPrimary,
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -413,7 +410,8 @@ private fun BgToggleRow(
 @Composable
 private fun BgRow(
     icon: ImageVector,
-    iconColor: Color,
+    // Neutral Omni tint unless the caller states an accent.
+    iconColor: Color = OmniColors.textPrimary,
     title: String,
     subtitle: String?,
     onClick: () -> Unit,

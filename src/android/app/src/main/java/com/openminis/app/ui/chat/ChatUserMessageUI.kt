@@ -276,6 +276,43 @@ import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.MinisTextButton
 
+/**
+ * [T-omnibot-message-bubble] Measured user-bubble parameters from the OmniBot
+ * reference (`command_overlay/widgets/message_bubble.dart`), expressed as
+ * Compose values.
+ *
+ * The bubble is the one place where "copy the numbers" is genuinely all that is
+ * needed: 78% of the available row width, 16dp corners, 14×10 content padding
+ * and 15sp/1.43/0.33 type. Nothing about the reference's widget tree, state or
+ * data is involved — Minis keeps its own selection-disabled bubble, its own
+ * long-press menu and its own streaming/queue state.
+ *
+ * Font scale: the size is multiplied by BOTH the system `sp` scale (automatic)
+ * and [LocalMarkdownFontScale] (the in-app "message text size" setting), so the
+ * 15sp base never bypasses the user's accessibility choices.
+ */
+internal object ChatUserBubbleTypography {
+
+    /** `availableWidth * 0.78`. */
+    const val MAX_WIDTH_FRACTION: Float = 0.78f
+
+    /** `fontSize: _chatTextSize` — the reference default `chatTextSize` is 15. */
+    const val TEXT_SIZE_SP: Float = 15f
+
+    /** `height: 1.43` × 15sp. */
+    const val LINE_HEIGHT_SP: Float = 21.45f
+
+    /** `letterSpacing: 0.33`. */
+    const val LETTER_SPACING_SP: Float = 0.33f
+
+    /** `BorderRadius.circular(16)`. */
+    val CornerRadius = 16.dp
+
+    /** `EdgeInsets.symmetric(horizontal: 14, vertical: 10)`. */
+    const val CONTENT_HORIZONTAL_DP: Float = 14f
+    const val CONTENT_VERTICAL_DP: Float = 10f
+}
+
 // ─── User Message (right-aligned, iOS: tertiarySystemFill bubble, 18dp radius) ─
 
 @Composable
@@ -323,10 +360,12 @@ internal fun UserMessageBubble(
             // user.bottom(4) + spacedBy(2) + AssistantHeader.top(10) = 16.
             .padding(top = if (precededByUser) 14.dp else 10.dp, bottom = 4.dp),
     ) {
-        // Cap the bubble at 80% of the LazyColumn's available width (mirrors iOS
-        // proportional sizing; prevents single-line messages from spanning the
-        // full row and losing their "trailing bubble" shape).
-        val bubbleMaxWidth = this.maxWidth * 0.8f
+        // [T-omnibot-message-bubble] Cap the bubble at 78% of the LazyColumn's
+        // available width — the reference's `availableWidth * 0.78`
+        // (message_bubble.dart). Still proportional, so a short message keeps
+        // its trailing-bubble shape instead of spanning the row, and a long one
+        // wraps earlier than the old 80%.
+        val bubbleMaxWidth = this.maxWidth * ChatUserBubbleTypography.MAX_WIDTH_FRACTION
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -391,7 +430,7 @@ internal fun UserMessageBubble(
                         // message_bubble.dart: BorderRadius.circular(16)) — one
                         // step softer than the old 18dp so the bubble reads as a
                         // card rather than a capsule at the composer's 20dp.
-                        val shape = RoundedCornerShape(16.dp)
+                        val shape = RoundedCornerShape(ChatUserBubbleTypography.CornerRadius)
                         val dashedStroke = if (isQueued) {
                             Modifier.drawBehind {
                                 val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
@@ -442,7 +481,24 @@ internal fun UserMessageBubble(
                                     // [T-in-chat-search] matches painted in place
                                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(message.content, com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
                                     color = textColor,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                    // [T-omnibot-message-bubble] Source user-bubble
+                                    // type: 15sp, line height 1.43, letter
+                                    // spacing 0.33 (message_bubble.dart
+                                    // `_buildUserText`).
+                                    //
+                                    // Font scaling is preserved on BOTH axes:
+                                    // `sp` still follows the system font scale,
+                                    // and LocalMarkdownFontScale still applies
+                                    // the in-app "message text size" setting, so
+                                    // Settings → Appearance keeps working
+                                    // exactly as before.
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = ChatUserBubbleTypography.TEXT_SIZE_SP
+                                            .sp * LocalMarkdownFontScale.current,
+                                        lineHeight = ChatUserBubbleTypography.LINE_HEIGHT_SP
+                                            .sp * LocalMarkdownFontScale.current,
+                                        letterSpacing = ChatUserBubbleTypography.LETTER_SPACING_SP.sp,
+                                    ),
                                     modifier = bubbleModifier
                                         .background(bubbleBg, shape)
                                         .clip(shape)
@@ -452,7 +508,10 @@ internal fun UserMessageBubble(
                                         // user bubble) — the extra 2dp of vertical
                                         // air keeps two-line bubbles from reading
                                         // as cramped against the 16dp corners.
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        .padding(
+                                        horizontal = ChatUserBubbleTypography.CONTENT_HORIZONTAL_DP.dp,
+                                        vertical = ChatUserBubbleTypography.CONTENT_VERTICAL_DP.dp,
+                                    ),
                                 )
                             }
                         }

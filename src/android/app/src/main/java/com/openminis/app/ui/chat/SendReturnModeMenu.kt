@@ -223,34 +223,45 @@ fun ComposerSendButton(
         }
     }
     val a11yLabel = stringResource(R.string.send_return_mode_a11y_action)
-    Box(
-        modifier = modifier
-            .size(38.dp)
-            .background(
-                if (canActivate && !busy) ChatColors.sendButton else ChatColors.sendButtonDisabled,
-                CircleShape,
-            )
-            .clip(CircleShape)
-            .combinedClickable(
-                onClick = {
-                    if (busy) return@combinedClickable
-                    val since = if (lastDismissAt < 0) -1L else SystemClock.uptimeMillis() - lastDismissAt
-                    if (SendReturnMode.tapShouldSend(canActivate, menuVisible, since)) onSend()
+    // [T-omnibot-composer-tap-slot] The gesture sits on the OUTER 48dp slot, not
+    // on the 38dp visual: this button used to be a `size(38.dp)` box whose whole
+    // clickable was 38dp, i.e. the smallest target in the composer and the one
+    // pressed most often. The visual circle, its colour and the icon are
+    // unchanged; only the target grew.
+    ComposerActionSlot(
+        onClick = {
+            if (busy) return@ComposerActionSlot
+            val since = if (lastDismissAt < 0) -1L else SystemClock.uptimeMillis() - lastDismissAt
+            if (SendReturnMode.tapShouldSend(canActivate, menuVisible, since)) onSend()
+        },
+        modifier = modifier,
+        // Unconditional: the chooser must open on the grey (nothing to send)
+        // button too. combinedClickable already fires the LongPress haptic.
+        onLongClick = { menuVisible = true },
+        visualModifier = Modifier.background(
+            if (canActivate && !busy) ChatColors.sendButton else ChatColors.sendButtonDisabled,
+            CircleShape,
+        ),
+        slotSemantics = {
+            customActions = listOf(
+                CustomAccessibilityAction(a11yLabel) {
+                    menuVisible = true
+                    true
                 },
-                // Unconditional: the chooser must open on the grey (nothing
-                // to send) button too. combinedClickable already fires the
-                // LongPress haptic.
-                onLongClick = { menuVisible = true },
             )
-            .semantics {
-                customActions = listOf(
-                    CustomAccessibilityAction(a11yLabel) {
-                        menuVisible = true
-                        true
-                    },
-                )
-            },
-        contentAlignment = Alignment.Center,
+        },
+        overlay = {
+            SendReturnModeMenu(
+                expanded = menuVisible,
+                sendsOnReturn = sendsOnReturn,
+                onSelect = { sends ->
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    if (sends != sendsOnReturn) setReturnKeySendsMessage(context, sends)
+                    closeMenu()
+                },
+                onDismissRequest = closeMenu,
+            )
+        },
     ) {
         if (busy) {
             DecorativeSpinner(
@@ -267,16 +278,6 @@ fun ComposerSendButton(
                 modifier = Modifier.size(20.dp),
             )
         }
-        SendReturnModeMenu(
-            expanded = menuVisible,
-            sendsOnReturn = sendsOnReturn,
-            onSelect = { sends ->
-                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                if (sends != sendsOnReturn) setReturnKeySendsMessage(context, sends)
-                closeMenu()
-            },
-            onDismissRequest = closeMenu,
-        )
     }
 }
 
@@ -526,27 +527,55 @@ fun ComposerStopButton(
         }
     }
     val a11yLabel = stringResource(R.string.stop_mode_a11y_action)
-    Box(
-        modifier = modifier
-            .size(38.dp)
-            .background(Color(0xFFFF3B30), CircleShape)
-            .clip(CircleShape)
-            .combinedClickable(
-                onClick = {
-                    val since = if (lastDismissAt < 0) -1L else SystemClock.uptimeMillis() - lastDismissAt
-                    if (SendReturnMode.tapShouldSend(canActivate = true, menuVisible = menuVisible, msSinceMenuDismiss = since)) onStop()
+    // [T-omnibot-composer-tap-slot] Same 48dp slot as Send: this was the other
+    // 38dp target, and a mis-aimed Stop either misses or hits whatever is
+    // underneath, so it is the control that needs the enlarged target most.
+    ComposerActionSlot(
+        onClick = {
+            val since = if (lastDismissAt < 0) -1L else SystemClock.uptimeMillis() - lastDismissAt
+            if (SendReturnMode.tapShouldSend(canActivate = true, menuVisible = menuVisible, msSinceMenuDismiss = since)) onStop()
+        },
+        modifier = modifier,
+        onLongClick = { menuVisible = true },
+        visualModifier = Modifier.background(Color(0xFFFF3B30), CircleShape),
+        slotSemantics = {
+            customActions = listOf(
+                CustomAccessibilityAction(a11yLabel) {
+                    menuVisible = true
+                    true
                 },
-                onLongClick = { menuVisible = true },
             )
-            .semantics {
-                customActions = listOf(
-                    CustomAccessibilityAction(a11yLabel) {
-                        menuVisible = true
-                        true
-                    },
+        },
+        overlay = {
+            ComposerChoiceMenu(
+                expanded = menuVisible,
+                header = stringResource(R.string.stop_mode_menu_title),
+                onDismissRequest = closeMenu,
+            ) {
+                val select = { confirm: Boolean ->
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    if (confirm != confirmBeforeStopping) {
+                        setConfirmBeforeStopping(context, confirm)
+                        com.openminis.app.logging.AppLogger.info(
+                            "ChatScreen", "[StopConfirm] set from stop-button menu: ${if (confirm) "confirm" else "immediate"}",
+                        )
+                    }
+                    closeMenu()
+                }
+                ReturnModeRow(
+                    label = stringResource(R.string.stop_mode_immediately),
+                    icon = Icons.Outlined.StopCircle,
+                    selected = !confirmBeforeStopping,
+                    onClick = { select(false) },
                 )
-            },
-        contentAlignment = Alignment.Center,
+                ReturnModeRow(
+                    label = stringResource(R.string.appearance_confirm_before_stopping_title),
+                    icon = Icons.Outlined.HelpOutline,
+                    selected = confirmBeforeStopping,
+                    onClick = { select(true) },
+                )
+            }
+        },
     ) {
         Icon(
             Icons.Default.Stop,
@@ -554,33 +583,5 @@ fun ComposerStopButton(
             tint = Color.White,
             modifier = Modifier.size(20.dp),
         )
-        ComposerChoiceMenu(
-            expanded = menuVisible,
-            header = stringResource(R.string.stop_mode_menu_title),
-            onDismissRequest = closeMenu,
-        ) {
-            val select = { confirm: Boolean ->
-                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                if (confirm != confirmBeforeStopping) {
-                    setConfirmBeforeStopping(context, confirm)
-                    com.openminis.app.logging.AppLogger.info(
-                        "ChatScreen", "[StopConfirm] set from stop-button menu: ${if (confirm) "confirm" else "immediate"}",
-                    )
-                }
-                closeMenu()
-            }
-            ReturnModeRow(
-                label = stringResource(R.string.stop_mode_immediately),
-                icon = Icons.Outlined.StopCircle,
-                selected = !confirmBeforeStopping,
-                onClick = { select(false) },
-            )
-            ReturnModeRow(
-                label = stringResource(R.string.appearance_confirm_before_stopping_title),
-                icon = Icons.Outlined.HelpOutline,
-                selected = confirmBeforeStopping,
-                onClick = { select(true) },
-            )
-        }
     }
 }

@@ -109,7 +109,6 @@ fun RestoreServersScreen(
             remotes.forEach { r ->
                 RestoreSourceRow(
                     icon = Icons.Outlined.Cloud,
-                    iconColor = MaterialTheme.colorScheme.primary,
                     label = r.name,
                     subtitle = stringResource(
                         R.string.backup_server_row,
@@ -138,7 +137,6 @@ fun RestoreServersScreen(
             // withheld.
             RestoreSourceRow(
                 icon = Icons.Outlined.Add,
-                iconColor = MaterialTheme.colorScheme.primary,
                 label = stringResource(R.string.backup_dest_add_server),
                 enabled = true,
                 onClick = { adding = true },

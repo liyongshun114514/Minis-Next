@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -16,6 +17,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
@@ -144,11 +146,22 @@ internal fun contextUsageAnnotatedText(hint: ContextUsageHint): AnnotatedString 
  *
  * Critical breathes (≈2.6s, ±30% of base alpha); warning is static. A moving
  * element is hard to ignore, which is right at 80% and excessive at 70%.
+ *
+ * ## Two radius sources, one geometry
+ *
+ * The card is a morphing shell ([ComposerMorphHandle]): collapsed it is a
+ * stadium, expanded a 20dp card. A glow stencilled to a fixed radius therefore
+ * showed a visible crescent of light at the corners in one of the two states —
+ * the fixed `20.dp` this modifier used to default to was simply the expanded
+ * value, wrong for the collapsed composer. The [morph] overload reads
+ * [ComposerMorphMath.cornerRadiusPx] inside the draw lambda (no recomposition
+ * per morph frame) so the glow's outline is always the shell's own outline;
+ * the [cornerRadius] overload stays for callers with a static shape.
  */
 @Composable
 internal fun Modifier.contextUsageGlow(
     tier: ContextUsage.Tier,
-    cornerRadius: Dp = 22.dp,
+    cornerRadius: Dp = ComposerMorphSpec.ShellRadius,
     /**
      * Stroke width before blurring.
      *
@@ -168,6 +181,47 @@ internal fun Modifier.contextUsageGlow(
     blurRadius: Dp = 16.dp,
     animate: Boolean = true,
 ): Modifier {
+    val fixed = cornerRadius
+    return contextUsageGlowPaint(tier, thickness, blurRadius, animate) { _, density ->
+        with(density) { fixed.toPx() }
+    }
+}
+
+/**
+ * [T-omnibot-composer-glow-radius] The glow for a morphing composer shell: the
+ * stencil radius is the shell's own radius at the current morph progress.
+ */
+@Composable
+internal fun Modifier.contextUsageGlow(
+    tier: ContextUsage.Tier,
+    morph: ComposerMorphHandle,
+    restingRadius: Dp = ComposerMorphSpec.ShellRadius,
+    thickness: Dp = 22.dp,
+    blurRadius: Dp = 16.dp,
+    animate: Boolean = true,
+): Modifier = contextUsageGlowPaint(tier, thickness, blurRadius, animate) { size, density ->
+    with(density) {
+        ComposerMorphMath.cornerRadiusPx(
+            progress = morph.shapeProgress,
+            widthPx = size.width,
+            heightPx = size.height,
+            restingRadiusPx = restingRadius.toPx(),
+        )
+    }
+}
+
+/**
+ * Shared paint pass. [radiusPx] is evaluated INSIDE the draw lambda, so a morph
+ * progress read there invalidates drawing only.
+ */
+@Composable
+private fun Modifier.contextUsageGlowPaint(
+    tier: ContextUsage.Tier,
+    thickness: Dp,
+    blurRadius: Dp,
+    animate: Boolean,
+    radiusPx: (Size, Density) -> Float,
+): Modifier {
     val color = ContextUsageColors.glow(tier) ?: return this
     val base = ContextUsageColors.glowAlpha(tier)
 
@@ -178,12 +232,6 @@ internal fun Modifier.contextUsageGlow(
     // draw lambda below (a draw-phase read: no recomposition), and it steps
     // from the shared ~30 fps decorative clock. A 2.6 s breath does not need
     // more.
-    //
-    // Not yet layer-isolated from the card's text: this is a draw modifier
-    // wrapping the composer, so its invalidation still re-records the card.
-    // Full isolation needs the glow drawn as a sibling overlay at the call
-    // site, which touches the composer's hit-testing and IME layout and is a
-    // separate change.
     val alphaState: State<Float>? = if (tier == ContextUsage.Tier.CRITICAL && animate) {
         val tick = rememberDecorativeTick()
         remember(tick, base) {
@@ -195,11 +243,22 @@ internal fun Modifier.contextUsageGlow(
         null
     }
 
+    // One Path + one Paint for the life of this modifier: CRITICAL redraws this
+    // pass ~30 times a second, and allocating both per frame was pure churn in
+    // the composer's draw phase.
+    val path = remember { android.graphics.Path() }
+    val paint = remember {
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            style = android.graphics.Paint.Style.STROKE
+        }
+    }
+
     return this.drawWithContent {
         drawContent()
         val alpha = alphaState?.value ?: base
         val strokePx = thickness.toPx()
-        val radiusPx = cornerRadius.toPx()
+        val radius = radiusPx(size, this)
         val blurPx = blurRadius.toPx()
         if (alpha <= 0.001f || strokePx <= 0f) return@drawWithContent
 
@@ -229,36 +288,31 @@ internal fun Modifier.contextUsageGlow(
             // The stroke is centred ON the real edge (no inset), so its inner
             // half covers the first `stroke/2` px inside the border and the
             // blur carries it further in. The outer half is clipped away.
-            val outline = android.graphics.Path().apply {
-                addRoundRect(
-                    0f, 0f, size.width, size.height,
-                    radiusPx, radiusPx,
-                    android.graphics.Path.Direction.CW,
-                )
-            }
+            path.reset()
+            path.addRoundRect(
+                0f, 0f, size.width, size.height,
+                radius, radius,
+                android.graphics.Path.Direction.CW,
+            )
             // Clip FIRST: everything drawn after this is confined to the
             // composer's outline, which is what makes the effect an inner glow
             // rather than a halo around the card.
-            native.clipPath(outline)
+            native.clipPath(path)
 
-            val paint = android.graphics.Paint().apply {
-                isAntiAlias = true
-                style = android.graphics.Paint.Style.STROKE
-                strokeWidth = strokePx
-                this.color = android.graphics.Color.argb(
-                    (alpha * 255f).toInt().coerceIn(0, 255),
-                    (color.red * 255f).toInt(),
-                    (color.green * 255f).toInt(),
-                    (color.blue * 255f).toInt(),
-                )
-                // NORMAL blurs both sides of the stroke; the clip above keeps
-                // only the inward half.
-                maskFilter = android.graphics.BlurMaskFilter(
-                    blurPx,
-                    android.graphics.BlurMaskFilter.Blur.NORMAL,
-                )
-            }
-            native.drawPath(outline, paint)
+            paint.strokeWidth = strokePx
+            paint.color = android.graphics.Color.argb(
+                (alpha * 255f).toInt().coerceIn(0, 255),
+                (color.red * 255f).toInt(),
+                (color.green * 255f).toInt(),
+                (color.blue * 255f).toInt(),
+            )
+            // NORMAL blurs both sides of the stroke; the clip above keeps
+            // only the inward half.
+            paint.maskFilter = android.graphics.BlurMaskFilter(
+                blurPx,
+                android.graphics.BlurMaskFilter.Blur.NORMAL,
+            )
+            native.drawPath(path, paint)
             native.restoreToCount(save)
         }
     }

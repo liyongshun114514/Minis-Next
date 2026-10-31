@@ -29,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,6 +51,7 @@ import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.ui.components.SectionTextField
 import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.components.OmniSettingsTopBar
 
 /**
  * Detail/edit screen for a single mounted folder. Mirrors iOS
@@ -93,7 +93,7 @@ fun MountDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.mount_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

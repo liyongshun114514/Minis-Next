@@ -58,12 +58,15 @@ private val LightColorScheme = lightColorScheme(
     background = NeutralGroupedBg,
     // Text roles also come from the Omni table (textPrimary / textSecondary).
     onBackground = OmniLightPalette.textPrimary,
-    surface = NeutralGroupedBg,
+    surface = NeutralGroupedCard,
     onSurface = OmniLightPalette.textPrimary,
     surfaceVariant = NeutralGroupedCard,
     onSurfaceVariant = OmniLightPalette.textSecondary,
-    surfaceContainerLowest = NeutralGroupedBg,
-    surfaceContainerLow = NeutralGroupedCard,
+    surfaceContainerLowest = NeutralGroupedCard,
+    surfaceContainerLow = NeutralGroupedBg,
+    inverseSurface = OmniDarkPalette.surfacePrimary,
+    inverseOnSurface = OmniDarkPalette.textPrimary,
+    inversePrimary = OmniDarkPalette.accentPrimary,
     surfaceBright = OmniLightPalette.surfacePrimary,
     surfaceDim = OmniLightPalette.surfaceElevated,
     surfaceContainer = OmniLightPalette.surfaceSecondary,
@@ -91,12 +94,15 @@ private val DarkColorScheme = darkColorScheme(
     surfaceTint = Color.Transparent,
     background = NeutralDarkGroupedBg,
     onBackground = OmniDarkPalette.textPrimary,
-    surface = NeutralDarkGroupedBg,
+    surface = NeutralDarkGroupedCard,
     onSurface = OmniDarkPalette.textPrimary,
     surfaceVariant = NeutralDarkGroupedCard,
     onSurfaceVariant = OmniDarkPalette.textSecondary,
-    surfaceContainerLowest = NeutralDarkGroupedBg,
-    surfaceContainerLow = NeutralDarkGroupedCard,
+    surfaceContainerLowest = NeutralDarkGroupedCard,
+    surfaceContainerLow = NeutralDarkGroupedBg,
+    inverseSurface = OmniLightPalette.surfacePrimary,
+    inverseOnSurface = OmniLightPalette.textPrimary,
+    inversePrimary = OmniLightPalette.accentPrimary,
     surfaceBright = OmniDarkPalette.surfacePrimary,
     surfaceDim = OmniDarkPalette.surfaceElevated,
     surfaceContainer = OmniDarkPalette.surfaceSecondary,
@@ -112,14 +118,14 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun minisFabColor(): Color = LocalChatPalette.current.fabAccent
 
-// App-wide shape system — larger corners for a modern, friendly feel
-// DropdownMenu uses extraSmall, Dialog uses extraLarge, BottomSheet uses extraLarge
+// Shared reference geometry; specialised menus/dialogs retain their explicit
+// 24dp/20dp shapes, and sheets use the 24dp large-surface shape below.
 private val MinisShapes = Shapes(
-    extraSmall = RoundedCornerShape(12.dp),   // DropdownMenu, Tooltip, OutlinedTextField default
-    small = RoundedCornerShape(12.dp),        // Chip, TextField
-    medium = RoundedCornerShape(20.dp),       // Card, Snackbar
-    large = RoundedCornerShape(24.dp),        // NavigationDrawer
-    extraLarge = RoundedCornerShape(28.dp),   // Dialog, BottomSheet
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 @Composable
@@ -128,12 +134,12 @@ fun MinisTheme(
     fontScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = animatedOmniColorScheme(if (darkTheme) DarkColorScheme else LightColorScheme)
     val typography = scaledTypography(fontScale)
-    val chatPalette = if (darkTheme) DarkChatPalette else LightChatPalette
-    // [T-omnibot-ui-port] One flag drives all three palettes, so the Omni
-    // tokens, the Material scheme and the chat palette can never disagree.
-    val omniPalette = if (darkTheme) OmniDarkPalette else OmniLightPalette
+    val omniPalette = animatedOmniPalette(darkTheme)
+    // Derive chat neutrals from the animated palette too: no half-switched
+    // frame where the page has faded but its input and labels have snapped.
+    val chatPalette = chatPaletteFor(omniPalette)
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -174,7 +180,10 @@ fun MinisAppearance(darkTheme: Boolean, content: @Composable () -> Unit) {
 }
 
 private fun TextStyle.scale(factor: Float): TextStyle =
-    if (factor == 1f) this else copy(fontSize = fontSize * factor)
+    if (factor == 1f) this else copy(
+        fontSize = fontSize * factor,
+        lineHeight = if (lineHeight.isSp) lineHeight * factor else lineHeight,
+    )
 
 /**
  * [T-fa-locale] Each paragraph takes its direction from its own text, but
@@ -192,7 +201,26 @@ private fun TextStyle.bidi(): TextStyle =
     copy(textDirection = TextDirection.Content, textAlign = TextAlign.Left)
 
 private fun scaledTypography(factor: Float): Typography {
-    val base = Typography()
+    // Platform default font family is intentional, matching the reference's
+    // active theme (its historical PingFang constant is not globally applied).
+    val defaults = Typography()
+    val base = Typography(
+        displayLarge = defaults.displayLarge,
+        displayMedium = defaults.displayMedium,
+        displaySmall = defaults.displaySmall,
+        headlineLarge = defaults.headlineLarge.copy(fontSize = 30.sp),
+        headlineMedium = defaults.headlineMedium.copy(fontSize = 28.sp),
+        headlineSmall = defaults.headlineSmall.copy(fontSize = 20.sp),
+        titleLarge = defaults.titleLarge.copy(fontSize = 18.sp),
+        titleMedium = defaults.titleMedium.copy(fontSize = 15.sp),
+        titleSmall = defaults.titleSmall.copy(fontSize = 14.sp),
+        bodyLarge = defaults.bodyLarge.copy(fontSize = 15.sp),
+        bodyMedium = defaults.bodyMedium.copy(fontSize = 14.sp),
+        bodySmall = defaults.bodySmall.copy(fontSize = 12.sp),
+        labelLarge = defaults.labelLarge.copy(fontSize = 14.sp),
+        labelMedium = defaults.labelMedium.copy(fontSize = 12.sp),
+        labelSmall = defaults.labelSmall.copy(fontSize = 10.sp),
+    )
     return Typography(
         displayLarge = base.displayLarge.scale(factor).bidi(),
         displayMedium = base.displayMedium.scale(factor).bidi(),

@@ -436,7 +436,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.ScreenLockPortrait,
-                iconColor = tileGreen,
                 title = stringResource(R.string.appearance_keep_awake_title),
                 checked = keepScreenAwake,
                 onCheckedChange = {
@@ -454,7 +453,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.Visibility,
-                iconColor = tileTeal,
                 title = stringResource(R.string.appearance_tool_preview_title),
                 checked = toolPreview,
                 onCheckedChange = {
@@ -474,7 +472,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.UnfoldLess,
-                iconColor = tileTeal,
                 title = stringResource(R.string.tool_fold_setting_title),
                 checked = foldTools,
                 onCheckedChange = {
@@ -496,7 +493,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.Psychology,
-                iconColor = tilePurple,
                 title = stringResource(R.string.appearance_auto_expand_thinking_title),
                 checked = autoExpandThinking,
                 onCheckedChange = {
@@ -516,7 +512,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.Keyboard,
-                iconColor = tileBlue,
                 title = stringResource(R.string.appearance_auto_focus_after_reply_title),
                 checked = autoFocusAfterReply,
                 onCheckedChange = {
@@ -536,7 +531,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.StopCircle,
-                iconColor = Color(0xFFFF3B30),
                 title = stringResource(R.string.appearance_confirm_before_stopping_title),
                 checked = confirmBeforeStopping,
                 onCheckedChange = {
@@ -557,7 +551,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.ChatBubbleOutline,
-                iconColor = tileBlue,
                 title = stringResource(R.string.appearance_show_chat_title),
                 subtitle = stringResource(R.string.appearance_show_chat_title_subtitle),
                 checked = showChatTitle,
@@ -578,7 +571,6 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.Folder,
-                iconColor = tileBlue,
                 title = stringResource(R.string.appearance_auto_grouping),
                 subtitle = stringResource(R.string.appearance_auto_grouping_subtitle),
                 checked = autoGrouping,
@@ -597,7 +589,6 @@ fun AppearanceScreen(
         ) {
             SettingsRow(
                 icon = Icons.Outlined.FormatSize,
-                iconColor = tileOrange,
                 title = stringResource(R.string.appearance_font_scale_title),
                 subtitle = stringResource(R.string.appearance_font_scale_subtitle),
                 onClick = null,

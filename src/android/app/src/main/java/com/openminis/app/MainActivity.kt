@@ -18,6 +18,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -598,16 +599,25 @@ class MainActivity : ComponentActivity() {
                     onDispose { job.cancel() }
                 }
 
-                AppNavigation(
-                    chatRepository = app.chatRepository,
-                    providerRepository = app.providerRepository,
-                    envVarRepository = app.envVarRepository,
-                    skillRepository = app.skillRepository,
-                    mcpRepository = app.mcpRepository,
-                    memoryRepository = app.memoryRepository,
-                    navController = navController,
-                    initialDeepLink = launchDeepLink,
-                )
+                // Presentation-only hosts share one window-space coordinate
+                // system. They do not own a second NavController or any data.
+                com.openminis.app.ui.components.OmniGlassScope(
+                    modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                    quality = com.openminis.app.ui.components.OmniGlassQuality.Live,
+                ) {
+                    com.openminis.app.ui.components.OmniMorphHost {
+                        AppNavigation(
+                            chatRepository = app.chatRepository,
+                            providerRepository = app.providerRepository,
+                            envVarRepository = app.envVarRepository,
+                            skillRepository = app.skillRepository,
+                            mcpRepository = app.mcpRepository,
+                            memoryRepository = app.memoryRepository,
+                            navController = navController,
+                            initialDeepLink = launchDeepLink,
+                        )
+                    }
+                }
 
                 // T-config: root-level minis-config confirm dialog.
                 // Bound to ConfigConfirmationGate.pending — the gate

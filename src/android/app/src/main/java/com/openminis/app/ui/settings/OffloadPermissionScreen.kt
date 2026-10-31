@@ -335,7 +335,6 @@ private fun IntegrationSection(
         // Header row: CLI title + description, with a colored leading icon.
         SettingsRow(
             icon = iconVector,
-            iconColor = iconTint,
             title = titleText ?: stringResource(toolTitleRes(toolName)),
             subtitle = descriptionText ?: stringResource(descriptionRes),
             showChevron = false,

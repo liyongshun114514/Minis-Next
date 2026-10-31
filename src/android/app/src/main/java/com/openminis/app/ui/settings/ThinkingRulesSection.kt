@@ -147,7 +147,6 @@ fun ThinkingRulesSection(
         SettingsRow(
             title = stringResource(R.string.thinking_rules_default_rules_count, builtIns.size),
             icon = Icons.Default.Lock,
-            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
             onClick = { defaultsExpanded = !defaultsExpanded },
             showChevron = false,
             trailing = {
@@ -185,7 +184,6 @@ fun ThinkingRulesSection(
         SettingsRow(
             title = stringResource(R.string.thinking_rules_add_rule),
             icon = Icons.Default.Add,
-            iconColor = MaterialTheme.colorScheme.primary,
             onClick = {
                 editorRequest = ThinkingRuleEditorRequest(
                     existingId = null,

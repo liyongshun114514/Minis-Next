@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +45,7 @@ import com.openminis.app.accessibility.MinisAccessibilityService
 import com.openminis.app.accessibility.RestrictedSettingsManager
 import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.power.PowerOptimizationManager
+import com.openminis.app.ui.components.OmniSettingsTopBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -109,7 +109,7 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.system_permissions_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -131,7 +131,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
             ) {
                 SettingsRow(
                     icon = Icons.Outlined.Accessibility,
-                    iconColor = Color(0xFF34C759),
                     title = stringResource(R.string.system_permissions_a11y_row),
                     subtitle = if (a11yEnabled)
                         stringResource(R.string.system_permissions_a11y_enabled)
@@ -163,7 +162,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                     if (shizukuReady) {
                         SettingsRow(
                             icon = Icons.Outlined.LockOpen,
-                            iconColor = Color(0xFF34C759),
                             title = stringResource(R.string.system_permissions_a11y_restricted_shizuku),
                             subtitle = when {
                                 unrestricting ->
@@ -189,7 +187,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                     }
                     SettingsRow(
                         icon = Icons.Outlined.Info,
-                        iconColor = Color(0xFFFF9500),
                         title = stringResource(R.string.system_permissions_a11y_restricted_manual),
                         subtitle = stringResource(R.string.system_permissions_a11y_restricted_manual_sub),
                         // Lands on Minis' own App info page, where the
@@ -221,7 +218,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                 ) {
                     SettingsRow(
                         icon = Icons.Outlined.Build,
-                        iconColor = Color(0xFFFF3B30),
                         title = stringResource(
                             if (shizukuReady) R.string.a11y_repair_row_shizuku
                             else R.string.a11y_repair_row_manual
@@ -270,7 +266,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                 ) {
                     SettingsRow(
                         icon = Icons.Outlined.RestartAlt,
-                        iconColor = Color(0xFFFF9500),
                         title = stringResource(R.string.system_permissions_a11y_oem_autostart),
                         subtitle = stringResource(R.string.system_permissions_a11y_oem_autostart_sub),
                         onClick = {
@@ -281,7 +276,6 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                     )
                     SettingsRow(
                         icon = Icons.Outlined.BatteryAlert,
-                        iconColor = Color(0xFFFF9500),
                         title = stringResource(R.string.system_permissions_a11y_oem_battery),
                         subtitle = stringResource(R.string.system_permissions_a11y_oem_battery_sub),
                         onClick = {

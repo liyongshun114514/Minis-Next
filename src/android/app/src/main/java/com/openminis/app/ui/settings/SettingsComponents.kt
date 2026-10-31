@@ -36,7 +36,6 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,6 +48,30 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.Role
+import com.openminis.app.ui.components.LocalOmniMorphRuntime
+import com.openminis.app.ui.components.OmniMorphContainerBox
+import com.openminis.app.ui.components.OmniMorphMotion
+import com.openminis.app.ui.components.OmniMorphReturnOnDispose
+import com.openminis.app.ui.components.OmniMorphSource
+import com.openminis.app.ui.components.OmniMorphTarget
+import com.openminis.app.ui.components.OmniSettingsTopBar
+import com.openminis.app.ui.components.omniSettingsTopBarColors
+import com.openminis.app.ui.components.omniMorphHeaderAlpha
+import com.openminis.app.ui.components.omniMorphNavigate
+import com.openminis.app.ui.components.omniMorphSource
+import com.openminis.app.ui.components.rememberOmniMorphContainer
+import com.openminis.app.ui.components.rememberOmniMorphRowSource
 import com.openminis.app.ui.theme.OmniColors
 import com.openminis.app.ui.theme.OmniDimens
 import com.openminis.app.ui.theme.omniTextStyle
@@ -81,83 +104,110 @@ fun SettingsScaffold(
     // edit screens. When null, the slot falls back to the back arrow iff
     // onBack is set, so every existing caller renders unchanged.
     navigation: @Composable (() -> Unit)? = null,
-    // [T-omnibot-ui-port] Omni screens centre their bar title (17sp) on EVERY
-    // settings page, so centring is now the default; the start-aligned
-    // TopAppBar is still reachable with centerTitle = false.
-    centerTitle: Boolean = true,
+    // [T-omnibot-ui-port] Kept for source compatibility with callers that pass
+    // it: the Omni header is a LEADING 28sp large title on every settings page
+    // (root and sub-page alike), so a centred 17sp bar is no longer reachable.
+    @Suppress("UNUSED_PARAMETER") centerTitle: Boolean = true,
     floatingActionButton: @Composable (() -> Unit)? = null,
     scrollable: Boolean = true,
     // [T-android-storage-usage-cache] Optional bottom action bar (e.g. a
     // selection mode's actions). Null keeps every existing caller unchanged.
     bottomBar: @Composable (() -> Unit)? = null,
+    // [T-omnibot-ui-port] Opt out of the row→page container transform (a page
+    // that is not a navigation destination, e.g. a preview). Default on.
+    enableContainerMorph: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            val titleSlot: @Composable () -> Unit = {
-                Text(
-                    text = title,
-                    style = omniTextStyle(
-                        size = OmniDimens.BarTitleSize,
-                        color = OmniColors.textPrimary,
-                        weight = FontWeight.Medium,
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            val navigationSlot: @Composable () -> Unit = {
-                when {
-                    navigation != null -> navigation()
-                    onBack != null -> IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            }
-            if (centerTitle) {
-                CenterAlignedTopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
-                    actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = OmniColors.pageBackground,
-                        titleContentColor = OmniColors.textPrimary,
-                        navigationIconContentColor = OmniColors.textPrimary,
-                        actionIconContentColor = OmniColors.textPrimary,
-                    ),
-                )
-            } else {
-                TopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
-                    actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = OmniColors.pageBackground,
-                        titleContentColor = OmniColors.textPrimary,
-                        navigationIconContentColor = OmniColors.textPrimary,
-                        actionIconContentColor = OmniColors.textPrimary,
-                    ),
-                )
-            }
-        },
-        floatingActionButton = { floatingActionButton?.invoke() },
-        bottomBar = { bottomBar?.invoke() },
-        containerColor = OmniColors.pageBackground,
-    ) { padding ->
-        // T183: imePadding() shrinks the scroll container by the IME's
-        // height while the keyboard is up, giving Modifier.bringIntoView()
-        // (used by `bringIntoViewOnFocus`) a meaningful "above the
-        // keyboard" rect to scroll a focused TextField into. Without it,
-        // adjustResize + edge-to-edge leaves the scrollable column at
-        // full height behind the IME and bringIntoView is a no-op.
-        val baseMod = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .imePadding()
-        Column(
-            modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
-            content = content,
+    // [T-omnibot-ui-port] Container-transform wiring, all inside this component so
+    // no caller and no navigation code has to change:
+    //   • a tapped SettingsRow recorded its measured rect in OmniMorphBridge;
+    //   • this page consumes it once and expands out of it over 300ms
+    //     fastOutSlowIn (bar settles first, then the page body);
+    //   • on dismissal (back, cancel, save, system back) the page records the
+    //     return hand-off, so the page underneath grows back out of the same row.
+    // With an app-level OmniMorphHost installed the host paints the container
+    // above the NavHost and this page only registers its real bounds; without it
+    // the page paints and clips the identical container itself.
+    val morph = rememberOmniMorphContainer(enabled = enableContainerMorph)
+    val runtime = LocalOmniMorphRuntime.current
+    OmniMorphReturnOnDispose(morph)
+    val pageColor = OmniColors.pageBackground
+    val pageBounds = remember { mutableStateOf(Rect.Zero) }
+
+    LaunchedEffect(pageBounds.value) {
+        if (pageBounds.value != Rect.Zero) {
+            runtime?.registerTarget(
+                OmniMorphTarget(bounds = pageBounds.value, color = pageColor),
+            )
+        }
+    }
+    DisposableEffect(runtime) {
+        onDispose { runtime?.clearTarget() }
+    }
+
+    val titleSlot: @Composable () -> Unit = {
+        Text(
+            text = title,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+    }
+    val navigationSlot: @Composable () -> Unit = {
+        when {
+            navigation != null -> navigation()
+            onBack != null -> IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = androidx.compose.ui.res.stringResource(
+                        com.openminis.app.R.string.settings_back,
+                    ),
+                )
+            }
+        }
+    }
+
+    OmniMorphContainerBox(
+        state = morph,
+        drawContainer = runtime == null,
+        modifier = Modifier.onGloballyPositioned { pageBounds.value = it.boundsInWindow() },
+    ) {
+        Scaffold(
+            topBar = {
+                OmniSettingsTopBar(
+                    title = titleSlot,
+                    navigationIcon = navigationSlot,
+                    actions = { actions?.invoke() },
+                    colors = omniSettingsTopBarColors(
+                        containerColor = OmniColors.pageBackground,
+                        titleContentColor = OmniColors.textPrimary,
+                        navigationIconContentColor = OmniColors.textPrimary,
+                        actionIconContentColor = OmniColors.textPrimary,
+                    ),
+                    modifier = Modifier.omniMorphHeaderAlpha(morph),
+                )
+            },
+            floatingActionButton = { floatingActionButton?.invoke() },
+            bottomBar = { bottomBar?.invoke() },
+            // Transparent: the page background is painted by the container layer
+            // underneath, so the expanding row is visible through the page while
+            // it fades in.
+            containerColor = Color.Transparent,
+        ) { padding ->
+            // T183: imePadding() shrinks the scroll container by the IME's
+            // height while the keyboard is up, giving Modifier.bringIntoView()
+            // (used by `bringIntoViewOnFocus`) a meaningful "above the
+            // keyboard" rect to scroll a focused TextField into. Without it,
+            // adjustResize + edge-to-edge leaves the scrollable column at
+            // full height behind the IME and bringIntoView is a no-op.
+            val baseMod = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+            Column(
+                modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
+                content = content,
+            )
+        }
     }
 }
 
@@ -314,7 +364,11 @@ fun SettingsRow(
     title: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
+    // [T-omnibot-ui-port] Omni rows are monochrome: the glyph is tinted
+    // textPrimary by default (the pre-port brand chip per row was decoration only).
+    // A caller that needs an accent — destructive actions, a product mark — passes
+    // it explicitly; nothing else should.
+    iconColor: Color = OmniColors.textPrimary,
     onClick: (() -> Unit)? = null,
     showChevron: Boolean = onClick != null,
     showDivider: Boolean = true,
@@ -323,15 +377,41 @@ fun SettingsRow(
     // [T-android-settings-ui-md3] #8 single-line List Item is 56dp; a caller with
     // two-line content (e.g. the model list: name + id) passes 72dp for the MD3
     // double-line height. Default keeps every other row at the single-line 56dp.
-    minHeight: Dp = 56.dp,
+    minHeight: Dp = OmniDimens.RowMinHeight,
     // Long-press on a row that is also tappable (e.g. a skill's context menu).
     // Null keeps the plain clickable, so no other row changes.
     onLongClick: (() -> Unit)? = null,
+    // [T-omnibot-ui-port] Rows that navigate a page hand the container transform
+    // their measured rect; a row whose tap only toggles or opens a sheet passes
+    // false so it never leaves a stray hand-off behind.
+    animateContainer: Boolean = true,
 ) {
+    // Measured in window coordinates, so the destination page (or the app-level
+    // OmniMorphHost) can expand out of exactly this row even across the
+    // status-bar/IME insets.
+    val morphSource = rememberOmniMorphRowSource()
+    val sourceColor = OmniColors.surfacePrimary
+    val tap: (() -> Unit)? = onClick?.let { callback ->
+        {
+            if (animateContainer) {
+                // Records the rect, then invokes the caller's callback unchanged.
+                omniMorphNavigate(
+                    source = morphSource.snapshot(
+                        cornerRadius = OmniMorphMotion.RowSourceRadius,
+                        color = sourceColor,
+                    ),
+                    onClick = callback,
+                )
+            } else {
+                callback()
+            }
+        }
+    }
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .omniMorphSource(morphSource)
                 // [T-android-settings-ui-md3] #1/#8 fixed List Item height so every
                 // toggle/value/nav row in a section is uniform (was content-driven
                 // → 24/54/72dp mix). heightIn(min) not height() so an unexpectedly
@@ -341,9 +421,13 @@ fun SettingsRow(
                 .heightIn(min = minHeight)
                 .then(
                     when {
-                        onClick != null && onLongClick != null ->
-                            Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                        onClick != null -> Modifier.clickable(onClick = onClick)
+                        tap != null && onLongClick != null ->
+                            Modifier.combinedClickable(
+                                role = Role.Button,
+                                onClick = tap,
+                                onLongClick = onLongClick,
+                            )
+                        tap != null -> Modifier.clickable(role = Role.Button, onClick = tap)
                         else -> Modifier
                     },
                 )
@@ -444,7 +528,7 @@ fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconColor: Color = OmniColors.textPrimary,
     enabled: Boolean = true,
     showDivider: Boolean = true,
 ) {
@@ -456,6 +540,7 @@ fun SettingsSwitchRow(
         onClick = if (enabled) ({ onCheckedChange(!checked) }) else null,
         showChevron = false,
         showDivider = showDivider,
+        animateContainer = false,
         trailing = {
             SettingsSwitch(
                 checked = checked,
@@ -474,7 +559,7 @@ fun SettingsValueRow(
     value: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconColor: Color = OmniColors.textPrimary,
     valueColor: Color = OmniColors.textSecondary,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,

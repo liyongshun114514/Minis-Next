@@ -175,6 +175,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_ubuntu_directory_wiring.py -v
           python3 scripts/tests/test_native_composer_port.py
           python3 -m unittest discover -s scripts/tests -p test_omnibot_ui_contract.py -v
+          python3 -m unittest discover -s scripts/tests -p test_ui_test_report_gate.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_identity.py -v
           python3 -m unittest discover -s scripts/tests -p test_kairos_brand_copy.py -v
           python3 scripts/test_offload_client.py
@@ -233,11 +234,11 @@ jobs:
             --tests '*ToolArgumentBufferTest' --tests '*ResponsesToolCallAssemblerTest' --tests '*ChatToolCallIndexTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest' \
             --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
-            --tests '*OmniMotionTest' --tests '*OmniPresentationRenderTest'
+            --tests '*Omni*Test' --tests '*ChatComposerMotionTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
-          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("OmniMotionTest", "OmniPresentationRenderTest"); reports=[E.parse(d/("TEST-com.openminis.app.ui.navigation."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped UI acceptance tests"'
+          python3 ../../scripts/verify-ui-test-reports.py --reports app/build/test-results/kairos-regressions
           python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("sandbox.SessionIsolationTest","sandbox.ChrootSharedFilesTest","tools.FileToolWriteFailureTest","tools.ChrootFileToolsTest","sandbox.RootfsDirectoryMigrationTest","sandbox.RootfsDirectoryMigrationIntegrationTest","agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","intelligentui.IntelligentUiParserTest","intelligentui.UiExpressionTest","intelligentui.IntelligentUiRenderTest","intelligentui.IntelligentUiExtendedParserTest","intelligentui.IntelligentUiToolLogicTest","intelligentui.IntelligentUiToolsRenderTest","intelligentui.IntelligentUiRichRenderTest","intelligentui.IntelligentUiFieldsRenderTest","intelligentui.IntelligentUiSurfaceTest","intelligentui.UiMathEngineTest","intelligentui.UiMathSchemaTest","intelligentui.UiMathRenderTest","intelligentui.UiMathInteractionRenderTest","intelligentui.UiPlotGeometryTest","ui.chat.ComposerSurfaceGeometryTest","data.CustomBalancePersistenceTest","quota.CustomBalanceQuotaTest","data.repository.ModelListReconcileTest","ui.settings.ProviderDetailHiddenModelsTest","provider.ModelListRefreshTest","provider.EmptyKeyRefreshTest","provider.CodexModelsApiTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures

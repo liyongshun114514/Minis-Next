@@ -25,8 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +43,8 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.modelEntryPickerItems
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.components.OmniSettingsTopBar
+import com.openminis.app.ui.components.omniSettingsTopBarColors
 
 /**
  * T185 — full-screen picker for adding model entries to the agent-loop
@@ -86,7 +86,7 @@ fun AddAgentLoopModelsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = {
                     Text(
                         stringResource(R.string.agent_loop_section_add_models_title),
@@ -122,7 +122,7 @@ fun AddAgentLoopModelsScreen(
                         Text(stringResource(R.string.add_models_to_group_add_count, selectedIds.size))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = omniSettingsTopBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
@@ -182,7 +182,7 @@ fun AddAgentLoopGroupsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = {
                     Text(
                         stringResource(R.string.agent_loop_section_add_groups_title),
@@ -218,7 +218,7 @@ fun AddAgentLoopGroupsScreen(
                         Text(stringResource(R.string.add_models_to_group_add_count, selectedIds.size))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = omniSettingsTopBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )

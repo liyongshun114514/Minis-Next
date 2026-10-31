@@ -1,12 +1,5 @@
 package com.openminis.app.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,12 +18,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuItemColors
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -101,25 +99,64 @@ fun MinisMenu(
     // menu. Vertical placement still goes below the anchor with auto-flip
     // above when there's no room.
     alignEnd: Boolean = false,
+    // [T-omnibot-ui-port] Which measured menu transform this popup uses:
+    // a control-anchored menu opens in 450ms and returns in 500ms, a context
+    // menu (long-press) in 200ms. Right-anchored menus are this app's context
+    // menus (bubble / row long-press, per-row overflow actions), so they default
+    // to the context clock; pass [OmniPopupMorphStyle.Standard] to override.
+    // [T-omnibot-ui-port] Glass panel: the shared container morph carries a
+    // refracting pane (sampled from the activity window behind the popup), so the
+    // menu is not an opaque card floating over the page. Null keeps the flat
+    // surface for callers that must not refract (e.g. a menu over a camera view).
+    glassStyle: OmniGlassStyle? = OmniGlassStyle.Clear,
+    morphStyle: OmniPopupMorphStyle = if (alignEnd) {
+        OmniPopupMorphStyle.Context
+    } else {
+        OmniPopupMorphStyle.Standard
+    },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // [T-android-minis-menu-ios26-anim] BOTH branches (default left-anchored and
-    // alignEnd right-anchored) now render through ONE custom Popup +
-    // AnimatedVisibility so every MinisMenu gets the same iOS 26-style
-    // 200ms scale-from-anchor + fade enter animation. Material3's DropdownMenu
-    // (the old default branch) had a fixed, non-tunable ~120ms scale; converting
-    // it to this Popup lets us control duration/origin uniformly. Popup unmounts
-    // immediately on expanded=false, so this is an enter-only animation — the
-    // dismiss is instant, matching the prior alignEnd behaviour.
-    if (!expanded) return
+    // [T-omnibot-ui-port] One shared-container transform for every menu:
+    //   • it grows out of the source control's measured rect over 450ms
+    //     (200ms for a context menu) instead of scaling from a corner;
+    //   • on dismiss the Popup stays composed for the full 500ms return
+    //     (200ms context) and shrinks back into that rect — the previous
+    //     enter-only animation unmounted the window on the first frame, so the
+    //     close was a hard cut.
+    // The panel's rect, corner radius and surface colour are interpolated in
+    // OmniMorphMotion (unit-tested), and the content fades in a phased segment
+    // inside it. No callback, item layout or dismissal behaviour changes.
+    val morph = remember(morphStyle) { OmniPopupMorphClock(morphStyle) }
+    LaunchedEffect(expanded) {
+        if (expanded) morph.open() else morph.close()
+    }
+    if (!expanded && !morph.mounted) return
     val density = LocalDensity.current
     val offsetXPx = with(density) { offset.x.roundToPx() }
     val offsetYPx = with(density) { offset.y.roundToPx() }
     val marginXPx = with(density) { MinisMenuPosition.HORIZONTAL_MARGIN.roundToPx() }
     val marginYPx = with(density) { MinisMenuPosition.VERTICAL_MARGIN.roundToPx() }
+    // The position provider sees the real anchor rect and the final placement
+    // during layout; the panel reads them back so the morph starts at the
+    // control, not at the panel's own corner. Both are written only when they
+    // change, so the extra layout pass converges immediately.
+    val anchorInWindow = remember { mutableStateOf(IntRect.Zero) }
+    val popupOffset = remember { mutableStateOf(IntOffset.Zero) }
     Popup(
         onDismissRequest = onDismissRequest,
-        properties = properties,
+        // While the panel returns into its control the window must stay composed
+        // (that is what makes the 500ms close visible) but must NOT keep stealing
+        // focus or swallowing the user's next tap: the dismiss state is already
+        // decided, so the window becomes non-focusable for the return.
+        properties = if (morph.closing) {
+            PopupProperties(
+                focusable = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            )
+        } else {
+            properties
+        },
         popupPositionProvider = remember(offsetXPx, offsetYPx, alignEnd, marginXPx, marginYPx) {
             object : PopupPositionProvider {
                 override fun calculatePosition(
@@ -127,10 +164,15 @@ fun MinisMenu(
                     windowSize: IntSize,
                     layoutDirection: LayoutDirection,
                     popupContentSize: IntSize,
-                ): IntOffset = MinisMenuPosition.compute(
-                    anchorBounds, windowSize, popupContentSize,
-                    alignEnd, offsetXPx, offsetYPx, marginXPx, marginYPx,
-                )
+                ): IntOffset {
+                    val position = MinisMenuPosition.compute(
+                        anchorBounds, windowSize, popupContentSize,
+                        alignEnd, offsetXPx, offsetYPx, marginXPx, marginYPx,
+                    )
+                    if (anchorInWindow.value != anchorBounds) anchorInWindow.value = anchorBounds
+                    if (popupOffset.value != position) popupOffset.value = position
+                    return position
+                }
             }
         },
     ) {
@@ -140,26 +182,33 @@ fun MinisMenu(
         // (its Column is verticalScroll) instead of being pushed off-screen.
         BoxWithConstraints {
             val maxMenuHeight = (maxHeight - MinisMenuPosition.VERTICAL_MARGIN * 2).coerceAtLeast(0.dp)
-            // iOS 26-style enter: scale up from the anchor corner + fade, 200ms.
-            // Seeded false then flipped true on first composition so the enter
-            // animation runs as the Popup mounts. transformOrigin is the anchor
-            // corner: top-right for alignEnd (right-anchored), top-left otherwise.
-            val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
-            val origin = if (alignEnd) {
-                androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
-            } else {
-                androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
-            }
-            AnimatedVisibility(
-                visibleState = visibleState,
-                enter = scaleIn(
-                    animationSpec = tween(200),
-                    initialScale = 0.85f,
-                    transformOrigin = origin,
-                ) + fadeIn(animationSpec = tween(200)),
-                exit = scaleOut(animationSpec = tween(120)) + fadeOut(animationSpec = tween(120)),
-            ) {
-                Surface(
+            val anchor = anchorInWindow.value
+                .takeUnless { it.isEmpty }
+                ?.let {
+                    omniPopupLocalAnchor(
+                        anchorInWindow = it,
+                        popupPosition = Offset(
+                            popupOffset.value.x.toFloat(),
+                            popupOffset.value.y.toFloat(),
+                        ),
+                    )
+                }
+            OmniPopupMorphSurface(
+                clock = morph,
+                anchor = anchor,
+                glassStyle = glassStyle,
+                containerColor = containerColor,
+                panelShape = shape,
+                // Never past the Popup window's 8dp shadow reserve (see the
+                // shadowElevation parameter): anything larger is clipped.
+                shadowElevation = shadowElevation.coerceAtMost(
+                    MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION,
+                ),
+                borderColor = border?.let { stroke ->
+                    (stroke.brush as? SolidColor)?.value
+                },
+                borderWidth = border?.width ?: 0.dp,
+                modifier = modifier
                     // [T-android-minis-menu-width] Size to the CONTENT's intrinsic
                     // width (the widest menu item), then clamp to [minWidth, 280dp].
                     // This restores Material3 DropdownMenu's "hug the content" sizing
@@ -168,26 +217,17 @@ fun MinisMenu(
                     // the 280dp cap, making short menus (the top-bar tools menu) look
                     // far too wide (T252's "blows out" symptom). 280dp stays as the
                     // upper bound so a very long localised item can't span the screen.
-                    modifier = modifier
-                        .width(IntrinsicSize.Max)
-                        .widthIn(min = minWidth, max = 280.dp)
-                        .heightIn(max = maxMenuHeight),
-                    shape = shape,
-                    color = containerColor,
-                    tonalElevation = tonalElevation,
-                    // Never past the Popup window's 8dp shadow reserve (see the
-                    // shadowElevation parameter): anything larger is clipped.
-                    shadowElevation = shadowElevation.coerceAtMost(MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION),
-                    border = border,
-                ) {
-                    // Mirrors DropdownMenu's content layout: a vertically-scrollable
-                    // Column inside the surface (scrollState preserved from the old
-                    // DropdownMenu branch so long menus still scroll).
-                    Column(
-                        modifier = Modifier.verticalScroll(scrollState),
-                        content = content,
-                    )
-                }
+                    .width(IntrinsicSize.Max)
+                    .widthIn(min = minWidth, max = 280.dp)
+                    .heightIn(max = maxMenuHeight),
+            ) {
+                // Mirrors DropdownMenu's content layout: a vertically-scrollable
+                // Column inside the panel (scrollState preserved so long menus
+                // still scroll).
+                Column(
+                    modifier = Modifier.verticalScroll(scrollState),
+                    content = content,
+                )
             }
         }
     }

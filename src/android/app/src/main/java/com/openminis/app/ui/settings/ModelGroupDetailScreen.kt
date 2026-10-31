@@ -39,8 +39,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,6 +70,8 @@ import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.SectionTextField
+import com.openminis.app.ui.components.OmniSettingsTopBar
+import com.openminis.app.ui.components.omniSettingsTopBarColors
 import kotlin.math.roundToInt
 
 /**
@@ -144,14 +144,14 @@ fun ModelGroupDetailScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(group.name, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.model_group_detail_back))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = omniSettingsTopBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
@@ -448,7 +448,6 @@ fun ModelGroupDetailScreen(
                             )
                         },
                         icon = Icons.Default.Psychology,
-                        iconColor = Color(0xFFAF52DE),
                         showDivider = reasoningEnabled,
                     )
                     if (reasoningEnabled) {
@@ -583,7 +582,6 @@ fun ModelGroupDetailScreen(
                             }
                         },
                         icon = Icons.Default.Memory,
-                        iconColor = Color(0xFF5856D6),
                         showDivider = contextEnabled,
                     )
                     if (contextEnabled) {

@@ -35,7 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import com.openminis.app.ui.components.OmniBottomSheet as ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
@@ -185,7 +185,6 @@ fun NetworkSettingsScreen(
                 SettingsRow(
                     title = stringResource(R.string.network_paused_title),
                     icon = Icons.Outlined.Restore,
-                    iconColor = Color(0xFFFF9500),
                     trailing = {
                         MinisTextButton(onClick = { NetworkHub.resume() }) {
                             Text(stringResource(R.string.network_turn_back_on))

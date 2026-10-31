@@ -1,20 +1,15 @@
 package com.openminis.app.ui.sessions
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -65,13 +60,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.data.model.ModelGroup
+import com.openminis.app.ui.components.omniGlassSurface
+import com.openminis.app.ui.navigation.OmniMotion
 import kotlin.math.abs
 
 /**
@@ -89,6 +85,12 @@ internal data class OmniDockItem(
     val badge: Int? = null,
     val onLongClick: (() -> Unit)? = null,
     val onSwap: (() -> Unit)? = null,
+    /**
+     * Reports this item's window bounds. The header search capsule grows out of
+     * whichever control opened it, so the caller needs the real rectangle of a
+     * dock item rather than a guessed one.
+     */
+    val onBounds: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     val onClick: () -> Unit,
 )
 
@@ -115,7 +117,6 @@ internal fun OmniFloatingDock(
     if (items.isEmpty()) return
     val haptics = LocalHapticFeedback.current
     val shape = omniCapsuleShape()
-    val shell = omniFloatingSurface()
     val lensColor = omniSelectedSurface()
     val safeSelected = if (selectedIndex in items.indices) selectedIndex else -1
     // -1 means "no persistent selection" (this dock is an action bar, not a
@@ -125,7 +126,8 @@ internal fun OmniFloatingDock(
         .coerceAtLeast(0)
     val travel by animateFloatAsState(
         targetValue = lensTarget.toFloat(),
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+        // `_travelSpring` (400ms, bounce 0.15) — see OmniMotion.DockLensTravel.
+        animationSpec = OmniMotion.DockLensTravel,
         label = "omni-dock-lens",
     )
     val lensAlpha by animateFloatAsState(
@@ -134,12 +136,11 @@ internal fun OmniFloatingDock(
         label = "omni-dock-lens-alpha",
     )
 
-    Surface(
-        shape = shape,
-        color = shell,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    Box(
         // Upstream draws a 24dp-blur shadow at 8% plus a 3dp contact shadow at
         // 4%; a single Compose shadow at 12dp lands on the same visual weight.
+        // The pane itself is GLASS: no opaque `Surface` fill, so the content
+        // behind the dock is refracted rather than covered.
         modifier = modifier
             .shadow(
                 elevation = 12.dp,
@@ -148,7 +149,9 @@ internal fun OmniFloatingDock(
                 ambientColor = Color.Black.copy(alpha = if (isDark) 0.5f else 0.15f),
                 spotColor = Color.Black.copy(alpha = if (isDark) 0.5f else 0.15f),
             )
-            .height(OmniHomeSpec.DockHeight),
+            .height(OmniHomeSpec.DockHeight)
+            .omniGlassSurface(shape = shape, style = omniGlassStyle())
+            .clip(shape),
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val count = items.size
@@ -183,7 +186,7 @@ internal fun OmniFloatingDock(
                     }
                     val pressScale by animateFloatAsState(
                         targetValue = if (pressed) 0.92f else 1f,
-                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 600f),
+                        animationSpec = OmniMotion.DockPress,
                         label = "omni-dock-press",
                     )
                     val selected = index == safeSelected
@@ -206,6 +209,15 @@ internal fun OmniFloatingDock(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            .then(
+                                if (item.onBounds == null) {
+                                    Modifier
+                                } else {
+                                    Modifier.onGloballyPositioned { coords ->
+                                        item.onBounds.invoke(coords.boundsInWindow())
+                                    }
+                                },
+                            )
                             .then(swapModifier)
                             .clip(shape)
                             .combinedClickable(
@@ -299,18 +311,14 @@ internal fun OmniSearchCapsule(
     val fieldModifier = remember(focusRequester) {
         if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
     }
-    Surface(
-        shape = shape,
-        color = omniFloatingSurface(),
-        contentColor = MaterialTheme.colorScheme.onSurface,
+    Box(
+        // Glass, not a filled capsule: the field refracts the header it grows
+        // out of (the glass pane draws its own hairline, so no border here).
         modifier = modifier
             .height(OmniHomeSpec.SearchFieldHeight)
             .shadow(elevation = 10.dp, shape = shape, clip = false)
-            .border(
-                width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                shape = shape,
-            ),
+            .omniGlassSurface(shape = shape, style = omniGlassStyle())
+            .clip(shape),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -376,32 +384,41 @@ internal fun OmniSearchCapsule(
 }
 
 /**
- * Bottom chrome of the home screen: an optional search capsule stacked over the
- * floating dock.
+ * Bottom chrome of the home screen: the floating action dock.
  *
- * Mirrors the reference `fabRow` + dock composition — actions live in a
- * floating shell instead of two round FABs — while keeping every callback of
- * the previous two-FAB row exactly as it was: new chat, new chat in a group
- * (long press), search open/close/query, plus the caller-supplied [extraItems].
+ * Mirrors the reference `fabRow` composition — actions live in a floating shell
+ * instead of two round FABs — while keeping every callback of the previous
+ * two-FAB row exactly as it was: new chat, new chat in a group (long press),
+ * search open/close, plus the caller-supplied [extraItems].
+ *
+ * The search FIELD is deliberately NOT composed here any more. The reference
+ * header grows its field out of the button that was pressed (see
+ * `OmniSearchMorph`), so this bar only reports where its search control is and
+ * the field morphs from that rectangle in the screen's own overlay. What used
+ * to be a second floating search box stacked over the dock is replaced by that
+ * morph; the dock keeps the button, its label, its lens selection and its
+ * swapped-order preference.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun OmniHomeDockBar(
     isDark: Boolean,
+    /**
+     * False while the root shell is showing another tab. The bar stays composed
+     * (kept-alive page) but must not keep its long-press group menu — a popup
+     * window — open over the page the user switched to.
+     */
+    active: Boolean = true,
     isSearchActive: Boolean,
-    searchQuery: String,
-    isSearching: Boolean,
     hasSessions: Boolean,
     newChatLabel: String,
     searchLabel: String,
-    searchPlaceholder: String,
-    searchDismissLabel: String,
     onNewChat: () -> Unit,
     onNewChatWithGroup: (String) -> Unit,
     modelGroups: List<ModelGroup>,
     onSearchToggle: () -> Unit,
-    onSearchQueryChange: (String) -> Unit,
-    onSearchDismiss: () -> Unit,
+    /** Window rectangle of the search control, for the header morph's source. */
+    onSearchControlBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
     extraItems: List<OmniDockItem> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
@@ -415,19 +432,10 @@ internal fun OmniHomeDockBar(
         swapped = !swapped
         prefs.edit().putBoolean(PREF_FAB_SWAPPED, swapped).apply()
     }
-    val searchFocusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
     var showGroupMenu by remember { mutableStateOf(false) }
     val topGroups = remember(modelGroups) { modelGroups.take(10) }
-
-    LaunchedEffect(isSearchActive) {
-        if (isSearchActive) {
-            // The capsule enters through AnimatedVisibility, so yield one frame
-            // before requesting focus; the field is not composed until then.
-            kotlinx.coroutines.delay(50)
-            runCatching { searchFocusRequester.requestFocus() }
-            keyboardController?.show()
-        }
+    LaunchedEffect(active) {
+        if (!active) showGroupMenu = false
     }
 
     val newChatItem = OmniDockItem(
@@ -446,6 +454,7 @@ internal fun OmniHomeDockBar(
             icon = Icons.Outlined.Search,
             label = searchLabel,
             onSwap = swapActions,
+            onBounds = onSearchControlBounds,
             onClick = onSearchToggle,
         )
     } else {
@@ -456,7 +465,7 @@ internal fun OmniHomeDockBar(
     } else {
         listOfNotNull(newChatItem, searchItem)
     }) + extraItems
-    // Search is "selected" while its capsule is open; otherwise the dock has no
+    // Search is "selected" while its field is open; otherwise the dock has no
     // selected destination (the list is the home surface itself).
     val searchIndex = when {
         searchItem == null -> -1
@@ -475,24 +484,6 @@ internal fun OmniHomeDockBar(
                 // needs lifting here.
                 .imePadding(),
         ) {
-            AnimatedVisibility(
-                visible = isSearchActive,
-                enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.9f),
-                exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.9f),
-            ) {
-                OmniSearchCapsule(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    isSearching = isSearching,
-                    onDismiss = onSearchDismiss,
-                    placeholder = searchPlaceholder,
-                    dismissContentDescription = searchDismissLabel,
-                    focusRequester = searchFocusRequester,
-                    modifier = Modifier
-                        .padding(horizontal = OmniHomeSpec.ToolbarEdge)
-                        .padding(bottom = OmniHomeSpec.ToolbarGap),
-                )
-            }
             OmniFloatingDock(
                 items = items,
                 selectedIndex = selectedIndex,
@@ -524,4 +515,3 @@ internal fun OmniHomeDockBar(
         }
     }
 }
-

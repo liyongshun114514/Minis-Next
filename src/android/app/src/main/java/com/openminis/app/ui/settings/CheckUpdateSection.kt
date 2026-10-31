@@ -141,7 +141,6 @@ fun CheckUpdateSection() {
     ) {
         SettingsRow(
             icon = Icons.Outlined.SystemUpdate,
-            iconColor = Color(0xFF007AFF),
             title = stringResource(
                 if (checking) R.string.check_update_checking
                 else R.string.check_update_check_button
@@ -184,7 +183,6 @@ fun CheckUpdateSection() {
         // [T-update-channels] Channel: stable (default) or beta (asks first).
         SettingsRow(
             icon = Icons.Outlined.Science,
-            iconColor = Color(0xFFFF9500),
             title = stringResource(R.string.update_channel_title),
             subtitle = stringResource(
                 if (channel == UpdatePolicy.Channel.BETA) R.string.update_channel_beta else R.string.update_channel_stable,
@@ -197,7 +195,6 @@ fun CheckUpdateSection() {
         if (BuildConfig.AUTO_UPDATE_CHECK) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.Autorenew,
-                iconColor = Color(0xFF34C759),
                 title = stringResource(R.string.update_auto_check_title),
                 checked = autoEnabled,
                 onCheckedChange = { on ->

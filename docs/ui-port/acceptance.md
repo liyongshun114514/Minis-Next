@@ -4,10 +4,12 @@ Current status: **incomplete UI port; do not merge**.
 
 ## Automated checks
 
-- `python3 scripts/test-omnibot-ui.py`: local Kotlin 2.1 + Compose compiler, actual 16 production source files, eight motion tests. SDK `android.jar` is compile-only; generated R.string IDs are verified against the real resources. Not a whole-app build or screenshot test.
+- `python3 scripts/test-omnibot-ui.py`: automatically discovers all Omni presentation modules and their real dependencies. Latest local run compiled 34 production + 12 test files and passed 110 JVM/Robolectric tests. It links an actual test APK and AndroidX resource tables with aapt2 (no invented R IDs). Local Robolectric uses LEGACY graphics because NATIVE is unsupported on this aarch64 host; no GPU/pixel parity is claimed.
+- `python3 scripts/test-composer-motion.py --stage all --require-pointer`: real composer compile, 28 JVM checks, four real pointer-hit tests; static wiring forbids disabling glass shape animation. Runtime bundle is a local cache, not part of the source tree.
+- The whole production set was separately type-compiled with Kotlin/Compose (852 sources, 101 resolved jars, generated compile-only R/BuildConfig and an rclone interface stub): zero errors. This is NOT an APK build or native-library validation.
 - `python3 -m unittest discover -s scripts/tests -p test_omnibot_ui_contract.py -v`: frozen navigation/data/markdown boundary, package/shortcut isolation, empty-home task/terminal access, original drag-swap preference and button target guard.
 - `python3 scripts/tests/test_native_composer_port.py`: existing 124 native composer/Soul static contracts.
-- Actions `android-ubuntu.yml` with `variant=release`, `ui_preview=true`: entire Android module compile, selected JVM/Robolectric tests, real APK signature/identity/rootfs validation. New `OmniMotionTest` and `OmniPresentationRenderTest` must have nonzero tests and zero skipped/failures/errors.
+- Actions `android-ubuntu.yml` with `variant=release`, `ui_preview=true`: entire Android module compile, selected JVM/Robolectric tests, real APK signature/identity/rootfs validation. Every checked-in `*Omni*Test` class and `ChatComposerMotionTest` must have nonzero tests and zero skipped/failures/errors; `verify-ui-test-reports.py` discovers the expected classes from source and fails closed for missing XML.
 - The Actions default remains production identity and does not publish a GitHub Release.
 
 ## Device functional regression — not yet executed
@@ -31,7 +33,7 @@ Record reference and preview on the same device/density and compare both light/d
 - Dock glass/refraction, spring/lens movement, retained tab pages, adaptive rail.
 - Search/header source morph, popup source snapshots, measured settings row expand/contract.
 
-The latter glass, full dock/pager/rail and source-morph items are implementation gaps, not merely missing tests. A successful Actions run does not complete them or authorize calling this a full port.
+Implementation now includes background capture + API33 AGSL / older-API refractive mesh, actual superellipse paths, four retained destination trees with active-page lifecycle isolation, 600dp rail, dock lens/drag/jelly, measured search/menu/settings container transforms, composer focus/attachment morph, 220ms theme blending and sheet rubber-band motion. These are implemented, not proof of reference parity. Remaining source differences include approximate spring/jelly integration, missing pointer-hover magnet/parallax and fling prediction, no outgoing-control bitmap snapshot, and no source atlas/goo contour implementation. Predictive back relies on Navigation 2.8 rather than a new competing full-screen gesture. Reference-equivalent GPU output, performance and interrupted/back-cancel motion still require device verification. A successful Actions run cannot waive those limits or authorize calling this a visually complete port.
 
 ## Merge gate
 

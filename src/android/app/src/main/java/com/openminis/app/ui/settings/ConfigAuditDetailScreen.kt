@@ -156,7 +156,6 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
                 SettingsRow(
                     title = stringResource(R.string.config_audit_detail_reverted),
                     icon = Icons.AutoMirrored.Filled.Undo,
-                    iconColor = Color(0xFF8E5CD9),
                     titleColor = Color(0xFF8E5CD9),
                     showDivider = false,
                 )

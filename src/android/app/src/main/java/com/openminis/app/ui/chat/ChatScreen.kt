@@ -166,7 +166,10 @@ import com.openminis.app.ui.components.MinisMenuDivider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+// [T-omnibot-sheet-surface] Same call sites, ported presentation: the wrapper
+// keeps Material's state/dismiss/window contract and changes only the surface
+// (neutral scrim, 24dp top corners, no tonal elevation, bounded rubber band).
+import com.openminis.app.ui.components.OmniBottomSheet as ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -4409,6 +4412,27 @@ fun ChatScreen(
                 // breadcrumb once.
                 val perfNewestLogged = remember(sessionId) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
                 Box {
+                // [T-omnibot-chat-empty-greeting] The empty-conversation
+                // greeting: headline + rotating existing hint, 420 ms / 10 dp
+                // entrance. A Box child of the list's own container, so it
+                // shares the list's coordinate space and needs no LazyColumn
+                // item (which would become row 0 of an empty list and shift
+                // every index the scroll math relies on).
+                //
+                // Gates: nothing to greet once there are messages, no greeting
+                // while the entering-session dots stand in for a history that
+                // has not loaded (it would flash for a chat that is not empty),
+                // and none behind the in-chat search bar.
+                val showEmptyGreeting = messages.isEmpty() &&
+                    !enteringSession &&
+                    !chatSearch.isActive
+                if (showEmptyGreeting) {
+                    ChatEmptyGreeting(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 18.dp),
+                    )
+                }
                 AlwaysStretchOverscrollBox { sharedEffect ->
                 LazyColumn(
                     state = listState,
@@ -5569,6 +5593,35 @@ fun ChatScreen(
                 ).dp
             }
 
+            // [T-omnibot-composer-motion] Real state drives the shell shape:
+            // focus OR a draft OR an attachment expands the resting stadium
+            // into the 20dp card (OmniBot ChatComposerSurface `expanded`). Read
+            // here, above the composer Column, from the same state the editor
+            // and the attachment row already render from — no new business
+            // state, no parallel source of truth.
+            val composerExpanded = ComposerMorphMath.isExpanded(
+                focused = inputFocused,
+                hasText = inputText.isNotEmpty(),
+                attachmentCount = attachments.size,
+            )
+            // [T-omnibot-composer-glass] Is there a glass capture scope above
+            // us? The host installs it (one per window); the composer only
+            // becomes a pane when one exists, so a screen without a scope keeps
+            // the plain surface instead of drawing glass with no backdrop.
+            val composerGlassEnabled = com.openminis.app.ui.components.LocalOmniGlass.current != null
+            val composerMorph = rememberComposerMorph(
+                expanded = composerExpanded,
+                // Both solid and refractive panes read the same draw-phase
+                // radius clock. Glass caches the actual outline, so keeping
+                // one editor and one Shape does not disable its 220ms morph.
+                animationsEnabled = !animationsDisabled(context),
+            )
+            val composerGlass = rememberComposerGlassShell(
+                enabled = composerGlassEnabled,
+                expanded = composerExpanded,
+                morph = composerMorph,
+            )
+
             // ─── Input area (iOS-style: rounded box with text + buttons below) ───
             Column(
                 modifier = Modifier
@@ -6027,32 +6080,12 @@ fun ChatScreen(
                     }
                 }
 
-                // Input box: iOS-style floating card — no visible border, separated
-                // from the backdrop by a symmetric soft shadow painted by hand
-                // (Android's Modifier.shadow only casts downward).
-                val inputBgArgb = ChatColors.inputBg.toArgb()
-                val shadowPaint = remember(inputBgArgb) {
-                    android.graphics.Paint().apply {
-                        color = inputBgArgb
-                        isAntiAlias = true
-                    }
-                }
-                // [T-omnibot-composer-surface] Hairline edge for the composer
-                // card. OmniBot's shell paints an inner 1px `borderSubtle` ring
-                // (chat_input_area_composer.dart innerBorderColor); we keep the
-                // single-layer Compose surface (no blur/shader claim) but draw
-                // the same hairline so the card does not dissolve into a light
-                // wallpaper. Palette-driven, so a theme swap recolours it.
-                val composerIsDark = ChatColors.isDark
-                val hairlineArgb = ChatColors.toolBorder.toArgb()
-                val hairlinePaint = remember(hairlineArgb) {
-                    android.graphics.Paint().apply {
-                        color = hairlineArgb
-                        isAntiAlias = true
-                        style = android.graphics.Paint.Style.STROKE
-                        strokeWidth = 1f
-                    }
-                }
+                // Input box: iOS-style floating card — no visible border,
+                // separated from the backdrop by a symmetric soft shadow.
+                // [T-omnibot-composer-motion] Its fill, focus glow, hairline
+                // and flowing border are drawn by `Modifier
+                // .composerMorphSurface` (ChatComposerMotion.kt), which owns the
+                // paint objects and reads the morph progress in the draw phase.
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6184,55 +6217,35 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .drawBehind {
-                            // [T-next-composer-surface] Restore the original
-                            // 20dp corner shape, including the matching glow.
-                            val radiusPx = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()
-                            val canvas = drawContext.canvas.nativeCanvas
-                            // [T-omnibot-composer-surface] Shadow ramp ported
-                            // from OmniBot's ChatComposerSurface / composer
-                            // shell: blur 20 offset (0, 6) at 0.07 light /
-                            // 0.18 dark, plus a 1px contact shadow so the card
-                            // still sits on the page when the soft pass is all
-                            // but invisible on white.
-                            // Pass 1: ambient + key light (0, 6).
-                            shadowPaint.setShadowLayer(
-                                (if (composerIsDark) 22f else 20f).dp.toPx(),
-                                0f, 6.dp.toPx(),
-                                android.graphics.Color.argb(if (composerIsDark) 46 else 18, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                            // Pass 2: tight contact shadow.
-                            shadowPaint.setShadowLayer(
-                                3.dp.toPx(), 0f, 1.dp.toPx(),
-                                android.graphics.Color.argb(if (composerIsDark) 54 else 22, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                            // Pass 3: 1px hairline on the card edge.
-                            val hairlineInset = 0.5.dp.toPx()
-                            canvas.drawRoundRect(
-                                hairlineInset, hairlineInset,
-                                size.width - hairlineInset, size.height - hairlineInset,
-                                radiusPx - hairlineInset, radiusPx - hairlineInset,
-                                hairlinePaint,
-                            )
-                        }
+                        // [T-omnibot-composer-motion] The shell itself: fill,
+                        // focus glow, ambient/contact shadows and the inner
+                        // hairline (the flowing ring is a separate overlay
+                        // below). Draw-only, so the editor, the chips and every
+                        // hit target stay mounted and untouched while the shape
+                        // morphs.
+                        .composerMorphSurface(
+                            morph = composerMorph,
+                            focused = inputFocused,
+                            // [T-omnibot-composer-glass] Non-null only inside a
+                            // glass capture scope; the shell then hands the
+                            // surface to the pane and paints no fill, glow or
+                            // shadow of its own (they would cover the glass).
+                            glass = composerGlass,
+                        )
                         // [T-android-context-usage-hint] Ambient inner glow
                         // along the card's inside edge once the context window
                         // is under pressure. Applied to the composer CARD (not
                         // the text field) so it reads as the whole input
                         // glowing, and drawn as a paint pass only — no layout,
                         // no touch interception, so the caret, the +/mic/send
-                        // buttons and every hit target are untouched. The
-                        // radius matches the card's original 20.dp corner above.
+                        // buttons and every hit target are untouched.
+                        //
+                        // [T-omnibot-composer-glow-radius] The stencil radius is
+                        // the SHELL's radius at the current morph progress, not
+                        // a fixed 20dp: the composer is a stadium when collapsed
+                        // and a 20dp card when engaged, and a fixed radius left
+                        // a coloured crescent at the corners in one of the two
+                        // states.
                         //
                         // Reads `contextUsage`, which refreshes on every usage
                         // chunk, so the colour tracks pressure live rather
@@ -6241,10 +6254,16 @@ fun ChatScreen(
                         // crossfade honours it.
                         .contextUsageGlow(
                             tier = contextUsage?.tier ?: ContextUsage.Tier.NORMAL,
-                            cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp,
+                            morph = composerMorph,
                             animate = !animationsDisabled(context),
                         )
-                        .padding(top = if (attachments.isNotEmpty()) 8.dp else 4.dp),
+                        // [T-omnibot-composer-motion] Source geometry: 72dp
+                        // minimum shell, 1.5dp rim, 14/8/12/8 content inset.
+                        // `heightIn` is outside the padding so the floor
+                        // describes the whole card, not just its content.
+                        .heightIn(min = ComposerMorphSpec.MinShellHeight)
+                        .padding(ComposerMorphSpec.BorderInset)
+                        .padding(ComposerMorphSpec.ContentPadding),
                 ) {
                     // T185: Move-to capsule lives INSIDE the composer card,
                     // pinned 8dp from the top-right corner, mirroring iOS
@@ -6342,9 +6361,10 @@ fun ChatScreen(
                     // rows share the composer's left edge.
                     if (pastedTexts.isNotEmpty()) {
                         LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
+                            // [T-omnibot-composer-motion] No local gutter: the
+                            // shell's 14/8/12/8 content padding owns the
+                            // composer's left/right edge now.
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(pastedTexts, key = { it.id }) { pasted ->
@@ -6383,11 +6403,7 @@ fun ChatScreen(
                     if (attachments.isNotEmpty()) {
                         LazyRow(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                // T185: 12dp horizontal so the row's left
-                                // edge lines up with the +/slash button
-                                // column and the typed text below.
-                                .padding(horizontal = 12.dp),
+                                .fillMaxWidth(),
                             // The chip itself now bakes in 8dp of trailing
                             // visual room for the remove badge that spills
                             // past the top-right; no extra spacedBy needed.
@@ -6585,7 +6601,9 @@ fun ChatScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                // [T-omnibot-composer-motion] Gutter comes from
+                                // the shell's content padding.
+                                .padding(vertical = 8.dp),
                         ) {
                             AudioWaveformView(
                                 levels = levels,
@@ -7149,27 +7167,16 @@ fun ChatScreen(
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent,
                                     ),
-                                    // T7: vertical 10dp → 7dp (≈ −15%) to slim the
-                                    // chat composer. Settings TextFields keep
-                                    // Material3 default padding — those are
-                                    // 1-shot config inputs, not the daily-
-                                    // friction surface the user wants tightened.
-                                    // T185: 12dp horizontal lines the
-                                    // typed text up with the +/slash and
-                                    // mic/send icon-button row below
-                                    // (Modifier.padding(horizontal = 12.dp)
-                                    // there) and the attachment chip row
-                                    // (also 12dp). 16dp left an unaligned
-                                    // jog where the text started further
-                                    // right than every other composer
-                                    // element.
-                                    // [T-omnibot-composer-surface] vertical 7→8
-                                    // to match the reference composer's 8dp
-                                    // content padding top/bottom.
-                                    contentPadding = PaddingValues(
-                                        horizontal = 12.dp,
-                                        vertical = 8.dp,
-                                    ),
+                                    // [T-omnibot-composer-padding-source] ONE 8dp,
+                                    // one owner: the shell's
+                                    // `ComposerMorphSpec.ContentPadding` (14/8/12/8)
+                                    // is the card's gutter, and this field adds
+                                    // nothing — Material3's 16dp default is
+                                    // neutralised by `FieldContentPadding`. The
+                                    // 8dp vertical used to live here AND in the
+                                    // shell, stacking into 16dp above/below the
+                                    // typed line.
+                                    contentPadding = ComposerMorphSpec.FieldContentPadding,
                                 )
                             },
                         )
@@ -7178,11 +7185,10 @@ fun ChatScreen(
                     // Button row below text field (iOS layout: + / ... mic send)
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            // T185: 12dp horizontal lines the +/slash and
-                            // mic/send icon-button column up with the
-                            // attachment row + textfield + Move-to popup.
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .fillMaxWidth(),
+                        // [T-omnibot-composer-motion] The shell's 14/8/12/8
+                        // content padding owns the gutters; the row adds no
+                        // padding of its own and keeps its 48dp targets.
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Left: + button (iOS: 34×34 circle, secondary bg)
@@ -7916,6 +7922,26 @@ fun ChatScreen(
                         }
                     }
                 }
+                // [T-omnibot-composer-motion] The flowing gradient ring,
+                // as its own node with its own layer: a ~30 fps sweep must not
+                // re-record the card's four shadow passes or the text field.
+                // Draw-only and childless, so it cannot steal a tap from the
+                // composer underneath; matchParentSize keeps it exactly on the
+                // card's bounds without touching layout.
+                ComposerFlowRing(
+                    morph = composerMorph,
+                    focused = inputFocused,
+                    // In-chat search hides the composer (alpha 0 + no touch);
+                    // its ring must not keep glowing over the search bar.
+                    visible = !chatSearch.isActive,
+                    // [T-omnibot-composer-glass] A flowing gradient stroke over
+                    // a refracting pane reads as a second competing edge; the
+                    // pane keeps only the plain hairline (reference behaviour:
+                    // the flow border exists for the decorated surface).
+                    glass = composerGlass != null,
+                    modifier = Modifier.matchParentSize(),
+                )
+
                 // [T-in-chat-search] The search bar, in the composer's place,
                 // over the hidden card (same Box, so the same height slot).
                 if (chatSearch.isActive) {

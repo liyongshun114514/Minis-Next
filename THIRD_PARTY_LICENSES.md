@@ -24,6 +24,10 @@ OpenMinis bundles, links, or depends on the following third-party components. Ve
 - **MinisAllInOne 1.0.2 source** (user-supplied) is GPL-3.0. Its RootExecutor/ShellCommand/config/protocol code is adapted to native permission-controlled Root; Composer behaviour is reimplemented with Compose and Soul length settings are native. The original licence is retained at `third_party/minis-all-in-one/LICENSE`. Xposed API code, DEX scanners and precompiled title DEX are not shipped.
 - **Static guest offload client** is compiled with the Ubuntu cross glibc toolchain. glibc is LGPL-2.1-or-later; distribution of a statically linked client must retain corresponding source and relinkable material as required. `scripts/build_chroot_helpers.sh`, its client C source and the Ubuntu toolchain packages provide the documented rebuild path; production redistributors must fulfil all applicable notices/source obligations.
 
+## Android presentation port: FlClash-derived glass
+
+- **FlClash** ([chen08209/FlClash](https://github.com/chen08209/FlClash)), pinned commit `7fd417fb9a9a277c6a9339a8ac87f907df7c25f7`, **GPL-3.0-only**. The optics/shape specifications were reached through OmniBot commit `c4728736964245509404670ee992d3b658efaecd`, whose `docs/third-party/flclash-NOTICE.md` identifies these portions as GPLv3 independently of OmniBot's other licensing. Kotlin/Compose/AGSL adaptations live in `ui/components/OmniGlass*.kt` and `OmniShapes.kt`; each carries source attribution. The full GPLv3 text is retained in this repository's `LICENSE`. The capture handshake, Android API isolation, mesh backend and tests are implemented for this project. No OmniBot brand assets or AGPL-only application runtime are incorporated. See `docs/ui-port/provenance.md` for the presentation/implementation boundaries.
+
 ## iOS — Swift Package Manager dependencies
 
 Direct packages declared in `src/ios/Minis.xcodeproj`:

@@ -137,6 +137,9 @@ class UntouchedLogicTest(unittest.TestCase):
         "src/android/app/src/main/java/com/openminis/app/ui/markdown",
         "src/android/app/src/main/java/com/openminis/app/ui/chat/MinisTextKitSelection.kt",
         "src/android/app/src/main/java/com/openminis/app/ui/chat/SelectionDocumentOrder.kt",
+        "src/android/app/src/main/java/com/openminis/app/ui/chat/MinisTextKitGesture.kt",
+        "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatFlatItems.kt",
+        "src/android/app/src/main/java/com/openminis/app/ui/chat/MessageBoundsRegistry.kt",
         "src/android/app/src/main/java/com/openminis/app/ui/chat/share",
     ]
     MODEL_AND_BUSINESS = [
@@ -150,6 +153,21 @@ class UntouchedLogicTest(unittest.TestCase):
     def test_markdown_and_selection_sources_are_byte_identical(self):
         changed = changed_since(self.MARKDOWN_AND_SELECTION)
         self.assertEqual([], changed, f"markdown/selection logic was edited by the UI port: {changed}")
+
+    def test_streaming_markdown_only_changes_two_visual_defaults(self):
+        rel = 'src/android/app/src/main/java/com/openminis/app/ui/chat/StreamingMarkdownText.kt'
+        current = worktree(rel)
+        baseline = git('show', BASELINE + ':' + rel)
+        replacements = {
+            'private val BaseFontSizeDefault = 16.sp': 'private val BaseFontSizeDefault = 15.sp',
+            'private val BaseLineHeightDefault = 24.sp': 'private val BaseLineHeightDefault = 21.45.sp',
+        }
+        expected = baseline
+        for before, after in replacements.items():
+            self.assertEqual(1, expected.count(before))
+            self.assertEqual(1, current.count(after))
+            expected = expected.replace(before, after)
+        self.assertEqual(expected, current, 'Streaming parser/selection changed beyond two visual defaults')
 
     def test_model_provider_and_business_sources_are_byte_identical(self):
         changed = changed_since(self.MODEL_AND_BUSINESS)
@@ -191,8 +209,14 @@ class PaletteParityTest(unittest.TestCase):
 
     def test_ci_executes_render_tests_without_skipping(self):
         workflow = (ROOT / '.github/workflows/android-ubuntu.yml').read_text()
-        self.assertIn("--tests '*OmniPresentationRenderTest'", workflow)
-        self.assertIn('Missing or skipped UI acceptance tests', workflow)
+        self.assertIn("--tests '*Omni*Test'", workflow)
+        self.assertIn("--tests '*ChatComposerMotionTest'", workflow)
+        self.assertIn('python3 ../../scripts/verify-ui-test-reports.py', workflow)
+        gate = (ROOT / 'scripts/verify-ui-test-reports.py').read_text()
+        self.assertIn("rglob('*Omni*Test.kt')", gate)
+        self.assertIn("'skipped', 'failures', 'errors'", gate)
+        self.assertIn('tests <= 0 or any(bad.values())', gate)
+        self.assertIn('missing XML', gate)
         self.assertIn('test_omnibot_ui_contract.py', workflow)
 
 
@@ -218,8 +242,18 @@ class HomeFunctionPreservationTest(unittest.TestCase):
             start = text.index('fun ' + name + '(')
             next_fun = re.search(r'\n(?:internal |private )?fun ', text[start + 4:])
             body = text[start:start + 4 + next_fun.start()] if next_fun else text[start:]
-            self.assertIn('.size(38.dp)', body)
+            self.assertIn('ComposerActionSlot(', body)
             self.assertNotIn('.size(34.dp)', body)
+        slot = (JAVA / 'ui/chat/ChatComposerMotion.kt').read_text()
+        self.assertIn('val TapSlot: Dp = 48.dp', slot)
+        self.assertIn('val IconVisualSize: Dp = 38.dp', slot)
+        self.assertIn('val Slot: Dp = ComposerMorphSpec.TapSlot', slot)
+        self.assertIn('val Visual: Dp = ComposerMorphSpec.IconVisualSize', slot)
+        start = slot.index('internal fun ComposerActionSlot(')
+        body = slot[start:]
+        self.assertLess(body.index('.size(ComposerTapSpec.Slot)'), body.index('Modifier.combinedClickable('))
+        self.assertLess(body.index('Modifier.combinedClickable('), body.index('.size(ComposerTapSpec.Visual)'))
+        self.assertIn('ComposerHitRegionTest', (ROOT / 'scripts/test-composer-motion.py').read_text())
 
 
 class PreviewBuildIsolationTest(unittest.TestCase):
@@ -350,8 +384,12 @@ class CompileHarnessContractTest(unittest.TestCase):
         self.assertIn("android.jar", text, "android.jar must be the documented compile-only stub")
         self.assertIn("R.string", text)
         self.assertIn("verified against", text.lower().replace("REAL", "real").lower())
-        self.assertIn("resource_string_names", text,
-                      "the R stub must be derived from real string resources, not invented ids")
+        self.assertIn('build_test_apk', text)
+        self.assertIn('compile_res_dir(aapt2, RES,', text)
+        self.assertIn('RES_AARS', text)
+        self.assertIn('test_config.properties', text)
+        self.assertIn('R classes generated from the linked resource table', text)
+        self.assertNotIn('def write_r_stub(', text, 'Resource IDs must come from aapt2, not invented R values')
 
     def test_harness_can_be_invoked_without_a_device(self):
         result = subprocess.run(["python3", str(self.SCRIPT), "--help"], cwd=str(ROOT),

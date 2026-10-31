@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,6 +41,7 @@ import com.openminis.app.R
 import com.openminis.app.agent.workspace.WorkspaceInstructionDiscovery
 import com.openminis.app.agent.workspace.WorkspaceInstructionStore
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.components.OmniSettingsTopBar
 import java.io.File
 
 /**
@@ -85,7 +85,7 @@ fun WorkspaceInstructionsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.workspace_instructions_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -351,7 +351,7 @@ fun WorkspaceInstructionEditorScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = {
                     Text(
                         text = File(linuxPath).name,

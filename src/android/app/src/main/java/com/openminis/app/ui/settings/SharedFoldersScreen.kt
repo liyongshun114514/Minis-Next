@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import com.openminis.app.ui.theme.OmniColors
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
+import com.openminis.app.ui.components.OmniSettingsTopBar
 
 /**
  * Settings → Shared Folders. Mirrors iOS SharedFoldersView.
@@ -55,7 +57,7 @@ fun SharedFoldersScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            OmniSettingsTopBar(
                 title = { Text(stringResource(R.string.shared_folders_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -124,7 +126,7 @@ private fun SharedFolderRow(
         Icon(
             imageVector = folder.icon,
             contentDescription = null,
-            tint = folder.iconColor,
+            tint = folder.iconColor ?: OmniColors.textPrimary,
             modifier = Modifier.size(28.dp),
         )
         Spacer(Modifier.width(12.dp))
@@ -180,7 +182,9 @@ internal data class SharedFolderEntry(
     val linuxPath: String,
     val writable: Boolean,
     val icon: ImageVector,
-    val iconColor: Color,
+    // [T-omnibot-ui-port] Null = the neutral Omni row tint (textPrimary); the
+    // registry used to carry a per-folder brand colour, which was decoration.
+    val iconColor: Color? = null,
 )
 
 internal object SharedFolderRegistry {
@@ -191,7 +195,6 @@ internal object SharedFolderRegistry {
             linuxPath = "/var/minis/shared",
             writable = true,
             icon = Icons.Outlined.Folder,
-            iconColor = Color(0xFF007AFF),
         ),
         SharedFolderEntry(
             id = "skills",
@@ -199,7 +202,6 @@ internal object SharedFolderRegistry {
             linuxPath = "/var/minis/skills",
             writable = false,
             icon = Icons.Outlined.AutoAwesome,
-            iconColor = Color(0xFFAF52DE),
         ),
         SharedFolderEntry(
             id = "memory",
@@ -207,7 +209,6 @@ internal object SharedFolderRegistry {
             linuxPath = "/var/minis/memory",
             writable = false,
             icon = Icons.Outlined.Psychology,
-            iconColor = Color(0xFFFF2D55),
         ),
     )
 

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -381,17 +383,22 @@ internal fun AttachmentChip(
 @Composable
 internal fun InputCircleButton(
     onClick: () -> Unit,
+    /** Popup/menu hosts anchored to the same 48dp slot. */
+    overlay: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            // Keep the established touch target while changing the shell style.
-            .size(38.dp)
+    // [T-omnibot-composer-tap-slot] One 48dp slot, one clickable, one 38dp
+    // visual — the shared `ComposerActionSlot` guarantees the gesture is on the
+    // OUTER node so the whole slot is tappable (the previous `sizeIn(minWidth =
+    // 48.dp)` + inner `clickable` grew only the layout box). `ComposerHitRegionTest`
+    // injects a touch 3px inside the slot's edge — outside the painted circle —
+    // and asserts the callback fires.
+    ComposerActionSlot(
+        onClick = onClick,
+        visualModifier = Modifier
             .background(ChatColors.inputIconBg, CircleShape)
-            .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .border(0.5.dp, ChatColors.inputIconBorder, CircleShape),
+        overlay = overlay,
     ) {
         content()
     }
@@ -420,26 +427,58 @@ internal fun MicButton(
     val tint = if (isRecording) Color.Red
                else MaterialTheme.colorScheme.onSurfaceVariant
     val borderColor = if (isRecording) Color.Transparent else ChatColors.inputIconBorder
-    Box(
-        modifier = Modifier
-            // Preserve the existing mic target and long-press admission.
-            .size(38.dp)
+    // [T-omnibot-composer-tap-slot] The 48dp/38dp split lives in
+    // [ComposerActionSlot]: tap AND long-press are on the outer slot, so both
+    // gestures cover the full target, and the locale badge stays inside the
+    // circle instead of drifting when the target grows.
+    ComposerActionSlot(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        visualModifier = Modifier
             .background(bg, CircleShape)
-            .border(0.5.dp, borderColor, CircleShape)
-            .clip(CircleShape)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            ),
-        contentAlignment = Alignment.Center,
+            .border(0.5.dp, borderColor, CircleShape),
     ) {
-        Icon(
-            if (isVoiceActive) Icons.Default.Keyboard else Icons.Default.Mic,
-            contentDescription = if (isVoiceActive) "Switch to keyboard"
-            else if (isRecording) "Stop recording" else "Voice input",
-            tint = tint,
-            modifier = Modifier.size(20.dp),
-        )
+        // [T-omnibot-composer-motion] Keyboard ⇄ voice glyph is the one
+        // real "input mode" switch in the composer, so it gets the
+        // reference's 200ms scale+fade crossfade instead of a hard swap.
+        AnimatedContent(
+            targetState = isVoiceActive,
+            transitionSpec = {
+                (
+                    fadeIn(
+                        animationSpec = tween(
+                            ComposerButtonMotion.DURATION_MS,
+                            easing = ComposerButtonMotion.Easing,
+                        ),
+                    ) + scaleIn(
+                        initialScale = ComposerButtonMotion.SCALE_FROM,
+                        animationSpec = tween(
+                            ComposerButtonMotion.DURATION_MS,
+                            easing = ComposerButtonMotion.Easing,
+                        ),
+                    )
+                    ).togetherWith(
+                    fadeOut(
+                        animationSpec = tween(
+                            ComposerButtonMotion.CROSSFADE_OUT_MS,
+                            easing = ComposerButtonMotion.Easing,
+                        ),
+                    ),
+                )
+            },
+            label = "composerMicMode",
+        ) { voice ->
+            Icon(
+                if (voice) Icons.Default.Keyboard else Icons.Default.Mic,
+                contentDescription = when {
+                    voice -> "Switch to keyboard"
+                    isRecording -> "Stop recording"
+                    else -> "Voice input"
+                },
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         if (!localeBadge.isNullOrEmpty()) {
             Text(
                 text = localeBadge,
