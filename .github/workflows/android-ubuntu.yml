@@ -216,7 +216,8 @@ jobs:
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
             --tests '*ToolArgumentBufferTest' --tests '*ResponsesToolCallAssemblerTest' --tests '*ChatToolCallIndexTest' \
-            --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest'
+            --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest' \
+            --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions

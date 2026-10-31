@@ -4351,7 +4351,8 @@ private object MarkdownParseCaches {
  *   - `p` sits immediately AFTER a `\n` (so it lands on an inline-parse "reset"
  *     line boundary — inline code / `$…$` / `\(…\)` all stop at `\n`), and
  *   - `text[0, p)` has every multi-line-capable inline construct CLOSED, i.e.
- *     an even number of `**`, `__`, `~~`, `` ` `` runs and no dangling
+ *     balanced `**` / `~~` runs, closed boundary-valid underscore emphasis,
+ *     and no dangling
  *     `[…](…` link, and no trailing `\` escape.
  *
  * This guarantees `parseInline(prefix) ++ parseInline(suffix) == parseInline(text)`
@@ -4374,7 +4375,6 @@ internal fun safeInlineSplitOffset(text: String): Int {
     // never "open" — we only need to prove the multi-line ones are balanced
     // AND that we're not sitting on a trailing escape.
     var boldStar = false   // ** run open  (also covers *** via two toggles)
-    var boldUnder = false  // __ run open
     var strike = false     // ~~ run open
     // Link/image `[label](url` state: parseInline's [text](url) / ![alt](url)
     // use plain indexOf for `]`/`)` and thus CAN span newlines — a newline
@@ -4414,7 +4414,19 @@ internal fun safeInlineSplitOffset(text: String): Int {
             }
             text.startsWith("~~", i) -> { strike = !strike; i += 2; continue }
             text.startsWith("**", i) -> { boldStar = !boldStar; i += 2; continue }
-            text.startsWith("__", i) -> { boldUnder = !boldUnder; i += 2; continue }
+            c == '_' -> {
+                val width = com.openminis.app.ui.markdown.UnderscoreEmphasis.runLength(text, i)
+                val end = com.openminis.app.ui.markdown.UnderscoreEmphasis.findClose(text, i, width)
+                if (end != -1) {
+                    // Emphasis may span a newline. Freeze only after its close,
+                    // using exactly the same pairing rule as parseInline.
+                    i = end + width
+                } else if (width <= 3 && com.openminis.app.ui.markdown.UnderscoreEmphasis.canOpen(text, i, width)) {
+                    // It could close in a future streaming chunk.
+                    return lastSafeNewlineEnd
+                } else i += width
+                continue
+            }
             // `](` transitions label -> url (only when a label is open).
             inLabel && text.startsWith("](", i) -> { inLabel = false; inUrl = true; i += 2; continue }
             c == '[' -> { inLabel = true; i++ }             // `![` also lands here on the `[`
@@ -4428,7 +4440,7 @@ internal fun safeInlineSplitOffset(text: String): Int {
                 // IS tracked above: it does not span newlines either, but its
                 // CONTENTS must not feed the emphasis counters, because
                 // parseInline resolves a code span before any `**` inside it.
-                if (!boldStar && !boldUnder && !strike && !inLabel && !inUrl) {
+                if (!boldStar && !strike && !inLabel && !inUrl) {
                     lastSafeNewlineEnd = i + 1
                 }
                 i++
@@ -4494,14 +4506,21 @@ private fun parseInline(text: String, colors: MdColors): AnnotatedString {
                         i = end + 2
                     } else { append(text[i]); i++ }
                 }
-                text.startsWith("__", i) -> {
-                    val end = text.indexOf("__", i + 2)
+                // Underscores inside identifiers are literal, not emphasis.
+                // Consume the WHOLE run even when unmatched so a rejected '__'
+                // cannot be retried as a single '_' on the next iteration.
+                text[i] == '_' -> {
+                    val width = com.openminis.app.ui.markdown.UnderscoreEmphasis.runLength(text, i)
+                    val end = com.openminis.app.ui.markdown.UnderscoreEmphasis.findClose(text, i, width)
                     if (end != -1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            appendRecursive(text.substring(i + 2, end), colors)
+                        val style = when (width) {
+                            1 -> SpanStyle(fontStyle = FontStyle.Italic)
+                            2 -> SpanStyle(fontWeight = FontWeight.Bold)
+                            else -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
                         }
-                        i = end + 2
-                    } else { append(text[i]); i++ }
+                        withStyle(style) { appendRecursive(text.substring(i + width, end), colors) }
+                        i = end + width
+                    } else { append(text.substring(i, i + width)); i += width }
                 }
                 // Strikethrough: ~~text~~
                 text.startsWith("~~", i) -> {
@@ -4568,8 +4587,8 @@ private fun parseInline(text: String, colors: MdColors): AnnotatedString {
                         } else { append(text[i]); i++ }
                     } else { append(text[i]); i++ }
                 }
-                // Italic: *text* or _text_ (single delimiter, not followed by same)
-                (text[i] == '*' || text[i] == '_') && i + 1 < text.length && text[i + 1] != text[i] && text[i + 1] != ' ' -> {
+                // Star emphasis permits intra-word use; underscores above do not.
+                text[i] == '*' && i + 1 < text.length && text[i + 1] != text[i] && text[i + 1] != ' ' -> {
                     val delim = text[i]
                     val end = text.indexOf(delim, i + 1)
                     if (end != -1 && end > i + 1) {
