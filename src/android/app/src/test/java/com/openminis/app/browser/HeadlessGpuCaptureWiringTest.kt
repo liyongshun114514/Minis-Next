@@ -19,12 +19,12 @@ class HeadlessGpuCaptureWiringTest {
     private val host = File("src/main/java/com/openminis/app/browser/HeadlessRenderHost.kt").readText()
 
     @Test
-    fun `agent screenshots use the GPU host, the live preview and full-page stay on the software draw`() {
+    fun `agent screenshots and live preview refresh GPU while full-page stays bounded`() {
         assertTrue("viewport screenshot", manager.contains("captureWebViewBitmap(gpu = !didStretch)"))
         assertTrue("auto snapshot after an action", manager.contains("captureWebViewBitmap(gpu = true) ?: return result"))
-        // The 3 s live-preview thumbnail must not attach/detach the WebView
-        // on every tick.
-        assertTrue(manager.contains("suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap()"))
+        // Software draw alone can return a stale detached Chromium frame.
+        // Live capture must use the bounded, serialised GPU refresh path too.
+        assertTrue(manager.contains("suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap(gpu = true)"))
         assertTrue(
             "a GPU miss falls through to the software draw",
             manager.contains("if (gpu) HeadlessRenderHost.capture(webView, w, h)?.let { return@withContext it }"),

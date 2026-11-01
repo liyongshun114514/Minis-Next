@@ -196,6 +196,8 @@ internal object HeadlessRenderHost {
                     "mainBlock=${mainBlockMs}ms",
             )
             return bitmap
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             Log.w(TAG, "gpu capture failed: ${e.javaClass.simpleName}: ${e.message}")
             return null

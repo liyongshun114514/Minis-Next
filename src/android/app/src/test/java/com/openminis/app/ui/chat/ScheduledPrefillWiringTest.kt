@@ -60,7 +60,7 @@ class ScheduledPrefillWiringTest {
         val hook = vm.substringAfter("val scriptedTurn = pendingScriptedTurn?.takeUnless { helperWrapUpInjected }")
         // Consumed before the stream is built, so a later turn cannot replay it.
         assertTrue(hook.trimStart().startsWith("pendingScriptedTurn = null"))
-        val branch = hook.substringBefore("turnChunks.collect { chunk ->")
+        val branch = hook.substringBefore("turnChunks.splitThinkingPrefix().collect { chunk ->")
         assertTrue(branch.contains("scriptedTurn.asStreamChunks()"))
         // The provider request, and its request-side bookkeeping, only happen
         // on the non-scripted branch.
@@ -75,8 +75,8 @@ class ScheduledPrefillWiringTest {
         // The whole point of scripting the stream: a prefilled call goes
         // through the same tool card, dispatch and persistence code a model
         // call does. A second collector would be a second code path.
-        assertEquals(1, Regex("""turnChunks\.collect \{ chunk ->""").findAll(vm).count())
-        assertEquals(0, Regex("""\)\.collect \{ chunk ->""").findAll(vm.substringAfter("private suspend fun runAgentLoop(").substringBefore("private suspend fun executeTool(")).count())
+        assertEquals(1, Regex("""turnChunks\.splitThinkingPrefix\(\)\.collect \{ chunk ->""").findAll(vm).count())
+        assertEquals(0, Regex("""(?<!splitThinkingPrefix\()\)\.collect \{ chunk ->""").findAll(vm.substringAfter("private suspend fun runAgentLoop(").substringBefore("private suspend fun executeTool(")).count())
     }
 
     @Test

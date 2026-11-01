@@ -69,6 +69,7 @@ import com.openminis.app.tools.BatchToolOrder
 import com.openminis.app.tools.ReadImageTool
 import com.openminis.app.tools.ToolExecutionResult
 import com.openminis.app.offload.OffloadPermissionManager
+import com.openminis.app.provider.splitThinkingPrefix
 import com.openminis.app.service.SessionActivityTracker
 import com.openminis.app.service.SessionConcurrencyManager
 import kotlinx.coroutines.CancellationException
@@ -8490,7 +8491,7 @@ class ChatViewModel(
         val retainedHead = messages.subList(0, keepThrough + 1).map { m ->
             if (m.id == messageId && m.isQueued) {
                 m.queuedPromptId?.let { pid ->
-                    _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
+                    _promptQueue.update { current -> current.filterNot { it.id == pid } }
                 }
                 m.copy(isQueued = false, queuedPromptId = null)
             } else m
@@ -8599,7 +8600,7 @@ class ChatViewModel(
         val retainedHead = messages.subList(0, cutFrom)
         for (m in deletedMessages) {
             m.queuedPromptId?.let { pid ->
-                _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
+                _promptQueue.update { current -> current.filterNot { it.id == pid } }
             }
         }
         _messages.value = retainedHead
@@ -8768,6 +8769,7 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
+                    owner = coroutineContext[Job],
                 )
                 val activeFallbackStrategy = run {
                     val groupId = _selectedGroupId.value
@@ -8811,9 +8813,11 @@ class ChatViewModel(
                     // non-null excerpt. Reading _messages here is safe:
                     // we're in the finally block of the agent loop and
                     // the stream has already flushed its last delta.
-                    publishOverlayReplyExcerpt(activeSessionId)
-                    markRunOutcomeForNotification(activeSessionId)
-                    SessionActivityTracker.setInactive(activeSessionId)
+                    if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
+                        publishOverlayReplyExcerpt(activeSessionId)
+                        markRunOutcomeForNotification(activeSessionId)
+                    }
+                    SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                     if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                     AppLogger.info(TAG_STREAM, "$label streamJob FINALLY exit")
                 }
@@ -9085,13 +9089,11 @@ class ChatViewModel(
         prompt.scheduledTaskId?.let { taskId ->
             val superseded = QueuedPromptBatching.supersededBy(_promptQueue.value, taskId).toSet()
             if (superseded.isNotEmpty()) {
-                _promptQueue.value = _promptQueue.value.filterNot { it.id in superseded }
-                _messages.value = _messages.value.filterNot { it.queuedPromptId in superseded }
+                _promptQueue.update { current -> current.filterNot { it.id in superseded } }
+                _messages.update { current -> current.filterNot { it.queuedPromptId in superseded } }
                 Log.i(TAG, "Scheduled task $taskId fired again before delivery — replaced ${superseded.size} older queued fire(s)")
             }
         }
-        _promptQueue.value = _promptQueue.value + prompt
-
         val attachmentNames = pendingAttachments.map { it.fileName }
         val imageUris = pendingAttachments.filter { it.isImage }.map { it.uri }
         val attachmentUris = pendingAttachments.filterNot { it.isImage }.map { it.uri }
@@ -9105,15 +9107,17 @@ class ChatViewModel(
             isQueued = true,
             queuedPromptId = prompt.id,
         )
-        _messages.value = _messages.value + chatMsg
+        // Publish its bubble before making the prompt consumable by the IO loop.
+        _messages.update { it + chatMsg }
+        _promptQueue.update { it + prompt }
         if (PromptAttachments.clearsComposer(ownsComposer)) clearAttachments()
         Log.i(TAG, "Enqueued prompt (${trimmed.length}ch, ${pendingAttachments.size} attachments, origin=$origin), queue=${_promptQueue.value.size}")
     }
 
     /** Remove a queued prompt and its chat message by prompt id. */
     fun removeQueuedPrompt(promptId: String) {
-        _promptQueue.value = _promptQueue.value.filterNot { it.id == promptId }
-        _messages.value = _messages.value.filterNot { it.queuedPromptId == promptId }
+        _promptQueue.update { current -> current.filterNot { it.id == promptId } }
+        _messages.update { current -> current.filterNot { it.queuedPromptId == promptId } }
     }
 
     /** Withdraw a queued message before it gets injected into the agent loop. */
@@ -9121,8 +9125,8 @@ class ChatViewModel(
         val msg = _messages.value.firstOrNull { it.id == messageId } ?: return
         if (!msg.isQueued) return
         val pid = msg.queuedPromptId ?: return
-        _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
-        _messages.value = _messages.value.filterNot { it.id == messageId }
+        _promptQueue.update { current -> current.filterNot { it.id == pid } }
+        _messages.update { current -> current.filterNot { it.id == messageId } }
         Log.i(TAG, "Withdrew queued message, queue=${_promptQueue.value.size}")
     }
 
@@ -9253,7 +9257,7 @@ class ChatViewModel(
                 TAG_STREAM,
                 "injectQueuedPromptsAsNewTurn: ${queued.size} queued prompt(s) produced no content, skipping",
             )
-            _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
+            _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
             return null
         }
 
@@ -9290,7 +9294,7 @@ class ChatViewModel(
         // [T-queue-dequeue-after-persist] Dequeue only now that the row exists,
         // with no suspension point in between. Filter by id rather than
         // emptying: a prompt enqueued during the window above stays queued.
-        _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
+        _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
         agentHistory.add(
             ChatAttachmentIngest.queuedHistoryMessage(
                 userText = userText,
@@ -9310,15 +9314,21 @@ class ChatViewModel(
         // queued user ChatMessage + a NEW empty assistant placeholder so
         // the next iteration's streaming writes target the new bubble.
         val newAssistantId = "assistant_${System.currentTimeMillis()}"
-        withContext(Dispatchers.Main) {
+        val injectingJob = kotlin.coroutines.coroutineContext[Job]
+        // The user row is already durable and dequeued. A Stop while switching
+        // to Main must not cancel its UI commit and leave a disappearing bubble.
+        withContext(NonCancellable + Dispatchers.Main) {
+            val mayCommitUser = _messages.value.any {
+                it.id == finishedAssistantId || it.queuedPromptId in queuedIds
+            }
             // (a) + (b) one emit: build the post-finalize list.
             // Filter the LIVE list, not a snapshot taken before the suspends —
             // see [T-android-midtask-msg-vanishes] above. Any bubble appended
             // while we were persisting (another enqueue, a system notice) is
             // preserved; only the placeholders we are replacing are removed.
-            _messages.value = _messages.value.filterNot { m ->
+            _messages.update { current -> current.filterNot { m ->
                 m.queuedPromptId != null && queuedIds.contains(m.queuedPromptId)
-            }
+            } }
             updateAssistantMessage(
                 finishedAssistantId,
                 finishedAccumulatedText,
@@ -9336,6 +9346,7 @@ class ChatViewModel(
                 imageUris = prepared.imageUris,
                 attachmentNames = prepared.attachmentNames,
                 attachmentUris = prepared.nonImageUris,
+                sourceDbIds = listOf(userEntity.id),
             )
             val nextAssistantMsg = ChatMessage(
                 id = newAssistantId,
@@ -9345,7 +9356,12 @@ class ChatViewModel(
                 isAwaitingModelResponse = true,
                 thinkingLevel = _thinkingLevel.value,
             )
-            _messages.value = _messages.value + queuedUserMsg + nextAssistantMsg
+            val canContinue = injectingJob?.isActive == true
+            _messages.update { current ->
+                // A cleared/replaced chat must not be repopulated by a late job.
+                if (!mayCommitUser) current
+                else current + queuedUserMsg + if (canContinue) listOf(nextAssistantMsg) else emptyList()
+            }
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
             // ScrollPin send-grace window) is updated reactively by
             // ChatScreen's `LaunchedEffect(messages.size)` user-send hook
@@ -9426,7 +9442,7 @@ class ChatViewModel(
                 bodyPartsJson = drainPaste?.partsJson,
             )
             val drainedRow = chatRepository.appendMessage(sid, "user", userPartsJson)
-            _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
+            _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
             // Flip isQueued=false on corresponding chat messages so they render as sent.
             // T189: also clear queuedPromptId so a later retry of this bubble
             // doesn't try to drop a phantom queue entry (and so the field state
@@ -9439,7 +9455,7 @@ class ChatViewModel(
             // bubbles over one row is exactly the skew counting gets wrong
             // (editing the second of two merged prompts cut the NEXT turn and
             // left the merged row, old text included, in the model's context).
-            _messages.value = _messages.value.map { m ->
+            _messages.updateItems { m ->
                 if (m.queuedPromptId != null && queuedIds.contains(m.queuedPromptId)) {
                     m.copy(isQueued = false, queuedPromptId = null, sourceDbIds = listOf(drainedRow.id))
                 } else m
@@ -9451,7 +9467,7 @@ class ChatViewModel(
                 imageParts = prepared.imageParts,
                 combinedParts = combinedParts,
                 interruptReminder = null,
-                dbMessageId = null,
+                dbMessageId = drainedRow.id,
             ))
 
             try {
@@ -9965,6 +9981,7 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
+                    owner = coroutineContext[Job],
                 )
 
                     // Resolve the active group's fallback strategy
@@ -10017,9 +10034,11 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        publishOverlayReplyExcerpt(activeSessionId)
-                        markRunOutcomeForNotification(activeSessionId)
-                        SessionActivityTracker.setInactive(activeSessionId)
+                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
+                            publishOverlayReplyExcerpt(activeSessionId)
+                            markRunOutcomeForNotification(activeSessionId)
+                        }
+                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "send streamJob FINALLY exit")
                     }
@@ -10093,12 +10112,13 @@ class ChatViewModel(
         val lastAssistantIdx = msgs.indexOfLast { it.role == "assistant" }
         if (lastAssistantIdx >= 0) {
             val msg = msgs[lastAssistantIdx]
-            msgs[lastAssistantIdx] = msg.copy(
-                error = safeError,
-                isStreaming = false,
-                isAwaitingModelResponse = false,
-            )
-            _messages.value = msgs
+            _messages.updateItems { current ->
+                if (current.id != msg.id) current else current.copy(
+                    error = safeError,
+                    isStreaming = false,
+                    isAwaitingModelResponse = false,
+                )
+            }
             // [T-error-persist-android] Persist the terminal error so the inline
             // error + Retry button survive a session reload. The in-memory bubble
             // id differs from the persisted row id, so the row is found in the DB.
@@ -10131,8 +10151,7 @@ class ChatViewModel(
         if (lastAssistantIdx < 0) return
         val msg = msgs[lastAssistantIdx]
         if (msg.error == null) return
-        msgs[lastAssistantIdx] = msg.copy(error = null)
-        _messages.value = msgs
+        _messages.updateItems { current -> if (current.id == msg.id) current.copy(error = null) else current }
         // [T-error-persist-android] Clear the persisted sticker too, so a
         // recovered turn doesn't resurrect the error banner on the next reload.
         // Clear by the message's source DB rows when known (the in-memory bubble
@@ -10349,6 +10368,7 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
+                    owner = coroutineContext[Job],
                 )
                     val activeFallbackStrategy = run {
                         val groupId = _selectedGroupId.value
@@ -10385,9 +10405,11 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        publishOverlayReplyExcerpt(activeSessionId)
-                        markRunOutcomeForNotification(activeSessionId)
-                        SessionActivityTracker.setInactive(activeSessionId)
+                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
+                            publishOverlayReplyExcerpt(activeSessionId)
+                            markRunOutcomeForNotification(activeSessionId)
+                        }
+                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "retryLast streamJob FINALLY exit")
                     }
@@ -12103,7 +12125,7 @@ class ChatViewModel(
                         )
                     }
                     attemptUsage = null
-                    turnChunks.collect { chunk ->
+                    turnChunks.splitThinkingPrefix().collect { chunk ->
                 // [T-STALL-DIAG] Mark first byte back from the provider and log
                 // the time-to-first-chunk once per turn.
                 if (firstChunkSeen.compareAndSet(false, true)) {
@@ -16150,12 +16172,8 @@ class ChatViewModel(
             // fixed here defensively so any future write-path that forgets
             // to clear can't strand a stale banner across the rest of
             // the turn.
-            val canonical = _messages.value
-            val canonicalIdx = canonical.indexOfLast { it.id == id }
-            if (canonicalIdx >= 0 && canonical[canonicalIdx].error != null) {
-                val updated = canonical.toMutableList()
-                updated[canonicalIdx] = canonical[canonicalIdx].copy(error = null)
-                _messages.value = updated
+            if (_messages.value.lastOrNull { it.id == id }?.error != null) {
+                _messages.updateItems { m -> if (m.id == id && m.error != null) m.copy(error = null) else m }
             }
             return
         }
@@ -16164,24 +16182,16 @@ class ChatViewModel(
         // the canonical drain below publishes the final, complete text.
         clearStreamFlushState(id)
         // Stream end → sync delta into canonical message + clear side-channel.
-        val current = _messages.value
-        val idx = current.indexOfLast { it.id == id }
-        if (idx < 0) {
-            // The message itself is gone (e.g. clearChat raced ahead) —
-            // just clear any leftover stream delta and bail.
-            if (_streamingById.value.containsKey(id)) {
-                _streamingById.value = _streamingById.value - id
-            }
-            return
+        // Completion can run on IO while enqueuePrompt appends on Main. Retry
+        // against the current list instead of writing an obsolete whole-list snapshot.
+        _messages.updateItems { m ->
+            if (m.id != id) m else m.copy(
+                content = content,
+                isStreaming = false,
+                toolBlocks = toolBlocks.toList(),
+                isAwaitingModelResponse = isAwaitingModelResponse,
+            )
         }
-        val updated = current.toMutableList()
-        updated[idx] = current[idx].copy(
-            content = content,
-            isStreaming = false,
-            toolBlocks = toolBlocks.toList(),
-            isAwaitingModelResponse = isAwaitingModelResponse,
-        )
-        _messages.value = updated
         if (_streamingById.value.containsKey(id)) {
             _streamingById.value = _streamingById.value - id
         }
@@ -16208,20 +16218,14 @@ class ChatViewModel(
      */
     private fun flushStreamingDelta(id: String) {
         val delta = _streamingById.value[id] ?: return
-        val current = _messages.value
-        val idx = current.indexOfLast { it.id == id }
-        if (idx >= 0) {
-            val updated = current.toMutableList()
-            updated[idx] = current[idx].copy(
+        _messages.update { current -> current.map { m ->
+            if (m.id != id) m else m.copy(
                 content = delta.content,
                 isStreaming = false,
-                // [T-android-stop-late-write] Never let the overlay undo a
-                // status the canonical message already holds as finished.
-                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(current[idx].toolBlocks, delta.toolBlocks),
+                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(m.toolBlocks, delta.toolBlocks),
                 isAwaitingModelResponse = delta.isAwaitingModelResponse,
             )
-            _messages.value = updated
-        }
+        } }
         // [T-android-stream-flush-review] Cancel the pending trailing flush
         // BEFORE clearing the side channel — otherwise its viewModelScope
         // coroutine (not cancelled by streamJob.cancel) fires later and
@@ -16236,22 +16240,15 @@ class ChatViewModel(
         clearAllStreamFlushStates()
         val pending = _streamingById.value
         if (pending.isEmpty()) return
-        val current = _messages.value.toMutableList()
-        var changed = false
-        for ((id, delta) in pending) {
-            val idx = current.indexOfLast { it.id == id }
-            if (idx < 0) continue
-            current[idx] = current[idx].copy(
+        _messages.update { current -> current.map { m ->
+            val delta = pending[m.id]
+            if (delta == null) m else m.copy(
                 content = delta.content,
                 isStreaming = false,
-                // [T-android-stop-late-write] A later cancel used to copy a
-                // stale overlay's RUNNING back over the CANCELLED history here.
-                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(current[idx].toolBlocks, delta.toolBlocks),
+                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(m.toolBlocks, delta.toolBlocks),
                 isAwaitingModelResponse = delta.isAwaitingModelResponse,
             )
-            changed = true
-        }
-        if (changed) _messages.value = current
+        } }
         _streamingById.value = emptyMap()
     }
 
@@ -17992,6 +17989,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
+                    owner = coroutineContext[Job],
                 )
 
                     val activeFallbackStrategy = run {
@@ -18025,9 +18023,11 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        publishOverlayReplyExcerpt(activeSessionId)
-                        markRunOutcomeForNotification(activeSessionId)
-                        SessionActivityTracker.setInactive(activeSessionId)
+                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
+                            publishOverlayReplyExcerpt(activeSessionId)
+                            markRunOutcomeForNotification(activeSessionId)
+                        }
+                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel streamJob FINALLY exit")
                     }
@@ -18294,6 +18294,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
+                    owner = coroutineContext[Job],
                 )
                     val activeFallbackStrategy = run {
                         val groupId = _selectedGroupId.value
@@ -18329,9 +18330,11 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        publishOverlayReplyExcerpt(activeSessionId)
-                        markRunOutcomeForNotification(activeSessionId)
-                        SessionActivityTracker.setInactive(activeSessionId)
+                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
+                            publishOverlayReplyExcerpt(activeSessionId)
+                            markRunOutcomeForNotification(activeSessionId)
+                        }
+                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "resume streamJob FINALLY exit")
                     }

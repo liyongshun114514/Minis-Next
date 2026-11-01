@@ -1075,7 +1075,7 @@ class BrowserUseManager(
      * state even for actions that don't save an imageFilePath (get_readable,
      * get_text, execute_js, fetch, etc.).
      */
-    suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap()
+    suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap(gpu = true)
 
     /**
      * [T-android-browser-screenshot-scroll-offset] The page's current scroll
@@ -1114,9 +1114,10 @@ class BrowserUseManager(
     /**
      * [gpu] routes the capture through [HeadlessRenderHost] — a real GPU frame,
      * so WebGL / video are included — whenever the WebView is headless (not on
-     * screen in the browser sheet). Agent-facing captures pass true; the 3 s
-     * live-preview thumbnail and the stretched full-page capture keep the
-     * cheaper software draw. Any GPU-path miss falls through to that draw.
+     * screen in the browser sheet). Both agent-facing and live-preview captures
+     * refresh the detached renderer; software-only preview could keep returning
+     * an old Chromium frame until opening the browser attached it to a window.
+     * Stretched full-page captures remain software. GPU misses fall back safely.
      */
     private suspend fun captureWebViewBitmap(gpu: Boolean = false): Bitmap? = withContext(Dispatchers.Main) {
         try {
@@ -1186,6 +1187,8 @@ class BrowserUseManager(
             Log.d(TAG, "captureWebViewBitmap ${w}x$h offset=(${offsetX},${offsetY}) " +
                 "css=(${cssScroll.first},${cssScroll.second}) view=(${webView.scrollX},${webView.scrollY})")
             bitmap
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             Log.e(TAG, "captureWebViewBitmap failed: ${e.message}")
             null

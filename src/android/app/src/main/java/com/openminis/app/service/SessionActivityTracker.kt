@@ -87,9 +87,14 @@ object SessionActivityTracker {
     private fun processingUnion(): Set<String> =
         _activeSessions.value + _scheduledSessions.value + AgentJobRegistry.parentsWithAgentWork.value
 
+    @Synchronized
     private fun publishProcessing() {
         _processingSessions.value = processingUnion()
     }
+
+    // A cancelled stream may finish after its replacement has started. Session id
+    // alone is not ownership: only the registering job may end that activity.
+    private val runOwners = mutableMapOf<String, Any?>()
 
     private val _currentToolStatus = MutableStateFlow("Idle")
     val currentToolStatus: StateFlow<String> = _currentToolStatus.asStateFlow()
@@ -610,6 +615,7 @@ object SessionActivityTracker {
      * turn's [setActive] (the alarm that fires it carries the start exemption)
      * or the user opening a chat ([setPresent]).
      */
+    @Synchronized
     fun setScheduledSessions(sessions: Set<String>) {
         if (_scheduledSessions.value == sessions) return
         _scheduledSessions.value = sessions
@@ -677,7 +683,9 @@ object SessionActivityTracker {
      * loop's cancel callback — captured here so the notification's Stop
      * action can fan out to every running session.
      */
-    fun setActive(sessionId: String, onStop: (() -> Unit)? = null, sessionTitle: String? = null) {
+    @Synchronized
+    fun setActive(sessionId: String, onStop: (() -> Unit)? = null, sessionTitle: String? = null, owner: Any? = null) {
+        runOwners[sessionId] = owner
         // [T-android-overlay-multitask] Register the capsule slot first so the
         // "① of N" indicator counts this run even if it produces no tool call.
         upsertTask(sessionId, sessionTitle)
@@ -726,7 +734,10 @@ object SessionActivityTracker {
      * sessions remain active *and* the user is no longer present in any
      * chat.
      */
-    fun setInactive(sessionId: String) {
+    @Synchronized
+    fun setInactive(sessionId: String, owner: Any? = null) {
+        if (owner != null && runOwners[sessionId] !== owner) return
+        runOwners.remove(sessionId)
         val wasActive = sessionId in _activeSessions.value
         _activeSessions.value = _activeSessions.value - sessionId
         publishProcessing()
@@ -890,6 +901,10 @@ object SessionActivityTracker {
      * Returns whether a specific session is currently active.
      */
     fun isActive(sessionId: String): Boolean = sessionId in _activeSessions.value
+
+    @Synchronized
+    fun ownsRun(sessionId: String, owner: Any?): Boolean =
+        owner != null && runOwners[sessionId] === owner
 
     /**
      * Updates the current tool status displayed in the notification.

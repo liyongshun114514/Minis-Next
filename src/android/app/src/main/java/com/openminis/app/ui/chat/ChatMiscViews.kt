@@ -988,13 +988,19 @@ internal fun rememberBrowserLiveSnapshot(
         initialValue = null,
         block.id,
         tabPool,
+        intervalMs,
     ) {
-        val first = tabPool.activeManager?.captureLiveSnapshot()
-        if (first != null) value = first
         while (true) {
-            kotlinx.coroutines.delay(intervalMs)
-            val next = tabPool.activeManager?.captureLiveSnapshot() ?: continue
-            value = next
+            try {
+                tabPool.activeManager?.captureLiveSnapshot()?.let { value = it }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // One destroyed/replaced tab or transient capture failure must
+                // not end the producer and freeze its last good frame forever.
+                android.util.Log.w("BrowserPreview", "Live snapshot failed; retrying", failure)
+            }
+            kotlinx.coroutines.delay(intervalMs.coerceAtLeast(250L))
         }
     }
     return snapshot

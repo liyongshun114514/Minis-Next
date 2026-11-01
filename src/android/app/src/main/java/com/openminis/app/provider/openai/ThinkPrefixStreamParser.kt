@@ -32,7 +32,7 @@ package com.openminis.app.provider.openai
  * Not thread-safe; one instance per streaming turn (the provider creates one
  * per request).
  */
-internal class ThinkPrefixStreamParser {
+internal class ThinkPrefixStreamParser(private val preserveBodyWhitespace: Boolean = false) {
 
     private enum class State { UNDECIDED, THINKING, BODY }
 
@@ -55,9 +55,11 @@ internal class ThinkPrefixStreamParser {
     private val heldWhitespace = StringBuilder()
 
     private companion object {
-        const val OPEN = "<think>"
-        const val CLOSE = "</think>"
+        val OPEN_TAGS = listOf("<think>", "<thinking>")
     }
+
+    private var closingTag = "</think>"
+    private var dropBodyLeadingWhitespace = false
 
     /** Feed one streamed `content` delta. */
     fun feed(text: String): Output {
@@ -77,14 +79,13 @@ internal class ThinkPrefixStreamParser {
                         break@loop
                     }
                     val rest = pending.substring(firstNonSpace)
-                    if (OPEN.startsWith(rest.take(OPEN.length))) {
-                        // Could still become "<think>" once more bytes arrive.
-                        if (rest.length < OPEN.length) break@loop
-                    }
-                    if (rest.startsWith(OPEN)) {
+                    val open = OPEN_TAGS.firstOrNull { rest.startsWith(it) }
+                    if (open == null && OPEN_TAGS.any { it.startsWith(rest) }) break@loop
+                    if (open != null) {
                         state = State.THINKING
+                        closingTag = "</" + open.substring(1)
                         // Drop the tolerated leading whitespace AND the tag.
-                        pending.delete(0, firstNonSpace + OPEN.length)
+                        pending.delete(0, firstNonSpace + open.length)
                     } else {
                         // No think prefix — the whole turn is body, tags and all.
                         state = State.BODY
@@ -93,23 +94,32 @@ internal class ThinkPrefixStreamParser {
                 }
 
                 State.THINKING -> {
-                    val closeIdx = pending.indexOf(CLOSE)
+                    val closeIdx = pending.indexOf(closingTag)
                     if (closeIdx < 0) {
                         // Emit everything except a possible partial closing tag.
-                        val safe = safeEmitLength(pending, CLOSE)
+                        val safe = safeEmitLength(pending, closingTag)
                         if (safe <= 0) break@loop
                         thinking.append(pending, 0, safe)
                         pending.delete(0, safe)
                         break@loop
                     }
                     thinking.append(pending, 0, closeIdx)
-                    pending.delete(0, closeIdx + CLOSE.length)
+                    pending.delete(0, closeIdx + closingTag.length)
                     state = State.BODY
-                    // Drop the whitespace M3 emits right after </think>.
-                    while (pending.isNotEmpty() && pending[0].isWhitespace()) pending.deleteCharAt(0)
+                    dropBodyLeadingWhitespace = true
                 }
 
                 State.BODY -> {
+                    if (dropBodyLeadingWhitespace) {
+                        while (pending.isNotEmpty() && pending[0].isWhitespace()) pending.deleteCharAt(0)
+                        if (pending.isEmpty()) break@loop
+                        dropBodyLeadingWhitespace = false
+                    }
+                    if (preserveBodyWhitespace) {
+                        visible.append(pending)
+                        pending.setLength(0)
+                        break@loop
+                    }
                     // Withhold a trailing whitespace run until proven interior, so
                     // a think-only turn doesn't end with a whitespace-only block.
                     var cut = pending.length
@@ -163,7 +173,7 @@ internal class ThinkPrefixStreamParser {
         if (state != State.UNDECIDED || pending.isEmpty()) return Output("", "")
         // If the buffer could still grow into "<think>", leave it alone.
         val rest = pending.trimStart()
-        if (rest.isNotEmpty() && OPEN.startsWith(rest.take(OPEN.length)) && rest.length < OPEN.length) {
+        if (rest.isNotEmpty() && OPEN_TAGS.any { it.startsWith(rest) && rest.length < it.length }) {
             return Output("", "")
         }
         state = State.BODY
