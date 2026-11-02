@@ -13,6 +13,9 @@
     <string name="auto_compact_switch_title">Auto-compact on threshold</string>
     <string name="auto_compact_switch_footer">On: when the next request would cross the threshold, the conversation is compacted silently and then sent. Off: you are asked before compacting.</string>
 
+    <string name="auto_compact_threshold_model_title">Chat model to configure</string>
+    <string name="auto_compact_threshold_choose_model">Choose a chat model</string>
+    <string name="auto_compact_threshold_per_model_footer">Choose a chat model, then set its threshold. Each provider/model entry is saved independently and used when that model serves the chat, including group fallback. Clearing the number restores that entry to its capacity default. Existing global values are retained for entries not yet configured.</string>
     <string name="auto_compact_threshold_title">Token threshold</string>
     <string name="auto_compact_threshold_default">Model default</string>
     <string name="auto_compact_threshold_default_subtitle">Using the capacity-derived default for the active model.</string>

@@ -11,6 +11,9 @@
     <string name="auto_compact_switch_title">达到阈值时自动压缩</string>
     <string name="auto_compact_switch_footer">开启：下一次请求超过阈值时，先静默压缩对话再发送。关闭：压缩前询问你。</string>
 
+    <string name="auto_compact_threshold_model_title">要配置的聊天模型</string>
+    <string name="auto_compact_threshold_choose_model">选择聊天模型</string>
+    <string name="auto_compact_threshold_per_model_footer">先选择聊天模型，再设置它的阈值。每个提供商下的模型分别保存，聊天实际使用该模型（含分组回退）时生效。清空数字只将此模型恢复为安全容量默认值。升级前的全局阈值仍用于尚未单独配置的模型。</string>
     <string name="auto_compact_threshold_title">Token 阈值</string>
     <string name="auto_compact_threshold_default">模型默认</string>
     <string name="auto_compact_threshold_default_subtitle">按当前模型的安全容量使用默认阈值。</string>

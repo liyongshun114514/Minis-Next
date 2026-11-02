@@ -3686,14 +3686,14 @@ class ChatViewModel(
         }
         val configured = com.openminis.app.data.AutoCompactPrefs.config.value
         return com.openminis.app.data.AutoCompactPolicy.apply(
-            policy, window, configured.enabled, configured.thresholdTokens,
+            policy, window, configured.enabled, configured.thresholdFor(_activeEntryId.value),
         ) to window
     }
 
     /** A user threshold is measured before lossy trimming, including fixed prompt/tool tokens. */
     private fun customCompactThresholdReached(): Boolean {
         val configured = com.openminis.app.data.AutoCompactPrefs.config.value
-        if (!configured.enabled || configured.thresholdTokens == null) return false
+        if (!configured.enabled || configured.thresholdFor(_activeEntryId.value) == null) return false
         val policy = currentContextPolicy()?.first ?: return false
         return policy.compactThreshold > 0 && measureOutboundContextTokens() >= policy.compactThreshold
     }

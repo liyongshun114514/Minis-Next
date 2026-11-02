@@ -2,11 +2,8 @@ package com.openminis.app.ui.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -17,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -25,30 +23,18 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.data.AutoCompactPrefs
 import com.openminis.app.data.model.ModelEntry
+import com.openminis.app.data.model.ProviderConfig
+import com.openminis.app.ui.chat.ModelPickerSheet
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.MinisTextButton
 import java.text.NumberFormat
 
 /**
- * [T-android-auto-compact-settings] Settings › Context Compaction.
- *
- * One page owns the three knobs the threshold auto-compact path reads:
- *
- *  - the existing global on/off switch ([AutoCompactPrefs.isEnabled]);
- *  - a user-chosen token threshold, blank = the capacity-derived default;
- *  - which model writes the summary, default = follow the current chat model.
- *
- * The page is deliberately a plain settings list (grouped cards + AlertDialogs,
- * matching every other settings page) rather than a picker sheet: it is a
- * set-once preference, and the model list is filtered down to entries that can
- * actually do the job, so most users see a dozen rows at most.
- *
- * Nothing here triggers a network request. Availability is decided from the
- * provider config already loaded, so opening the page or picking a model costs
- * no tokens. A stored selection that no longer resolves is REPORTED, never
- * replaced: replacing it would silently change how summaries are written (and
- * on a metered provider, what they cost) without the user doing anything.
+ * Per-chat-model threshold editor and global summary-model selection.
+ * Both model choices reuse the actual chat composer picker (search, provider
+ * sections and model rows), restricted to concrete usable text entries.
+ * Selecting here only edits compaction settings, never a chat's binding.
  */
 @Composable
 fun AutoCompactSettingsScreen(
@@ -62,20 +48,16 @@ fun AutoCompactSettingsScreen(
     val instancesById = remember(providerConfig) {
         providerConfig.instances.associateBy { it.id }
     }
-    // Enabled providers only: a model entry under a disabled provider cannot be
-    // called, so offering it would let the user save a threshold that can never
-    // compact. Hidden entries and non-text-output models (image / audio / video
-    // generators) are excluded for the same reason — a summary is text.
-    val selectableEntries = remember(providerConfig, instancesById) {
-        providerConfig.modelEntries
-            .filter { entry -> entry.isUsableForCompaction(instancesById[entry.providerInstanceId]) }
-            .sortedWith(
-                compareBy(
-                    { instancesById[it.providerInstanceId]?.label.orEmpty().lowercase() },
-                    { it.model.displayName.lowercase() },
-                ),
-            )
-    }
+    val pickerConfig = remember(providerConfig) { compactionPickerConfig(providerConfig) }
+    val selectableEntries = pickerConfig.modelEntries
+    // This is an editor target, NOT the model that writes the summary. Keep the
+    // target stable across rotations and summary-model changes.
+    var thresholdEntryId by rememberSaveable { mutableStateOf<String?>(null) }
+    val thresholdEntry = selectableEntries.firstOrNull { it.id == thresholdEntryId }
+        ?: providerConfig.modelGroups.firstOrNull { it.id == providerConfig.defaultPrimaryGroupId }
+            ?.memberEntryIds?.firstNotNullOfOrNull { id -> selectableEntries.firstOrNull { it.id == id } }
+        ?: selectableEntries.firstOrNull()
+    val thresholdTokens = thresholdEntry?.let { config.thresholdFor(it.id) }
 
     val selectedId = config.modelEntryId
     val selectedEntry = selectedId?.let { id -> providerConfig.modelEntries.firstOrNull { it.id == id } }
@@ -83,7 +65,8 @@ fun AutoCompactSettingsScreen(
     val selectedUsable = selectedEntry?.isUsableForCompaction(selectedInstance) == true
 
     var showThresholdDialog by remember { mutableStateOf(false) }
-    var showModelPicker by remember { mutableStateOf(false) }
+    var pickerTarget by remember { mutableStateOf<CompactPickerTarget?>(null) }
+    var thresholdDialogEntryId by remember { mutableStateOf<String?>(null) }
     var thresholdDraft by remember { mutableStateOf("") }
     var thresholdError by remember { mutableStateOf(ThresholdError.NONE) }
 
@@ -96,25 +79,44 @@ fun AutoCompactSettingsScreen(
                 title = stringResource(R.string.auto_compact_switch_title),
                 checked = config.enabled,
                 onCheckedChange = { AutoCompactPrefs.setEnabled(context, it) },
-                showDivider = true,
-            )
-            SettingsValueRow(
-                title = stringResource(R.string.auto_compact_threshold_title),
-                value = config.thresholdTokens
-                    ?.let { stringResource(R.string.auto_compact_threshold_value_fmt, formatTokens(it)) }
-                    ?: stringResource(R.string.auto_compact_threshold_default),
-                subtitle = if (config.thresholdTokens == null) {
-                    stringResource(R.string.auto_compact_threshold_default_subtitle)
-                } else {
-                    null
-                },
-                onClick = {
-                    thresholdDraft = config.thresholdTokens?.toString().orEmpty()
-                    thresholdError = ThresholdError.NONE
-                    showThresholdDialog = true
-                },
                 showDivider = false,
             )
+        }
+
+        SettingsSection(footer = stringResource(R.string.auto_compact_threshold_per_model_footer)) {
+            SettingsValueRow(
+                title = stringResource(R.string.auto_compact_threshold_model_title),
+                value = thresholdEntry?.let { entryLabel(it, instancesById[it.providerInstanceId]) }
+                    ?: stringResource(R.string.auto_compact_threshold_choose_model),
+                onClick = { pickerTarget = CompactPickerTarget.THRESHOLD },
+                showDivider = true,
+            )
+            if (thresholdEntry != null) {
+                SettingsValueRow(
+                    title = stringResource(R.string.auto_compact_threshold_title),
+                    value = thresholdTokens
+                        ?.let { stringResource(R.string.auto_compact_threshold_value_fmt, formatTokens(it)) }
+                        ?: stringResource(R.string.auto_compact_threshold_default),
+                    subtitle = if (thresholdTokens == null) {
+                        stringResource(R.string.auto_compact_threshold_default_subtitle)
+                    } else null,
+                    onClick = {
+                        // Capture the exact key so config refreshes while the
+                        // dialog is open cannot apply a draft to another model.
+                        thresholdDialogEntryId = thresholdEntry.id
+                        thresholdDraft = thresholdTokens?.toString().orEmpty()
+                        thresholdError = ThresholdError.NONE
+                        showThresholdDialog = true
+                    },
+                    showDivider = false,
+                )
+            } else {
+                Text(
+                    stringResource(R.string.auto_compact_model_none),
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
 
         SettingsSection(footer = stringResource(R.string.auto_compact_model_footer)) {
@@ -146,13 +148,22 @@ fun AutoCompactSettingsScreen(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                onClick = { showModelPicker = true },
-                showDivider = false,
+                onClick = { pickerTarget = CompactPickerTarget.SUMMARY },
+                showDivider = selectedId != null,
             )
+            if (selectedId != null) {
+                SettingsChoiceRow(
+                    title = stringResource(R.string.auto_compact_model_follow_chat),
+                    selected = false,
+                    onSelect = { AutoCompactPrefs.setModelEntryId(context, null) },
+                    showDivider = false,
+                )
+            }
         }
     }
 
-    if (showThresholdDialog) {
+    if (showThresholdDialog && thresholdDialogEntryId != null) {
+        val editingEntryId = thresholdDialogEntryId!!
         val tooLargeMessage = stringResource(
             R.string.auto_compact_threshold_error_too_large,
             formatTokens(Int.MAX_VALUE),
@@ -197,12 +208,12 @@ fun AutoCompactSettingsScreen(
                     // Only offered when a number is actually set; when blank the
                     // field already IS the default, so a reset button would do
                     // nothing visible.
-                    if (config.thresholdTokens != null) {
+                    if (config.thresholdFor(editingEntryId) != null) {
                         MinisTextButton(
                             onClick = {
                                 thresholdDraft = ""
                                 thresholdError = ThresholdError.NONE
-                                AutoCompactPrefs.setThresholdTokens(context, null)
+                                AutoCompactPrefs.setThresholdTokens(context, editingEntryId, null)
                                 showThresholdDialog = false
                             },
                             modifier = Modifier.padding(top = 4.dp),
@@ -220,7 +231,7 @@ fun AutoCompactSettingsScreen(
                         // the draft intact, and nothing is persisted.
                         when (val parsed = parseThresholdInput(thresholdDraft)) {
                             is ThresholdParseResult.Valid -> {
-                                AutoCompactPrefs.setThresholdTokens(context, parsed.tokens)
+                                AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)
                                 showThresholdDialog = false
                             }
                             is ThresholdParseResult.Invalid -> thresholdError = parsed.error
@@ -238,55 +249,47 @@ fun AutoCompactSettingsScreen(
         )
     }
 
-    if (showModelPicker) {
-        AlertDialog(
-            onDismissRequest = { showModelPicker = false },
-            title = { Text(stringResource(R.string.auto_compact_model_picker_title)) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    SettingsChoiceRow(
-                        title = stringResource(R.string.auto_compact_model_follow_chat),
-                        selected = selectedId == null,
-                        onSelect = {
-                            AutoCompactPrefs.setModelEntryId(context, null)
-                            showModelPicker = false
-                        },
-                        showDivider = selectableEntries.isNotEmpty(),
-                    )
-                    if (selectableEntries.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.auto_compact_model_none),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        )
+    pickerTarget?.let { target ->
+        ModelPickerSheet(
+            // A threshold / explicit summary choice is a concrete entry, not
+            // a routing group whose membership can change underneath it.
+            groups = emptyList(),
+            selectedGroupId = null,
+            activeEntryId = if (target == CompactPickerTarget.THRESHOLD) thresholdEntry?.id else selectedId,
+            defaultPrimaryGroupId = null,
+            config = pickerConfig,
+            providerRepository = providerRepository,
+            onSelectGroup = {},
+            onSelectGroupEntry = { _, _ -> },
+            onSelectEntry = { entryId ->
+                // Revalidate against the latest repository snapshot, not the
+                // filtered list captured when this sheet was first opened.
+                val latest = providerRepository.config.value
+                val entry = latest.modelEntries.firstOrNull { it.id == entryId }
+                if (entry?.isUsableForCompaction(latest.instances.firstOrNull { it.id == entry.providerInstanceId }) == true) {
+                    when (target) {
+                        CompactPickerTarget.THRESHOLD -> thresholdEntryId = entryId
+                        CompactPickerTarget.SUMMARY -> AutoCompactPrefs.setModelEntryId(context, entryId)
                     }
-                    selectableEntries.forEachIndexed { index, entry ->
-                        val instance = instancesById[entry.providerInstanceId]
-                        SettingsChoiceRow(
-                            title = entryLabel(entry, instance),
-                            selected = entry.id == selectedId,
-                            onSelect = {
-                                AutoCompactPrefs.setModelEntryId(context, entry.id)
-                                showModelPicker = false
-                            },
-                            showDivider = index < selectableEntries.lastIndex,
-                        )
-                    }
+                    pickerTarget = null
                 }
             },
-            confirmButton = {
-                MinisTextButton(onClick = { showModelPicker = false }) {
-                    Text(stringResource(R.string.common_close))
-                }
-            },
+            onDismiss = { pickerTarget = null },
         )
     }
+}
+
+private enum class CompactPickerTarget { THRESHOLD, SUMMARY }
+
+/** Detached, locally filtered config; never mutate the repository's lists. */
+internal fun compactionPickerConfig(config: ProviderConfig): ProviderConfig {
+    val instances = config.instances.filter { it.isEnabled && it.providerType.isUsable }
+    val byId = instances.associateBy { it.id }
+    return config.copy(
+        instances = instances.toMutableList(),
+        modelEntries = config.modelEntries.filter { it.isUsableForCompaction(byId[it.providerInstanceId]) }.toMutableList(),
+        modelGroups = mutableListOf(),
+    )
 }
 
 /**

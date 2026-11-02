@@ -90,6 +90,45 @@ class AutoCompactSettingsTest {
         assertFalse(entry().isUsableForCompaction(instance(type = ProviderType.antigravity)))
     }
 
+    @Test
+    fun `shared chat picker receives a detached text only configuration`() {
+        val config = com.openminis.app.data.model.ProviderConfig(
+            instances = mutableListOf(instance(), instance(enabled = false).copy(id = "disabled")),
+            modelEntries = mutableListOf(
+                entry(), entry(hidden = true), entry(outputModalities = listOf("image")),
+                entry().copy(providerInstanceId = "disabled"),
+            ),
+            modelGroups = mutableListOf(com.openminis.app.data.model.ModelGroup(name = "chat group")),
+        )
+        val filtered = compactionPickerConfig(config)
+        assertEquals(1, filtered.modelEntries.size)
+        assertEquals(1, filtered.instances.size)
+        assertTrue(filtered.modelGroups.isEmpty())
+        filtered.modelEntries.clear()
+        filtered.instances.clear()
+        assertEquals(4, config.modelEntries.size)
+        assertEquals(2, config.instances.size)
+        assertEquals(1, config.modelGroups.size)
+    }
+
+    @Test
+    fun `both choices reuse the composer picker and thresholds capture a model key`() {
+        val page = ProductionSources.read("ui/settings/AutoCompactSettingsScreen.kt")
+        assertTrue(page.contains("import com.openminis.app.ui.chat.ModelPickerSheet"))
+        assertTrue(page.contains("ModelPickerSheet("))
+        assertTrue(page.contains("CompactPickerTarget.THRESHOLD"))
+        assertTrue(page.contains("CompactPickerTarget.SUMMARY"))
+        assertTrue(page.contains("thresholdDialogEntryId = thresholdEntry.id"))
+        assertTrue(page.contains("AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)"))
+        assertTrue(page.contains("AutoCompactPrefs.setThresholdTokens(context, editingEntryId, null)"))
+        assertTrue(page.contains("config.thresholdFor(it.id)"))
+        assertTrue(page.contains("providerRepository.config.value"))
+        assertFalse(page.contains("selectableEntries.forEachIndexed"))
+        assertFalse(page.contains("AutoCompactPrefs.setThresholdTokens(context, parsed.tokens)"))
+        assertFalse(page.contains("selectEntry("))
+        assertFalse(page.contains("selectGroup("))
+    }
+
     // ── Resources / wiring ───────────────────────────────────────────────────
 
     @Test

@@ -38,6 +38,25 @@ class AutoCompactIntegrationTest {
         assertTrue(vm.contains("measureOutboundContextTokens() >= policy.compactThreshold"))
     }
 
+    @Test fun `threshold follows the actual chat entry not the summary model or group`() {
+        val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
+        val policy = vm.substringAfter("private fun currentContextPolicy()").substringBefore("val currentModelMaxOutputTokens")
+        assertEquals(2, Regex(Regex.escape("configured.thresholdFor(_activeEntryId.value)")).findAll(policy).count())
+        assertFalse(policy.contains("configured.thresholdTokens"))
+        assertFalse(policy.contains("configured.modelEntryId"))
+        val thresholds = com.openminis.app.data.AutoCompactConfig(
+            enabled = true,
+            modelEntryId = "summary/model",
+            thresholdTokensByEntryId = mapOf("provider-a/model" to 12_000, "provider-b/model" to 48_000),
+        )
+        val base = com.openminis.app.data.ContextPolicy.forContextWindow(128_000)
+        for ((entry, expected) in listOf("provider-a/model" to 12_000, "provider-b/model" to 48_000, "provider-a/model" to 12_000)) {
+            val applied = com.openminis.app.data.AutoCompactPolicy.apply(base, 128_000, thresholds.enabled, thresholds.thresholdFor(entry))
+            assertEquals(expected, applied.compactThreshold)
+        }
+        assertNull(thresholds.thresholdFor("summary/model"))
+    }
+
     @Test fun `explicit model resolves locally and recursive segments retain it`() {
         val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
         val resolve = vm.substringAfter("private suspend fun resolveCompactProvider(").substringBefore("private suspend fun generateCompactSummary(")
