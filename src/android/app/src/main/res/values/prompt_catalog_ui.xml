@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chrome for the unified System Prompt workspace (Settings › System Prompt hub
+  and the built-in prompt editor). Only labels the app owns live here: entry
+  titles, group names and source notes come from the prompt catalog asset and
+  are shown verbatim, so no fourth translation layer is introduced for them.
+-->
+<resources>
+    <!-- Settings row subtitle: the single entry now covers every prompt. -->
+    <string name="prompt_catalog_settings_subtitle">Identity, built-in templates and workspace instructions</string>
+
+    <!-- Hub -->
+    <string name="prompt_catalog_intro">Built-in prompts are the defaults each feature uses. Open one to read or edit its full text; an edit applies the next time that feature builds its prompt.</string>
+    <string name="prompt_catalog_row_identity">Name, avatar and global SOUL</string>
+    <string name="prompt_catalog_row_identity_subtitle">Chat identity and the global system prompt body</string>
+    <string name="prompt_catalog_search_hint">Search prompts</string>
+    <string name="prompt_catalog_search_clear">Clear search</string>
+    <string name="prompt_catalog_badge_edited">Edited</string>
+    <string name="prompt_catalog_group_other">Other</string>
+    <string name="prompt_catalog_empty">No built-in prompts are available on this build.</string>
+    <string name="prompt_catalog_no_match">No prompts match “%1$s”.</string>
+    <string name="prompt_catalog_load_error">Couldn’t load the built-in prompt catalog.</string>
+
+    <!-- Editor -->
+    <string name="prompt_catalog_editor_section_template">Template</string>
+    <string name="prompt_catalog_editor_section_details">Details</string>
+    <string name="prompt_catalog_editor_section_reset">Reset</string>
+    <string name="prompt_catalog_editor_placeholder">Prompt template</string>
+    <string name="prompt_catalog_editor_source">Source</string>
+    <string name="prompt_catalog_editor_source_unknown">Unknown</string>
+    <string name="prompt_catalog_editor_slots">Dynamic slots</string>
+    <string name="prompt_catalog_editor_slots_none">None — this prompt is used as written.</string>
+    <string name="prompt_catalog_editor_slots_note">Token counts above come from the shipped default. {{slotN}} is filled by the app when it builds this prompt, {name} by the caller after rendering, and any other double-brace token (such as {{result}}) by the stage that owns it. A saved edit must keep every token in the same counts, repeats included, or the save is refused — that context would otherwise stop arriving silently.</string>
+    <string name="prompt_catalog_status_saved">Saved</string>
+    <string name="prompt_catalog_status_unsaved">Unsaved changes</string>
+    <string name="prompt_catalog_status_restored">Default restored</string>
+    <string name="prompt_catalog_editor_reset">Restore default</string>
+    <string name="prompt_catalog_editor_reset_active">Removes your saved override and returns to the built-in text</string>
+    <string name="prompt_catalog_editor_reset_idle">The built-in text is already in use</string>
+    <string name="prompt_catalog_editor_reset_confirm_title">Restore the default prompt?</string>
+    <string name="prompt_catalog_editor_reset_confirm_body">Your saved edits to this prompt are removed and the built-in text is restored. This cannot be undone.</string>
+    <string name="prompt_catalog_editor_reset_confirm">Restore</string>
+    <string name="prompt_catalog_editor_reset_error_title">Couldn’t restore default</string>
+    <string name="prompt_catalog_editor_save_error_title">Couldn’t save</string>
+    <string name="prompt_catalog_editor_missing">This prompt is no longer available.</string>
+    <string name="prompt_catalog_discard_title">Discard changes?</string>
+    <string name="prompt_catalog_discard_body">Your edits to this prompt have not been saved.</string>
+    <string name="prompt_catalog_discard_confirm">OK, Discard</string>
+    <string name="prompt_catalog_discard_cancel">Cancel, Keep Editing</string>
+</resources>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  统一「系统提示词」工作区的界面文案（设置 › 系统提示词 汇总页 + 内置提示词编辑器）。
+  这里只放应用自有的标签；条目名称、分组名与来源说明来自提示词目录资源，
+  按原样显示，不在这里再做一层翻译。
+-->
+<resources>
+    <!-- 设置页副标题：该入口现在覆盖全部提示词。 -->
+    <string name="prompt_catalog_settings_subtitle">身份、内置模板与工作区指令</string>
+
+    <!-- 汇总页 -->
+    <string name="prompt_catalog_intro">内置提示词是各功能默认使用的文本。点开可查看或编辑完整内容；修改会在该功能下次组装提示词时生效。</string>
+    <string name="prompt_catalog_row_identity">名称、头像与全局 SOUL</string>
+    <string name="prompt_catalog_row_identity_subtitle">聊天中显示的身份与全局系统提示词正文</string>
+    <string name="prompt_catalog_search_hint">搜索提示词</string>
+    <string name="prompt_catalog_search_clear">清除搜索</string>
+    <string name="prompt_catalog_badge_edited">已修改</string>
+    <string name="prompt_catalog_group_other">其他</string>
+    <string name="prompt_catalog_empty">此版本没有可用的内置提示词。</string>
+    <string name="prompt_catalog_no_match">没有匹配“%1$s”的提示词。</string>
+    <string name="prompt_catalog_load_error">无法加载内置提示词目录。</string>
+
+    <!-- 编辑器 -->
+    <string name="prompt_catalog_editor_section_template">模板</string>
+    <string name="prompt_catalog_editor_section_details">详情</string>
+    <string name="prompt_catalog_editor_section_reset">恢复</string>
+    <string name="prompt_catalog_editor_placeholder">提示词模板</string>
+    <string name="prompt_catalog_editor_source">来源</string>
+    <string name="prompt_catalog_editor_source_unknown">未知</string>
+    <string name="prompt_catalog_editor_slots">动态槽位</string>
+    <string name="prompt_catalog_editor_slots_none">无，该提示词按原文使用。</string>
+    <string name="prompt_catalog_editor_slots_note">上面统计的是默认模板中的占位符及其出现次数：{{slotN}} 由应用在组装提示词时填入，{name} 由调用方在渲染后替换，其他双花括号标记（例如 {{result}}）由对应的流程填入。保存的文本必须让每个标记的出现次数与默认模板一致（重复次数也要一致），否则保存会被拒绝，以免这些上下文悄悄地不再传入。</string>
+    <string name="prompt_catalog_status_saved">已保存</string>
+    <string name="prompt_catalog_status_unsaved">有未保存的修改</string>
+    <string name="prompt_catalog_status_restored">已恢复默认</string>
+    <string name="prompt_catalog_editor_reset">恢复默认</string>
+    <string name="prompt_catalog_editor_reset_active">移除已保存的覆盖内容，回到内置文本</string>
+    <string name="prompt_catalog_editor_reset_idle">当前已在用内置文本</string>
+    <string name="prompt_catalog_editor_reset_confirm_title">恢复默认提示词？</string>
+    <string name="prompt_catalog_editor_reset_confirm_body">将移除你对该提示词保存的修改并恢复内置文本，此操作无法撤销。</string>
+    <string name="prompt_catalog_editor_reset_confirm">恢复</string>
+    <string name="prompt_catalog_editor_reset_error_title">无法恢复默认</string>
+    <string name="prompt_catalog_editor_save_error_title">保存失败</string>
+    <string name="prompt_catalog_editor_missing">该提示词已不可用。</string>
+    <string name="prompt_catalog_discard_title">放弃修改？</string>
+    <string name="prompt_catalog_discard_body">你对该提示词的修改尚未保存。</string>
+    <string name="prompt_catalog_discard_confirm">OK，放弃修改</string>
+    <string name="prompt_catalog_discard_cancel">取消，继续修改</string>
+</resources>

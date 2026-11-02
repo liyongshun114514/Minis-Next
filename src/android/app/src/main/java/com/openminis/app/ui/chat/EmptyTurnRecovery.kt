@@ -28,11 +28,7 @@ import com.openminis.app.data.model.LLMMessage
 internal object EmptyTurnRecovery {
 
     /** The reminder text appended to the history tail before the retry. */
-    const val REMINDER: String =
-        "\n\n<system-reminder>The previous response was empty. You MUST continue: " +
-            "if the last message was a completed sub-agent result or a notice, acknowledge it " +
-            "and take the next step or give the user a final answer; if more work is needed, " +
-            "respond with the next tool call(s). Do not return an empty response.</system-reminder>"
+    val REMINDER: String  get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.emptyturnrecovery.a314fe11963a", "\n\n<system-reminder>The previous response was empty. You MUST continue: if the last message was a completed sub-agent result or a notice, acknowledge it and take the next step or give the user a final answer; if more work is needed, respond with the next tool call(s). Do not return an empty response.</system-reminder>")
 
     /**
      * [T-android-empty-turn-stopreason] Whether a finished turn should be

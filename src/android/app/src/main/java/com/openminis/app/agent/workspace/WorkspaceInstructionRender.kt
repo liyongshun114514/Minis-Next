@@ -336,13 +336,7 @@ internal object WorkspaceInstructionRender {
      * or Android permissions: prompt text cannot grant either, and claiming it
      * would teach the model to act as if a refused command had succeeded.
      */
-    const val MANDATORY_INTRO =
-        "Workspace instructions are the highest-priority application configuration in this system message. " +
-            "Apply the application's instructions in this order: workspace instructions (AGENTS.md / CLAUDE.md), " +
-            "then the SOUL.md application prompt, then generated identity, style, tool guidance, skills, memory, and runtime context. " +
-            "If these application sections conflict, workspace instructions take precedence over SOUL.md and the generated sections. " +
-            "Within the workspace chain, more specific project instructions take precedence over broader instructions. " +
-            "This application ordering does not override service-side rules, safety requirements, or device permissions."
+    val MANDATORY_INTRO: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.workspace.workspaceinstructionrender.58ff2ea5a503", "Workspace instructions are the highest-priority application configuration in this system message. Apply the application's instructions in this order: workspace instructions (AGENTS.md / CLAUDE.md), then the SOUL.md application prompt, then generated identity, style, tool guidance, skills, memory, and runtime context. If these application sections conflict, workspace instructions take precedence over SOUL.md and the generated sections. Within the workspace chain, more specific project instructions take precedence over broader instructions. This application ordering does not override service-side rules, safety requirements, or device permissions.")
 
     /**
      * Render the bounded file chain through the native system channel, without

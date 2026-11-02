@@ -33,23 +33,23 @@ object BashismReminder {
         val sb = StringBuilder()
         sb.appendLine("<system-reminder>")
         if (installFailure != null) {
-            sb.appendLine("This command was executed by busybox sh (NOT bash), because bash installation failed: ${sanitize(installFailure)}.")
+            sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.ee292c0ffbe4", "This command was executed by busybox sh (NOT bash), because bash installation failed: {{slot0}}.", mapOf("slot0" to (sanitize(installFailure)).toString())))
         } else {
-            sb.appendLine("This command was executed by busybox sh (NOT bash).")
+            sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.419cbb96eaac", "This command was executed by busybox sh (NOT bash)."))
         }
-        sb.appendLine("The script contains bash-only syntax that busybox sh handles incorrectly, which is")
-        sb.appendLine("likely (part of) why it failed or produced a wrong result. Detected:")
+        sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.bfc9f20590c2", "The script contains bash-only syntax that busybox sh handles incorrectly, which is"))
+        sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.606ad081edbc", "likely (part of) why it failed or produced a wrong result. Detected:"))
         sb.appendLine()
         for (h in shown) {
-            sb.appendLine("  - line ${h.line}: `${sanitize(h.matchedText)}`")
-            sb.appendLine("    rule: ${h.ruleName} — ${h.behaviorNote}")
-            sb.appendLine("    fix:  ${h.fixHint}")
+            sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.4ac24f2c3ca8", "  - line {{slot0}}: `{{slot1}}`", mapOf("slot0" to (h.line).toString(), "slot1" to (sanitize(h.matchedText)).toString())))
+            sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.d7782bdded34", "    rule: {{slot0}} — {{slot1}}", mapOf("slot0" to (h.ruleName).toString(), "slot1" to (com.openminis.app.agent.prompts.PromptOverrides.render("bashism." + h.ruleName + ".behavior", h.behaviorNote)).toString())))
+            sb.appendLine("    fix:  ${com.openminis.app.agent.prompts.PromptOverrides.render("bashism." + h.ruleName + ".fix", h.fixHint)}")
         }
-        if (overflow > 0) sb.appendLine("  … and $overflow more.")
+        if (overflow > 0) sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.c6f4a9a20c9a", "  … and {{slot0}} more.", mapOf("slot0" to (overflow).toString())))
         sb.appendLine()
-        sb.appendLine("Detected lines are quoted from the submitted script, for locating only.")
-        sb.appendLine("Either rewrite using the POSIX forms above and retry with sh, or retry unchanged")
-        sb.append("later (bash may become installable when the network recovers).\n</system-reminder>")
+        sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.1ec1d7693c99", "Detected lines are quoted from the submitted script, for locating only."))
+        sb.appendLine(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.af774b453cd4", "Either rewrite using the POSIX forms above and retry with sh, or retry unchanged"))
+        sb.append(com.openminis.app.agent.prompts.PromptOverrides.render("agent.shell.bashismreminder.84d715beeecd", "later (bash may become installable when the network recovers).\n</system-reminder>"))
         return sb.toString()
     }
 }

@@ -156,8 +156,7 @@ object HelperRunner {
      * at the top of the turn this starts, and a second instruction here would
      * compete with it for the child's attention.
      */
-    const val STEER_NUDGE_PROMPT =
-        "The delegating agent has sent you a course correction. Read it and continue."
+    val STEER_NUDGE_PROMPT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.0dbde11fb464", "The delegating agent has sent you a course correction. Read it and continue.")
 
     /**
      * [T-subagent-steer-continues-loop] Whether a child whose turn just ended
@@ -188,8 +187,7 @@ object HelperRunner {
      * <system-reminder>, so it is never rendered. Byte-identical to iOS
      * `RawMessage.helperClosingNudgeText` (76b9b0428).
      */
-    const val CLOSING_NUDGE_TEXT =
-        "<system-reminder>This note is from the app, not from the delegating agent. Your last reply contained no text, so the delegating agent has received nothing from you. Tools are no longer available. Write your final answer now from what you already have: the deliverable itself, what you finished, what failed (including any tool error above) and what is left. Mark anything you could not verify as unverified.</system-reminder>"
+    val CLOSING_NUDGE_TEXT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.43ad8d7002c4", "<system-reminder>This note is from the app, not from the delegating agent. Your last reply contained no text, so the delegating agent has received nothing from you. Tools are no longer available. Write your final answer now from what you already have: the deliverable itself, what you finished, what failed (including any tool error above) and what is left. Mark anything you could not verify as unverified.</system-reminder>")
 
     /**
      * [T-subagent-termination] Whether a sub agent turn that ended with no
@@ -244,7 +242,7 @@ object HelperRunner {
     /** The prompt the child receives: task + optional verbatim context. */
     fun childPrompt(args: DelegateTaskArgs): String =
         if (args.context.isEmpty()) args.task
-        else args.task + "\n\n--- Context from the delegating agent ---\n" + args.context
+        else args.task + com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.c322ddf01c24", "\n\n--- Context from the delegating agent ---\n") + args.context
 
     /** The child session's title — the one place that spells the prefix. */
     /**
@@ -254,7 +252,7 @@ object HelperRunner {
     fun childSessionTitle(context: Context, title: String, subAgentName: String? = null): String {
         val label = context.getString(R.string.helper_label)
         val name = subAgentName?.trim().orEmpty()
-        return if (name.isEmpty()) "$label · $title" else "$label · $name · $title"
+        return if (name.isEmpty()) com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.498bd2b07cf3", "{{slot0}} · {{slot1}}", mapOf("slot0" to (label).toString(), "slot1" to (title).toString())) else com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.2f5770cfc5aa", "{{slot0}} · {{slot1}} · {{slot2}}", mapOf("slot0" to (label).toString(), "slot1" to (name).toString(), "slot2" to (title).toString()))
     }
 
     /** Strip the (current-locale or legacy) prefix back off a stored title. */
@@ -270,9 +268,8 @@ object HelperRunner {
 
     /** [T-agent-wrapup-turn] The "time's up, write it up" message. */
     fun wrapUpPrompt(reason: HelperWrapUpReason): String {
-        val why = if (reason == HelperWrapUpReason.TURNS) "You have used all of your tool rounds." else "Your time budget is up."
-        return "[$why Tools are no longer available for this turn.]\n" +
-            "Write your final answer NOW from what you already have. It must contain the complete deliverable itself — the full report, document, list or answer the task asked for — not a description of what you did, not a pointer to a file, not a request for more time. Mark anything you could not verify as unverified. This message is returned to the parent agent verbatim."
+        val why = if (reason == HelperWrapUpReason.TURNS) com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.cf486ed21e0a", "You have used all of your tool rounds.") else com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.b31277d37abe", "Your time budget is up.")
+        return com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.0163b5d72402", "[{{slot0}} Tools are no longer available for this turn.]\nWrite your final answer NOW from what you already have. It must contain the complete deliverable itself — the full report, document, list or answer the task asked for — not a description of what you did, not a pointer to a file, not a request for more time. Mark anything you could not verify as unverified. This message is returned to the parent agent verbatim.", mapOf("slot0" to (why).toString()))
     }
 
     /**
@@ -304,22 +301,19 @@ object HelperRunner {
      * fact the child cannot derive for itself.
      */
     fun turnBudgetWarning(remaining: Int): String =
-        "[Budget check: $remaining tool ${if (remaining == 1) "round" else "rounds"} left before tools are withdrawn.] " +
-            "Stop investigating now and spend what is left on finishing: if the task asked you to write a file or produce an artifact, do it in the next round, then write your final answer. " +
-            "Remember the final message must contain the complete deliverable itself, not a pointer to it."
+        com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.2f3246704ba4", "[Budget check: {{slot0}} tool {{slot1}} left before tools are withdrawn.] Stop investigating now and spend what is left on finishing: if the task asked you to write a file or produce an artifact, do it in the next round, then write your final answer. Remember the final message must contain the complete deliverable itself, not a pointer to it.", mapOf("slot0" to (remaining).toString(), "slot1" to (if (remaining == 1) "round" else "rounds").toString()))
 
     /** What the parent reads when the child really ended without any text. */
     fun emptyResultNote(status: String): String =
-        "(the agent ended with status $status before writing a final answer; there is no deliverable — re-delegate with a narrower task or a larger budget rather than reading its transcript)"
+        com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.7dbb93decb5f", "(the agent ended with status {{slot0}} before writing a final answer; there is no deliverable — re-delegate with a narrower task or a larger budget rather than reading its transcript)", mapOf("slot0" to (status).toString()))
 
     /** System-prompt preamble for a helper vm — replaces the SOUL identity
      *  section. Describe the environment, do not assign identity (the
      *  `minis-model-use` identity-pollution lesson, OpenMinis#103). */
     fun identitySection(cfg: HelperConfig, browserEnabled: Boolean = true): String =
-        "You are running as a helper (sub-agent) inside an app called Minis Next, on an Android device with a fully functional Linux shell (Ubuntu 24.04 LTS, aarch64; PRoot or explicitly authorized Chroot). This is the calling environment, not your identity — keep your own model identity unchanged.\n" +
-            "A parent agent delegated ONE focused task to you: \"${cfg.title}\". You cannot see the parent conversation and it cannot see yours; everything you need is in the task text. Work the task to completion using your tools, then finish with a single clear final answer — that final message is returned verbatim to the parent agent as the result, and it is the ONLY thing the parent receives. So the final message must contain the complete deliverable itself: the full report, document, list, code or answer the task asked for, in full — never a summary of what you did, a pointer to a file you wrote, or \"see above\". If you produced a file, paste its full content into the final message as well. Do not ask the parent or the user questions; make reasonable assumptions and state them. Do not restate the task or add meta-commentary. Do not create scheduled tasks or delegate further.\n" +
+        com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.4aaaf848297b", "You are running as a helper (sub-agent) inside an app called Minis Next, on an Android device with a fully functional Linux shell (Ubuntu 24.04 LTS, aarch64; PRoot or explicitly authorized Chroot). This is the calling environment, not your identity — keep your own model identity unchanged.\nA parent agent delegated ONE focused task to you: \"{{slot0}}\". You cannot see the parent conversation and it cannot see yours; everything you need is in the task text. Work the task to completion using your tools, then finish with a single clear final answer — that final message is returned verbatim to the parent agent as the result, and it is the ONLY thing the parent receives. So the final message must contain the complete deliverable itself: the full report, document, list, code or answer the task asked for, in full — never a summary of what you did, a pointer to a file you wrote, or \"see above\". If you produced a file, paste its full content into the final message as well. Do not ask the parent or the user questions; make reasonable assumptions and state them. Do not restate the task or add meta-commentary. Do not create scheduled tasks or delegate further.\n", mapOf("slot0" to (cfg.title).toString())) +
             browserSharingSection(browserEnabled) +
-            "You have at most ${cfg.maxTurns} tool rounds; on the last one tools are withdrawn and you are asked to write the deliverable from what you have, so start writing before you run out. If the task genuinely exceeds what you can do at your capability level, end your final message with a line `[ESCALATE] <one-line reason>` so the parent can rerun it on a stronger model.\n\n" +
+            com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.039856e7dc82", "You have at most {{slot0}} tool rounds; on the last one tools are withdrawn and you are asked to write the deliverable from what you have, so start writing before you run out. If the task genuinely exceeds what you can do at your capability level, end your final message with a line `[ESCALATE] <one-line reason>` so the parent can rerun it on a stronger model.\n\n", mapOf("slot0" to (cfg.maxTurns).toString())) +
             subAgentInstructionsSection(cfg.agentInstructions)
 
     /**
@@ -340,11 +334,8 @@ object HelperRunner {
      */
     fun browserSharingSection(browserEnabled: Boolean): String {
         if (!browserEnabled) return ""
-        return "Browser: the browser is shared with the parent and with other agents. " +
-            "You may only use your own tabs (up to ${com.openminis.app.browser.BrowserTabPool.AGENT_TAB_QUOTA}); " +
-            "list_tabs shows just yours. To open a page, navigate (a tab of yours is picked or created) " +
-            "or use new_tab; never guess tab ids you did not receive, and reuse your tabs by navigating " +
-            "them instead of opening more.\n"
+        return com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.a890d9550467", "Browser: the browser is shared with the parent and with other agents. ") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.a188f249f359", "You may only use your own tabs (up to {{slot0}}); list_tabs shows just yours. To open a page, navigate (a tab of yours is picked or created) or use new_tab; never guess tab ids you did not receive, and reuse your tabs by navigating them instead of opening more.\n", mapOf("slot0" to (com.openminis.app.browser.BrowserTabPool.AGENT_TAB_QUOTA).toString()))
     }
 
     /**
@@ -359,7 +350,7 @@ object HelperRunner {
     fun subAgentInstructionsSection(instructions: String): String {
         val trimmed = instructions.trim()
         if (trimmed.isEmpty()) return ""
-        return "\n--- Sub agent instructions (set by the user) ---\n" + trimmed + "\n\n"
+        return com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.d36e6c9221d8", "\n--- Sub agent instructions (set by the user) ---\n") + trimmed + "\n\n"
     }
 
     /**
@@ -381,7 +372,7 @@ object HelperRunner {
     ): String {
         if (roster.isEmpty()) return ""
         val lines = mutableListOf(
-            "Available sub agents (pass the name as ${TOOL_NAME}.agent):",
+            com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.82962408a5c1", "Available sub agents (pass the name as {{slot0}}.agent):", mapOf("slot0" to (TOOL_NAME).toString())),
         )
         for (def in roster) {
             val desc = def.description
@@ -392,18 +383,18 @@ object HelperRunner {
                 // Pinned by the user: model_choice does not apply to this one.
                 "fixed — $pinned"
             } else {
-                "Auto — you choose with model_choice"
+                com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.a7f796a2b452", "Auto — you choose with model_choice")
             }
-            lines.add("- ${def.name} — $desc Model: $model.")
+            lines.add(com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.16384379eaea", "- {{slot0}} — {{slot1}} Model: {{slot2}}.", mapOf("slot0" to (def.name).toString(), "slot1" to (desc).toString(), "slot2" to (model).toString())))
         }
-        lines.add("Prefer a specific sub agent when its description matches; otherwise use the general one.")
+        lines.add(com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.8708fdbe569b", "Prefer a specific sub agent when its description matches; otherwise use the general one."))
         return lines.joinToString("\n") + "\n"
     }
 
     /** The parent-tier system-prompt bullet (byte-identical to iOS), or "" when
      *  the tool is not offered (helper vm, or Settings › Agents off). */
     fun systemPromptBullet(enabled: Boolean): String = if (!enabled) "" else
-        "- subagent_task: Delegate a self-contained task to a sub agent that runs its own tool loop in an isolated hidden session, and inspect or stop the ones you started. Full contract in the tool schema. Two things it does not say: the `<agent_callback>` result and progress messages are written by the system, not typed by the user; and while a sub agent runs the user sees it in the tool bar and can watch or stop it.\n"
+        com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.98d0f671ee2e", "- subagent_task: Delegate a self-contained task to a sub agent that runs its own tool loop in an isolated hidden session, and inspect or stop the ones you started. Full contract in the tool schema. Two things it does not say: the `<agent_callback>` result and progress messages are written by the system, not typed by the user; and while a sub agent runs the user sees it in the tool bar and can watch or stop it.\n")
 
     // ── Payloads (block content + tool_result JSON) ─────────────────────
 
@@ -424,7 +415,7 @@ object HelperRunner {
      * that no longer exists.
      */
     fun resumeNotice(): String =
-        "[This run was interrupted and has been resumed. The tool results above are still valid, but all live state is gone: browser tabs are closed, shell processes have ended, and anything unsaved is lost. Files in the workspace are still there. Continue from what the transcript already establishes — reopen pages or re-run commands when you need them, and do not assume anything is still open.]"
+        com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.3bb5c006af43", "[This run was interrupted and has been resumed. The tool results above are still valid, but all live state is gone: browser tabs are closed, shell processes have ended, and anything unsaved is lost. Files in the workspace are still there. Continue from what the transcript already establishes — reopen pages or re-run commands when you need them, and do not assume anything is still open.]")
 
     /**
      * [T-android-no-deliverable] The status word for a run that ended, taking
@@ -889,8 +880,8 @@ object HelperRunner {
         .put("converted_from_wait", converted)
         .put(
             "note",
-            if (converted) "The user sent a new message while you were waiting, so this delegation was moved to the background. Answer the user now; the agent's result will arrive as a NEW MESSAGE in this conversation (prefixed [Background task finished …]) when it is done. Use agent_status if you need its current state."
-            else "The agent is running in the background. Its result will arrive as a NEW MESSAGE in this conversation (prefixed [Background task finished …]) when it is done — end this turn when you have nothing else to do. Use agent_status to check on it or cancel it; do not poll in a loop.",
+            if (converted) com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.17037a86cb05", "The user sent a new message while you were waiting, so this delegation was moved to the background. Answer the user now; the agent's result will arrive as a NEW MESSAGE in this conversation (prefixed [Background task finished …]) when it is done. Use agent_status if you need its current state.")
+            else com.openminis.app.agent.prompts.PromptOverrides.render("agent.jobs.helperrunner.03998693eadb", "The agent is running in the background. Its result will arrive as a NEW MESSAGE in this conversation (prefixed [Background task finished …]) when it is done — end this turn when you have nothing else to do. Use agent_status to check on it or cancel it; do not poll in a loop."),
         )
         .toString()
 

@@ -395,11 +395,11 @@ internal object ContextTrimPlanner {
         val summary = counts.entries.joinToString(", ") { "${it.key} ${it.value}" }
         return buildString {
             append(ContextOffload.SYSTEM_REMINDER_OPEN).append('\n')
-            append("[Minis context] ${collapsed.size} earlier step(s) of this task were collapsed to save context. ")
-            append("Their full records stay in the chat history; large outputs are on disk at the paths shown. ")
-            append("Do not redo a step listed as ok - read its output path if you need the details.\n")
-            append("Tool calls collapsed: $summary\n")
-            if (hidden > 0) append("($hidden older line(s) not listed)\n")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.contexttrimplanner.64987116b640", "[Minis context] {{slot0}} earlier step(s) of this task were collapsed to save context. ", mapOf("slot0" to (collapsed.size).toString())))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.contexttrimplanner.a14f83b62d02", "Their full records stay in the chat history; large outputs are on disk at the paths shown. "))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.contexttrimplanner.2dd3a081ebc1", "Do not redo a step listed as ok - read its output path if you need the details.\n"))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.contexttrimplanner.cea38e3cfddf", "Tool calls collapsed: {{slot0}}\n", mapOf("slot0" to (summary).toString())))
+            if (hidden > 0) append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.contexttrimplanner.532a101032c7", "({{slot0}} older line(s) not listed)\n", mapOf("slot0" to (hidden).toString())))
             shown.forEach { append(it).append('\n') }
             append("</system-reminder>")
         }

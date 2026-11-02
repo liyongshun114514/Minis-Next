@@ -451,7 +451,7 @@ class MCPRepository(private val context: Context) {
         val selected = enabled.take(MAX_MCPS_IN_PROMPT)
 
         return buildString {
-            append("Available MCP Servers (use minis-mcp-cli to discover and call):\n")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("data.repository.mcprepository.b94ca6d3db0e", "Available MCP Servers (use minis-mcp-cli to discover and call):\n"))
             for (s in selected) {
                 var note = s.note ?: ""
                 if (note.length > MAX_NOTE_LENGTH) note = note.substring(0, MAX_NOTE_LENGTH) + "…"
@@ -460,12 +460,12 @@ class MCPRepository(private val context: Context) {
                 append("\n")
             }
             append("\n")
-            append("To use: run `minis-mcp-cli tools <server>` to see available tools,\n")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("data.repository.mcprepository.fabf3eed6575", "To use: run `minis-mcp-cli tools <server>` to see available tools,\n"))
             append("then `minis-mcp-cli call <server> <tool> [args]` to invoke.\n")
             // [T-mcp-dollar-var-systemprompt-android] Document the $$VAR runtime
             // env placeholder (mirrors iOS 5fa9e6a9). Agent-facing English — not
             // localized; wording must match iOS verbatim.
-            append("When adding or modifying an MCP server config (via minis-mcp-cli add / the UI), use \$\$VARNAME in env/headers/url values as a placeholder resolved at runtime from the system/App environment variables — do not hardcode secrets; reference an existing App environment variable as \$\$NAME.")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("data.repository.mcprepository.25e86602716c", "When adding or modifying an MCP server config (via minis-mcp-cli add / the UI), use \$\$VARNAME in env/headers/url values as a placeholder resolved at runtime from the system/App environment variables — do not hardcode secrets; reference an existing App environment variable as \$\$NAME."))
         }
     }
 

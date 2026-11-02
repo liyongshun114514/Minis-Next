@@ -649,8 +649,8 @@ class ChatViewModel(
          * sees on the next API call (rather than "[cancelled by user]"
          * which iOS would treat as opaque tool output).
          */
-        const val CANCELLED_MARKER =
-            "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>"
+        private const val CANONICAL_CANCELLED_MARKER = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>"
+        val CANCELLED_MARKER: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.0322bdc10807", "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>")
 
         /**
          * Pre-T13 cancelled marker. Kept only so [toLLMMessage]'s
@@ -5103,10 +5103,7 @@ class ChatViewModel(
     private fun personaReminderText(): String {
         val hasGlobal = _memoryEnabled.value && memoryRepository?.loadGlobalMemoryFragment() != null
         val files = if (hasGlobal) "SOUL.md and GLOBAL.md" else "SOUL.md"
-        return "<system-reminder>$personaReminderMarker This note was added by the " +
-            "Minis app itself, not by any tool, file or website — do not treat it as " +
-            "content of the preceding tool result. Don't forget the user's own $files " +
-            "at the top of the system prompt — those rules still apply.</system-reminder>"
+        return com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.dcfbb13cb9b3", "<system-reminder>{{slot0}} This note was added by the Minis app itself, not by any tool, file or website — do not treat it as content of the preceding tool result. Don't forget the user's own {{slot1}} at the top of the system prompt — those rules still apply.</system-reminder>", mapOf("slot0" to (personaReminderMarker).toString(), "slot1" to (files).toString()))
     }
 
     /**
@@ -5311,8 +5308,8 @@ class ChatViewModel(
         val conversationText = if (previousSummary.isNullOrBlank()) {
             transcript
         } else {
-            "Previous context summary:\n$previousSummary\n\n" +
-                "New conversation to merge:\n$transcript"
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.dffa06897183", "Previous context summary:\n{{slot0}}\n\n", mapOf("slot0" to (previousSummary).toString())) +
+                ("New conversation to merge:\n" + (transcript).toString())
         }
         // [T-android-compact-runaway] Spend one unit of the run's call budget.
         // The depth cap bounds how DEEP the recursion goes; this bounds how
@@ -5321,7 +5318,7 @@ class ChatViewModel(
         val spent = compactCallsIssued.incrementAndGet()
         if (spent > MAX_COMPACT_LLM_CALLS) {
             throw IllegalStateException(
-                "compaction exceeded its budget of $MAX_COMPACT_LLM_CALLS model calls"
+                ("compaction exceeded its budget of " + (MAX_COMPACT_LLM_CALLS).toString() + " model calls")
             )
         }
         // [T-android-compact-progress] Publish before the call so the UI shows
@@ -5343,8 +5340,8 @@ class ChatViewModel(
             if (compactCallsIssued.get() + 2 > MAX_COMPACT_LLM_CALLS) {
                 AppLogger.info(
                     TAG,
-                    "[Compact] not splitting at depth=$depth — " +
-                        "${compactCallsIssued.get()}/$MAX_COMPACT_LLM_CALLS calls already spent",
+                    ("[Compact] not splitting at depth=" + (depth).toString() + " — ") +
+                        ((compactCallsIssued.get()).toString() + "/" + (MAX_COMPACT_LLM_CALLS).toString() + " calls already spent"),
                 )
                 throw e
             }
@@ -5353,7 +5350,7 @@ class ChatViewModel(
             val secondHalf = messages.subList(mid, messages.size).toList()
             AppLogger.info(
                 TAG,
-                "[Compact] Splitting ${messages.size} messages into ${firstHalf.size} + ${secondHalf.size} (depth=$depth)",
+                ("[Compact] Splitting " + (messages.size).toString() + " messages into " + (firstHalf.size).toString() + " + " + (secondHalf.size).toString() + " (depth=" + (depth).toString() + ")"),
             )
             val summary1 = generateCompactSummaryWithSplitting(firstHalf, null, depth + 1)
             val summary2 = generateCompactSummaryWithSplitting(secondHalf, null, depth + 1)
@@ -5397,14 +5394,11 @@ class ChatViewModel(
         // turn in the transcript said — producing a single-line continuation
         // instead of a structured summary.
         val userMessage = buildString {
-            append("Compact this conversation into a context summary:\n\n")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.45b62a0cb837", "Compact this conversation into a context summary:\n\n"))
             append(conversationText)
-            append("\n\n---\nEND OF CONVERSATION TO COMPACT.\n\n")
+            append(("\n\n---\nEND OF CONVERSATION TO COMPACT.\n\n"))
             append(
-                "Now generate a structured context summary following the system prompt " +
-                    "instructions. Do NOT continue the conversation above — summarize it. " +
-                    "Write everything in past tense, framed as \"what was discussed / what " +
-                    "was done\", NOT as an ongoing goal or todo list."
+                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.9d3b5352b240", "Now generate a structured context summary following the system prompt instructions. Do NOT continue the conversation above — summarize it. Write everything in past tense, framed as \"what was discussed / what was done\", NOT as an ongoing goal or todo list.")
             )
         }
         val model = currentModel
@@ -5412,7 +5406,7 @@ class ChatViewModel(
         val estimatedInput = userMessage.length / 4
         val maxOut = maxOf(1024, minOf(8192, contextWindow - estimatedInput))
         val provider = currentProvider
-            ?: throw IllegalStateException("No LLM provider available for compaction")
+            ?: throw IllegalStateException(("No LLM provider available for compaction"))
         // [T-compact-idle-timeout] Stream rather than calling sendMessage.
         //
         // sendMessage is the same request underneath — every provider collects
@@ -5445,7 +5439,7 @@ class ChatViewModel(
             // healthy runs this change exists to protect.
             .withIdleTimeout(COMPACT_IDLE_TIMEOUT_MS) { idleMs ->
                 throw CompactIdleTimeoutException(
-                    "compaction stream received no data for ${idleMs / 1000}s"
+                    ("compaction stream received no data for " + (idleMs / 1000).toString() + "s")
                 )
             }
             .collect { chunk ->
@@ -5454,7 +5448,7 @@ class ChatViewModel(
             }
         AppLogger.info(
             TAG,
-            "[Compact] segment stream done: $chunks chunks, ${textBuf.length} chars",
+            ("[Compact] segment stream done: " + (chunks).toString() + " chunks, " + (textBuf.length).toString() + " chars"),
         )
         return textBuf.toString()
     }
@@ -5515,10 +5509,10 @@ class ChatViewModel(
         return desc.contains("too many tokens") ||
             desc.contains("context length") ||
             desc.contains("max_tokens") ||
-            desc.contains("content is too long") ||
+            desc.contains(("content is too long")) ||
             desc.contains("exceeds the model") ||
             desc.contains("request too large") ||
-            desc.contains("prompt is too long") ||
+            desc.contains(("prompt is too long")) ||
             desc.contains("token limit") ||
             desc.contains("context window")
     }
@@ -5559,13 +5553,13 @@ class ChatViewModel(
                 if (com.openminis.app.data.AutoCompactPrefs.isEnabled()) {
                     AppLogger.info(
                         TAG,
-                        "[Context] pre-send near capacity ($tokens / $window) — auto-compacting (pref on)",
+                        ("[Context] pre-send near capacity (" + (tokens).toString() + " / " + (window).toString() + ") — auto-compacting (pref on)"),
                     )
                     PreSendContextAction.COMPACT_THEN_SEND
                 } else {
                     AppLogger.info(
                         TAG,
-                        "[Context] pre-send near capacity ($tokens / $window) — prompting user",
+                        ("[Context] pre-send near capacity (" + (tokens).toString() + " / " + (window).toString() + ") — prompting user"),
                     )
                     PreSendContextAction.ASK_USER
                 }
@@ -5577,7 +5571,7 @@ class ChatViewModel(
             // than blocking the user out of their own chat.
             ContextPolicy.CheckResult.EXHAUSTED -> {
                 appendSystemInfo(
-                    text = "Context is near the model's limit ($tokens / $window tokens). Start a new chat or /compact to continue reliably.",
+                    text = ("Context is near the model's limit (" + (tokens).toString() + " / " + (window).toString() + " tokens). Start a new chat or /compact to continue reliably."),
                     iconKind = "compact",
                 )
                 PreSendContextAction.PROCEED
@@ -5648,7 +5642,7 @@ class ChatViewModel(
         viewModelScope.launch {
             val ok = awaitCompaction()
             if (!ok) {
-                AppLogger.warning(TAG, "[Context] pre-send compaction failed — sending anyway")
+                AppLogger.warning(TAG, ("[Context] pre-send compaction failed — sending anyway"))
             }
             sendMessage(text, skipContextCheck = true, headless = headless, prefill = prefill, headlessAttachments = ownFiles)
         }
@@ -5727,7 +5721,7 @@ class ChatViewModel(
         replanTrim("in-loop", allowCollapse = !compactAvailable)
         val escalate = lastTrimPlanEscalates && compactAvailable
         if (!compactAvailable && trimmedOverHard()) {
-            AppLogger.warning(TAG, "[ctx-trim] trimmed request still over the hard watermark — stopping (context full)")
+            AppLogger.warning(TAG, ("[ctx-trim] trimmed request still over the hard watermark — stopping (context full)"))
             return InLoopContextAction.STOP
         }
         val m = contextMeasurement()
@@ -5741,7 +5735,7 @@ class ChatViewModel(
         // collapse-first decides between collapsing and a model summary,
         // instead of re-planning again a few requests later.
         val verdict = if (policyVerdict == ContextPolicy.CheckResult.OK && escalate) {
-            AppLogger.info(TAG, "[ctx-trim] the re-plan recovered too little without collapse — escalating to the compaction branch")
+            AppLogger.info(TAG, ("[ctx-trim] the re-plan recovered too little without collapse — escalating to the compaction branch"))
             ContextPolicy.CheckResult.NEEDS_COMPACT
         } else {
             policyVerdict
@@ -5773,8 +5767,8 @@ class ChatViewModel(
                 // autoCompactEnabled either.
                 AppLogger.info(
                     TAG,
-                    "[AutoCompact] mid-loop compact #${compactionsSoFar + 1}: $tokens / $window tokens " +
-                        "(autoCompactPref=${com.openminis.app.data.AutoCompactPrefs.isEnabled()}, not a gate here)",
+                    ("[AutoCompact] mid-loop compact #" + (compactionsSoFar + 1).toString() + ": " + (tokens).toString() + " / " + (window).toString() + " tokens ") +
+                        ("(autoCompactPref=" + (com.openminis.app.data.AutoCompactPrefs.isEnabled()).toString() + ", not a gate here)"),
                 )
                 // [T-silence-auto-notices] No "Context is filling up" line: the
                 // compaction's own progress row and its "N messages compacted"
@@ -5803,8 +5797,8 @@ class ChatViewModel(
                 lastInLoopCompactionMadeNoProgress = after >= tokens
                 AppLogger.info(
                     TAG,
-                    "[AutoCompact] mid-loop compact result: measured $tokens → $after" +
-                        if (lastInLoopCompactionMadeNoProgress) " (no progress — will not retry)" else "",
+                    ("[AutoCompact] mid-loop compact result: measured " + (tokens).toString() + " → " + (after).toString()) +
+                        if (lastInLoopCompactionMadeNoProgress) (" (no progress — will not retry)") else "",
                 )
                 InLoopContextAction.COMPACTED
             }
@@ -5821,7 +5815,7 @@ class ChatViewModel(
                 // only a request it could not bring under the window stops.
                 AppLogger.warning(
                     TAG,
-                    "[AutoCompact] exhausted on a no-auto-compact tier ($tokens / $window) — stopping",
+                    ("[AutoCompact] exhausted on a no-auto-compact tier (" + (tokens).toString() + " / " + (window).toString() + ") — stopping"),
                 )
                 InLoopContextAction.STOP
             }
@@ -5849,9 +5843,9 @@ class ChatViewModel(
             ContextPolicy.InLoopStep.SEND_WITHIN_WINDOW -> {
                 AppLogger.info(
                     TAG,
-                    "[AutoCompact] above threshold after $compactionsSoFar compaction(s) " +
-                        "(noProgress=$lastInLoopCompactionMadeNoProgress) but within the window " +
-                        "(${m.measured} / $window) — sending",
+                    ("[AutoCompact] above threshold after " + (compactionsSoFar).toString() + " compaction(s) ") +
+                        ("(noProgress=" + (lastInLoopCompactionMadeNoProgress).toString() + ") but within the window ") +
+                        ("(" + (m.measured).toString() + " / " + (window).toString() + ") — sending"),
                 )
                 InLoopContextAction.PROCEED
             }
@@ -5859,15 +5853,15 @@ class ChatViewModel(
                 sentPastExtrapolatedLimitThisLoop = true
                 AppLogger.warning(
                     TAG,
-                    "[AutoCompact] calibrated size over the window but the raw estimate fits " +
-                        "(${m.history + m.fixed} / $window, ratio=${"%.2f".format(m.ratio)}) — sending once for the provider to decide",
+                    ("[AutoCompact] calibrated size over the window but the raw estimate fits ") +
+                        ("(" + (m.history + m.fixed).toString() + " / " + (window).toString() + ", ratio=" + ("%.2f".format(m.ratio)).toString() + ") — sending once for the provider to decide"),
                 )
                 InLoopContextAction.PROCEED
             }
             else -> {
                 AppLogger.warning(
                     TAG,
-                    "[AutoCompact] still over the window after $compactionsSoFar compaction(s) — stopping",
+                    ("[AutoCompact] still over the window after " + (compactionsSoFar).toString() + " compaction(s) — stopping"),
                 )
                 InLoopContextAction.STOP
             }
@@ -5899,27 +5893,7 @@ class ChatViewModel(
      * System prompt for the single-shot summarisation call. Matches iOS
      * wording so cross-device summaries stay stylistically aligned.
      */
-    private val compactSummarySystemPrompt: String = """
-        You are a context compaction engine. Your summary will REPLACE the original messages in the conversation context window. The agent will read your summary as past context, then proceed based on the user's NEXT message — your summary is background, not a standing work order. Write the summary in the same language the user used in the conversation.
-
-        MUST PRESERVE (never omit or shorten):
-        - All file paths, directory names, URLs, UUIDs, and identifiers — copy verbatim
-        - Commands executed and their outcomes (success/failure/output)
-        - What was requested and what was done (record as past events, not as ongoing goals)
-        - Key decisions made and their rationale
-        - Errors encountered and how they were resolved
-        - Important constraints, rules, or user preferences mentioned
-        - Any tool calls and their results that affect current state
-
-        STRUCTURE:
-        1. Start with a one-line description of what the conversation was about (use past tense — "User asked X, agent did Y", NOT "Goal: X").
-        2. Then a concise narrative of what happened, preserving technical details.
-        3. End with a "What had been done so far" section listing completed work — NOT a "todo" or "pending" list. Do not invent ongoing objectives or carry-over tasks from old turns; if the user wants to continue, they will say so in their next message.
-
-        PRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.
-
-        Do NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise but never lose information the agent needs.
-    """.trimIndent()
+    private val compactSummarySystemPrompt: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.cfcc90979d90", "You are a context compaction engine. Your summary will REPLACE the original messages in the conversation context window. The agent will read your summary as past context, then proceed based on the user's NEXT message — your summary is background, not a standing work order. Write the summary in the same language the user used in the conversation.\n\nMUST PRESERVE (never omit or shorten):\n- All file paths, directory names, URLs, UUIDs, and identifiers — copy verbatim\n- Commands executed and their outcomes (success/failure/output)\n- What was requested and what was done (record as past events, not as ongoing goals)\n- Key decisions made and their rationale\n- Errors encountered and how they were resolved\n- Important constraints, rules, or user preferences mentioned\n- Any tool calls and their results that affect current state\n\nSTRUCTURE:\n1. Start with a one-line description of what the conversation was about (use past tense — \"User asked X, agent did Y\", NOT \"Goal: X\").\n2. Then a concise narrative of what happened, preserving technical details.\n3. End with a \"What had been done so far\" section listing completed work — NOT a \"todo\" or \"pending\" list. Do not invent ongoing objectives or carry-over tasks from old turns; if the user wants to continue, they will say so in their next message.\n\nPRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.\n\nDo NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise but never lose information the agent needs.")
 
     // T203 part 2: these MUST be declared before `init { loadSession() }` below.
     // viewModelScope.launch defaults to Dispatchers.Main.immediate, which runs
@@ -6063,7 +6037,7 @@ class ChatViewModel(
                         .onFailure {
                             android.util.Log.w(
                                 TAG,
-                                "safe-mode-cleared retry loadSession failed: ${it.message}",
+                                ("safe-mode-cleared retry loadSession failed: " + (it.message).toString()),
                             )
                         }
                 }
@@ -6126,7 +6100,7 @@ class ChatViewModel(
                     if (resolveProviderFromGroup(groupBound)) {
                         AppLogger.info(
                             TAG,
-                            "🔀RESOLVE group=$groupBound active entry=$before provider disabled — re-resolved to entry=${_activeEntryId.value} model=${currentModel?.id}",
+                            ("🔀RESOLVE group=" + (groupBound).toString() + " active entry=" + (before).toString() + " provider disabled — re-resolved to entry=" + (_activeEntryId.value).toString() + " model=" + (currentModel?.id).toString()),
                         )
                         // Persist the re-resolved member so a reload doesn't snap
                         // back to the disabled one. resolveProviderFromGroup set
@@ -6141,7 +6115,7 @@ class ChatViewModel(
                         // so the guard below re-runs the standard resolution.
                         AppLogger.warning(
                             TAG,
-                            "🔀RESOLVE group=$groupBound active entry=$before provider disabled and group has no enabled member — falling back",
+                            ("🔀RESOLVE group=" + (groupBound).toString() + " active entry=" + (before).toString() + " provider disabled and group has no enabled member — falling back"),
                         )
                         currentProvider = null
                     }
@@ -6365,7 +6339,7 @@ class ChatViewModel(
                     }
                 }.onFailure {
                     android.util.Log.w("ChatViewModel",
-                        "migrateDraftResources: failed to move ${child.absolutePath} -> ${target.absolutePath}: ${it.message}")
+                        ("migrateDraftResources: failed to move " + (child.absolutePath).toString() + " -> " + (target.absolutePath).toString() + ": " + (it.message).toString()))
                 }
             }
         }
@@ -6409,7 +6383,7 @@ class ChatViewModel(
         // The flag clears the moment the dialog closes (share / dismiss /
         // cancel) — see CrashFrequencyDetector.maybeShowOnActivity.
         if (com.openminis.app.crash.CrashFrequencyDetector.isSafeMode()) {
-            android.util.Log.w(TAG, "loadSession: safe-mode active, skipping session restore")
+            android.util.Log.w(TAG, ("loadSession: safe-mode active, skipping session restore"))
             // [T-android-perf-logging] Surface the skip on the Perf timeline
             // too — when a crash_or_stall recovery loop is suspected, this
             // distinguishes "loadSession ran and was slow" from "loadSession
@@ -6504,8 +6478,8 @@ class ChatViewModel(
                     providerRepository.group(gid)?.defaultThinkingLevel?.let { level ->
                         AppLogger.info(
                             TAG,
-                            "[Thinking] session ${sessionId.take(8)} had no override — " +
-                                "inheriting group default $level",
+                            ("[Thinking] session " + (sessionId.take(8)).toString() + " had no override — ") +
+                                ("inheriting group default " + (level).toString()),
                         )
                         _thinkingLevel.value = level
                     }
@@ -6620,7 +6594,7 @@ class ChatViewModel(
                 com.openminis.app.diagnostics.PerfLongCtx.step(
                     sessionId,
                     "toLLMMessage.end",
-                    "count=${llm.size} totalPartsChars=$totalPartsChars",
+                    ("count=" + (llm.size).toString() + " totalPartsChars=" + (totalPartsChars).toString()),
                 )
                 LoadedSessionData(
                     messages = rows,
@@ -6675,7 +6649,7 @@ class ChatViewModel(
                 }
                 println(
                     "[T-HANG-DIAG] messages-shape session=$sessionId total=${messages.size} " +
-                        "totalChars=$totalChars maxChars=$maxChars toolMessages=$withTools " +
+                        ("totalChars=" + (totalChars).toString() + " maxChars=" + (maxChars).toString() + " toolMessages=" + (withTools).toString() + " ") +
                         "attachmentMessages=$withAttachments",
                 )
 
@@ -6692,7 +6666,7 @@ class ChatViewModel(
                 if (oversized.isNotEmpty()) {
                     println(
                         "[T-HANG-DIAG] oversized-messages session=$sessionId " +
-                            "count=${oversized.size} threshold=${OVERSIZE_THRESHOLD}",
+                            ("count=" + (oversized.size).toString() + " threshold=" + (OVERSIZE_THRESHOLD).toString()),
                     )
                     for (m in oversized) {
                         val raw = m.partsJson
@@ -6703,9 +6677,9 @@ class ChatViewModel(
                         val hasBase64 = raw.contains("data:image") || raw.contains(";base64,")
                         println(
                             "[T-HANG-DIAG] oversized id=${m.id} role=${m.role} " +
-                                "createdAt=${m.createdAt} len=$len " +
-                                "hasToolUse=$hasToolUse hasToolResult=$hasToolResult " +
-                                "hasImage=$hasImage hasBase64=$hasBase64 " +
+                                ("createdAt=" + (m.createdAt).toString() + " len=" + (len).toString() + " ") +
+                                ("hasToolUse=" + (hasToolUse).toString() + " hasToolResult=" + (hasToolResult).toString() + " ") +
+                                ("hasImage=" + (hasImage).toString() + " hasBase64=" + (hasBase64).toString() + " ") +
                                 "streamInterrupts=${m.streamInterruptCount}",
                         )
                     }
@@ -6746,7 +6720,7 @@ class ChatViewModel(
             // 76% glow until the next response's usage replaced it (Alice Q3).
             // iOS restores cachedLatestMarker first for the same reason.
             val marker = runCatching { chatRepository.dao.latestCompactMarker(sessionId) }
-                .onFailure { Log.w(TAG, "latestCompactMarker failed: ${it.message}") }
+                .onFailure { Log.w(TAG, ("latestCompactMarker failed: " + (it.message).toString())) }
                 .getOrNull()
             _compactSummary.value = marker?.summary
             _cachedLatestMarker = marker
@@ -6773,7 +6747,7 @@ class ChatViewModel(
                 runCatching { publishMeasuredContextUsage() }
                 pendingRevertLogMarker?.let { marker ->
                     pendingRevertLogMarker = null
-                    AppLogger.info(TAG, "[CtxMeter] reverted marker=$marker measured=${runCatching { measureOutboundContextTokens() }.getOrDefault(-1)}")
+                    AppLogger.info(TAG, ("[CtxMeter] reverted marker=" + (marker).toString() + " measured=" + (runCatching { measureOutboundContextTokens() }.getOrDefault(-1)).toString()))
                 }
                 // The glow re-derives itself from _lastTurnContextTokens; only
                 // the crossing tracker needs seeding, so an already-heavy
@@ -6838,6 +6812,37 @@ class ChatViewModel(
             // overlay; heal both before the first frame of the reopened chat.
             healStaleInFlightTools("load")
 
+            // [T-queued-bubble-survives-reload] Re-attach the dashed bubbles of
+            // prompts still in the queue.
+            //
+            // `_messages` was just REPLACED with rows read from the DB, and a
+            // queued prompt has no row yet — its bubble lives only in memory.
+            // Any reload therefore dropped every queued bubble while the
+            // prompts stayed queued: the drain then persisted and sent a
+            // message the screen did not show ("a reply with no question"), and
+            // if the view model was rebuilt instead, the text was gone for
+            // good. Re-attaching restores "one queued prompt, one bubble" for
+            // every wholesale rebuild, which is also what makes the bubble
+            // survive switching away from a chat and back (the view model is
+            // cached, the queue with it, but the screen is re-read from disk).
+            if (_promptQueue.value.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    _messages.update { current ->
+                        QueuedMessageState.reattach(
+                            current = current,
+                            prompts = _promptQueue.value,
+                            promptIdOf = { p -> p.id },
+                            queuedPromptIdOf = { m -> m.queuedPromptId },
+                            bubbleFor = { p -> queuedBubbleFor(p) },
+                        )
+                    }
+                }
+                AppLogger.info(
+                    TAG,
+                    ("[Queue] re-attached queued bubble(s) after reload: " + (_promptQueue.value.size).toString() + " pending"),
+                )
+            }
+
             // Cold-start interrupt detection: an agent loop that was killed by
             // the OS (or app force-quit) leaves agentHistory in one of four
             // tell-tale shapes. Detecting any of them lets the user tap
@@ -6875,7 +6880,7 @@ class ChatViewModel(
                             parts.all { it is AgentContentPart.ToolResult }
                         val isContinueReminder = parts.size == 1 &&
                             (parts.first() as? AgentContentPart.Text)?.text
-                                ?.contains("The user stopped the previous response") == true
+                                ?.contains(("The user stopped the previous response")) == true
                         // Case D — a user turn with NO reply after it at all.
                         //
                         // How it is produced: send() persists the user row
@@ -6944,16 +6949,16 @@ class ChatViewModel(
                             lastEntry.contentParts.all { it is AgentContentPart.ToolResult } -> "A/toolResult-tail"
                         lastEntry.contentParts.size == 1 &&
                             (lastEntry.contentParts.first() as? AgentContentPart.Text)?.text
-                                ?.contains("The user stopped the previous response") == true -> "C/continue-reminder"
+                                ?.contains(("The user stopped the previous response")) == true -> "C/continue-reminder"
                         else -> "D/unanswered-user-turn"
                     }
-                    Log.i(TAG, "loadSession: detected interrupted agent loop, canResume=true (lastRole=${lastEntry.role} shape=$shape)")
+                    Log.i(TAG, ("loadSession: detected interrupted agent loop, canResume=true (lastRole=" + (lastEntry.role).toString() + " shape=" + (shape).toString() + ")"))
                 }
             }
             // [T-port-user-ask-recovery] A recovered answer (or timeout) was
             // written above: the run continues from it.
             if (resumeAfterUserAskRecovery && _canResume.value && !_isStreaming.value) {
-                AppLogger.info(TAG, "[UserAsk] RECOVER resuming run after load sid=${activeSessionId.take(8)}")
+                AppLogger.info(TAG, ("[UserAsk] RECOVER resuming run after load sid=" + (activeSessionId.take(8)).toString()))
                 resume()
             }
             } finally {
@@ -7067,9 +7072,9 @@ class ChatViewModel(
                     healedMarker = rewriteMarkerForHeal(marker, heal, rawMessages.lastOrNull())
                     AppLogger.warning(
                         TAG,
-                        "[Compact] Phase2.5 self-heal: orphaned lcmId=${lcmId?.take(8) ?: "nil"} " +
-                            "→ newAnchor=${heal.id.take(8)} (createdAt=${heal.createdAt}) " +
-                            "→ uiIdx=$healUiIdx insertIdx=$insertIdx",
+                        ("[Compact] Phase2.5 self-heal: orphaned lcmId=" + (lcmId?.take(8) ?: "nil").toString() + " ") +
+                            ("→ newAnchor=" + (heal.id.take(8)).toString() + " (createdAt=" + (heal.createdAt).toString() + ") ") +
+                            ("→ uiIdx=" + (healUiIdx).toString() + " insertIdx=" + (insertIdx).toString()),
                     )
                 } else {
                     // Even createdAt heal failed. Place divider at top
@@ -7082,8 +7087,8 @@ class ChatViewModel(
                     insertIdx = 0
                     AppLogger.warning(
                         TAG,
-                        "[Compact] Phase2.5 unresolved (heal failed): marker.id=${marker.id.take(8)} " +
-                            "lcmId=${lcmId?.take(8) ?: "nil"} — divider at top, no graying",
+                        ("[Compact] Phase2.5 unresolved (heal failed): marker.id=" + (marker.id.take(8)).toString() + " ") +
+                            ("lcmId=" + (lcmId?.take(8) ?: "nil").toString() + " — divider at top, no graying"),
                     )
                 }
             }
@@ -7107,15 +7112,15 @@ class ChatViewModel(
                     healedMarker = rewriteMarkerForHeal(marker, heal, rawMessages.lastOrNull())
                     AppLogger.warning(
                         TAG,
-                        "[Compact] Phase2.5 v1→v2 heal: firstKeptId=${firstKeptId.take(8)} orphaned " +
-                            "→ newAnchor=${heal.id.take(8)} → uiIdx=$healUiIdx",
+                        ("[Compact] Phase2.5 v1→v2 heal: firstKeptId=" + (firstKeptId.take(8)).toString() + " orphaned ") +
+                            ("→ newAnchor=" + (heal.id.take(8)).toString() + " → uiIdx=" + (healUiIdx).toString()),
                     )
                 } else {
                     insertIdx = 0
                     AppLogger.warning(
                         TAG,
-                        "[Compact] Phase2.5 v1 unresolved (heal failed): firstKeptId=${firstKeptId.take(8)} — " +
-                            "divider at top, no graying",
+                        ("[Compact] Phase2.5 v1 unresolved (heal failed): firstKeptId=" + (firstKeptId.take(8)).toString() + " — ") +
+                            ("divider at top, no graying"),
                     )
                 }
             }
@@ -7128,7 +7133,7 @@ class ChatViewModel(
         // renders against the in-memory healed pointer.
         if (healedMarker != null) {
             runCatching { chatRepository.dao.updateCompactMarker(healedMarker) }
-                .onFailure { Log.w(TAG, "updateCompactMarker (self-heal) failed: ${it.message}") }
+                .onFailure { Log.w(TAG, ("updateCompactMarker (self-heal) failed: " + (it.message).toString())) }
             // Refresh in-memory cache so effectiveAgentHistory and the
             // next compact pass see the upgraded marker. The caller
             // (loadSession) sets _cachedLatestMarker = marker BEFORE
@@ -7159,7 +7164,7 @@ class ChatViewModel(
         // appear as their own UI bubble).
         val compactedUICount = (0 until insertIdx.coerceIn(0, grayed.size))
             .count { grayed[it].role != "system" }
-        val dividerLabel = "$compactedUICount messages compacted"
+        val dividerLabel = ((compactedUICount).toString() + " messages compacted")
         val markerForDivider = healedMarker ?: marker
         val dividerBlock = AssistantBlock(
             id = "compact-divider-${markerForDivider.id}",
@@ -7377,9 +7382,16 @@ class ChatViewModel(
     private fun settleThinkingRows(site: String) {
         if (_isStreaming.value) return
         flushAllStreamingDeltas()
-        val settled = ThinkingRowSettle.settled(_messages.value) ?: return
-        _messages.value = settled
-        AppLogger.info(TAG_STREAM, "[ThinkingRow] settled a bubble still marked as running after the run ended (site=$site)")
+        // [T-queued-bubble-atomic-delivery] CAS over the live list: this runs
+        // from the turn-exit paths, which are not always on Main, while a
+        // mid-run enqueue may be appending a bubble from Main. A snapshot
+        // write (`_messages.value = settled`) could drop it.
+        var settledAny = false
+        _messages.update { current ->
+            ThinkingRowSettle.settled(current)?.also { settledAny = true } ?: current
+        }
+        if (!settledAny) return
+        AppLogger.info(TAG_STREAM, ("[ThinkingRow] settled a bubble still marked as running after the run ended (site=" + (site).toString() + ")"))
     }
 
     private fun cancelWorkBoundToPreviousModel(reason: String) {
@@ -7397,8 +7409,8 @@ class ChatViewModel(
             pendingModelSwitch = true
             AppLogger.info(
                 TAG_STREAM,
-                "[SwitchModel] '$leaving' is streaming normally ($reason) — " +
-                    "letting this request finish; the NEXT request uses the new model",
+                ("[SwitchModel] '" + (leaving).toString() + "' is streaming normally (" + (reason).toString() + ") — ") +
+                    ("letting this request finish; the NEXT request uses the new model"),
             )
             return
         }
@@ -7407,7 +7419,7 @@ class ChatViewModel(
         pendingModelSwitch = false
         AppLogger.info(
             TAG_STREAM,
-            "[SwitchModel] cancelling retry work bound to '$leaving' ($reason) " +
+            ("[SwitchModel] cancelling retry work bound to '" + (leaving).toString() + "' (" + (reason).toString() + ") ") +
                 "attempt=${_autoRetryAttempt.value}",
         )
         // Treat it as a user-initiated stop of THIS turn: the error handler
@@ -7449,7 +7461,7 @@ class ChatViewModel(
         // resumeQueueAfterCancel re-resolves the provider after a 200ms delay,
         // by which time the caller has rebound it.
         if (_promptQueue.value.isNotEmpty()) {
-            AppLogger.info(TAG_STREAM, "[SwitchModel] ${_promptQueue.value.size} queued prompt(s) remain, restarting drain")
+            AppLogger.info(TAG_STREAM, ("[SwitchModel] " + (_promptQueue.value.size).toString() + " queued prompt(s) remain, restarting drain"))
             resumeQueueAfterCancel()
         }
     }
@@ -7495,7 +7507,7 @@ class ChatViewModel(
         if (prompt == null || prefix.isEmpty()) return prompt
         val bare = if (prompt.startsWith(prefix)) prompt.removePrefix(prefix).trimStart('\n') else prompt
         val oauth = (provider as? com.openminis.app.provider.anthropic.AnthropicProvider)?.isOAuth == true
-        return if (oauth) "$prefix\n\n$bare" else bare
+        return if (oauth) ((prefix).toString() + "\n\n" + (bare).toString()) else bare
     }
 
     /**
@@ -7804,8 +7816,8 @@ class ChatViewModel(
         if (userSwitchedMidTurn) {
             AppLogger.info(
                 TAG_STREAM,
-                "[SwitchModel] fallback to ${next.model.displayName} stays turn-local — " +
-                    "user switched model mid-turn, binding kept",
+                ("[SwitchModel] fallback to " + (next.model.displayName).toString() + " stays turn-local — ") +
+                    ("user switched model mid-turn, binding kept"),
             )
         } else {
             // Also update class-level provider so the next sendMessage() starts from here
@@ -7943,7 +7955,7 @@ class ChatViewModel(
                 !providerRepository.hasAnyCredential(instance) -> "Not logged in"
                 else -> continue
             }
-            result.add("⚠️ ${entry.model.displayName} ($label): $reason")
+            result.add(("⚠️ " + (entry.model.displayName).toString() + " (" + (label).toString() + "): " + (reason).toString()))
         }
         return result
     }
@@ -8135,7 +8147,7 @@ class ChatViewModel(
             // takes for "no preview", and it writes `updated_at` in the same
             // statement, so the two columns cannot drift apart.
             chatRepository.dao.updateLastMessage(sid, null, System.currentTimeMillis())
-            Log.i(TAG, "clearChat: session=$sid wiped (files preserved)")
+            Log.i(TAG, ("clearChat: session=" + (sid).toString() + " wiped (files preserved)"))
         }
     }
 
@@ -8181,7 +8193,7 @@ class ChatViewModel(
                 durable.outputStream().use { output -> input.copyTo(output) }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "failed to copy staged share file ${file.name}: ${e.message}")
+            Log.w(TAG, ("failed to copy staged share file " + (file.name).toString() + ": " + (e.message).toString()))
             return null
         }
         val attachment = InputAttachment(
@@ -8249,9 +8261,9 @@ class ChatViewModel(
         // [stop-diag] Entry state of a re-run, before any guard can return.
         AppLogger.info(
             TAG_STREAM,
-            "[stop-diag] rerunFromToolBlock ENTER sid=$activeSessionId targetToolUseId=$blockId " +
-                "assistantMessageId=$assistantMessageId muted=${com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot().contains(activeSessionId)} " +
-                "mutedSet=${com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot()} isStreaming=${_isStreaming.value} canResume=${_canResume.value}",
+            ("[stop-diag] rerunFromToolBlock ENTER sid=" + (activeSessionId).toString() + " targetToolUseId=" + (blockId).toString() + " ") +
+                ("assistantMessageId=" + (assistantMessageId).toString() + " muted=" + (com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot().contains(activeSessionId)).toString() + " ") +
+                ("mutedSet=" + (com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot()).toString() + " isStreaming=" + (_isStreaming.value).toString() + " canResume=" + (_canResume.value).toString()),
         )
         if (_isStreaming.value) return false
         val messages = _messages.value
@@ -8293,14 +8305,14 @@ class ChatViewModel(
                 .map { messages[it] }
                 .firstOrNull { it.role == "user" && it.content.isNotBlank() }
                 ?: return false
-            Log.i(TAG, "rerunFromToolBlock degenerate → retryFromMessage(precedingUser) tuId=${targetToolUseId.take(12)}")
+            Log.i(TAG, ("rerunFromToolBlock degenerate → retryFromMessage(precedingUser) tuId=" + (targetToolUseId.take(12)).toString()))
             retryFromMessage(userMsg.id)
             return true
         }
 
         val initialProvider = currentProvider
         if (initialProvider == null) {
-            _error.value = "No provider configured"
+            _error.value = ("No provider configured")
             return false
         }
         _canResume.value = false
@@ -8320,7 +8332,7 @@ class ChatViewModel(
 
         // Claim the streaming flag synchronously so a rapid second tap is
         // rejected by the entry guard (same rationale as retryFromMessage T145).
-        AppLogger.info(TAG_STREAM, "rerunFromToolBlock _isStreaming=true (sync, sid=$activeSessionId)")
+        AppLogger.info(TAG_STREAM, ("rerunFromToolBlock _isStreaming=true (sync, sid=" + (activeSessionId).toString() + ")"))
         _isStreaming.value = true
 
         viewModelScope.launch {
@@ -8351,7 +8363,7 @@ class ChatViewModel(
                 if (row == null || cutPartIdx < 0) {
                     // Anchor not in DB (shouldn't happen for a rendered tool
                     // block). Abort cleanly without a half-applied truncation.
-                    Log.w(TAG, "rerunFromToolBlock: toolUseId ${targetToolUseId.take(12)} not found in DB — aborting")
+                    Log.w(TAG, ("rerunFromToolBlock: toolUseId " + (targetToolUseId.take(12)).toString() + " not found in DB — aborting"))
                     return@launch
                 }
 
@@ -8371,7 +8383,7 @@ class ChatViewModel(
                     // could route a first-in-row tool_use here; handle it so we
                     // never persist a phantom empty assistant message.
                     chatRepository.deleteMessagesAfter(sid, row.sortOrder)
-                    Log.i(TAG, "rerunFromToolBlock cut at row start (empty trim) tuId=${targetToolUseId.take(12)} keepCount=${row.sortOrder} row=${row.id.take(8)}")
+                    Log.i(TAG, ("rerunFromToolBlock cut at row start (empty trim) tuId=" + (targetToolUseId.take(12)).toString() + " keepCount=" + (row.sortOrder).toString() + " row=" + (row.id.take(8)).toString()))
                 } else {
                     // Delete every row after the trimmed assistant row, then
                     // rewrite the trimmed row in place. deleteMessagesAfter
@@ -8380,7 +8392,7 @@ class ChatViewModel(
                     // + all later turns while keeping (then overwriting) this one.
                     chatRepository.deleteMessagesAfter(sid, row.sortOrder + 1)
                     chatRepository.updateMessageParts(row.id, keptArr.toString())
-                    Log.i(TAG, "rerunFromToolBlock sub-message cut tuId=${targetToolUseId.take(12)} keepCount=${row.sortOrder + 1} partIdx=$cutPartIdx trimmedRow=${row.id.take(8)}")
+                    Log.i(TAG, ("rerunFromToolBlock sub-message cut tuId=" + (targetToolUseId.take(12)).toString() + " keepCount=" + (row.sortOrder + 1).toString() + " partIdx=" + (cutPartIdx).toString() + " trimmedRow=" + (row.id.take(8)).toString()))
                 }
 
                 // T149 parity: revoke memory writes in the dropped range.
@@ -8440,7 +8452,7 @@ class ChatViewModel(
                 streamLaunched = runRerunStreamTail(initialProvider, "rerunFromToolBlock")
             } finally {
                 if (!streamLaunched) {
-                    AppLogger.info(TAG_STREAM, "rerunFromToolBlock _isStreaming=false (setup aborted)")
+                    AppLogger.info(TAG_STREAM, ("rerunFromToolBlock _isStreaming=false (setup aborted)"))
                     _isStreaming.value = false
                 }
             }
@@ -8468,7 +8480,7 @@ class ChatViewModel(
 
         val initialProvider = currentProvider
         if (initialProvider == null) {
-            _error.value = "No provider configured"
+            _error.value = ("No provider configured")
             return
         }
         val provider: LLMProvider = initialProvider
@@ -8514,7 +8526,7 @@ class ChatViewModel(
         // where two retries could slip through and spawn duplicate streamJobs.
         // The orphaned first job's `_isStreaming = false` at completion would
         // then flip the UI to "stopped" while the second job was still running.
-        AppLogger.info(TAG_STREAM, "retry _isStreaming=true (sync, sid=$activeSessionId)")
+        AppLogger.info(TAG_STREAM, ("retry _isStreaming=true (sync, sid=" + (activeSessionId).toString() + ")"))
         _isStreaming.value = true
 
         viewModelScope.launch {
@@ -8548,7 +8560,7 @@ class ChatViewModel(
             streamLaunched = runRerunStreamTail(provider, "retryFromMessage")
             } finally {
                 if (!streamLaunched) {
-                    AppLogger.info(TAG_STREAM, "retry _isStreaming=false (setup aborted)")
+                    AppLogger.info(TAG_STREAM, ("retry _isStreaming=false (setup aborted)"))
                     _isStreaming.value = false
                 }
             }
@@ -8641,8 +8653,8 @@ class ChatViewModel(
             }
             AppLogger.info(
                 TAG,
-                "deleteFromMessage: cut at sortOrder=$cutoffSortOrder, " +
-                    "${deletedMessages.size} message(s) removed, ${remaining.size} remain",
+                ("deleteFromMessage: cut at sortOrder=" + (cutoffSortOrder).toString() + ", ") +
+                    ((deletedMessages.size).toString() + " message(s) removed, " + (remaining.size).toString() + " remain"),
             )
         }
     }
@@ -8654,8 +8666,8 @@ class ChatViewModel(
      * that can still cut in the wrong place.
      */
     private fun logBubbleAnchor(op: String, bubbleId: String, located: BubbleRowLocator.Located) {
-        val line = "[BubbleAnchor] op=$op bubble=${bubbleId.take(8)} via=${located.via} " +
-            "row=${located.row?.id?.take(8) ?: "-"} sortOrder=${located.row?.sortOrder ?: -1}"
+        val line = ("[BubbleAnchor] op=" + (op).toString() + " bubble=" + (bubbleId.take(8)).toString() + " via=" + (located.via).toString() + " ") +
+            ("row=" + (located.row?.id?.take(8) ?: "-").toString() + " sortOrder=" + (located.row?.sortOrder ?: -1).toString())
         if (located.via == BubbleRowLocator.Via.LINKED) AppLogger.info(TAG, line) else AppLogger.warning(TAG, line)
     }
 
@@ -8741,7 +8753,7 @@ class ChatViewModel(
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "OAuth token refresh failed: ${e.message}")
+                Log.w(TAG, ("OAuth token refresh failed: " + (e.message).toString()))
             }
         }
 
@@ -8750,7 +8762,7 @@ class ChatViewModel(
         val systemPrompt = if ((provider as? com.openminis.app.provider.anthropic.AnthropicProvider)?.isOAuth == true) {
             val prefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
             if (baseSystemPrompt?.startsWith(prefix) == true) baseSystemPrompt
-            else "$prefix\n\n${baseSystemPrompt ?: ""}"
+            else ((prefix).toString() + "\n\n" + (baseSystemPrompt ?: "").toString())
         } else baseSystemPrompt
 
         // _isStreaming was already set synchronously by the caller.
@@ -8759,10 +8771,10 @@ class ChatViewModel(
         // sendMessage); captured once so acquire and release always pair.
         val holdsSlot = helperConfig == null
         streamJob = viewModelScope.launch(Dispatchers.IO) {
-            AppLogger.info(TAG_STREAM, "$label streamJob ENTER sid=$activeSessionId")
+            AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob ENTER sid=" + (activeSessionId).toString()))
             try {
                 if (holdsSlot) SessionConcurrencyManager.acquireSlot(activeSessionId)
-                AppLogger.debug(TAG_STREAM, "$label streamJob slot acquired")
+                AppLogger.debug(TAG_STREAM, ((label).toString() + " streamJob slot acquired"))
                 SessionActivityTracker.setActive(
                     activeSessionId,
                     onStop = { cancelStream() },
@@ -8778,13 +8790,13 @@ class ChatViewModel(
                 }
                 val fallbackProviders = buildFallbackProviders(launchedProvider)
                 try {
-                    AppLogger.info(TAG_STREAM, "$label runAgentLoop CALL")
+                    AppLogger.info(TAG_STREAM, ((label).toString() + " runAgentLoop CALL"))
                     // [stop-diag] Mute state as the re-run's loop starts.
                     AppLogger.info(
                         TAG_STREAM,
-                        "[stop-diag] $label entering runAgentLoop sid=$activeSessionId " +
-                            "muted=${com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot().contains(activeSessionId)} mutedSet=${com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot()} " +
-                            "isStreaming=${_isStreaming.value} canResume=${_canResume.value}",
+                        ("[stop-diag] " + (label).toString() + " entering runAgentLoop sid=" + (activeSessionId).toString() + " ") +
+                            ("muted=" + (com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot().contains(activeSessionId)).toString() + " mutedSet=" + (com.openminis.app.agent.jobs.AgentJobRegistry.mutedSnapshot()).toString() + " ") +
+                            ("isStreaming=" + (_isStreaming.value).toString() + " canResume=" + (_canResume.value).toString()),
                     )
                     runAgentLoop(
                         provider = launchedProvider,
@@ -8792,20 +8804,20 @@ class ChatViewModel(
                         fallbackProviders = fallbackProviders,
                         fallbackStrategy = activeFallbackStrategy,
                     )
-                    AppLogger.info(TAG_STREAM, "$label runAgentLoop RETURN normal")
+                    AppLogger.info(TAG_STREAM, ((label).toString() + " runAgentLoop RETURN normal"))
                 } catch (e: CancellationException) {
-                    AppLogger.info(TAG_STREAM, "$label runAgentLoop CANCELLED")
-                    Log.d(TAG, "Agent loop cancelled")
+                    AppLogger.info(TAG_STREAM, ((label).toString() + " runAgentLoop CANCELLED"))
+                    Log.d(TAG, ("Agent loop cancelled"))
                 } catch (e: Exception) {
-                    AppLogger.error(TAG_STREAM, "$label runAgentLoop EXCEPTION ${e.javaClass.simpleName}: ${e.message}")
-                    Log.e(TAG, "Agent loop error ($label)", e)
+                    AppLogger.error(TAG_STREAM, ((label).toString() + " runAgentLoop EXCEPTION " + (e.javaClass.simpleName).toString() + ": " + (e.message).toString()))
+                    Log.e(TAG, ("Agent loop error (" + (label).toString() + ")"), e)
                     setInlineError(e.message ?: "Unknown error")
                     // T298: flag the upcoming setInactive() so the
                     // background completion notifier renders the ❌
                     // variant instead of a clean success.
                     SessionActivityTracker.markStreamError(activeSessionId)
                 } finally {
-                    AppLogger.info(TAG_STREAM, "$label streamJob FINALLY enter")
+                    AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob FINALLY enter"))
                     // [T-android-overlay-reply-status-34599] Surface
                     // the assistant's most recent reply text to the
                     // overlay BEFORE setInactive so the post-completion
@@ -8819,11 +8831,11 @@ class ChatViewModel(
                     }
                     SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                     if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
-                    AppLogger.info(TAG_STREAM, "$label streamJob FINALLY exit")
+                    AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob FINALLY exit"))
                 }
             } catch (e: CancellationException) {
-                AppLogger.info(TAG_STREAM, "$label streamJob CANCELLED waiting for slot")
-                Log.d(TAG, "Cancelled while waiting for concurrency slot")
+                AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob CANCELLED waiting for slot"))
+                Log.d(TAG, ("Cancelled while waiting for concurrency slot"))
             }
             // [T-android-stale-streamjob-clears-isstreaming] Only the current
             // streamJob is allowed to flip _isStreaming false. An orphaned
@@ -8833,12 +8845,17 @@ class ChatViewModel(
             // the new turn is still streaming. See `var streamJob` KDoc and
             // Field log 2026-06-12 (20:22:26 / 20:23:25).
             if (streamJob === coroutineContext[Job]) {
-                AppLogger.info(TAG_STREAM, "$label _isStreaming=false (about to set)")
+                AppLogger.info(TAG_STREAM, ((label).toString() + " _isStreaming=false (about to set)"))
                 _isStreaming.value = false
+                // [T-queue-epilogue-consumer] Same window as the send
+                // epilogue: a prompt accepted while this loop was tearing down
+                // had no consumer — this tail does not drain by itself, so its
+                // dashed bubble waited for an unrelated send.
+                ensureQueueConsumer("rerun-epilogue")
             } else {
-                AppLogger.info(TAG_STREAM, "$label _isStreaming SKIPPED (stale job; current=${streamJob?.hashCode()} this=${coroutineContext[Job]?.hashCode()})")
+                AppLogger.info(TAG_STREAM, ((label).toString() + " _isStreaming SKIPPED (stale job; current=" + (streamJob?.hashCode()).toString() + " this=" + (coroutineContext[Job]?.hashCode()).toString() + ")"))
             }
-            AppLogger.info(TAG_STREAM, "$label streamJob EXIT")
+            AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob EXIT"))
         }
         return true
     }
@@ -8926,7 +8943,7 @@ class ChatViewModel(
         _editingMessageId.value = messageId
         AppLogger.info(
             TAG_STREAM,
-            "✏️ editMessage id=${messageId.take(8)} text=${text.length}ch " +
+            ("✏️ editMessage id=" + (messageId.take(8)).toString() + " text=" + (text.length).toString() + "ch ") +
                 "attachments=${restored.size}",
         )
         return text
@@ -9030,7 +9047,7 @@ class ChatViewModel(
         }
         AppLogger.info(
             TAG_STREAM,
-            "✏️ truncateBeforeEdit cutoffSortOrder=$cutoffSortOrder remaining=${remaining.size}"
+            ("✏️ truncateBeforeEdit cutoffSortOrder=" + (cutoffSortOrder).toString() + " remaining=" + (remaining.size).toString())
         )
     }
 
@@ -9053,13 +9070,25 @@ class ChatViewModel(
         // [T-headless-own-attachments] A prompt that does not own the composer
         // brings its own files (a CLI / RPC prompt with attachments).
         ownAttachments: List<InputAttachment> = emptyList(),
-    ) {
+    ): Boolean {
         val trimmed = text.trim()
         // [T-p2-gentle-injection] Only a USER prompt owns the composer's staged
         // attachments. A programmatic prompt arriving while the user has files
         // staged must not walk off with them (and must not clear them below).
         val pendingAttachments = PromptAttachments.of(ownsComposer, ownAttachments, _attachments.value)
-        if ((trimmed.isBlank() && pendingAttachments.isEmpty()) || !_isStreaming.value) return
+        // [T-queue-send-funnel] Answer instead of swallowing the decision.
+        //
+        // This used to be a bare `return` on both guards, and `sendMessage`
+        // inferred acceptance by comparing queue lengths. Two different
+        // outcomes collapsed into one silent no-op: "nothing to send" and "the
+        // run ended between my check and this one". The second is a real race
+        // (`_isStreaming` is cleared by the stream job on Dispatchers.IO, so
+        // the two reads are not guaranteed to agree), and `sendMessage`
+        // reported it as `Rejected("enqueue_declined")` — to a UI that had
+        // ALREADY cleared the composer and drops the outcome. The prompt then
+        // existed nowhere: no bubble, no queue entry, no request.
+        if (trimmed.isBlank() && pendingAttachments.isEmpty()) return false
+        if (!_isStreaming.value) return false
         // [T-port-user-ask] A new message from the user while a question waits
         // answers it in their own words: the card closes as replaced, the tool
         // call returns `dismissed`, and this message becomes the next turn.
@@ -9091,28 +9120,35 @@ class ChatViewModel(
             if (superseded.isNotEmpty()) {
                 _promptQueue.update { current -> current.filterNot { it.id in superseded } }
                 _messages.update { current -> current.filterNot { it.queuedPromptId in superseded } }
-                Log.i(TAG, "Scheduled task $taskId fired again before delivery — replaced ${superseded.size} older queued fire(s)")
+                Log.i(TAG, ("Scheduled task " + (taskId).toString() + " fired again before delivery — replaced " + (superseded.size).toString() + " older queued fire(s)"))
             }
         }
-        val attachmentNames = pendingAttachments.map { it.fileName }
-        val imageUris = pendingAttachments.filter { it.isImage }.map { it.uri }
-        val attachmentUris = pendingAttachments.filterNot { it.isImage }.map { it.uri }
-        val chatMsg = ChatMessage(
-            id = "queued_msg_${prompt.id}",
-            role = "user",
-            content = userBubbleText(trimmed),
-            imageUris = imageUris,
-            attachmentNames = attachmentNames,
-            attachmentUris = attachmentUris,
-            isQueued = true,
-            queuedPromptId = prompt.id,
-        )
+        val chatMsg = queuedBubbleFor(prompt)
         // Publish its bubble before making the prompt consumable by the IO loop.
         _messages.update { it + chatMsg }
         _promptQueue.update { it + prompt }
         if (PromptAttachments.clearsComposer(ownsComposer)) clearAttachments()
-        Log.i(TAG, "Enqueued prompt (${trimmed.length}ch, ${pendingAttachments.size} attachments, origin=$origin), queue=${_promptQueue.value.size}")
+        Log.i(TAG, ("Enqueued prompt (" + (trimmed.length).toString() + "ch, " + (pendingAttachments.size).toString() + " attachments, origin=" + (origin).toString() + "), queue=" + (_promptQueue.value.size).toString()))
+        return true
     }
+
+    /**
+     * [T-queued-bubble-survives-reload] The dashed bubble a queued prompt shows
+     * while it waits. One factory for both writers — [enqueuePrompt] when the
+     * prompt is accepted, and [loadSession] when a rebuilt message list has to
+     * be re-attached to the prompts still in [_promptQueue] — so the two can
+     * never drift into different ids or shapes.
+     */
+    private fun queuedBubbleFor(prompt: QueuedPrompt): ChatMessage = ChatMessage(
+        id = "queued_msg_${prompt.id}",
+        role = "user",
+        content = userBubbleText(prompt.text),
+        imageUris = prompt.attachments.filter { it.isImage }.map { it.uri },
+        attachmentNames = prompt.attachments.map { it.fileName },
+        attachmentUris = prompt.attachments.filterNot { it.isImage }.map { it.uri },
+        isQueued = true,
+        queuedPromptId = prompt.id,
+    )
 
     /** Remove a queued prompt and its chat message by prompt id. */
     fun removeQueuedPrompt(promptId: String) {
@@ -9127,7 +9163,7 @@ class ChatViewModel(
         val pid = msg.queuedPromptId ?: return
         _promptQueue.update { current -> current.filterNot { it.id == pid } }
         _messages.update { current -> current.filterNot { it.id == messageId } }
-        Log.i(TAG, "Withdrew queued message, queue=${_promptQueue.value.size}")
+        Log.i(TAG, ("Withdrew queued message, queue=" + (_promptQueue.value.size).toString()))
     }
 
     /**
@@ -9255,7 +9291,7 @@ class ChatViewModel(
         if (combinedParts.isEmpty()) {
             AppLogger.warning(
                 TAG_STREAM,
-                "injectQueuedPromptsAsNewTurn: ${queued.size} queued prompt(s) produced no content, skipping",
+                ("injectQueuedPromptsAsNewTurn: " + (queued.size).toString() + " queued prompt(s) produced no content, skipping"),
             )
             _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
             return null
@@ -9318,17 +9354,10 @@ class ChatViewModel(
         // The user row is already durable and dequeued. A Stop while switching
         // to Main must not cancel its UI commit and leave a disappearing bubble.
         withContext(NonCancellable + Dispatchers.Main) {
-            val mayCommitUser = _messages.value.any {
-                it.id == finishedAssistantId || it.queuedPromptId in queuedIds
-            }
-            // (a) + (b) one emit: build the post-finalize list.
-            // Filter the LIVE list, not a snapshot taken before the suspends —
-            // see [T-android-midtask-msg-vanishes] above. Any bubble appended
-            // while we were persisting (another enqueue, a system notice) is
-            // preserved; only the placeholders we are replacing are removed.
-            _messages.update { current -> current.filterNot { m ->
-                m.queuedPromptId != null && queuedIds.contains(m.queuedPromptId)
-            } }
+            // (b) Finalize the just-finished assistant bubble: flush the
+            // side-channel delta into the canonical row and clear isStreaming /
+            // isAwaitingModelResponse. In place, by id — it never reorders the
+            // list and never touches a row it does not own.
             updateAssistantMessage(
                 finishedAssistantId,
                 finishedAccumulatedText,
@@ -9336,9 +9365,27 @@ class ChatViewModel(
                 finishedAllToolBlocks,
                 isAwaitingModelResponse = false,
             )
-            // (c) — append the queued user bubble + the new assistant
-            // placeholder. Mirrors sendMessage's user-bubble append shape so
-            // attachments / images / file chips render the same.
+            // (a) + (c) ONE emit: swap the dashed placeholders for the real
+            // user bubble (+ the new assistant placeholder). Mirrors
+            // sendMessage's user-bubble append shape so attachments / images /
+            // file chips render the same.
+            //
+            // [T-queued-bubble-atomic-delivery] This used to be two emits —
+            // filter the placeholders out, then append the real bubble gated on
+            // a `mayCommitUser` predicate read BEFORE the filter. Whenever that
+            // predicate was false (a chat reloaded or cleared while this
+            // function was suspended in the four awaits above, an assistant
+            // bubble that a heal/reload had replaced) the placeholder was
+            // removed and NOTHING was put back: the user's mid-task message
+            // left the screen, while its row was already in the DB and the
+            // model answered it — "a reply with no question".
+            //
+            // [QueuedMessageState.deliver] decides inside the CAS, on the live
+            // list: remove only our own placeholders, and append the real
+            // bubbles only if something of ours was actually there. A chat the
+            // user cleared in the window therefore still stays empty (nothing
+            // to replace), while one where the placeholder is present always
+            // ends with a bubble on screen — never with neither.
             val queuedUserMsg = ChatMessage(
                 id = userEntity.id,
                 role = "user",
@@ -9358,9 +9405,14 @@ class ChatViewModel(
             )
             val canContinue = injectingJob?.isActive == true
             _messages.update { current ->
-                // A cleared/replaced chat must not be repopulated by a late job.
-                if (!mayCommitUser) current
-                else current + queuedUserMsg + if (canContinue) listOf(nextAssistantMsg) else emptyList()
+                QueuedMessageState.deliver(
+                    current = current,
+                    queuedIds = queuedIds,
+                    queuedPromptIdOf = { m -> m.queuedPromptId },
+                    idOf = { m -> m.id },
+                    newBubbles = if (canContinue) listOf(queuedUserMsg, nextAssistantMsg)
+                    else listOf(queuedUserMsg),
+                )
             }
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
             // ScrollPin send-grace window) is updated reactively by
@@ -9373,8 +9425,8 @@ class ChatViewModel(
 
         AppLogger.info(
             TAG_STREAM,
-            "injectQueuedPromptsAsNewTurn: injected ${queued.size} queued prompt(s) as new turn, " +
-                "finishedId=$finishedAssistantId newId=$newAssistantId",
+            ("injectQueuedPromptsAsNewTurn: injected " + (queued.size).toString() + " queued prompt(s) as new turn, ") +
+                ("finishedId=" + (finishedAssistantId).toString() + " newId=" + (newAssistantId).toString()),
         )
         return InjectedTurn(newAssistantId, queued.flatMap { it.prefill })
     }
@@ -9390,6 +9442,7 @@ class ChatViewModel(
         fallbackProviders: List<FallbackCandidate>,
         fallbackStrategy: com.openminis.app.data.model.FallbackStrategy,
     ) {
+        queueDrainFailed = false
         while (_promptQueue.value.isNotEmpty()) {
             // [T-android-mute-reset-on-drain] A drained batch is a new turn.
             // Stopping a sub agent mutes the parent's CURRENT turn (a sibling
@@ -9409,7 +9462,7 @@ class ChatViewModel(
             // after appendMessage below, so a Stop during the suspending persist
             // leaves them queued for cancelStream's resumeQueueAfterCancel instead
             // of losing them.
-            Log.i(TAG, "📨[DRAIN] Draining ${queued.size} queued prompt(s): " +
+            Log.i(TAG, ("📨[DRAIN] Draining " + (queued.size).toString() + " queued prompt(s): ") +
                 queued.joinToString(", ") { "${it.id}=\"${it.text.take(20)}...\"" })
             val queuedIds = queued.map { it.id }.toSet()
 
@@ -9481,14 +9534,18 @@ class ChatViewModel(
                     prefill = queued.flatMap { it.prefill },
                 )
             } catch (e: CancellationException) {
-                Log.d(TAG, "Agent loop (queued-drain) cancelled")
+                Log.d(TAG, ("Agent loop (queued-drain) cancelled"))
                 // Cancel mid-drain: cancelStream() will check _promptQueue
                 // and call resumeQueueAfterCancel() if anything's still pending,
                 // so just propagate.
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Agent loop (queued-drain) error", e)
+                Log.e(TAG, ("Agent loop (queued-drain) error"), e)
                 setInlineError(e.message ?: "Unknown error")
+                // [T-queue-epilogue-consumer] The prompts stay queued (their
+                // bubbles too) so a later send retries them; mark the drain as
+                // failed so no epilogue re-kicks it into a retry loop.
+                queueDrainFailed = true
                 break
             }
         }
@@ -9550,7 +9607,7 @@ class ChatViewModel(
             sessionId = activeSessionId, overrides = entry.overrides,
         )
         _providerName.value = instance.label.ifEmpty { entry.model.provider }
-        AppLogger.info(TAG, "[provider-edit] rebuilt provider for edited instance ${id.take(8)} (responses=${instance.useResponsesAPI})")
+        AppLogger.info(TAG, ("[provider-edit] rebuilt provider for edited instance " + (id.take(8)).toString() + " (responses=" + (instance.useResponsesAPI).toString() + ")"))
     }
 
     fun sendMessage(text: String) {
@@ -9650,22 +9707,36 @@ class ChatViewModel(
         val trimmed = text.trim()
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
         if (_isStreaming.value) {
-            // enqueuePrompt has its own blank/attachment guard and returns Unit;
-            // the queue length is the acceptance signal (iOS does the same).
-            val before = _promptQueue.value.size
+            // [T-queue-send-funnel] The enqueue re-reads the flag itself. When
+            // it DECLINES, that is not "nothing to send": the run's epilogue
+            // cleared `_isStreaming` between this read and that one — the flag
+            // is written by the stream job on Dispatchers.IO, so the two reads
+            // are not guaranteed to agree. This branch used to return
+            // `Rejected("enqueue_declined")` for that case, and the caller
+            // (ChatScreen.performSendOrEnqueueNow) had already cleared the
+            // composer and ignores the outcome — the typed message then existed
+            // nowhere at all: no bubble, no queue entry, no request.
+            //
+            // Falling through starts an ordinary turn with it instead. The
+            // claim further down is atomic, so "the run really did end" and
+            // "another run has since claimed the turn" are both handled.
             // [T-p2-gentle-injection] A headless send is PROGRAMMATIC: it waits
             // for the running loop to finish instead of interrupting it.
             // [T-user-ask-deferred] The user's answer is not gentle: it is
             // queued like their own follow-up, without the composer's files.
-            enqueuePrompt(
+            if (enqueuePrompt(
                 text,
                 if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
                 prefill,
                 ownsComposer = !headless,
                 ownAttachments = if (headless) headlessAttachments else emptyList(),
+            )) {
+                return SubmitOutcome.Queued
+            }
+            AppLogger.info(
+                TAG_STREAM,
+                ("send: enqueue declined (the run ended meanwhile) — starting a turn for it instead (sid=" + (activeSessionId).toString() + ")"),
             )
-            return if (_promptQueue.value.size == before + 1) SubmitOutcome.Queued
-            else SubmitOutcome.Rejected("enqueue_declined")
         }
         // T180: allow attachments-only sends (no caption). Mirrors iOS, where
         // an empty text + non-empty attachments still produces a valid user
@@ -9678,7 +9749,7 @@ class ChatViewModel(
         // calling in; attachments are still in place (cleared further down).
         if (_isCompacting.value) {
             appendSystemInfo(
-                text = "Wait for the current compact to finish before sending.",
+                text = ("Wait for the current compact to finish before sending."),
                 iconKind = "compact",
             )
             return SubmitOutcome.Rejected("session_compacting")
@@ -9736,7 +9807,7 @@ class ChatViewModel(
         rebuildProviderIfEdited()
         val initialProvider = currentProvider
         if (initialProvider == null) {
-            _error.value = "No provider configured"
+            _error.value = ("No provider configured")
             return SubmitOutcome.Rejected("no_provider")
         }
         var provider: LLMProvider = initialProvider
@@ -9759,8 +9830,53 @@ class ChatViewModel(
 
         // T145: claim _isStreaming synchronously so a rapid second tap can't
         // slip past the entry guard during DB/OAuth setup. See retryFromMessage.
-        AppLogger.info(TAG_STREAM, "send _isStreaming=true (sync, sid=$activeSessionId)")
-        _isStreaming.value = true
+        AppLogger.info(TAG_STREAM, ("send _isStreaming=true (sync, sid=" + (activeSessionId).toString() + ")"))
+        // [T-queue-send-funnel] Claim it with a CAS, not a plain write.
+        //
+        // Two writers reach this line: the idle send (guarded by the read at the
+        // top of this function) and a `drain`/`resume` loop claiming its turn.
+        // A plain write let the loser start a SECOND agent loop beside the
+        // winner (duplicated replies, one of them writing into a bubble it does
+        // not own); the loser here hands its prompt to the queue instead, which
+        // is what the user asked for by sending during a run — and it can never
+        // drop the text. The composer's files were already taken above and are
+        // cleared for a user send, so they ride along as the prompt's own.
+        if (!_isStreaming.compareAndSet(false, true)) {
+            var queuedInstead = enqueuePrompt(
+                text,
+                if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
+                prefill,
+                ownsComposer = false,
+                ownAttachments = currentAttachments,
+            )
+            var attempts = 1
+            var claimed = false
+            while (!queuedInstead && !claimed && attempts < 4) {
+                attempts++
+                queuedInstead = enqueuePrompt(
+                    text,
+                    if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
+                    prefill,
+                    ownsComposer = false,
+                    ownAttachments = currentAttachments,
+                )
+                if (!queuedInstead) claimed = _isStreaming.compareAndSet(false, true)
+            }
+            AppLogger.info(
+                TAG_STREAM,
+                ("send lost the claim — queued=" + (queuedInstead).toString() + " claimed=" + (claimed).toString() + " (sid=" + (activeSessionId).toString() + ")"),
+            )
+            if (queuedInstead) return SubmitOutcome.Queued
+            if (claimed) {
+                // The flag flipped back to idle under us; fall through and run
+                // this prompt as the turn we just claimed.
+            } else {
+                // Neither queued nor claimed: surface it instead of swallowing
+                // the message silently.
+                setInlineError(("This chat is busy — send that again in a moment."))
+                return SubmitOutcome.Rejected("busy")
+            }
+        }
 
         // [T-android-thinking-indicator-linger] Invariant sweep: a fresh send
         // only reaches here when no turn is streaming (the _isStreaming guard
@@ -9773,7 +9889,7 @@ class ChatViewModel(
         // Flush them into the canonical messages (isStreaming=false) before the
         // new streaming message is created — no two messages ever stream at once.
         if (_streamingById.value.isNotEmpty()) {
-            AppLogger.warning(TAG_STREAM, "send: sweeping ${_streamingById.value.size} orphan streaming delta(s) before new turn")
+            AppLogger.warning(TAG_STREAM, ("send: sweeping " + (_streamingById.value.size).toString() + " orphan streaming delta(s) before new turn"))
             flushAllStreamingDeltas()
         }
 
@@ -9805,7 +9921,7 @@ class ChatViewModel(
             // found no user message and the chat stayed "New Chat". Safe mode
             // skips the load entirely, so there is nothing to wait for there.
             if (!sessionLoaded.value && !com.openminis.app.crash.CrashFrequencyDetector.isSafeMode()) {
-                AppLogger.info(TAG_STREAM, "send waiting for session load (sid=${this@ChatViewModel.activeSessionId})")
+                AppLogger.info(TAG_STREAM, ("send waiting for session load (sid=" + (this@ChatViewModel.activeSessionId).toString() + ")"))
                 sessionLoaded.first { it }
             }
             // Ensure session exists in DB (creates on first message for draft sessions)
@@ -9920,12 +10036,12 @@ class ChatViewModel(
                                         ?.modelOverrides,
                                 )
                                 currentProvider = provider
-                                android.util.Log.i(TAG, "OAuth token refreshed before send")
+                                android.util.Log.i(TAG, ("OAuth token refreshed before send"))
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w(TAG, "OAuth token refresh failed: ${e.message}")
+                    android.util.Log.w(TAG, ("OAuth token refresh failed: " + (e.message).toString()))
                 }
             }
 
@@ -9936,7 +10052,7 @@ class ChatViewModel(
             val systemPrompt = if ((provider as? com.openminis.app.provider.anthropic.AnthropicProvider)?.isOAuth == true) {
                 val prefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
                 if (baseSystemPrompt?.startsWith(prefix) == true) baseSystemPrompt
-                else "$prefix\n\n${baseSystemPrompt ?: ""}"
+                else ((prefix).toString() + "\n\n" + (baseSystemPrompt ?: "").toString())
             } else baseSystemPrompt
 
             // Start agent loop with fallback. _isStreaming was set synchronously at top.
@@ -9945,7 +10061,7 @@ class ChatViewModel(
             // captured once so the acquire and the release below always pair.
             val holdsSlot = helperConfig == null
             streamJob = launch(Dispatchers.IO) {
-                AppLogger.info(TAG_STREAM, "send streamJob ENTER sid=$activeSessionId")
+                AppLogger.info(TAG_STREAM, ("send streamJob ENTER sid=" + (activeSessionId).toString()))
                 try {
                     // [T-STALL-DIAG] Snapshot BEFORE the (possibly blocking)
                     // acquire. If the log shows this line and then no "slot
@@ -9964,7 +10080,7 @@ class ChatViewModel(
                     // helpers at MAX_CONCURRENT_CHILD_JOBS_PER_PARENT per parent;
                     // sessions get SessionConcurrencyManager.MAX_CONCURRENT (6).
                     if (holdsSlot) SessionConcurrencyManager.acquireSlot(activeSessionId)
-                    AppLogger.debug(TAG_STREAM, "send streamJob slot acquired")
+                    AppLogger.debug(TAG_STREAM, ("send streamJob slot acquired"))
                     SessionActivityTracker.setActive(
                     activeSessionId,
                     onStop = { cancelStream() },
@@ -9985,7 +10101,7 @@ class ChatViewModel(
                     val fallbackProviders = buildFallbackProviders(provider)
 
                     try {
-                        AppLogger.info(TAG_STREAM, "send runAgentLoop CALL")
+                        AppLogger.info(TAG_STREAM, ("send runAgentLoop CALL"))
                         runAgentLoop(
                             provider = provider,
                             systemPrompt = systemPrompt,
@@ -9993,17 +10109,17 @@ class ChatViewModel(
                             fallbackStrategy = activeFallbackStrategy,
                             prefill = prefill,
                         )
-                        AppLogger.info(TAG_STREAM, "send runAgentLoop RETURN normal")
+                        AppLogger.info(TAG_STREAM, ("send runAgentLoop RETURN normal"))
                         // Drain any prompts the user queued while this loop was running.
                         // Skipped on cancel: cancelled job won't reach here.
                         drainQueuedPrompts(provider, systemPrompt, fallbackProviders, activeFallbackStrategy)
-                        AppLogger.info(TAG_STREAM, "send drainQueuedPrompts RETURN")
+                        AppLogger.info(TAG_STREAM, ("send drainQueuedPrompts RETURN"))
                     } catch (e: CancellationException) {
-                        AppLogger.info(TAG_STREAM, "send runAgentLoop CANCELLED")
-                        Log.d(TAG, "Agent loop cancelled")
+                        AppLogger.info(TAG_STREAM, ("send runAgentLoop CANCELLED"))
+                        Log.d(TAG, ("Agent loop cancelled"))
                     } catch (e: Exception) {
-                        AppLogger.error(TAG_STREAM, "send runAgentLoop EXCEPTION ${e.javaClass.simpleName}: ${e.message}")
-                        Log.e(TAG, "Agent loop error (all fallbacks exhausted)", e)
+                        AppLogger.error(TAG_STREAM, ("send runAgentLoop EXCEPTION " + (e.javaClass.simpleName).toString() + ": " + (e.message).toString()))
+                        Log.e(TAG, ("Agent loop error (all fallbacks exhausted)"), e)
                         // [T-android-image-input-preflight] A 400 on a turn that
                         // carried images almost always means the model cannot
                         // take them (its vision support was only assumed from
@@ -10016,7 +10132,7 @@ class ChatViewModel(
                         // T298: completion notifier should show the ❌ variant.
                         SessionActivityTracker.markStreamError(activeSessionId)
                     } finally {
-                        AppLogger.info(TAG_STREAM, "send streamJob FINALLY enter")
+                        AppLogger.info(TAG_STREAM, ("send streamJob FINALLY enter"))
                         // [T-android-overlay-reply-status-34599] Surface
                         // the assistant's most recent reply text to the
                         // overlay BEFORE setInactive so the post-completion
@@ -10030,25 +10146,36 @@ class ChatViewModel(
                         }
                         SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
-                        AppLogger.info(TAG_STREAM, "send streamJob FINALLY exit")
+                        AppLogger.info(TAG_STREAM, ("send streamJob FINALLY exit"))
                     }
                 } catch (e: CancellationException) {
-                    AppLogger.info(TAG_STREAM, "send streamJob CANCELLED waiting for slot")
-                    Log.d(TAG, "Cancelled while waiting for concurrency slot")
+                    AppLogger.info(TAG_STREAM, ("send streamJob CANCELLED waiting for slot"))
+                    Log.d(TAG, ("Cancelled while waiting for concurrency slot"))
                 }
                 // [T-android-stale-streamjob-clears-isstreaming] guard — see
                 // `var streamJob` KDoc; identical pattern as runRerunStreamTail.
                 if (streamJob === coroutineContext[Job]) {
-                    AppLogger.info(TAG_STREAM, "send _isStreaming=false (about to set)")
+                    AppLogger.info(TAG_STREAM, ("send _isStreaming=false (about to set)"))
                     _isStreaming.value = false
+                    // [T-queue-epilogue-consumer] A prompt that arrived after
+                    // the drain above ran (the epilogue between that call and
+                    // this clear takes tens of ms: overlay publish, activity
+                    // tracker, slot release) was accepted onto the queue while
+                    // `_isStreaming` was still true, and then had NO consumer
+                    // left — it stayed a dashed bubble and was never sent until
+                    // the user happened to send something else. Whatever is
+                    // still queued now gets the post-Stop resume path, which is
+                    // the one entry point that starts a turn from a queue with
+                    // nothing running.
+                    ensureQueueConsumer("send-epilogue")
                 } else {
-                    AppLogger.info(TAG_STREAM, "send _isStreaming SKIPPED (stale job)")
+                    AppLogger.info(TAG_STREAM, ("send _isStreaming SKIPPED (stale job)"))
                 }
-                AppLogger.info(TAG_STREAM, "send streamJob EXIT")
+                AppLogger.info(TAG_STREAM, ("send streamJob EXIT"))
             }
             } finally {
                 if (!streamLaunched) {
-                    AppLogger.info(TAG_STREAM, "send _isStreaming=false (setup aborted)")
+                    AppLogger.info(TAG_STREAM, ("send _isStreaming=false (setup aborted)"))
                     _isStreaming.value = false
                 }
             }
@@ -10124,8 +10251,8 @@ class ChatViewModel(
                 viewModelScope.launch(Dispatchers.IO) {
                     try {
                         val write = chatRepository.persistTurnError(sid, safeError)
-                        AppLogger.info(TAG, "[ErrorPersist] sid=${sid.take(8)} $write")
-                    } catch (e: Exception) { Log.w(TAG, "persist error_info failed: ${e.message}") }
+                        AppLogger.info(TAG, ("[ErrorPersist] sid=" + (sid.take(8)).toString() + " " + (write).toString()))
+                    } catch (e: Exception) { Log.w(TAG, ("persist error_info failed: " + (e.message).toString())) }
                 }
             }
         } else {
@@ -10157,7 +10284,7 @@ class ChatViewModel(
                     } else {
                         chatRepository.updateLastAssistantError(sid, null)
                     }
-                } catch (e: Exception) { Log.w(TAG, "clear error_info failed: ${e.message}") }
+                } catch (e: Exception) { Log.w(TAG, ("clear error_info failed: " + (e.message).toString())) }
             }
         }
     }
@@ -10174,7 +10301,7 @@ class ChatViewModel(
         if (sid.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             try { chatRepository.updateLastAssistantError(sid, null) }
-            catch (e: Exception) { Log.w(TAG, "clear error_info (persisted) failed: ${e.message}") }
+            catch (e: Exception) { Log.w(TAG, ("clear error_info (persisted) failed: " + (e.message).toString())) }
         }
     }
 
@@ -10278,7 +10405,7 @@ class ChatViewModel(
         _canResume.value = false
 
         // T145: claim _isStreaming synchronously — see retryFromMessage for rationale.
-        AppLogger.info(TAG_STREAM, "retryLast _isStreaming=true (sync, sid=$activeSessionId)")
+        AppLogger.info(TAG_STREAM, ("retryLast _isStreaming=true (sync, sid=" + (activeSessionId).toString() + ")"))
         _isStreaming.value = true
 
         viewModelScope.launch {
@@ -10302,13 +10429,13 @@ class ChatViewModel(
                     chatRepository.deleteMessagesAfter(sid, trailingAssistantSortOrder)
                     AppLogger.info(
                         TAG_STREAM,
-                        "retryLast: deleted trailing assistant row sortOrder=$trailingAssistantSortOrder, kept ${trailingAssistantSortOrder} prior rows",
+                        ("retryLast: deleted trailing assistant row sortOrder=" + (trailingAssistantSortOrder).toString() + ", kept " + (trailingAssistantSortOrder).toString() + " prior rows"),
                     )
                 }
             } else {
                 AppLogger.info(
                     TAG_STREAM,
-                    "retryLast: agentHistory tail was user(tool_result) — no DB cleanup needed",
+                    ("retryLast: agentHistory tail was user(tool_result) — no DB cleanup needed"),
                 )
             }
 
@@ -10331,7 +10458,7 @@ class ChatViewModel(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "OAuth token refresh failed: ${e.message}")
+                    Log.w(TAG, ("OAuth token refresh failed: " + (e.message).toString()))
                 }
             }
 
@@ -10340,7 +10467,7 @@ class ChatViewModel(
             val systemPrompt = if ((provider as? com.openminis.app.provider.anthropic.AnthropicProvider)?.isOAuth == true) {
                 val prefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
                 if (baseSystemPrompt?.startsWith(prefix) == true) baseSystemPrompt
-                else "$prefix\n\n${baseSystemPrompt ?: ""}"
+                else ((prefix).toString() + "\n\n" + (baseSystemPrompt ?: "").toString())
             } else baseSystemPrompt
 
             // _isStreaming was already set synchronously at the top.
@@ -10348,10 +10475,10 @@ class ChatViewModel(
             // [T-new-limits] Children never take a session slot; captured once.
             val holdsSlot = helperConfig == null
             streamJob = launch(Dispatchers.IO) {
-                AppLogger.info(TAG_STREAM, "retryLast streamJob ENTER sid=$activeSessionId")
+                AppLogger.info(TAG_STREAM, ("retryLast streamJob ENTER sid=" + (activeSessionId).toString()))
                 try {
                     if (holdsSlot) SessionConcurrencyManager.acquireSlot(activeSessionId)
-                    AppLogger.debug(TAG_STREAM, "retryLast streamJob slot acquired")
+                    AppLogger.debug(TAG_STREAM, ("retryLast streamJob slot acquired"))
                     SessionActivityTracker.setActive(
                     activeSessionId,
                     onStop = { cancelStream() },
@@ -10367,27 +10494,27 @@ class ChatViewModel(
                     }
                     val fallbackProviders = buildFallbackProviders(provider)
                     try {
-                        AppLogger.info(TAG_STREAM, "retryLast runAgentLoop CALL")
+                        AppLogger.info(TAG_STREAM, ("retryLast runAgentLoop CALL"))
                         runAgentLoop(
                             provider = provider,
                             systemPrompt = systemPrompt,
                             fallbackProviders = fallbackProviders,
                             fallbackStrategy = activeFallbackStrategy,
                         )
-                        AppLogger.info(TAG_STREAM, "retryLast runAgentLoop RETURN normal")
+                        AppLogger.info(TAG_STREAM, ("retryLast runAgentLoop RETURN normal"))
                         drainQueuedPrompts(provider, systemPrompt, fallbackProviders, activeFallbackStrategy)
-                        AppLogger.info(TAG_STREAM, "retryLast drainQueuedPrompts RETURN")
+                        AppLogger.info(TAG_STREAM, ("retryLast drainQueuedPrompts RETURN"))
                     } catch (e: CancellationException) {
-                        AppLogger.info(TAG_STREAM, "retryLast runAgentLoop CANCELLED")
-                        Log.d(TAG, "Agent loop cancelled")
+                        AppLogger.info(TAG_STREAM, ("retryLast runAgentLoop CANCELLED"))
+                        Log.d(TAG, ("Agent loop cancelled"))
                     } catch (e: Exception) {
-                        AppLogger.error(TAG_STREAM, "retryLast runAgentLoop EXCEPTION ${e.javaClass.simpleName}: ${e.message}")
-                        Log.e(TAG, "Agent loop error (retryLast)", e)
+                        AppLogger.error(TAG_STREAM, ("retryLast runAgentLoop EXCEPTION " + (e.javaClass.simpleName).toString() + ": " + (e.message).toString()))
+                        Log.e(TAG, ("Agent loop error (retryLast)"), e)
                         setInlineError(e.message ?: "Unknown error")
                         // T298: completion notifier should show the ❌ variant.
                         SessionActivityTracker.markStreamError(activeSessionId)
                     } finally {
-                        AppLogger.info(TAG_STREAM, "retryLast streamJob FINALLY enter")
+                        AppLogger.info(TAG_STREAM, ("retryLast streamJob FINALLY enter"))
                         // [T-android-overlay-reply-status-34599] Surface
                         // the assistant's most recent reply text to the
                         // overlay BEFORE setInactive so the post-completion
@@ -10401,24 +10528,27 @@ class ChatViewModel(
                         }
                         SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
-                        AppLogger.info(TAG_STREAM, "retryLast streamJob FINALLY exit")
+                        AppLogger.info(TAG_STREAM, ("retryLast streamJob FINALLY exit"))
                     }
                 } catch (e: CancellationException) {
-                    AppLogger.info(TAG_STREAM, "retryLast streamJob CANCELLED waiting for slot")
-                    Log.d(TAG, "Cancelled while waiting for concurrency slot")
+                    AppLogger.info(TAG_STREAM, ("retryLast streamJob CANCELLED waiting for slot"))
+                    Log.d(TAG, ("Cancelled while waiting for concurrency slot"))
                 }
                 // [T-android-stale-streamjob-clears-isstreaming] guard.
                 if (streamJob === coroutineContext[Job]) {
-                    AppLogger.info(TAG_STREAM, "retryLast _isStreaming=false (about to set)")
+                    AppLogger.info(TAG_STREAM, ("retryLast _isStreaming=false (about to set)"))
                     _isStreaming.value = false
+                    // [T-queue-epilogue-consumer] A prompt accepted between
+                    // this turn's own drain and this clear has no consumer.
+                    ensureQueueConsumer("retry-epilogue")
                 } else {
-                    AppLogger.info(TAG_STREAM, "retryLast _isStreaming SKIPPED (stale job)")
+                    AppLogger.info(TAG_STREAM, ("retryLast _isStreaming SKIPPED (stale job)"))
                 }
-                AppLogger.info(TAG_STREAM, "retryLast streamJob EXIT")
+                AppLogger.info(TAG_STREAM, ("retryLast streamJob EXIT"))
             }
             } finally {
                 if (!streamLaunched) {
-                    AppLogger.info(TAG_STREAM, "retryLast _isStreaming=false (setup aborted)")
+                    AppLogger.info(TAG_STREAM, ("retryLast _isStreaming=false (setup aborted)"))
                     _isStreaming.value = false
                 }
             }
@@ -10474,11 +10604,11 @@ class ChatViewModel(
             val placeholders = toolUses.filter { com.openminis.app.provider.ToolPairing.key(it.id) in missingIds }.map { use ->
                 AgentContentPart.ToolResult(
                     id = use.id, name = use.name,
-                    content = "Tool execution was interrupted by an unexpected error.",
+                    content = ("Tool execution was interrupted by an unexpected error."),
                     isError = true,
                 )
             }
-            Log.w(TAG, "sanitize: injecting ${placeholders.size} placeholder tool_result(s) after history[$i]")
+            Log.w(TAG, ("sanitize: injecting " + (placeholders.size).toString() + " placeholder tool_result(s) after history[" + (i).toString() + "]"))
 
             if (next != null && next.role == LLMMessage.Role.USER &&
                 next.contentParts.any { it is AgentContentPart.ToolResult }) {
@@ -10558,14 +10688,14 @@ class ChatViewModel(
         if (remaining <= 0) {
             android.util.Log.w(
                 TAG,
-                "dynamicMaxTokens: input $inputTokens EXCEEDS window $contextWindow " +
-                    "(over by ${inputTokens - contextWindow}) — compaction guard should have fired",
+                ("dynamicMaxTokens: input " + (inputTokens).toString() + " EXCEEDS window " + (contextWindow).toString() + " ") +
+                    ("(over by " + (inputTokens - contextWindow).toString() + ") — compaction guard should have fired"),
             )
         }
         val clamped = maxOf(remaining, MIN_MAX_TOKENS)
         val result = minOf(maxOutputCeiling, clamped)
         if (result < maxOutputCeiling) {
-            android.util.Log.i(TAG, "dynamicMaxTokens: $result (remaining=$remaining, ceiling=$maxOutputCeiling, window=$contextWindow, input=$inputTokens, model=${model.id})")
+            android.util.Log.i(TAG, ("dynamicMaxTokens: " + (result).toString() + " (remaining=" + (remaining).toString() + ", ceiling=" + (maxOutputCeiling).toString() + ", window=" + (contextWindow).toString() + ", input=" + (inputTokens).toString() + ", model=" + (model.id).toString() + ")"))
         }
         return result
     }
@@ -10766,16 +10896,16 @@ class ChatViewModel(
         val pct = (effectiveTokens.toLong() * 100 / contextWindow.coerceAtLeast(1)).toInt()
         val remaining = contextWindow - beforeTokens
 
-        AppLogger.info(TAG, "━━━ Context Offload Triggered ━━━")
-        AppLogger.info(TAG, "  Window: $contextWindow tokens")
-        AppLogger.info(TAG, "  Before: $beforeTokens tokens ($pct% of window, ~$remaining remaining)")
+        AppLogger.info(TAG, ("━━━ Context Offload Triggered ━━━"))
+        AppLogger.info(TAG, ("  Window: " + (contextWindow).toString() + " tokens"))
+        AppLogger.info(TAG, ("  Before: " + (beforeTokens).toString() + " tokens (" + (pct).toString() + "% of window, ~" + (remaining).toString() + " remaining)"))
         if (force) {
-            AppLogger.info(TAG, "  Mode: FORCE — offloading all eligible candidates")
+            AppLogger.info(TAG, ("  Mode: FORCE — offloading all eligible candidates"))
         } else {
-            AppLogger.info(TAG, "  Threshold: ${policy.offloadThreshold} → Target: $targetTokens")
-            AppLogger.info(TAG, "  Need to free: ~${beforeTokens - targetTokens} tokens")
+            AppLogger.info(TAG, ("  Threshold: " + (policy.offloadThreshold).toString() + " → Target: " + (targetTokens).toString()))
+            AppLogger.info(TAG, ("  Need to free: ~" + (beforeTokens - targetTokens).toString() + " tokens"))
         }
-        AppLogger.info(TAG, "  Agent history: ${agentHistory.size} messages")
+        AppLogger.info(TAG, ("  Agent history: " + (agentHistory.size).toString() + " messages"))
 
         val protectedCount = minOf(4, agentHistory.size)
         val candidateUpper = agentHistory.size - protectedCount
@@ -10785,8 +10915,8 @@ class ChatViewModel(
         val scanStart = minOf(offloadScanStartIndex(), candidateUpper)
         AppLogger.info(
             TAG,
-            "  Scanning messages $scanStart..<$candidateUpper (last $protectedCount protected, " +
-                "$scanStart before the compaction anchor skipped)",
+            ("  Scanning messages " + (scanStart).toString() + "..<" + (candidateUpper).toString() + " (last " + (protectedCount).toString() + " protected, ") +
+                ((scanStart).toString() + " before the compaction anchor skipped)"),
         )
         // [T-android-offload-scan-range] Ranking and the "enough freed" check
         // use ContextSizeMeter's estimate calibrated like
@@ -10816,8 +10946,8 @@ class ChatViewModel(
         if (warmUpIndices.isNotEmpty()) {
             AppLogger.info(
                 TAG,
-                "  Warm-up before the anchor: scanning ${warmUpIndices.size} sent message(s) " +
-                    "(${warmUp.second.size} pruned tool id(s) skipped)",
+                ("  Warm-up before the anchor: scanning " + (warmUpIndices.size).toString() + " sent message(s) ") +
+                    ("(" + (warmUp.second.size).toString() + " pruned tool id(s) skipped)"),
             )
         }
         val answeredToolUseIds: Set<String> = buildSet {
@@ -10915,11 +11045,11 @@ class ChatViewModel(
         // but ~1-2k tokens (pixel-based), and CJK is 3 bytes per ~1 token.
         candidates.sortByDescending { it.tokens }
         val totalCandidateTokens = candidates.sumOf { it.tokens }
-        AppLogger.info(TAG, "  Candidates: ${candidates.size} parts (~$totalCandidateTokens est. tokens total)")
+        AppLogger.info(TAG, ("  Candidates: " + (candidates.size).toString() + " parts (~" + (totalCandidateTokens).toString() + " est. tokens total)"))
         AppLogger.info(
             TAG,
-            "  Skipped: $skippedAlreadyOffloaded already offloaded, $skippedTooSmall too small, " +
-                "$skippedUnanswered unanswered tool calls",
+            ("  Skipped: " + (skippedAlreadyOffloaded).toString() + " already offloaded, " + (skippedTooSmall).toString() + " too small, ") +
+                ((skippedUnanswered).toString() + " unanswered tool calls"),
         )
 
         var offloadedCount = 0
@@ -10952,8 +11082,8 @@ class ChatViewModel(
                         linuxPath = readbackPath
                         AppLogger.info(
                             TAG,
-                            "  offload readback: reusing existing $readbackPath " +
-                                "(no duplicate file written)",
+                            ("  offload readback: reusing existing " + (readbackPath).toString() + " ") +
+                                ("(no duplicate file written)"),
                         )
                     } else if (part.content.length > 500) {
                         linuxPath = ContextOffload.offloadContent(
@@ -11019,17 +11149,17 @@ class ChatViewModel(
             val afterPct = (currentTokens.toLong() * 100 / contextWindow.coerceAtLeast(1)).toInt()
             AppLogger.info(
                 TAG,
-                "  ✂ Offloaded #$offloadedCount: [${candidate.toolName}] id:${candidate.toolId.take(8)} ~$candidateTokens tokens (${candidate.bytes} bytes) → $linuxPath [now $currentTokens ($afterPct%)]",
+                ("  ✂ Offloaded #" + (offloadedCount).toString() + ": [" + (candidate.toolName).toString() + "] id:" + (candidate.toolId.take(8)).toString() + " ~" + (candidateTokens).toString() + " tokens (" + (candidate.bytes).toString() + " bytes) → " + (linuxPath).toString() + " [now " + (currentTokens).toString() + " (" + (afterPct).toString() + "%)]"),
             )
         }
 
         if (offloadedCount > 0) {
             val afterPct = (currentTokens.toLong() * 100 / contextWindow.coerceAtLeast(1)).toInt()
-            AppLogger.info(TAG, "━━━ Context Offload Complete ━━━")
-            AppLogger.info(TAG, "  Parts offloaded: $offloadedCount")
-            AppLogger.info(TAG, "  Tokens freed: ~$freedTokens")
-            AppLogger.info(TAG, "  Before: $beforeTokens/$contextWindow ($pct%)")
-            AppLogger.info(TAG, "  After:  $currentTokens/$contextWindow ($afterPct%)")
+            AppLogger.info(TAG, ("━━━ Context Offload Complete ━━━"))
+            AppLogger.info(TAG, ("  Parts offloaded: " + (offloadedCount).toString()))
+            AppLogger.info(TAG, ("  Tokens freed: ~" + (freedTokens).toString()))
+            AppLogger.info(TAG, ("  Before: " + (beforeTokens).toString() + "/" + (contextWindow).toString() + " (" + (pct).toString() + "%)"))
+            AppLogger.info(TAG, ("  After:  " + (currentTokens).toString() + "/" + (contextWindow).toString() + " (" + (afterPct).toString() + "%)"))
             AppLogger.info(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         }
     }
@@ -11050,9 +11180,9 @@ class ChatViewModel(
         if (turn == null || turn.calls.size < prefill.size) {
             AppLogger.warning(
                 TAG_STREAM,
-                "[ScheduledPrefill] dropped ${prefill.size - (turn?.calls?.size ?: 0)} of ${prefill.size} " +
-                    "prefilled call(s) [${prefill.joinToString { it.toolName }}] — tool unavailable or invalid; " +
-                    "the model decides for itself",
+                ("[ScheduledPrefill] dropped " + (prefill.size - (turn?.calls?.size ?: 0)).toString() + " of " + (prefill.size).toString() + " ") +
+                    ("prefilled call(s) [" + (prefill.joinToString { it.toolName }).toString() + "] — tool unavailable or invalid; ") +
+                    ("the model decides for itself"),
             )
         }
         return turn
@@ -11076,10 +11206,10 @@ class ChatViewModel(
             runAgentLoopBody(provider, systemPrompt, fallbackProviders, fallbackStrategy, prefill, turnGen)
         } catch (ce: kotlinx.coroutines.CancellationException) {
             // [stop-diag] Logged and rethrown; behaviour unchanged.
-            AppLogger.info(TAG_STREAM, "[stop-diag] runAgentLoop EXIT reason=cancelled sid=$activeSessionId cause=${ce.message}")
+            AppLogger.info(TAG_STREAM, ("[stop-diag] runAgentLoop EXIT reason=cancelled sid=" + (activeSessionId).toString() + " cause=" + (ce.message).toString()))
             throw ce
         } catch (t: Throwable) {
-            AppLogger.warning(TAG_STREAM, "[stop-diag] runAgentLoop EXIT reason=error sid=$activeSessionId error=${t.javaClass.simpleName}: ${t.message?.take(200)}")
+            AppLogger.warning(TAG_STREAM, ("[stop-diag] runAgentLoop EXIT reason=error sid=" + (activeSessionId).toString() + " error=" + (t.javaClass.simpleName).toString() + ": " + (t.message?.take(200)).toString()))
             throw t
         } finally {
             liveTurn.end(turnGen)
@@ -11097,7 +11227,7 @@ class ChatViewModel(
         prefill: List<com.openminis.app.scheduled.PrefilledToolCall>,
         turnGen: Long,
     ) {
-        AppLogger.info(TAG_STREAM, "runAgentLoop ENTER provider=${provider.javaClass.simpleName} historySize=${agentHistory.size}")
+        AppLogger.info(TAG_STREAM, ("runAgentLoop ENTER provider=" + (provider.javaClass.simpleName).toString() + " historySize=" + (agentHistory.size).toString()))
         // [T-android-mem-probe-trust] Send-path context shape. The existing
         // `messages-shape` probe only runs on session LOAD, so the 2026-08-15
         // log described the session as it was opened, never as it was sent —
@@ -11138,10 +11268,10 @@ class ChatViewModel(
             }
             AppLogger.info(
                 TAG_STREAM,
-                "[CtxShape] historySize=${agentHistory.size} totalChars=$chars " +
-                    "maxMsgChars=$maxOne maxMsgRole=$biggestRole toolResultParts=$toolResults " +
-                    "imageParts=$images imageBytes=$imageBytes audioB64Chars=$audioChars " +
-                    "approxTokens=${chars / 4} " +
+                ("[CtxShape] historySize=" + (agentHistory.size).toString() + " totalChars=" + (chars).toString() + " ") +
+                    ("maxMsgChars=" + (maxOne).toString() + " maxMsgRole=" + (biggestRole).toString() + " toolResultParts=" + (toolResults).toString() + " ") +
+                    ("imageParts=" + (images).toString() + " imageBytes=" + (imageBytes).toString() + " audioB64Chars=" + (audioChars).toString() + " ") +
+                    ("approxTokens=" + (chars / 4).toString() + " ") +
                     "${com.openminis.app.diagnostics.MemorySnapshot.capture().toLogString()}",
             )
         }
@@ -11256,7 +11386,7 @@ class ChatViewModel(
                 com.openminis.app.agent.workspace.WorkspaceInstructionStore
                     .mandatoryBlock(context, activeSessionId)
             }.onFailure {
-                AppLogger.warning(TAG_STREAM, "Workspace instructions could not be loaded: ${it.javaClass.simpleName}")
+                AppLogger.warning(TAG_STREAM, ("Workspace instructions could not be loaded: " + (it.javaClass.simpleName).toString()))
             }.getOrNull()
         } else {
             null
@@ -11417,7 +11547,7 @@ class ChatViewModel(
         for (turn in 0 until turnCap) {
             // [stop-diag] Every iteration is one model request; turn>0 means the
             // previous turn's tool results were judged worth sending on.
-            AppLogger.info(TAG_STREAM, "[stop-diag] turn=$turn START sid=$activeSessionId — requesting the model")
+            AppLogger.info(TAG_STREAM, ("[stop-diag] turn=" + (turn).toString() + " START sid=" + (activeSessionId).toString() + " — requesting the model"))
             // [T-android-switch-model-next-request] The user picked another
             // model while this turn ran. Apply it HERE, before the next
             // request: the request or tool call that was in flight when they
@@ -11470,7 +11600,7 @@ class ChatViewModel(
                     )
                     AppLogger.info(
                         TAG_STREAM,
-                        "[SwitchModel] applied at next request: $from → ${chosen.model.displayName} turn=${turn + 1}",
+                        ("[SwitchModel] applied at next request: " + (from).toString() + " → " + (chosen.model.displayName).toString() + " turn=" + (turn + 1).toString()),
                     )
                 }
             }
@@ -11496,7 +11626,7 @@ class ChatViewModel(
                 } else {
                     agentHistory.add(LLMMessage(role = LLMMessage.Role.USER, content = note))
                 }
-                AppLogger.info(TAG, "[delegate_task] wrap-up turn injected reason=$reason turn=${turn + 1}/$turnCap")
+                AppLogger.info(TAG, ("[delegate_task] wrap-up turn injected reason=" + (reason).toString() + " turn=" + (turn + 1).toString() + "/" + (turnCap).toString()))
             }
             // [T-subagent-turn-countdown] Warn BEFORE the tools are gone.
             //
@@ -11525,7 +11655,7 @@ class ChatViewModel(
                     } else {
                         agentHistory.add(LLMMessage(role = LLMMessage.Role.USER, content = note))
                     }
-                    AppLogger.info(TAG, "[subagent_task] turn budget warning injected remaining=$remaining turn=${turn + 1}/$turnCap")
+                    AppLogger.info(TAG, ("[subagent_task] turn budget warning injected remaining=" + (remaining).toString() + " turn=" + (turn + 1).toString() + "/" + (turnCap).toString()))
                 }
             }
             // [T-sub-agents-steer] Deliver any course correction the parent
@@ -11540,7 +11670,7 @@ class ChatViewModel(
                 }
                 if (steers.isNotEmpty()) {
                     val note = steers.joinToString("\n") {
-                        "[Course correction from the delegating agent] $it"
+                        ("[Course correction from the delegating agent] " + (it).toString())
                     }
                     // [T-android-subagent-steer-visible] Persist the correction
                     // as a real user message in the CHILD's own transcript,
@@ -11567,7 +11697,7 @@ class ChatViewModel(
                             """[{"type":"text","value":${escapeJson(note)}}]""",
                         )
                     }.onFailure {
-                        AppLogger.warning(TAG, "[subagent_task] steer persist failed: ${it.message}")
+                        AppLogger.warning(TAG, ("[subagent_task] steer persist failed: " + (it.message).toString()))
                     }.getOrNull()
                     agentHistory.add(LLMMessage(role = LLMMessage.Role.USER, content = note, dbMessageId = steerRow?.id))
                     val steerUi = ChatMessage(
@@ -11591,7 +11721,7 @@ class ChatViewModel(
                             cur + steerUi
                         }
                     }
-                    AppLogger.info(TAG, "[subagent_task] steer delivered count=${steers.size} turn=${turn + 1}/$turnCap")
+                    AppLogger.info(TAG, ("[subagent_task] steer delivered count=" + (steers.size).toString() + " turn=" + (turn + 1).toString() + "/" + (turnCap).toString()))
                 }
             }
 
@@ -11699,7 +11829,7 @@ class ChatViewModel(
                             _messages.value = _messages.value.filterNot { it.id == sealedId }
                             AppLogger.info(
                                 TAG,
-                                "[Compact] in-loop: dropped empty sealed bubble $sealedId",
+                                ("[Compact] in-loop: dropped empty sealed bubble " + (sealedId).toString()),
                             )
                         }
                         _messages.value = _messages.value + ChatMessage(
@@ -11726,7 +11856,7 @@ class ChatViewModel(
                     toolInputChunkRings.clear()
                     AppLogger.info(
                         TAG,
-                        "[Compact] in-loop: sealed $sealedId, continuing in $freshAssistantId below the divider",
+                        ("[Compact] in-loop: sealed " + (sealedId).toString() + ", continuing in " + (freshAssistantId).toString() + " below the divider"),
                     )
                     continue
                 }
@@ -11736,7 +11866,7 @@ class ChatViewModel(
                     // turn-limit error overwrite.
                     AppLogger.warning(
                         TAG,
-                        "[AutoCompact] stopping turn: context exhausted and compaction cannot recover",
+                        ("[AutoCompact] stopping turn: context exhausted and compaction cannot recover"),
                     )
                     // [T-android-inloop-stop-thinking-orphan] Finalize the
                     // assistant message before leaving the loop.
@@ -11777,8 +11907,8 @@ class ChatViewModel(
                     // are not in scope. Everything from previous turns was
                     // already persisted by those turns.
                     appendSystemInfo(
-                        text = "Context is full and could not be reduced further. " +
-                            "Tap Continue to resume, or start a new chat.",
+                        text = ("Context is full and could not be reduced further. ") +
+                            ("Tap Continue to resume, or start a new chat."),
                         iconKind = "compact",
                     )
                     // [T-android-group-pause-badge-restamp] A LIVE interruption just
@@ -11904,7 +12034,7 @@ class ChatViewModel(
                 dedupeStartCounts[raw] = n
                 val renamed = if (n == 1) raw else "$raw-$n"
                 if (n > 1) {
-                    AppLogger.warning(TAG_STREAM, "[ToolDedupe] duplicate tool_call id on stream start: '$raw' #$n -> renamed '$renamed'")
+                    AppLogger.warning(TAG_STREAM, ("[ToolDedupe] duplicate tool_call id on stream start: '" + (raw).toString() + "' #" + (n).toString() + " -> renamed '" + (renamed).toString() + "'"))
                 }
                 inFlightRenamedId[raw] = renamed
                 return renamed
@@ -11952,7 +12082,7 @@ class ChatViewModel(
                     val id = currentIdentity!!
                     AppLogger.warning(
                         TAG_STREAM,
-                        "[ProviderLiveCheck] ${id.modelName} (${id.instanceLabel}) $liveProblem — " +
+                        ("[ProviderLiveCheck] " + (id.modelName).toString() + " (" + (id.instanceLabel).toString() + ") " + (liveProblem).toString() + " — ") +
                             "group=${_selectedGroupId.value != null}",
                     )
                     // A conversation pinned to one model has nowhere to move to:
@@ -12008,7 +12138,7 @@ class ChatViewModel(
                     val diagSid = activeSessionId
                     println(
                         "[T-STALL-DIAG] stream REQUEST-OUT sid=$diagSid turn=$turn " +
-                            "provider=${currentProvider.javaClass.simpleName} " +
+                            ("provider=" + (currentProvider.javaClass.simpleName).toString() + " ") +
                             "historySize=${agentHistory.size}",
                     )
                     val firstChunkWatchdog = viewModelScope.launch(Dispatchers.IO) {
@@ -12019,8 +12149,8 @@ class ChatViewModel(
                             waited += 10_000L
                             println(
                                 "[T-STALL-DIAG] stream NO-FIRST-CHUNK sid=$diagSid turn=$turn " +
-                                    "waitedMs=$waited provider=${currentProvider.javaClass.simpleName} " +
-                                    "— request sent, provider has returned NOTHING (not even message_start)",
+                                    ("waitedMs=" + (waited).toString() + " provider=" + (currentProvider.javaClass.simpleName).toString() + " ") +
+                                    ("— request sent, provider has returned NOTHING (not even message_start)"),
                             )
                         }
                     }
@@ -12039,8 +12169,8 @@ class ChatViewModel(
                     val turnChunks: kotlinx.coroutines.flow.Flow<LLMStreamChunk> = if (scriptedTurn != null) {
                         AppLogger.info(
                             TAG_STREAM,
-                            "[ScheduledPrefill] turn=$turn streaming ${scriptedTurn.calls.size} prefilled tool call(s) " +
-                                "[${scriptedTurn.calls.joinToString { it.toolName + ":" + it.id }}] in place of a model request",
+                            ("[ScheduledPrefill] turn=" + (turn).toString() + " streaming " + (scriptedTurn.calls.size).toString() + " prefilled tool call(s) ") +
+                                ("[" + (scriptedTurn.calls.joinToString { it.toolName + ":" + it.id }).toString() + "] in place of a model request"),
                         )
                         kotlinx.coroutines.flow.flowOf(*scriptedTurn.asStreamChunks().toTypedArray())
                     } else {
@@ -12078,8 +12208,8 @@ class ChatViewModel(
                             dispatchInputTokens = recordContextDispatch(outboundHistory, currentProvider.model)
                             AppLogger.info(
                                 TAG,
-                                "[CtxMeter] dispatch model=${currentModel?.id ?: "?"} estimate=$lastDispatchEstimate " +
-                                    "ratio=${"%.3f".format(lastDispatchRatio)} predicted=$dispatchInputTokens " +
+                                ("[CtxMeter] dispatch model=" + (currentModel?.id ?: "?").toString() + " estimate=" + (lastDispatchEstimate).toString() + " ") +
+                                    ("ratio=" + ("%.3f".format(lastDispatchRatio)).toString() + " predicted=" + (dispatchInputTokens).toString() + " ") +
                                     "maxTokens=${dynamicMaxTokens(currentProvider, dispatchInputTokens)}",
                             )
                         }
@@ -12095,8 +12225,8 @@ class ChatViewModel(
                             if (reminder != null && withReminder != null) {
                                 AppLogger.info(
                                     TAG_STREAM,
-                                    "[CallbackReminder] turn=$turn request carries a reminder for ${reminder.promptIds.size} queued " +
-                                        "sub agent result(s)${if (callbackReminder != null) " (retry, same text)" else ""}",
+                                    ("[CallbackReminder] turn=" + (turn).toString() + " request carries a reminder for " + (reminder.promptIds.size).toString() + " queued ") +
+                                        ("sub agent result(s)" + (if (callbackReminder != null) " (retry, same text)" else "").toString()),
                                 )
                                 callbackReminder = reminder
                                 requestMessages = withReminder
@@ -12127,7 +12257,7 @@ class ChatViewModel(
                     // the main thread at this moment must not be overwritten.
                     callbackReminder?.let { sent ->
                         _promptQueue.update { QueuedCallbackReminder.markSent(it, sent) }
-                        AppLogger.info(TAG_STREAM, "[CallbackReminder] turn=$turn marked ${sent.promptIds.size} queued sub agent result(s) as reminded")
+                        AppLogger.info(TAG_STREAM, ("[CallbackReminder] turn=" + (turn).toString() + " marked " + (sent.promptIds.size).toString() + " queued sub agent result(s) as reminded"))
                     }
                     // [T-switch-model-retry-counter-reset] The retried attempt is
                     // producing output, so the ladder is done. isBoundToAbandonedModel()
@@ -12289,7 +12419,7 @@ class ChatViewModel(
                         // ToolCallComplete / ToolInputDelta lookups and ends
                         // up as the persisted tool_call_id on the next request.
                         val toolUseId = dedupeToolStartId(chunk.id)
-                        android.util.Log.d("ToolChain[VM]", "[turn=$turn] ToolUseStart id=$toolUseId name=${chunk.name}")
+                        android.util.Log.d("ToolChain[VM]", ("[turn=" + (turn).toString() + "] ToolUseStart id=" + (toolUseId).toString() + " name=" + (chunk.name).toString()))
                         // Mark thinking block as done when tool use starts
                         val thinkIdx = allToolBlocks.indexOfFirst { it.kind == "thinking" && it.id == "thinking_$turn" }
                         if (thinkIdx >= 0 && allToolBlocks[thinkIdx].toolStatus != ToolBlockStatus.SUCCESS) {
@@ -12358,7 +12488,7 @@ class ChatViewModel(
                         val toolInputId = dedupeToolInputId(chunk.id)
                         // [T-android-log-hotpath] Fires per tool-argument chunk.
                         if (AppLogger.traceEnabled) {
-                            android.util.Log.d("ToolChain[VM]", "[turn=$turn] ToolInputDelta id=$toolInputId len=${chunk.accumulated.length}")
+                            android.util.Log.d("ToolChain[VM]", ("[turn=" + (turn).toString() + "] ToolInputDelta id=" + (toolInputId).toString() + " len=" + (chunk.accumulated.length).toString()))
                         }
                         // Maintain a per-tool ring of the most recent `accumulated`
                         // snapshots so the preflight validator below can dump them
@@ -12420,7 +12550,7 @@ class ChatViewModel(
                         // the downstream tool-result join all key on the
                         // same value (matches the rename applied at start).
                         val toolCompleteId = dedupeToolCompleteId(chunk.id)
-                        android.util.Log.d("ToolChain[VM]", "[turn=$turn] ToolCallComplete id=$toolCompleteId name=${chunk.name} args=${chunk.args.toString().take(300)}")
+                        android.util.Log.d("ToolChain[VM]", ("[turn=" + (turn).toString() + "] ToolCallComplete id=" + (toolCompleteId).toString() + " name=" + (chunk.name).toString() + " args=" + (chunk.args.toString().take(300)).toString()))
                         toolCalls.add(Triple(toolCompleteId, chunk.name, chunk.args))
                         chunk.argumentError?.let { toolArgumentErrors[toolCompleteId] = it }
                         chunk.rawArguments?.let { raw ->
@@ -12632,11 +12762,11 @@ class ChatViewModel(
                         // most likely the Stop itself (OkHttp reports a
                         // cancelled call as an IOException, i.e. NetworkError).
                         // Mirrors iOS streamWithAutoRetry's checkCancellation.
-                        if (!kotlin.coroutines.coroutineContext.isActive) throw CancellationException("stopped before retry countdown")
+                        if (!kotlin.coroutines.coroutineContext.isActive) throw CancellationException(("stopped before retry countdown"))
                         val delaySec = AUTO_RETRY_DELAYS_SEC[retryAttempt]
                         retryAttempt += 1
                         val errDesc = actual.message ?: actual.javaClass.simpleName
-                        Log.w(TAG, "🔁 Transient error on ${currentProvider.model.displayName}, retry $retryAttempt/${AUTO_RETRY_DELAYS_SEC.size} in ${delaySec}s: $errDesc")
+                        Log.w(TAG, ("🔁 Transient error on " + (currentProvider.model.displayName).toString() + ", retry " + (retryAttempt).toString() + "/" + (AUTO_RETRY_DELAYS_SEC.size).toString() + " in " + (delaySec).toString() + "s: " + (errDesc).toString()))
                         withContext(Dispatchers.Main) {
                             _autoRetryAttempt.value = retryAttempt
                             // [T-android-retry-badge] No red "<error> — retrying (n/3)…"
@@ -12802,8 +12932,8 @@ class ChatViewModel(
                         if (healed) {
                             AppLogger.warning(
                                 TAG,
-                                "[OverflowSelfHeal] GH#352 context-length 400 — offloaded the " +
-                                    "largest history part and retrying. detail=" +
+                                ("[OverflowSelfHeal] GH#352 context-length 400 — offloaded the ") +
+                                    ("largest history part and retrying. detail=") +
                                     (overflowErr?.detail?.take(200) ?: ""),
                             )
                             // [T-silence-auto-notices] No chat notice: the
@@ -12820,8 +12950,8 @@ class ChatViewModel(
                         }
                         AppLogger.warning(
                             TAG,
-                            "[OverflowSelfHeal] GH#352 context-length 400 but nothing was " +
-                                "offloadable — surfacing the original error.",
+                            ("[OverflowSelfHeal] GH#352 context-length 400 but nothing was ") +
+                                ("offloadable — surfacing the original error."),
                         )
                         // Fall through: the user still gets the real reason.
                     }
@@ -12862,8 +12992,8 @@ class ChatViewModel(
                                     triedEntryIds.add(it.entryId)
                                     Log.i(
                                         TAG,
-                                        "🔁 fallback chain refilled — retrying ${it.provider.model.displayName} " +
-                                            "(tried=${triedEntryIds.size} this streak)",
+                                        ("🔁 fallback chain refilled — retrying " + (it.provider.model.displayName).toString() + " ") +
+                                            ("(tried=" + (triedEntryIds.size).toString() + " this streak)"),
                                     )
                                 }
                     }
@@ -12872,13 +13002,13 @@ class ChatViewModel(
                     // stop reason arrives here as this TransientError (provider
                     // failOnSilentEmptyCompletion), after the same-model ladder.
                     if (actual is com.openminis.app.data.model.LLMError.TransientError &&
-                        actual.message?.startsWith("Server returned an empty response") == true
+                        actual.message?.startsWith(("Server returned an empty response")) == true
                     ) {
                         AppLogger.warning(
                             TAG_STREAM,
-                            "[B13-diag] silent empty stream after ${retryAttempt} same-model retries strategy=$loopFallbackStrategy " +
-                                "model=${currentProvider.model.displayName} shouldFallback=$shouldFallback " +
-                                "next=${next?.model?.displayName ?: "none"} queued=${remainingFallbacks.size} tried=${triedEntryIds.size}",
+                            ("[B13-diag] silent empty stream after " + (retryAttempt).toString() + " same-model retries strategy=" + (loopFallbackStrategy).toString() + " ") +
+                                ("model=" + (currentProvider.model.displayName).toString() + " shouldFallback=" + (shouldFallback).toString() + " ") +
+                                ("next=" + (next?.model?.displayName ?: "none").toString() + " queued=" + (remainingFallbacks.size).toString() + " tried=" + (triedEntryIds.size).toString()),
                         )
                     }
                     if (next != null && nextCandidate != null) {
@@ -12899,8 +13029,8 @@ class ChatViewModel(
                         // resolved modelId ACTUALLY changes; an endpoint/instance-
                         // only change must not surface to the UI.
                         val isRealModelChange = next.model.id != currentProvider.model.id
-                        fallbackReasons.add("⚠️ ${currentProvider.model.displayName}: $reason")
-                        Log.i(TAG, "🔀 $reason on ${currentProvider.model.displayName}, switching to ${next.model.displayName} (realModelChange=$isRealModelChange)")
+                        fallbackReasons.add(("⚠️ " + (currentProvider.model.displayName).toString() + ": " + (reason).toString()))
+                        Log.i(TAG, ("🔀 " + (reason).toString() + " on " + (currentProvider.model.displayName).toString() + ", switching to " + (next.model.displayName).toString() + " (realModelChange=" + (isRealModelChange).toString() + ")"))
                         currentProvider = next
                         currentIdentity = providerIdentity(nextCandidate.entryId)
                         // [T-fallback-5xx-status] Fresh same-model budget for the
@@ -12920,7 +13050,7 @@ class ChatViewModel(
                         if (adoptLoopFallbackBinding(nextCandidate, classProviderAtSend, isRealModelChange)) {
                             classProviderAtSend = next
                         }
-                        val infoText = fallbackReasons.joinToString("\n") + "\n🔄 Switched to ${currentProvider.model.displayName}"
+                        val infoText = fallbackReasons.joinToString("\n") + ("\n🔄 Switched to " + (currentProvider.model.displayName).toString())
                         allToolBlocks.removeAll { it.kind == "info" }
                         allToolBlocks.add(0, AssistantBlock(
                             id = "fallback_info_$turn",
@@ -12968,7 +13098,7 @@ class ChatViewModel(
                             if (fallbackReasons.isNotEmpty() || skipped.isNotEmpty()) {
                                 val trail = (fallbackReasons + skipped).joinToString("\n")
                                 val finalDesc = actual.message ?: actual.toString()
-                                throw com.openminis.app.data.model.LLMError.ProviderError("$trail\n$finalDesc")
+                                throw com.openminis.app.data.model.LLMError.ProviderError(((trail).toString() + "\n" + (finalDesc).toString()))
                             }
                         }
                         throw actual  // re-throw unwrapped, all fallbacks exhausted
@@ -12994,8 +13124,8 @@ class ChatViewModel(
                 val refusedIds = toolCalls.map { it.first }.toSet()
                 AppLogger.warning(
                     TAG_STREAM,
-                    "Refused response carried ${toolCalls.size} tool call(s) " +
-                        "[${toolCalls.joinToString(",") { it.second }}] — dropped, not executed",
+                    ("Refused response carried " + (toolCalls.size).toString() + " tool call(s) ") +
+                        ("[" + (toolCalls.joinToString(",") { it.second }).toString() + "] — dropped, not executed"),
                 )
                 allToolBlocks.removeAll { it.kind == "tool_use" && it.id in refusedIds }
                 toolCalls.clear()
@@ -13045,15 +13175,15 @@ class ChatViewModel(
             if (turnText.isEmpty() && toolCalls.isEmpty()) {
                 AppLogger.warning(
                     TAG_STREAM,
-                    "empty turn detected: turn=$turn finishReason=$turnFinishReason " +
-                        "reasoningLen=${turnThinking.length} reasoningBlobLen=${turnReasoningBlob?.length ?: -1} " +
-                        "model=${provider.model.id} provider=${provider.name}"
+                    ("empty turn detected: turn=" + (turn).toString() + " finishReason=" + (turnFinishReason).toString() + " ") +
+                        ("reasoningLen=" + (turnThinking.length).toString() + " reasoningBlobLen=" + (turnReasoningBlob?.length ?: -1).toString() + " ") +
+                        ("model=" + (provider.model.id).toString() + " provider=" + (provider.name).toString())
                 )
             }
 
             // If no tool calls, we're done
             if (toolCalls.isEmpty()) {
-                AppLogger.info(TAG_STREAM, "runAgentLoop turn=$turn no tool calls → break (finishReason=$turnFinishReason)")
+                AppLogger.info(TAG_STREAM, ("runAgentLoop turn=" + (turn).toString() + " no tool calls → break (finishReason=" + (turnFinishReason).toString() + ")"))
                 // [T-android-dsml-leak] DeepSeek wrote its tool call while still
                 // thinking: the markup and the argument body landed in
                 // reasoning_content, tool_calls is empty and the turn "stopped".
@@ -13081,10 +13211,10 @@ class ChatViewModel(
                             dsmlLeakRetries = step.attempt
                             AppLogger.warning(
                                 TAG_STREAM,
-                                "[dsml-leak] turn=$turn retry=${step.attempt}/${DsmlLeak.MAX_RETRIES} marker=$dsmlMarker " +
-                                    "completion=$completionTokens reasoning=$reasoningTokens gap=$gap " +
-                                    "reasoningLen=${dsmlReasoning.length} finishReason=$turnFinishReason " +
-                                    "model=${provider.model.id} — resending the same request",
+                                ("[dsml-leak] turn=" + (turn).toString() + " retry=" + (step.attempt).toString() + "/" + (DsmlLeak.MAX_RETRIES).toString() + " marker=" + (dsmlMarker).toString() + " ") +
+                                    ("completion=" + (completionTokens).toString() + " reasoning=" + (reasoningTokens).toString() + " gap=" + (gap).toString() + " ") +
+                                    ("reasoningLen=" + (dsmlReasoning.length).toString() + " finishReason=" + (turnFinishReason).toString() + " ") +
+                                    ("model=" + (provider.model.id).toString() + " — resending the same request"),
                             )
                             withContext(Dispatchers.Main) {
                                 updateAssistantMessage(assistantId, accumulatedText, true, allToolBlocks)
@@ -13094,9 +13224,9 @@ class ChatViewModel(
                         DsmlLeak.Step.GiveUp -> {
                             AppLogger.warning(
                                 TAG_STREAM,
-                                "[dsml-leak] turn=$turn retries exhausted (${DsmlLeak.MAX_RETRIES}) marker=$dsmlMarker " +
-                                    "completion=$completionTokens reasoning=$reasoningTokens gap=$gap " +
-                                    "model=${provider.model.id} — stopping with a notice, Resume offered",
+                                ("[dsml-leak] turn=" + (turn).toString() + " retries exhausted (" + (DsmlLeak.MAX_RETRIES).toString() + ") marker=" + (dsmlMarker).toString() + " ") +
+                                    ("completion=" + (completionTokens).toString() + " reasoning=" + (reasoningTokens).toString() + " gap=" + (gap).toString() + " ") +
+                                    ("model=" + (provider.model.id).toString() + " — stopping with a notice, Resume offered"),
                             )
                             withContext(Dispatchers.Main) {
                                 updateAssistantMessage(assistantId, accumulatedText, false, allToolBlocks)
@@ -13169,8 +13299,8 @@ class ChatViewModel(
                 if (turnFinishReason == null && turnHasText && !closingRequestDue) {
                     AppLogger.warning(
                         TAG_STREAM,
-                        "stream closed without a finish reason after ${accumulatedText.length} chars — " +
-                            "surfacing as an interrupted reply (turn=$turn)",
+                        ("stream closed without a finish reason after " + (accumulatedText.length).toString() + " chars — ") +
+                            ("surfacing as an interrupted reply (turn=" + (turn).toString() + ")"),
                     )
                     withContext(Dispatchers.Main) {
                         setInlineError(
@@ -13203,8 +13333,8 @@ class ChatViewModel(
                 if (com.openminis.app.provider.StopReasons.isRefusal(turnFinishReason)) {
                     AppLogger.warning(
                         TAG_STREAM,
-                        "Agent loop ended with stop_reason=$turnFinishReason — model declined the request " +
-                            "(turn=$turn model=${provider.model.id} provider=${provider.name} textLen=${accumulatedText.length})",
+                        ("Agent loop ended with stop_reason=" + (turnFinishReason).toString() + " — model declined the request ") +
+                            ("(turn=" + (turn).toString() + " model=" + (provider.model.id).toString() + " provider=" + (provider.name).toString() + " textLen=" + (accumulatedText.length).toString() + ")"),
                     )
                     // [FIX-261018-12] Name the provider's category and append its
                     // explanation; no Resume — resuming re-sends the same context
@@ -13241,9 +13371,9 @@ class ChatViewModel(
                 if (com.openminis.app.provider.StopReasons.isMaxTokens(turnFinishReason) && !closingRequestDue) {
                     AppLogger.warning(
                         TAG_STREAM,
-                        "Agent loop ended at max_tokens with no tool calls " +
-                            "(stop_reason=$turnFinishReason turn=$turn textLen=${accumulatedText.length} " +
-                            "reasoningLen=${turnThinking.length} model=${provider.model.id})",
+                        ("Agent loop ended at max_tokens with no tool calls ") +
+                            ("(stop_reason=" + (turnFinishReason).toString() + " turn=" + (turn).toString() + " textLen=" + (accumulatedText.length).toString() + " ") +
+                            ("reasoningLen=" + (turnThinking.length).toString() + " model=" + (provider.model.id).toString() + ")"),
                     )
                     withContext(Dispatchers.Main) {
                         setInlineError(context.getString(R.string.chat_error_max_tokens_truncated))
@@ -13290,11 +13420,11 @@ class ChatViewModel(
                     // provider, which differs after a fallback or a model switch.
                     AppLogger.warning(
                         TAG_STREAM,
-                        "[B13-diag] empty turn turn=$turn strategy=$loopFallbackStrategy " +
-                            "group=${_selectedGroupId.value?.take(8) ?: "none"} entry=${_activeEntryId.value?.take(8) ?: "?"} " +
-                            "model=${currentProvider.model.displayName} startModel=${provider.model.displayName} " +
-                            "reminderSpent=$didInjectEmptyToolReminder queued=${remainingFallbacks.size} tried=${triedEntryIds.size} " +
-                            "helper=${helperConfig != null} closingDue=$closingRequestDue finish=$turnFinishReason",
+                        ("[B13-diag] empty turn turn=" + (turn).toString() + " strategy=" + (loopFallbackStrategy).toString() + " ") +
+                            ("group=" + (_selectedGroupId.value?.take(8) ?: "none").toString() + " entry=" + (_activeEntryId.value?.take(8) ?: "?").toString() + " ") +
+                            ("model=" + (currentProvider.model.displayName).toString() + " startModel=" + (provider.model.displayName).toString() + " ") +
+                            ("reminderSpent=" + (didInjectEmptyToolReminder).toString() + " queued=" + (remainingFallbacks.size).toString() + " tried=" + (triedEntryIds.size).toString() + " ") +
+                            ("helper=" + (helperConfig != null).toString() + " closingDue=" + (closingRequestDue).toString() + " finish=" + (turnFinishReason).toString()),
                     )
                     // [T-android-empty-after-toolresult-reminder] Special case: the
                     // server returned an empty turn right after a tool result. The
@@ -13320,7 +13450,7 @@ class ChatViewModel(
                     fun injectEmptyTurnReminder(): Boolean = when (plan) {
                         is EmptyTurnRecovery.Plan.NudgeExistingPart -> {
                             didInjectEmptyToolReminder = true
-                            AppLogger.warning(TAG_STREAM, "empty turn — nudging tail part (isToolResult=${plan.isToolResult}) and retrying one round (turn=$turn)")
+                            AppLogger.warning(TAG_STREAM, ("empty turn — nudging tail part (isToolResult=" + (plan.isToolResult).toString() + ") and retrying one round (turn=" + (turn).toString() + ")"))
                             // Drop the empty assistant turn we just appended.
                             agentHistory.removeAt(agentHistory.size - 1)
                             val tail = agentHistory[plan.tailIndex]
@@ -13335,7 +13465,7 @@ class ChatViewModel(
                         }
                         is EmptyTurnRecovery.Plan.AppendStandalone -> {
                             didInjectEmptyToolReminder = true
-                            AppLogger.warning(TAG_STREAM, "empty turn (user tail, no appendable part) — appending standalone <system-reminder> and retrying (turn=$turn)")
+                            AppLogger.warning(TAG_STREAM, ("empty turn (user tail, no appendable part) — appending standalone <system-reminder> and retrying (turn=" + (turn).toString() + ")"))
                             agentHistory.removeAt(agentHistory.size - 1)
                             agentHistory.add(
                                 LLMMessage(
@@ -13382,12 +13512,12 @@ class ChatViewModel(
                         val reasoningOnly = !turnReasoningContent.isNullOrEmpty() || turnThinking.isNotEmpty()
                         val reason = EmptyTurnFallback.trailReason(reasoningOnly, afterReminder = reminderAlreadySent)
                         val isRealModelChange = next.model.id != currentProvider.model.id
-                        fallbackReasons.add("⚠️ ${currentProvider.model.displayName}: $reason")
+                        fallbackReasons.add(("⚠️ " + (currentProvider.model.displayName).toString() + ": " + (reason).toString()))
                         AppLogger.warning(
                             TAG_STREAM,
-                            "🔀 empty turn on ${currentProvider.model.displayName}, switching to ${next.model.displayName} " +
-                                "(route=$emptyRoute strategy=$loopFallbackStrategy reasoningOnly=$reasoningOnly " +
-                                "spent=${emptyStreakEntryIds.size} turn=$turn)",
+                            ("🔀 empty turn on " + (currentProvider.model.displayName).toString() + ", switching to " + (next.model.displayName).toString() + " ") +
+                                ("(route=" + (emptyRoute).toString() + " strategy=" + (loopFallbackStrategy).toString() + " reasoningOnly=" + (reasoningOnly).toString() + " ") +
+                                ("spent=" + (emptyStreakEntryIds.size).toString() + " turn=" + (turn).toString() + ")"),
                         )
                         currentProvider = next
                         currentIdentity = providerIdentity(emptyNext.entryId)
@@ -13401,7 +13531,7 @@ class ChatViewModel(
                         if (adoptLoopFallbackBinding(emptyNext, classProviderAtSend, isRealModelChange)) {
                             classProviderAtSend = next
                         }
-                        val infoText = fallbackReasons.joinToString("\n") + "\n🔄 Switched to ${next.model.displayName}"
+                        val infoText = fallbackReasons.joinToString("\n") + ("\n🔄 Switched to " + (next.model.displayName).toString())
                         allToolBlocks.removeAll { it.kind == "info" }
                         allToolBlocks.add(0, AssistantBlock(
                             id = "fallback_info_$turn",
@@ -13420,10 +13550,10 @@ class ChatViewModel(
                     // [B13-diag] Logging only.
                     AppLogger.warning(
                         TAG_STREAM,
-                        "[B13-diag] empty turn give-up turn=$turn strategy=$loopFallbackStrategy " +
-                            "model=${currentProvider.model.displayName} reminderSpent=$didInjectEmptyToolReminder " +
-                            "queued=${remainingFallbacks.size} spent=${emptyStreakEntryIds.size} closingDue=$closingRequestDue " +
-                            "inGroup=$inGroup — no member left",
+                        ("[B13-diag] empty turn give-up turn=" + (turn).toString() + " strategy=" + (loopFallbackStrategy).toString() + " ") +
+                            ("model=" + (currentProvider.model.displayName).toString() + " reminderSpent=" + (didInjectEmptyToolReminder).toString() + " ") +
+                            ("queued=" + (remainingFallbacks.size).toString() + " spent=" + (emptyStreakEntryIds.size).toString() + " closingDue=" + (closingRequestDue).toString() + " ") +
+                            ("inGroup=" + (inGroup).toString() + " — no member left"),
                     )
                     val window = effectiveContextWindowTokens()
                     val usedCtx = lastUsage?.latestContextTokens ?: 0
@@ -13719,7 +13849,7 @@ class ChatViewModel(
                                 append("your client sent was cut short and would have written an incomplete file")
                                 if (path.isNotBlank()) append(" to $path")
                                 append(". Nothing was written to disk — the target file is unchanged.\n\n")
-                                append("The most likely cause is the response hitting its output-token limit ")
+                                append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.47007d4b19a6", "The most likely cause is the response hitting its output-token limit "))
                                 append("mid-argument. Re-issue this write in smaller pieces: write the first ")
                                 append("part, then append the rest with follow-up calls, rather than repeating ")
                                 append("the same oversized call.")
@@ -14286,7 +14416,7 @@ class ChatViewModel(
         val cap = helperConfig?.maxTurns ?: MAX_AGENT_TURNS
         setInlineError(
             if (helperConfig != null)
-                "The agent stopped after its $cap tool rounds without a final answer."
+                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.da4eb12b4954", "The agent stopped after its {{slot0}} tool rounds without a final answer.", mapOf("slot0" to (cap).toString()))
             else
                 "Stopped after $cap agent turns to prevent runaway " +
                     "tool use. The model kept calling tools without finishing — tap " +
@@ -14414,7 +14544,7 @@ class ChatViewModel(
                         com.openminis.app.agent.jobs.HelperRunner.rejectionJson(
                             "tools_disabled",
                             "Agents are turned off in this app's settings; delegate_task cannot be used. " +
-                                "Do not try it again in this conversation.",
+                                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.9c2c5d448b55", "Do not try it again in this conversation."),
                         ),
                         false,
                     )
@@ -14645,7 +14775,7 @@ class ChatViewModel(
             val detail = if (overTurnAllowance) {
                 "More than $turnLimit delegations in one turn. This task is QUEUED and will " +
                     "start automatically as slots free; its result arrives as a new message like any other. " +
-                    "Do not re-delegate it."
+                    com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.1f5c220e8d50", "Do not re-delegate it.")
             } else {
                 "All ${com.openminis.app.agent.jobs.AgentJobRegistry.maxConcurrentChildJobsPerParent} sub agent " +
                     "slots of this conversation are busy. " +
@@ -15864,8 +15994,7 @@ class ChatViewModel(
     private fun toolDisabledResult(name: String): ToolExecutionResult =
         ToolExecutionResult(
             "The $name tool is disabled in this app's settings and cannot be used. " +
-                "Do not try it again in this conversation; continue without it, " +
-                "or tell the user it is turned off if the task requires it.",
+                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.fc2277c094b6", "Do not try it again in this conversation; continue without it, or tell the user it is turned off if the task requires it."),
             false,
         )
 
@@ -16520,10 +16649,8 @@ class ChatViewModel(
         // aren't reachable when the user asks. The fragment / tool dual
         // gate is symmetrical: enable both or disable both, never mismatch.
         val memoryOn = _memoryEnabled.value
-        val toolListMemoryBullets = if (memoryOn) {
-            """
-${com.openminis.app.agent.jobs.HelperRunner.systemPromptBullet(!isHelper && com.openminis.app.agent.jobs.AgentSettings.isEnabled(context))}${subAgentRosterPromptSection()}- memory_write: Save a memory entry to today's daily log (YYYY-MM-DD.md). Use proactively to note user preferences, project patterns, and important context.
-- memory_get: Recall memories with keyword search. Check memory at the start of new topics to leverage past knowledge."""
+        val memoryToolBullets = if (memoryOn) {
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.ccd29e06a9ab", "\n{{slot0}}{{slot1}}- memory_write: Save a memory entry to today's daily log (YYYY-MM-DD.md). Use proactively to note user preferences, project patterns, and important context.\n- memory_get: Recall memories with keyword search. Check memory at the start of new topics to leverage past knowledge.", mapOf("slot0" to ("").toString(), "slot1" to ("").toString()))
         } else {
             // Empty — no memory_write / memory_get bullets when disabled.
             // The "Memory system:" section below also collapses, so the
@@ -16531,25 +16658,13 @@ ${com.openminis.app.agent.jobs.HelperRunner.systemPromptBullet(!isHelper && com.
             // tools it can't actually call.
             ""
         }
+        val toolListMemoryBullets = "\n" +
+            com.openminis.app.agent.jobs.HelperRunner.systemPromptBullet(!isHelper && com.openminis.app.agent.jobs.AgentSettings.isEnabled(context)) +
+            subAgentRosterPromptSection() + memoryToolBullets
         val memorySystemSection = if (memoryOn) {
-            """
-
-Memory system (currently ENABLED):
-- memory_write writes to today's daily log (YYYY-MM-DD.md) — use it for session notes, key facts, project context, things learned, and action items.
-- GLOBAL.md (/var/minis/memory/GLOBAL.md) stores persistent preferences, settings, and general-purpose conventions. To read it, use file_read (NOT memory_get). To update it, use file_read first then file_edit. If GLOBAL.md does not exist yet, use file_write to create it directly.
-- IMPORTANT: Only write to GLOBAL.md when the user explicitly asks (e.g. 'remember this globally', 'save to global memory'). Before editing, deduplicate and clean up — avoid ambiguity, repetition, or daily-log-style entries. GLOBAL.md should contain only concise, reusable knowledge (preferences, settings, conventions), NOT session logs or transient context.
-- Use memory_get to recall past knowledge before starting tasks — check if there are relevant memories that can help.
-- Proactively save memories (via memory_write to daily log) when you discover user preferences or important patterns — don't wait to be asked.
-- When the user says 'remember this' or similar, use memory_write to persist to the daily log. Only write to GLOBAL.md if the user specifically asks for global/persistent storage.
-- What NOT to remember: passwords, API keys, tokens, secrets, or any sensitive credentials. Warn the user about the risk first; only proceed if they explicitly confirm.
-- Keep memories concise, factual, and general-purpose — avoid noise that won't be useful later."""
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.127083b860d2", "\n\nMemory system (currently ENABLED):\n- memory_write writes to today's daily log (YYYY-MM-DD.md) — use it for session notes, key facts, project context, things learned, and action items.\n- GLOBAL.md (/var/minis/memory/GLOBAL.md) stores persistent preferences, settings, and general-purpose conventions. To read it, use file_read (NOT memory_get). To update it, use file_read first then file_edit. If GLOBAL.md does not exist yet, use file_write to create it directly.\n- IMPORTANT: Only write to GLOBAL.md when the user explicitly asks (e.g. 'remember this globally', 'save to global memory'). Before editing, deduplicate and clean up — avoid ambiguity, repetition, or daily-log-style entries. GLOBAL.md should contain only concise, reusable knowledge (preferences, settings, conventions), NOT session logs or transient context.\n- Use memory_get to recall past knowledge before starting tasks — check if there are relevant memories that can help.\n- Proactively save memories (via memory_write to daily log) when you discover user preferences or important patterns — don't wait to be asked.\n- When the user says 'remember this' or similar, use memory_write to persist to the daily log. Only write to GLOBAL.md if the user specifically asks for global/persistent storage.\n- What NOT to remember: passwords, API keys, tokens, secrets, or any sensitive credentials. Warn the user about the risk first; only proceed if they explicitly confirm.\n- Keep memories concise, factual, and general-purpose — avoid noise that won't be useful later.")
         } else {
-            """
-
-Memory system (currently DISABLED):
-- The user has turned OFF memory injection and memory tools for this session. GLOBAL.md and recent daily logs are NOT included in this prompt, and the memory_write / memory_get tools are NOT available — do not attempt to call them.
-- If the user asks why earlier memories aren't visible, or asks you to save something, tell them memory is currently disabled and point them at the /memory slash command or [Settings → Memory](minis://settings/memory) to re-enable it.
-- The configured application system prompt and identity are unaffected by this toggle; manage them in Settings → System Prompt (系统提示词)."""
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.0c4d612cd27d", "\n\nMemory system (currently DISABLED):\n- The user has turned OFF memory injection and memory tools for this session. GLOBAL.md and recent daily logs are NOT included in this prompt, and the memory_write / memory_get tools are NOT available — do not attempt to call them.\n- If the user asks why earlier memories aren't visible, or asks you to save something, tell them memory is currently disabled and point them at the /memory slash command or [Settings → Memory](minis://settings/memory) to re-enable it.\n- The configured application system prompt and identity are unaffected by this toggle; manage them in Settings → System Prompt (系统提示词).")
         }
         // [T-tools-granular-switches] The prompt must not advertise a tool the
         // schema does not carry. With browser_use switched off, the model would
@@ -16573,13 +16688,12 @@ Memory system (currently DISABLED):
         val delegationOffered = !isHelper &&
             com.openminis.app.agent.jobs.AgentSettings.isEnabled(context)
         val scheduledDelegateNote = if (delegationOffered) {
-            " (Do NOT run minis-scheduled to delegate work you could hand to subagent_task.)"
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.0faf9cd93237", " (Do NOT run minis-scheduled to delegate work you could hand to subagent_task.)")
         } else ""
         val modelUseDelegateNote = if (delegationOffered) {
-            " For delegating a whole task that needs tools and multiple rounds, use the subagent_task tool instead."
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.52bf0b770db4", " For delegating a whole task that needs tools and multiple rounds, use the subagent_task tool instead.")
         } else ""
-        val browserPromptBullet = if (browserToolEnabled) """- browser_use: Web browsing (navigate, screenshot, click, type, get_text, scroll, scroll_and_collect, get_readable, get_backbone, fetch, etc.). Starts with a desktop Chrome user agent. Use screenshot to see the page.
-  当 browser_use 触达 Google 登录 / OAuth 页（accounts.google.com、signin.google.com、myaccount.google.com、oauth2.googleapis.com 等）或网页返回 "disallowed_useragent" / 403 包含 "browser is not secure" 字样时，**不要重试或尝试登录** — Google 永久禁止 in-app WebView 完成登录，重试只会浪费 turn。改为告诉用户："此页面需要在系统 Chrome 完成登录" 并给出可点击的 Markdown link [在 Chrome 中打开](https://accounts.google.com/...)。点该 link 时 app 会跳出 Custom Tab；用户在 Chrome 完成操作后，请他**把所需结果（邮件正文 / 文档摘要 / 表格数据）粘贴回 chat**，你再继续帮他处理。这是 Android 平台限制，不是 bug。${toolListMemoryBullets}""" else ""
+        val browserPromptBullet = if (browserToolEnabled) com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.ff7f3cfcdd09", "- browser_use: Web browsing (navigate, screenshot, click, type, get_text, scroll, scroll_and_collect, get_readable, get_backbone, fetch, etc.). Starts with a desktop Chrome user agent. Use screenshot to see the page.\n  当 browser_use 触达 Google 登录 / OAuth 页（accounts.google.com、signin.google.com、myaccount.google.com、oauth2.googleapis.com 等）或网页返回 \"disallowed_useragent\" / 403 包含 \"browser is not secure\" 字样时，**不要重试或尝试登录** — Google 永久禁止 in-app WebView 完成登录，重试只会浪费 turn。改为告诉用户：\"此页面需要在系统 Chrome 完成登录\" 并给出可点击的 Markdown link [在 Chrome 中打开](https://accounts.google.com/...)。点该 link 时 app 会跳出 Custom Tab；用户在 Chrome 完成操作后，请他**把所需结果（邮件正文 / 文档摘要 / 表格数据）粘贴回 chat**，你再继续帮他处理。这是 Android 平台限制，不是 bug。{{slot0}}", mapOf("slot0" to ("").toString())) else ""
         // [T-port-user-ask] The only user_ask text in the system prompt, and
         // only when the tool is in this run (iOS 92e19f6ae). Everything else
         // travels with the tool definition itself.
@@ -16588,104 +16702,12 @@ Memory system (currently DISABLED):
             browserPromptBullet.isEmpty() -> com.openminis.app.agent.userask.UserAskPromptText.TOOL_LIST_LINE
             else -> "\n" + com.openminis.app.agent.userask.UserAskPromptText.TOOL_LIST_LINE
         }
-        val minisUrlNote = if (browserToolEnabled) """IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT pass minis:// action URLs (open_terminal, views, settings) to browser_use — those are app deep links, use Markdown links in chat instead. However, minis:// resource URLs CAN be opened in browser_use with navigate. All directories under /var/minis/ are accessible: workspace, attachments, offloads, shared, etc. The built-in browser fully supports minis:// — HTML pages and all sub-resources (JS, CSS, images, fonts, etc.) referenced via minis:// absolute URLs or relative paths resolve correctly within the current session. When building multi-file web projects, use file_write to create files in the same directory (e.g. /var/minis/workspace/myapp/), then reference sub-resources with relative paths in HTML (e.g. <link href="style.css">, <script src="app.js">, <img src="logo.png">). The browser resolves relative paths against the minis:// base URL automatically. Cross-directory references also work with absolute minis:// URLs (e.g. <img src="minis://attachments/photo.png"> from a workspace HTML page). Navigate to the entry HTML to preview, e.g. minis://workspace/myapp/index.html.""" else """IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT treat minis:// action URLs (open_terminal, views, settings) as web links — those are app deep links, use Markdown links in chat instead."""
+        val minisUrlNote = if (browserToolEnabled) com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.2b654853fc87", "IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT pass minis:// action URLs (open_terminal, views, settings) to browser_use — those are app deep links, use Markdown links in chat instead. However, minis:// resource URLs CAN be opened in browser_use with navigate. All directories under /var/minis/ are accessible: workspace, attachments, offloads, shared, etc. The built-in browser fully supports minis:// — HTML pages and all sub-resources (JS, CSS, images, fonts, etc.) referenced via minis:// absolute URLs or relative paths resolve correctly within the current session. When building multi-file web projects, use file_write to create files in the same directory (e.g. /var/minis/workspace/myapp/), then reference sub-resources with relative paths in HTML (e.g. <link href=\"style.css\">, <script src=\"app.js\">, <img src=\"logo.png\">). The browser resolves relative paths against the minis:// base URL automatically. Cross-directory references also work with absolute minis:// URLs (e.g. <img src=\"minis://attachments/photo.png\"> from a workspace HTML page). Navigate to the entry HTML to preview, e.g. minis://workspace/myapp/index.html.") else com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.c5f09b38aa1a", "IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT treat minis:// action URLs (open_terminal, views, settings) as web links — those are app deep links, use Markdown links in chat instead.")
         // [T-prompt-file-search-rg] The "File search" bullet below is the single
         // place for finding files and searching their contents, and steers the
         // model to rg (not in the default rootfs, hence the install-once step).
         // Mirrors iOS AIChatViewModel.baseSystemPrompt.
-        val base = identitySection + """You should proactively use shell commands to accomplish the user's tasks — installing packages (apt-get install), writing and running scripts, managing files, networking, and any other operations a Linux terminal can perform.
-
-Available tools:
-- shell_execute: Run any shell command. Each invocation is an isolated process with stdout/stderr captured. Prefer this for most tasks — it is a real Linux environment with persistent filesystem. Common tools (python3, pip, curl, wget, git, ssh, etc.) can be installed via apt-get update && apt-get install -y; Python packages in a venv via pip install. Use `which <cmd>` to check if a tool is already installed before running apt-get install — many packages persist across sessions. When you need to wait before checking results (e.g. polling, waiting for a process), use the `delay` parameter instead of `sleep` in the command — delay blocks the agent flow without occupying the shell, so other concurrent tasks can use it during the wait. This avoids resource contention. Execution discipline for long-running or dispatched work: make tool calls immediately instead of describing intentions, and keep working until the task is complete. Within a turn, `delay` is your wait mechanism — to follow up on something still running, chain delay-then-check calls at a task-appropriate interval until you have the result or hit a sensible retry cap. For a check that should happen AFTER this turn ends, register it by running `minis-scheduled create …` via shell_execute (see the CLI list) — it fires a new turn at the scheduled time through a system alarm. NEVER end a turn with a promise of future action: 'I'll keep monitoring', 'will sync the result later', and ending right after a single still-running status check with 'let's keep waiting' are all the same violation — once your turn ends, NOTHING runs until the user's next message. If polling to completion is genuinely not worth blocking the turn, close honestly instead: either register a `minis-scheduled` follow-up (say so, with its task id) or state that you will only learn the outcome when the user next messages; see 'Scheduled tasks' later in this prompt.
-- file_read: Read file contents (faster than cat).
-- file_write: Create new files or overwrite existing files (faster than echo/tee).
-- file_edit: Edit existing files with exact string replacement (old_string → new_string). Preferred over file_write for modifications — always file_read first.
-${browserPromptBullet}${userAskPromptLine}
-
-Shared directory /var/minis/ (bidirectional read/write between shell and app):
-  /var/minis/attachments/ — Media files (images, audio, video). Display inline with ![desc](minis://attachments/filename).
-  /var/minis/workspace/   — Working files (scripts, data, configs). Link with [name](minis://workspace/filename).
-  /var/minis/offloads/    — Auto-saved large outputs. Read with file_read.
-  /var/minis/browser/     — Browser screenshots and extracts.
-  /var/minis/shared/      — Cross-session shared storage for artifacts and documents. Organize by project or topic (e.g. shared/myproject/, shared/datasets/). Do NOT store temporary files here.
-  /var/minis/memory/GLOBAL.md    — Persistent global memory (writable: the user edits it in Settings, and you may update it when the user asks).
-  /var/minis/memory/YYYY-MM-DD.md — Daily memory log.
-  /var/minis/mounts/<name>/      — User-mounted external folders from Settings → Mount External Folders. Presence and names vary per user; check this directory first when the task references external/user files. Some mounts may be read-only — file_write / file_edit will reject writes with a clear error message.
-
-The minis:// URL scheme:
-  minis://attachments/file.png  →  /var/minis/attachments/file.png
-  minis://workspace/data.csv    →  /var/minis/workspace/data.csv
-  minis://shared/project/f.txt  →  /var/minis/shared/project/f.txt
-
-${minisUrlNote}
-To display a minis:// URL in chat, write it as a Markdown link or image (e.g. [name](minis://...)) — the app handles it when the user taps it.
-IMPORTANT: minis:// URLs MUST be percent-encoded. Non-ASCII characters (Chinese, emoji, spaces, etc.) in filenames will break Markdown rendering if not encoded. Use the minis_url from tool results directly — it is already encoded. If you construct a minis:// URL manually, percent-encode the filename (e.g. %E4%B8%AD%E6%96%87 for non-ASCII characters).
-When you write files to /var/minis/, the tool result includes a minis_url you can embed directly in Markdown.
-Inline media — use the ![desc](minis://...) image syntax for ALL of images, audio, AND video. The same ![]() syntax renders an inline audio player or video player, not just images:
-  - Images: ![chart](minis://attachments/chart.png)   → inline image (.png/.jpg/.gif/.webp)
-  - Audio:  ![song](minis://attachments/song.mp3)     → inline audio player (.mp3/.m4a/.wav)
-  - Video:  ![clip](minis://attachments/clip.mp4)     → inline video player (.mp4/.mov/.m4v)
-Do NOT use the [text](url) link form for audio/video when you want them to play inline — that only produces a tappable link. Use ![]() to embed an actual player.
-For non-media files, use Markdown links: [filename](minis://workspace/filename).
-Tappable link previews: text/code (.py/.json/.md/etc), images, audio, video, HTML, and PDF files open native previews when the user taps a [name](minis://...) link.
-Use Markdown links for all non-media minis:// files — the user can tap to preview them directly in chat.
-
-File creation guidelines:
-- Use file_write to CREATE new files. Use file_edit to MODIFY existing files. The default shell is Ubuntu /bin/sh (dash): heredoc syntax (cat << EOF, python3 << 'EOF') may mis-parse braces, quotes, or special characters and execute abnormally — avoid it whenever possible, and prefer file_write over echo/printf for writing file contents. When you hit escaping or parsing errors with long inline content, write the content to a file first (file_write), then pass or execute the file (e.g. `python3 /tmp/script.py`).
-- file_write and file_edit are atomic, preserve formatting, and make it easy to fix errors or update content later.
-- shell_execute is for RUNNING commands, not for writing files.
-- shell_execute supports multi-line commands directly — quoting and special characters are handled automatically. However, commands MUST NOT exceed 1000 characters. If longer, write a script file with file_write first, then run it.
-- ICMP is blocked by the PRoot sandbox — `ping` will hang indefinitely. Use `curl` or `wget` to test network connectivity instead.
-- Also (/bin/sh dash, NOT bash unless explicitly invoked): brace expansion ({a,b,c}) and bash arrays (arr=(...), ${'$'}{arr[@]}) are unsupported — use space-separated strings with a for loop or multiple arguments instead.
-- Python packages: use Ubuntu packages when suitable: `apt-cache search python3-<name>` then `apt-get install -y python3-numpy python3-pandas python3-matplotlib python3-pil python3-scipy python3-requests`. Ubuntu 24.04 uses an externally-managed system Python; for PyPI create a venv with `python3 -m venv <path>` (install python3-venv first) and run its pip, rather than overriding the system Python. For matplotlib, always set `matplotlib.use('Agg')` before importing pyplot — there is no display server in the sandbox.
-- Java: install a JDK with `apt-get install -y openjdk-21-jdk-headless` (or openjdk-17-jdk-headless for older projects). JDK 8's javac needs the `-d` output directory to exist.
-- Background services: each shell_execute runs in an isolated process. When starting a background server (e.g. `python3 -m http.server &`), you MUST redirect stdout/stderr to avoid SIGPIPE when the shell exits: `python3 -m http.server 8765 > /dev/null 2>&1 &`. Without redirection the server dies silently after the command finishes.
-- File search & text scanning: use ripgrep (`rg`) for EVERY scan of files — finding names, keyword/regex search, field extraction, log analysis — on one file or a whole tree. Never use grep/awk/sed/find here, rg is far faster. Contents: `rg -n 'pattern' <dir>` (`-i` ignore case, `-w` whole word, `-F` literal, `-l` file names only, `-t py` or `-g '*.md'` to filter files). File names: `rg --files <dir> -g '*.pdf'`, or `rg --files <dir> | rg 'name'`. rg skips hidden, .gitignored and binary files by default; add `-uuu` to search everything. If `which rg` finds nothing, install it once with `apt-get update && apt-get install -y ripgrep`. `**` recursive glob (globstar) is not supported by the shell — use rg instead. When looking for user files, do NOT scan the whole filesystem: search /var/minis/ first (workspace/attachments/shared for the current session, mounts/* for user-provided external folders), and widen the scope only if the file is clearly not there.
-
-Tool call style:
-- Default: do not narrate routine, low-risk tool calls — just call the tool directly.
-- Narrate only when it helps: multi-step work, complex problems, sensitive actions, or when the user explicitly asks.
-- Keep narration brief and value-dense; avoid repeating obvious steps.
-- When a tool exists for an action, use it directly instead of explaining what you plan to do.
-- Use reasonable defaults and contextual inference to fill in missing details (e.g. 'tonight' means today, 'remind me' implies creating a reminder immediately). Only ask for clarification when genuinely ambiguous.
-
-Tone and style:
-- Reply in the language that best matches the user's input. Only switch languages when the user explicitly asks.
-- Be concise. Prefer action over explanation — when the user asks for something that can be done via shell, do it directly.
-
-Android framework commands (available to run via shell_execute):
-CLI tools at /usr/local/bin with the `android-` prefix give you access to Android framework capabilities and on-device control. Invoke them from shell_execute like any other binary — they are already on PATH. Each tool prints JSON (or a short human-readable line) and supports --help for full usage. Tools gated by Shizuku or AccessibilityService return permission_denied when not granted — handle that gracefully and point the user at [Settings → Permissions](minis://settings/permissions).
-- android-alarm — schedule alarms/timers in the system Clock app (`schedule <HH:MM> --label <L> [--repeat ONCE|DAILY|WEEKDAYS]`, `timer <seconds> --label <L>`, `open`). Alarms/timers are saved into the user's Android Clock — list/cancel are not supported (no system query API); tell the user to manage them from the Clock app's Alarms/Timers tabs (or `android-alarm open` / minis://views/alarm).
-- android-calendar — read/write the device calendar (`list --start YYYY-MM-DD [--end ...] [--max N]`; `create --title <T> --start <ISO> [--end <ISO>] [--description <D>] [--location <L>] [--all-day]`).
-- android-clipboard — `get | set <text> [--label L] | clear`.
-- android-contacts — `list [--max N] | search <query> [--max N] | get <id> | delete <id>`. Requires READ_CONTACTS (delete also needs WRITE_CONTACTS).
-- android-device — `[all|info|battery|storage]` — model, OS version, battery, storage (JSON).
-- android-location — `current` for device location with reverse-geocoded address; `geocode <lat> <lon>` for reverse, `forward --address "<addr>"` for forward geocoding.
-- android-notification — `send --title <T> [--body <B>] | clear | list [--max N]`. `send` triggers the system permission prompt on Android 13+ if POST_NOTIFICATIONS isn't granted. `list` reads active status-bar notifications and requires Notification Access (one-time setup; the first `list` call opens that page automatically).
-- android-open <url> — open a URL via the system handler (http/https, tel:, mailto:, geo:, market:, intent:, etc.). Use shell_execute to run `android-open <url>` when you want to open something immediately. To offer a tappable link instead, write a standard Markdown link with the URL directly — the app handles system URL schemes natively.
-- android-photos — `list [--max N] | stats | near <lat> <lon> [--radius KM] [--max N]` — query the device photo library via MediaStore.
-- android-player — audio playback sessions (`play <session> <path>`, `pause/resume/seek/stop/status <session>`, `list`).
-- android-speak — device TTS (`<text> [--rate F] [--pitch F] [--volume F]`; `--stop | --status`).
-- android-speech — speech transcription (`transcribe [--engine system|provider|auto] [--source mic|<file>] [--language BCP47] [--duration SEC, max 60] [--max N] [--on-device]`; `listen` is an alias). `--engine provider` uses the Voice Input model instead (audio is uploaded to that service; also takes `--source <audio file>`), `--engine auto` falls back to it when the system recognizer cannot be reached and says `audio_sent_to`; default `--engine system`. Default is the regular recognizer; `--on-device` prefers the on-device one; either falls back to the other once and the result names `recognizer` / `fallback_used`. `languages` lists what the recognizer reports (error `unavailable` when it reports nothing); `status [--probe]` says whether recognition can work and why not. JSON envelope {ok, data|error{code,message}}; non-zero exit on failure. Requires RECORD_AUDIO.
-- android-weather <latitude> <longitude> — Open-Meteo forecast (current + hourly + daily). No API key needed.
-- android-chroot-cli — real Root chroot against the shared Ubuntu rootfs; every chroot command runs as real Root (uid 0), gated by the stored Native Root tri-state: 不允许 refuses; 询问 asks for approval of that exact command (or of creating an interactive session) every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 is a persistent grant only the user can select explicitly, never an automatic promotion. The device's su manager may still prompt separately. `status` and `--help` are read-only (no helper start, not a liveness proof). `exec --command '<command>' --timeout 60` runs in the same rootfs under that gate without switching the global backend. Do not retry to evade a refusal. Chroot approval does not authorize unrelated Android Root commands. Run --help for limits and output details.
-- android-root-cli — native su backend with the same grouped CLI as android-shizuku-cli. The stored Native Root permission is a strict tri-state: 不允许 refuses; 询问 asks for approval of the current request every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 uses the persistent grant until revoked and is selectable only by the user, never promoted automatically. Do not infer permission from a guest uid; an 询问 approval covers only the current request and never changes the stored level. The device's su manager separately controls actual Root access. It does not need Xposed or a running Shizuku service. For a command inside the Ubuntu chroot under the same tri-state (real Root chroot, uid 0), use android-chroot-cli instead.
-- android-shizuku-cli — invoke privileged Android system APIs (package management, settings, system commands) via Shizuku when granted. Curated subcommands return structured JSON; for anything not covered, fall back to `android-shizuku-cli exec <any shell command>` which runs the command via `sh -c` with Shizuku privilege (same surface as `adb shell`). Run with no args (or --help) for the subcommand list.
-- android-a11y-cli — drive system UI (read screen, tap, type, swipe, scroll) via the Android AccessibilityService when enabled. Run with no args (or --help) for the subcommand list.
-- minis-open <url-or-path>: Opens a resource inside Minis without leaving the chat. Accepts http/https URLs (→ built-in WebKit preview) and chat-resource file paths under /var/minis/** (→ built-in file preview, routed by extension: images to the image viewer, .md to markdown preview, .html to HTML preview, .pdf/office docs to QuickLook, audio/video to the media player, else share sheet). Examples: minis-open https://example.com, minis-open /var/minis/workspace/report.md, minis-open /var/minis/attachments/chart.png. Prefer this over android-open for anything that can be previewed in-app so the user doesn't lose conversation context. Run android-open via shell_execute for non-web schemes (tel:, mailto:, geo:, intent:, etc.) or when the user explicitly wants the system handler.
-- minis-sessions-cli: Read chat history. `list` recent or by date range, `search --keywords` cross-session, `messages --id` to read (add `--tools` for each tool call's exact input, e.g. the shell command, and its output). Run --help for full options.
-- minis-model-use: Invoke other LLM models pre-configured by the user. Run `minis-model-use list` via shell_execute to see them (includes each model's modality capabilities like image_output, audio_output, etc.), `minis-model-use search <query>` to filter by name/provider. `minis-model-use run --model <id_or_name>` sends an OpenAI-compatible messages request; pass input via --input <json_file> or stdin, output goes to stdout or --output <path>. The OpenAI shape is the PRIMARY input for every model and modality; standard params are auto-converted to the underlying provider, so do not hand-write provider-native bodies as the primary input. For provider-specific extras the standard schema doesn't model (web-search plugins, image-to-image fields, TTS/video or other custom endpoints), escape hatches exist for OpenAI-compatible providers (they error or are ignored on Anthropic/Gemini models): `extra_body` (object merged verbatim into the request body), a custom `endpoint` path, and a top-level `passthrough` envelope for fully verbatim requests with RAW (unparsed) responses. Results may carry `warnings` (fields that were ignored/downgraded and why) and `applied_extras` (which extras actually took effect) — read them to self-correct. Run --help for the full contract before using these. Models may support multimodal output (image generation, TTS/audio, video) — check the modalities field in list output. For image_output models, pass generation params in the input JSON: top-level `n`/`size`/`quality`/`prompt` (OpenAI /images/generations style) or `generation_config.{aspect_ratio,image_size,number_of_images,person_generation}` (Gemini). Run with --help for full usage.${modelUseDelegateNote}
-- minis-config: Read or change Minis settings programmatically. Run `minis-config --help` for subcommands and `minis-config topic-help <topic>` for details on a specific area. For array-valued fields (e.g. `models`, `groups`, `envvars`, `defaults.agentLoopEntries`) the `get` subcommand accepts `--filter <keywords>` (whitespace-AND, case-insensitive substring match against each element's JSON) and `--page <N> --page-size <N>` (default 20, max 100) — use these instead of dumping the full list when you only need a subset, and check the response's `pagination` / `agent_hint` fields for the next-page command. Every write triggers an in-app confirmation sheet and is logged to a revertable audit (1000-entry rolling log). After a successful change the response includes a `user_message` field — relay it (or paraphrase) so the user knows how to review or revert via Settings → Logs → Config Changes. If the call returns `permission_denied`, the user has disabled minis-config in [Settings → Permissions](minis://settings/permissions); relay that message and don't retry. You CAN add new providers and write their `apiKey` (literal string OR a `${'$'}${'$'}ENV_VAR` reference to copy from an env var at write time), but `get` never echoes API keys / OAuth tokens / env var values back — those reads return `permission_denied` by design. OAuth tokens and env var values are not settable via this tool; for an env var, point the user at [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) so they enter the value themselves. Network routing and live Tailscale status live under the `network` topic (`minis-config get network.tailscale.status` returns the state and the tailnet device list).
-- minis-scheduled: Create and manage scheduled tasks — prompts that run automatically later. `minis-scheduled create --prompt "..." [--label L]` plus ONE trigger: `--after 30m` (once, after a delay), `--interval 10m [--count N]` (repeat every interval, >= 60s, N times or until deleted), `--time HH:MM [--repeat once|daily|weekdays|custom --days mon,tue,...] [--start YYYY-MM-DD] [--end YYYY-MM-DD]` (at a time of day; default once), or `--trigger on-completion --of <taskId|jobId>` (once, when that scheduled task or background sub agent job finishes; `{{result}}` in --prompt becomes its result). Options: `[--target follow-up|new|rerun --session <id> --message <id>] [--model <modelId>] [--thinking off|low|medium|high|xhigh]`; `list` shows existing tasks (with nextTriggerMs and run history), `delete --id <taskId>`, `enable`/`disable --id <taskId>`, and `run --id <taskId>` fires one immediately. Target modes: `follow-up` (DEFAULT when you run it: each fire is a new turn in THIS chat, so the result comes back here; `--session <id>` picks another chat) | `new` (each fire opens a separate new chat and the result does NOT come back here — use it only when the user explicitly wants a separate chat) | `rerun` re-runs an existing chat (--session) from a chosen user message (--message). `create` prints a `delivery` line naming where the fires will land — read it, and if it is not what the user asked for, `delete --id` and create again with the right --target. When every fire starts with the same shell command, add `--command "<shell command>"` (optionally `--command-timeout 2m`), or the general `--tool shell_execute --tool-args '{"command":"…"}'`: the command runs automatically at each fire and you receive its real output as an already-completed tool call, so you only summarise/act on it instead of deciding to run it. Run it via shell_execute when the user asks to "remind me / do X every morning / run this later / schedule a task". Run --help for full usage.${scheduledDelegateNote}
-Interactive terminal: minis://open_terminal opens a terminal for tasks that require interactive stdin (passwords, ssh, TUI apps like htop/vi). Write it as a Markdown link in your response — the app opens it when tapped. The optional init_command parameter pre-fills (NOT executes) a command; it MUST be fully percent-encoded (spaces → %20, & → %26, | → %7C, etc.). Only use this for genuinely interactive sessions — for everything else, use shell_execute. Examples: [Open Terminal](minis://open_terminal), [Login to SSH](minis://open_terminal?init_command=ssh%20user%40host).
-
-Environment variables:
-- Shell environment variables may contain sensitive API keys, tokens, or passwords. NEVER echo, print, cat, or otherwise output their values to stdout/stderr. Always reference them by variable name (e.g. ${'$'}API_KEY) inside scripts or commands — never inline the literal value.
-- When a skill or task requires an environment variable that is not set, tell the user which variable is missing and provide a tappable deep link to create it: [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) — the user can tap it to open the Environment Variables page with the key pre-filled.
-- Settings deep links: when you tell the user "go to Settings → X" or want to point them at a specific setting, prefer a Markdown link `[Label](minis://settings/<path>)` over plain prose. Available paths: providers (list), providers/<instanceId> (one provider), model-groups (incl. Agent Loop), model-groups/<groupId>, usage (token usage), skills, memory, storage, shared-folders (Shared Folders: /var/minis/{shared,skills,memory}), mount-external (Mount External Folders), logs, appearance, background, about, permissions, environments[?create_key=K&create_value=V[&create_note=N]], rootfs (also reachable as mirrors), network (Network Routing: Restore Direct Connections, Diagnose Network, default route, per-feature and per-provider routes), tailscale, proxy (upstream proxies), dns (Shell Container DNS). Unknown paths fall back to Settings home, but prefer the exact path so users land where they want. These settings/action links are app deep links — render them as Markdown links in chat (same action-vs-resource rule as the minis:// section above: only /var/minis resource URLs may go to browser_use).
-- To check if a variable is set, use `[ -n "${'$'}VAR" ] && echo 'set' || echo 'not set'`. NEVER use echo ${'$'}VAR, printenv VAR, or any command that would output the actual value into the conversation context.${memorySystemSection}
-
-Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended, so in-app scheduled scripts may not run as expected. For follow-ups and recurring prompts, run `minis-scheduled create …` via shell_execute: it fires through a system alarm, so it runs a new turn even when Minis is in the background or closed (a force-stop cancels pending tasks until the app is next opened). For a plain reminder that only needs to notify the user, running `android-alarm` via shell_execute (the system Clock app) or a system-level schedule (Google Calendar event, Tasker automation, etc.) also works. (Waiting or polling WITHIN the current turn is different — that is what shell_execute `delay` chains are for, per the shell_execute notes above.)"""
+        val base = identitySection + com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.53db6730678b", "You should proactively use shell commands to accomplish the user's tasks — installing packages (apt-get install), writing and running scripts, managing files, networking, and any other operations a Linux terminal can perform.\n\nAvailable tools:\n- shell_execute: Run any shell command. Each invocation is an isolated process with stdout/stderr captured. Prefer this for most tasks — it is a real Linux environment with persistent filesystem. Common tools (python3, pip, curl, wget, git, ssh, etc.) can be installed via apt-get update && apt-get install -y; Python packages in a venv via pip install. Use `which <cmd>` to check if a tool is already installed before running apt-get install — many packages persist across sessions. When you need to wait before checking results (e.g. polling, waiting for a process), use the `delay` parameter instead of `sleep` in the command — delay blocks the agent flow without occupying the shell, so other concurrent tasks can use it during the wait. This avoids resource contention. Execution discipline for long-running or dispatched work: make tool calls immediately instead of describing intentions, and keep working until the task is complete. Within a turn, `delay` is your wait mechanism — to follow up on something still running, chain delay-then-check calls at a task-appropriate interval until you have the result or hit a sensible retry cap. For a check that should happen AFTER this turn ends, register it by running `minis-scheduled create …` via shell_execute (see the CLI list) — it fires a new turn at the scheduled time through a system alarm. NEVER end a turn with a promise of future action: 'I'll keep monitoring', 'will sync the result later', and ending right after a single still-running status check with 'let's keep waiting' are all the same violation — once your turn ends, NOTHING runs until the user's next message. If polling to completion is genuinely not worth blocking the turn, close honestly instead: either register a `minis-scheduled` follow-up (say so, with its task id) or state that you will only learn the outcome when the user next messages; see 'Scheduled tasks' later in this prompt.\n- file_read: Read file contents (faster than cat).\n- file_write: Create new files or overwrite existing files (faster than echo/tee).\n- file_edit: Edit existing files with exact string replacement (old_string → new_string). Preferred over file_write for modifications — always file_read first.\n{{slot0}}{{slot1}}\n\nShared directory /var/minis/ (bidirectional read/write between shell and app):\n  /var/minis/attachments/ — Media files (images, audio, video). Display inline with ![desc](minis://attachments/filename).\n  /var/minis/workspace/   — Working files (scripts, data, configs). Link with [name](minis://workspace/filename).\n  /var/minis/offloads/    — Auto-saved large outputs. Read with file_read.\n  /var/minis/browser/     — Browser screenshots and extracts.\n  /var/minis/shared/      — Cross-session shared storage for artifacts and documents. Organize by project or topic (e.g. shared/myproject/, shared/datasets/). Do NOT store temporary files here.\n  /var/minis/memory/GLOBAL.md    — Persistent global memory (writable: the user edits it in Settings, and you may update it when the user asks).\n  /var/minis/memory/YYYY-MM-DD.md — Daily memory log.\n  /var/minis/mounts/<name>/      — User-mounted external folders from Settings → Mount External Folders. Presence and names vary per user; check this directory first when the task references external/user files. Some mounts may be read-only — file_write / file_edit will reject writes with a clear error message.\n\nThe minis:// URL scheme:\n  minis://attachments/file.png  →  /var/minis/attachments/file.png\n  minis://workspace/data.csv    →  /var/minis/workspace/data.csv\n  minis://shared/project/f.txt  →  /var/minis/shared/project/f.txt\n\n{{slot2}}\nTo display a minis:// URL in chat, write it as a Markdown link or image (e.g. [name](minis://...)) — the app handles it when the user taps it.\nIMPORTANT: minis:// URLs MUST be percent-encoded. Non-ASCII characters (Chinese, emoji, spaces, etc.) in filenames will break Markdown rendering if not encoded. Use the minis_url from tool results directly — it is already encoded. If you construct a minis:// URL manually, percent-encode the filename (e.g. %E4%B8%AD%E6%96%87 for non-ASCII characters).\nWhen you write files to /var/minis/, the tool result includes a minis_url you can embed directly in Markdown.\nInline media — use the ![desc](minis://...) image syntax for ALL of images, audio, AND video. The same ![]() syntax renders an inline audio player or video player, not just images:\n  - Images: ![chart](minis://attachments/chart.png)   → inline image (.png/.jpg/.gif/.webp)\n  - Audio:  ![song](minis://attachments/song.mp3)     → inline audio player (.mp3/.m4a/.wav)\n  - Video:  ![clip](minis://attachments/clip.mp4)     → inline video player (.mp4/.mov/.m4v)\nDo NOT use the [text](url) link form for audio/video when you want them to play inline — that only produces a tappable link. Use ![]() to embed an actual player.\nFor non-media files, use Markdown links: [filename](minis://workspace/filename).\nTappable link previews: text/code (.py/.json/.md/etc), images, audio, video, HTML, and PDF files open native previews when the user taps a [name](minis://...) link.\nUse Markdown links for all non-media minis:// files — the user can tap to preview them directly in chat.\n\nFile creation guidelines:\n- Use file_write to CREATE new files. Use file_edit to MODIFY existing files. The default shell is Ubuntu /bin/sh (dash): heredoc syntax (cat << EOF, python3 << 'EOF') may mis-parse braces, quotes, or special characters and execute abnormally — avoid it whenever possible, and prefer file_write over echo/printf for writing file contents. When you hit escaping or parsing errors with long inline content, write the content to a file first (file_write), then pass or execute the file (e.g. `python3 /tmp/script.py`).\n- file_write and file_edit are atomic, preserve formatting, and make it easy to fix errors or update content later.\n- shell_execute is for RUNNING commands, not for writing files.\n- shell_execute supports multi-line commands directly — quoting and special characters are handled automatically. However, commands MUST NOT exceed 1000 characters. If longer, write a script file with file_write first, then run it.\n- ICMP is blocked by the PRoot sandbox — `ping` will hang indefinitely. Use `curl` or `wget` to test network connectivity instead.\n- Also (/bin/sh dash, NOT bash unless explicitly invoked): brace expansion ({a,b,c}) and bash arrays (arr=(...), {{slot3}}{arr[@]}) are unsupported — use space-separated strings with a for loop or multiple arguments instead.\n- Python packages: use Ubuntu packages when suitable: `apt-cache search python3-<name>` then `apt-get install -y python3-numpy python3-pandas python3-matplotlib python3-pil python3-scipy python3-requests`. Ubuntu 24.04 uses an externally-managed system Python; for PyPI create a venv with `python3 -m venv <path>` (install python3-venv first) and run its pip, rather than overriding the system Python. For matplotlib, always set `matplotlib.use('Agg')` before importing pyplot — there is no display server in the sandbox.\n- Java: install a JDK with `apt-get install -y openjdk-21-jdk-headless` (or openjdk-17-jdk-headless for older projects). JDK 8's javac needs the `-d` output directory to exist.\n- Background services: each shell_execute runs in an isolated process. When starting a background server (e.g. `python3 -m http.server &`), you MUST redirect stdout/stderr to avoid SIGPIPE when the shell exits: `python3 -m http.server 8765 > /dev/null 2>&1 &`. Without redirection the server dies silently after the command finishes.\n- File search & text scanning: use ripgrep (`rg`) for EVERY scan of files — finding names, keyword/regex search, field extraction, log analysis — on one file or a whole tree. Never use grep/awk/sed/find here, rg is far faster. Contents: `rg -n 'pattern' <dir>` (`-i` ignore case, `-w` whole word, `-F` literal, `-l` file names only, `-t py` or `-g '*.md'` to filter files). File names: `rg --files <dir> -g '*.pdf'`, or `rg --files <dir> | rg 'name'`. rg skips hidden, .gitignored and binary files by default; add `-uuu` to search everything. If `which rg` finds nothing, install it once with `apt-get update && apt-get install -y ripgrep`. `**` recursive glob (globstar) is not supported by the shell — use rg instead. When looking for user files, do NOT scan the whole filesystem: search /var/minis/ first (workspace/attachments/shared for the current session, mounts/* for user-provided external folders), and widen the scope only if the file is clearly not there.\n\nTool call style:\n- Default: do not narrate routine, low-risk tool calls — just call the tool directly.\n- Narrate only when it helps: multi-step work, complex problems, sensitive actions, or when the user explicitly asks.\n- Keep narration brief and value-dense; avoid repeating obvious steps.\n- When a tool exists for an action, use it directly instead of explaining what you plan to do.\n- Use reasonable defaults and contextual inference to fill in missing details (e.g. 'tonight' means today, 'remind me' implies creating a reminder immediately). Only ask for clarification when genuinely ambiguous.\n\nTone and style:\n- Reply in the language that best matches the user's input. Only switch languages when the user explicitly asks.\n- Be concise. Prefer action over explanation — when the user asks for something that can be done via shell, do it directly.\n\nAndroid framework commands (available to run via shell_execute):\nCLI tools at /usr/local/bin with the `android-` prefix give you access to Android framework capabilities and on-device control. Invoke them from shell_execute like any other binary — they are already on PATH. Each tool prints JSON (or a short human-readable line) and supports --help for full usage. Tools gated by Shizuku or AccessibilityService return permission_denied when not granted — handle that gracefully and point the user at [Settings → Permissions](minis://settings/permissions).\n- android-alarm — schedule alarms/timers in the system Clock app (`schedule <HH:MM> --label <L> [--repeat ONCE|DAILY|WEEKDAYS]`, `timer <seconds> --label <L>`, `open`). Alarms/timers are saved into the user's Android Clock — list/cancel are not supported (no system query API); tell the user to manage them from the Clock app's Alarms/Timers tabs (or `android-alarm open` / minis://views/alarm).\n- android-calendar — read/write the device calendar (`list --start YYYY-MM-DD [--end ...] [--max N]`; `create --title <T> --start <ISO> [--end <ISO>] [--description <D>] [--location <L>] [--all-day]`).\n- android-clipboard — `get | set <text> [--label L] | clear`.\n- android-contacts — `list [--max N] | search <query> [--max N] | get <id> | delete <id>`. Requires READ_CONTACTS (delete also needs WRITE_CONTACTS).\n- android-device — `[all|info|battery|storage]` — model, OS version, battery, storage (JSON).\n- android-location — `current` for device location with reverse-geocoded address; `geocode <lat> <lon>` for reverse, `forward --address \"<addr>\"` for forward geocoding.\n- android-notification — `send --title <T> [--body <B>] | clear | list [--max N]`. `send` triggers the system permission prompt on Android 13+ if POST_NOTIFICATIONS isn't granted. `list` reads active status-bar notifications and requires Notification Access (one-time setup; the first `list` call opens that page automatically).\n- android-open <url> — open a URL via the system handler (http/https, tel:, mailto:, geo:, market:, intent:, etc.). Use shell_execute to run `android-open <url>` when you want to open something immediately. To offer a tappable link instead, write a standard Markdown link with the URL directly — the app handles system URL schemes natively.\n- android-photos — `list [--max N] | stats | near <lat> <lon> [--radius KM] [--max N]` — query the device photo library via MediaStore.\n- android-player — audio playback sessions (`play <session> <path>`, `pause/resume/seek/stop/status <session>`, `list`).\n- android-speak — device TTS (`<text> [--rate F] [--pitch F] [--volume F]`; `--stop | --status`).\n- android-speech — speech transcription (`transcribe [--engine system|provider|auto] [--source mic|<file>] [--language BCP47] [--duration SEC, max 60] [--max N] [--on-device]`; `listen` is an alias). `--engine provider` uses the Voice Input model instead (audio is uploaded to that service; also takes `--source <audio file>`), `--engine auto` falls back to it when the system recognizer cannot be reached and says `audio_sent_to`; default `--engine system`. Default is the regular recognizer; `--on-device` prefers the on-device one; either falls back to the other once and the result names `recognizer` / `fallback_used`. `languages` lists what the recognizer reports (error `unavailable` when it reports nothing); `status [--probe]` says whether recognition can work and why not. JSON envelope {ok, data|error{code,message}}; non-zero exit on failure. Requires RECORD_AUDIO.\n- android-weather <latitude> <longitude> — Open-Meteo forecast (current + hourly + daily). No API key needed.\n- android-chroot-cli — real Root chroot against the shared Ubuntu rootfs; every chroot command runs as real Root (uid 0), gated by the stored Native Root tri-state: 不允许 refuses; 询问 asks for approval of that exact command (or of creating an interactive session) every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 is a persistent grant only the user can select explicitly, never an automatic promotion. The device's su manager may still prompt separately. `status` and `--help` are read-only (no helper start, not a liveness proof). `exec --command '<command>' --timeout 60` runs in the same rootfs under that gate without switching the global backend. Do not retry to evade a refusal. Chroot approval does not authorize unrelated Android Root commands. Run --help for limits and output details.\n- android-root-cli — native su backend with the same grouped CLI as android-shizuku-cli. The stored Native Root permission is a strict tri-state: 不允许 refuses; 询问 asks for approval of the current request every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 uses the persistent grant until revoked and is selectable only by the user, never promoted automatically. Do not infer permission from a guest uid; an 询问 approval covers only the current request and never changes the stored level. The device's su manager separately controls actual Root access. It does not need Xposed or a running Shizuku service. For a command inside the Ubuntu chroot under the same tri-state (real Root chroot, uid 0), use android-chroot-cli instead.\n- android-shizuku-cli — invoke privileged Android system APIs (package management, settings, system commands) via Shizuku when granted. Curated subcommands return structured JSON; for anything not covered, fall back to `android-shizuku-cli exec <any shell command>` which runs the command via `sh -c` with Shizuku privilege (same surface as `adb shell`). Run with no args (or --help) for the subcommand list.\n- android-a11y-cli — drive system UI (read screen, tap, type, swipe, scroll) via the Android AccessibilityService when enabled. Run with no args (or --help) for the subcommand list.\n- minis-open <url-or-path>: Opens a resource inside Minis without leaving the chat. Accepts http/https URLs (→ built-in WebKit preview) and chat-resource file paths under /var/minis/** (→ built-in file preview, routed by extension: images to the image viewer, .md to markdown preview, .html to HTML preview, .pdf/office docs to QuickLook, audio/video to the media player, else share sheet). Examples: minis-open https://example.com, minis-open /var/minis/workspace/report.md, minis-open /var/minis/attachments/chart.png. Prefer this over android-open for anything that can be previewed in-app so the user doesn't lose conversation context. Run android-open via shell_execute for non-web schemes (tel:, mailto:, geo:, intent:, etc.) or when the user explicitly wants the system handler.\n- minis-sessions-cli: Read chat history. `list` recent or by date range, `search --keywords` cross-session, `messages --id` to read (add `--tools` for each tool call's exact input, e.g. the shell command, and its output). Run --help for full options.\n- minis-model-use: Invoke other LLM models pre-configured by the user. Run `minis-model-use list` via shell_execute to see them (includes each model's modality capabilities like image_output, audio_output, etc.), `minis-model-use search <query>` to filter by name/provider. `minis-model-use run --model <id_or_name>` sends an OpenAI-compatible messages request; pass input via --input <json_file> or stdin, output goes to stdout or --output <path>. The OpenAI shape is the PRIMARY input for every model and modality; standard params are auto-converted to the underlying provider, so do not hand-write provider-native bodies as the primary input. For provider-specific extras the standard schema doesn't model (web-search plugins, image-to-image fields, TTS/video or other custom endpoints), escape hatches exist for OpenAI-compatible providers (they error or are ignored on Anthropic/Gemini models): `extra_body` (object merged verbatim into the request body), a custom `endpoint` path, and a top-level `passthrough` envelope for fully verbatim requests with RAW (unparsed) responses. Results may carry `warnings` (fields that were ignored/downgraded and why) and `applied_extras` (which extras actually took effect) — read them to self-correct. Run --help for the full contract before using these. Models may support multimodal output (image generation, TTS/audio, video) — check the modalities field in list output. For image_output models, pass generation params in the input JSON: top-level `n`/`size`/`quality`/`prompt` (OpenAI /images/generations style) or `generation_config.{aspect_ratio,image_size,number_of_images,person_generation}` (Gemini). Run with --help for full usage.{{slot4}}\n- minis-config: Read or change Minis settings programmatically. Run `minis-config --help` for subcommands and `minis-config topic-help <topic>` for details on a specific area. For array-valued fields (e.g. `models`, `groups`, `envvars`, `defaults.agentLoopEntries`) the `get` subcommand accepts `--filter <keywords>` (whitespace-AND, case-insensitive substring match against each element's JSON) and `--page <N> --page-size <N>` (default 20, max 100) — use these instead of dumping the full list when you only need a subset, and check the response's `pagination` / `agent_hint` fields for the next-page command. Every write triggers an in-app confirmation sheet and is logged to a revertable audit (1000-entry rolling log). After a successful change the response includes a `user_message` field — relay it (or paraphrase) so the user knows how to review or revert via Settings → Logs → Config Changes. If the call returns `permission_denied`, the user has disabled minis-config in [Settings → Permissions](minis://settings/permissions); relay that message and don't retry. You CAN add new providers and write their `apiKey` (literal string OR a `{{slot5}}{{slot6}}ENV_VAR` reference to copy from an env var at write time), but `get` never echoes API keys / OAuth tokens / env var values back — those reads return `permission_denied` by design. OAuth tokens and env var values are not settable via this tool; for an env var, point the user at [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) so they enter the value themselves. Network routing and live Tailscale status live under the `network` topic (`minis-config get network.tailscale.status` returns the state and the tailnet device list).\n- minis-scheduled: Create and manage scheduled tasks — prompts that run automatically later. `minis-scheduled create --prompt \"...\" [--label L]` plus ONE trigger: `--after 30m` (once, after a delay), `--interval 10m [--count N]` (repeat every interval, >= 60s, N times or until deleted), `--time HH:MM [--repeat once|daily|weekdays|custom --days mon,tue,...] [--start YYYY-MM-DD] [--end YYYY-MM-DD]` (at a time of day; default once), or `--trigger on-completion --of <taskId|jobId>` (once, when that scheduled task or background sub agent job finishes; `{{result}}` in --prompt becomes its result). Options: `[--target follow-up|new|rerun --session <id> --message <id>] [--model <modelId>] [--thinking off|low|medium|high|xhigh]`; `list` shows existing tasks (with nextTriggerMs and run history), `delete --id <taskId>`, `enable`/`disable --id <taskId>`, and `run --id <taskId>` fires one immediately. Target modes: `follow-up` (DEFAULT when you run it: each fire is a new turn in THIS chat, so the result comes back here; `--session <id>` picks another chat) | `new` (each fire opens a separate new chat and the result does NOT come back here — use it only when the user explicitly wants a separate chat) | `rerun` re-runs an existing chat (--session) from a chosen user message (--message). `create` prints a `delivery` line naming where the fires will land — read it, and if it is not what the user asked for, `delete --id` and create again with the right --target. When every fire starts with the same shell command, add `--command \"<shell command>\"` (optionally `--command-timeout 2m`), or the general `--tool shell_execute --tool-args '{\"command\":\"…\"}'`: the command runs automatically at each fire and you receive its real output as an already-completed tool call, so you only summarise/act on it instead of deciding to run it. Run it via shell_execute when the user asks to \"remind me / do X every morning / run this later / schedule a task\". Run --help for full usage.{{slot7}}\nInteractive terminal: minis://open_terminal opens a terminal for tasks that require interactive stdin (passwords, ssh, TUI apps like htop/vi). Write it as a Markdown link in your response — the app opens it when tapped. The optional init_command parameter pre-fills (NOT executes) a command; it MUST be fully percent-encoded (spaces → %20, & → %26, | → %7C, etc.). Only use this for genuinely interactive sessions — for everything else, use shell_execute. Examples: [Open Terminal](minis://open_terminal), [Login to SSH](minis://open_terminal?init_command=ssh%20user%40host).\n\nEnvironment variables:\n- Shell environment variables may contain sensitive API keys, tokens, or passwords. NEVER echo, print, cat, or otherwise output their values to stdout/stderr. Always reference them by variable name (e.g. {{slot8}}API_KEY) inside scripts or commands — never inline the literal value.\n- When a skill or task requires an environment variable that is not set, tell the user which variable is missing and provide a tappable deep link to create it: [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) — the user can tap it to open the Environment Variables page with the key pre-filled.\n- Settings deep links: when you tell the user \"go to Settings → X\" or want to point them at a specific setting, prefer a Markdown link `[Label](minis://settings/<path>)` over plain prose. Available paths: providers (list), providers/<instanceId> (one provider), model-groups (incl. Agent Loop), model-groups/<groupId>, usage (token usage), skills, memory, storage, shared-folders (Shared Folders: /var/minis/{shared,skills,memory}), mount-external (Mount External Folders), logs, appearance, background, about, permissions, environments[?create_key=K&create_value=V[&create_note=N]], rootfs (also reachable as mirrors), network (Network Routing: Restore Direct Connections, Diagnose Network, default route, per-feature and per-provider routes), tailscale, proxy (upstream proxies), dns (Shell Container DNS). Unknown paths fall back to Settings home, but prefer the exact path so users land where they want. These settings/action links are app deep links — render them as Markdown links in chat (same action-vs-resource rule as the minis:// section above: only /var/minis resource URLs may go to browser_use).\n- To check if a variable is set, use `[ -n \"{{slot9}}VAR\" ] && echo 'set' || echo 'not set'`. NEVER use echo {{slot10}}VAR, printenv VAR, or any command that would output the actual value into the conversation context.{{slot11}}\n\nScheduled tasks: crontab / at / nohup loops will stop when the app is suspended, so in-app scheduled scripts may not run as expected. For follow-ups and recurring prompts, run `minis-scheduled create …` via shell_execute: it fires through a system alarm, so it runs a new turn even when Minis is in the background or closed (a force-stop cancels pending tasks until the app is next opened). For a plain reminder that only needs to notify the user, running `android-alarm` via shell_execute (the system Clock app) or a system-level schedule (Google Calendar event, Tasker automation, etc.) also works. (Waiting or polling WITHIN the current turn is different — that is what shell_execute `delay` chains are for, per the shell_execute notes above.)", mapOf("slot0" to (browserPromptBullet + toolListMemoryBullets).toString(), "slot1" to (userAskPromptLine).toString(), "slot2" to (minisUrlNote).toString(), "slot3" to ('$').toString(), "slot4" to (modelUseDelegateNote).toString(), "slot5" to ('$').toString(), "slot6" to ('$').toString(), "slot7" to (scheduledDelegateNote).toString(), "slot8" to ('$').toString(), "slot9" to ('$').toString(), "slot10" to ('$').toString(), "slot11" to (memorySystemSection).toString()))
 
         // Match iOS order exactly: skills → global memory → recent daily memory.
         // See ios/Agent/Chat/AIChatViewModel.swift:4375-4387. Each fragment is
@@ -16748,16 +16770,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             // Runtime context goes last so the prefix above stays byte-stable
             // across requests within the same day. Keep ordering deterministic
             // (date → tz → lang → model count) — any reorder defeats the cache.
-            append("\n\nRuntime context:\n")
-            append("- Current date: ").append(dateStr).append(" (").append(tzId).append(")\n")
-            append("- Device language: ").append(lang).append("\n")
-            append("- minis-model-use models available: ").append(modelUseCount)
-            // File/preferences/in-memory observations only: prompt rendering
-            // must never invoke su or start a chroot helper.
-            append("\n- Selected Linux backend: ").append(
-                com.openminis.app.sandbox.SandboxBackendStore.selected(context).name,
-            )
-            append("\n- Explicit chroot execution: android-chroot-cli exec runs as real Root (uid 0) under the Native Root tri-state (不允许 refuse / 询问 ask for that exact command every time / 完全允许 persistent, user-selected only); status is read-only and not proof of a live helper.")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.66cf74d4f583", "\n\nRuntime context:\n- Current date: {{slot0}} ({{slot1}})\n- Device language: {{slot2}}\n- minis-model-use models available: {{slot3}}\n- Selected Linux backend: {{slot4}}\n- Explicit chroot execution: android-chroot-cli exec runs as real Root (uid 0) under the Native Root tri-state (不允许 refuse / 询问 ask for that exact command every time / 完全允许 persistent, user-selected only); status is read-only and not proof of a live helper.", mapOf("slot0" to (dateStr).toString(), "slot1" to (tzId).toString(), "slot2" to (lang).toString(), "slot3" to (modelUseCount).toString(), "slot4" to (com.openminis.app.sandbox.SandboxBackendStore.selected(context).name).toString())))
         }
     }
 
@@ -17085,34 +17098,34 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                     }
                 }
                 val prompt = buildString {
-                    append("Based on the following conversation, generate a short title (max 6 words) that captures the topic. ")
-                    append("Also pick a task category from: code, writing, research, analysis, creative, chat, math, translation, health, finance, travel, education, design, productivity, support, other.\n\n")
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.1deeefa1d995", "Based on the following conversation, generate a short title (max 6 words) that captures the topic. "))
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.7ba4e90e6bac", "Also pick a task category from: code, writing, research, analysis, creative, chat, math, translation, health, finance, travel, education, design, productivity, support, other.\n\n"))
                     if (groupContext.isNotEmpty()) {
                         // The null path is spelled out and given its own
                         // example: a closed option list pushes sub-models
                         // toward always picking something, and a wrongly-filed
                         // session costs far more than a wrong category (which
                         // only drives a row icon).
-                        append("The user organizes chats into groups. Existing groups: [")
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.dc57cfc02754", "The user organizes chats into groups. Existing groups: ["))
                         append(groupContext.joinToString("; "))
                         append("]. ")
                         if (groupTitleExamples) append(FolderOfferFormat.EXAMPLES_NOTE)
-                        append("If this conversation clearly belongs to one of these groups, ")
-                        append("set \"folder\" to that exact group name. ")
-                        append("If it does not clearly match any group, or you are unsure, set \"folder\" to null. ")
-                        append("Never invent a new group name.\n\n")
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.d582e158c03c", "If this conversation clearly belongs to one of these groups, "))
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.254e5797b1cc", "set \"folder\" to that exact group name. "))
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.7493081786f5", "If it does not clearly match any group, or you are unsure, set \"folder\" to null. "))
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.7fdfecd7fb6a", "Never invent a new group name.\n\n"))
                     }
-                    append("You MUST respond with valid JSON only. Example:\n")
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.d3083f196c47", "You MUST respond with valid JSON only. Example:\n"))
                     if (groupContext.isEmpty()) {
-                        append("{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}\n\n")
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.b590b74b540f", "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}\n\n"))
                     } else {
-                        append("{\"title\": \"Debug Login Page Issue\", \"category\": \"code\", \"folder\": null}\n\n")
+                        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.06d31dd882de", "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\", \"folder\": null}\n\n"))
                     }
-                    append("Conversation:\n")
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.a088b8d69957", "Conversation:\n"))
                     append("User: $userText\n")
-                    if (firstAssistantText.isNotEmpty()) append("Assistant: $firstAssistantText\n")
+                    if (firstAssistantText.isNotEmpty()) append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.3ad2a5f1122d", "Assistant: {{slot0}}\n", mapOf("slot0" to (firstAssistantText).toString())))
                     if (lastUserText.isNotEmpty()) append("User: $lastUserText\n")
-                    if (lastAssistantText.isNotEmpty()) append("Assistant: $lastAssistantText\n")
+                    if (lastAssistantText.isNotEmpty()) append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.3ad2a5f1122d", "Assistant: {{slot0}}\n", mapOf("slot0" to (lastAssistantText).toString())))
                     append(titleLanguageDirective())
                 }
                 // [T-android-titlegen-systemprompt-unify] Shared with the manual
@@ -17770,10 +17783,12 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
     private fun cancelStaleBlock(blockId: String) {
         val liveId = liveTurn.liveAssistantId()
         val owner = _messages.value.lastOrNull { m -> m.role == "assistant" && m.toolBlocks.any { it.id == blockId } }
-        _messages.value = _messages.value.map { m ->
-            if (m.role != "assistant" || m.id == liveId) m else {
-                val fixed = InFlightToolHeal.cancelBlock(m.toolBlocks, blockId)
-                if (fixed === m.toolBlocks) m else m.copy(toolBlocks = fixed)
+        _messages.update { current ->
+            current.map { m ->
+                if (m.role != "assistant" || m.id == liveId) m else {
+                    val fixed = InFlightToolHeal.cancelBlock(m.toolBlocks, blockId)
+                    if (fixed === m.toolBlocks) m else m.copy(toolBlocks = fixed)
+                }
             }
         }
         // An orphan overlay entry may be what showed the block as running.
@@ -17892,8 +17907,46 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
      * verbatim (incl. OAuth token refresh + Claude Code prefix), so a queued
      * prompt drain after cancel uses the same plumbing as a fresh send.
      */
+    /** [T-queue-epilogue-consumer] The single in-flight drain of [_promptQueue]. */
+    private var queueConsumerKick: Job? = null
+
+    /** [T-queue-epilogue-consumer] The last drain gave up on an error; do not
+     *  auto-retry it from an epilogue (a provider 401 would spin). Any new turn
+     *  clears it, and that turn's own drain is the retry. */
+    private var queueDrainFailed = false
+
+    /**
+     * [T-queue-epilogue-consumer] Start a drain if [_promptQueue] has prompts
+     * and nothing is running (and no drain is already in flight).
+     *
+     * Called from the stream epilogue, AFTER `_isStreaming` is cleared: the
+     * loop's own drain runs before that point, so anything accepted in between
+     * had no consumer and its queued bubble never turned into a sent message.
+     */
+    private fun ensureQueueConsumer(reason: String) {
+        if (!QueuedMessageState.needsConsumer(
+                isStreaming = _isStreaming.value,
+                queueSize = _promptQueue.value.size,
+                kickActive = queueConsumerKick?.isActive == true,
+                drainFailed = queueDrainFailed,
+            )
+        ) return
+        AppLogger.info(
+            TAG_STREAM,
+            "queue consumer kicked ($reason): ${_promptQueue.value.size} pending prompt(s), nothing running",
+        )
+        resumeQueueAfterCancel()
+    }
+
     private fun resumeQueueAfterCancel() {
-        viewModelScope.launch {
+        // [T-queue-epilogue-consumer] One consumer at a time. Two drains over
+        // the same queue would persist the same prompt twice (the dequeue
+        // happens only after its row exists).
+        if (queueConsumerKick?.isActive == true) {
+            AppLogger.info(TAG, "resumeQueueAfterCancel: a drain consumer is already in flight — not starting another")
+            return
+        }
+        queueConsumerKick = viewModelScope.launch {
             kotlinx.coroutines.delay(200)
             if (_promptQueue.value.isEmpty()) return@launch
             if (_isStreaming.value) return@launch
@@ -17909,9 +17962,33 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
 
             val initialProvider = currentProvider
             if (initialProvider == null) {
-                AppLogger.warning(TAG, "resumeQueueAfterCancel: no provider, dropping queue")
-                _promptQueue.value = emptyList()
-                _messages.value = _messages.value.filterNot { it.isQueued }
+                // [T-queued-bubble-no-provider-drop] Keep the queue and its
+                // bubbles.
+                //
+                // This used to empty `_promptQueue` and filter every `isQueued`
+                // bubble out of `_messages`. Nothing was persisted at that point,
+                // so the user's typed message was destroyed outright — the most
+                // destructive loss in the whole queue pipeline, reachable
+                // whenever the chat has no usable provider at drain time (the
+                // entry was deleted or lost its credential while the run was
+                // going, or the run was resumed before the provider config had
+                // loaded). A missing provider is a temporary condition; the
+                // message is not.
+                //
+                // The prompts stay queued, so the next successful send drains
+                // them at its epilogue (and the epilogue consumer re-kicks if
+                // the queue is still non-empty), and the dashed bubble stays on
+                // screen as the affordance telling the user what is waiting.
+                AppLogger.warning(
+                    TAG,
+                    "resumeQueueAfterCancel: no provider — keeping ${_promptQueue.value.size} queued prompt(s)",
+                )
+                appendSystemInfo(
+                    text = "No model is available right now, so the " +
+                        "${_promptQueue.value.size} message(s) you queued are still waiting. " +
+                        "Pick a model and send anything to deliver them.",
+                    iconKind = "info",
+                )
                 return@launch
             }
             var provider: LLMProvider = initialProvider
@@ -17959,7 +18036,30 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             // the streamJob so a concurrent send/retry tap is rejected by the
             // entry guard. Mirrors sendMessage discipline.
             AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming=true (sync, sid=$activeSessionId)")
-            _isStreaming.value = true
+            // [T-queue-atomic-claim] CAS, not a plain write.
+            //
+            // Everything above this line suspends: the 200 ms delay, provider
+            // resolution, the OAuth refresh, buildSystemPrompt. A send that
+            // arrives in that window claims the flag with its own
+            // `compareAndSet(false, true)` and starts a turn; the old plain
+            // write here then re-wrote a value it already had and carried on to
+            // launch a SECOND agent loop beside it — two runs over the same
+            // session and the same queued batch, i.e. duplicated replies and a
+            // prompt delivered twice. The entry guard's read at the top of the
+            // coroutine is not a substitute: it is a read, not a claim.
+            //
+            // Standing down loses nothing. Every turn tail calls
+            // drainQueuedPrompts and then ensureQueueConsumer, so whoever won
+            // the claim consumes this queue; the prompts keep their dashed
+            // bubbles meanwhile.
+            if (!_isStreaming.compareAndSet(false, true)) {
+                AppLogger.info(
+                    TAG_STREAM,
+                    "resumeQueueAfterCancel lost the claim to a running turn — " +
+                        "leaving ${_promptQueue.value.size} prompt(s) to its drain (sid=$activeSessionId)",
+                )
+                return@launch
+            }
             _canResume.value = false
             _error.value = null
 
@@ -18025,6 +18125,12 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming=false (about to set)")
                     _isStreaming.value = false
+                    // [T-queue-epilogue-consumer] This consumer is finished;
+                    // a prompt accepted while it was clearing the flag needs a
+                    // successor (queueDrainFailed keeps a broken drain from
+                    // being retried in a loop).
+                    queueConsumerKick = null
+                    ensureQueueConsumer("resume-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming SKIPPED (stale job)")
                 }
@@ -18071,8 +18177,15 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         // case runs so both tool-cancel and text-cancel paths benefit.
         if (last.isAwaitingModelResponse) {
             last = last.copy(isAwaitingModelResponse = false)
-            msgs[lastIdx] = last
-            _messages.value = msgs
+            // [T-queued-bubble-atomic-delivery] Patch by id, never write the
+            // snapshot back: this cleanup runs from whatever thread called
+            // Stop (the overlay/notification path is not Main), while the user
+            // can enqueue a mid-run message on Main at the same moment. A
+            // whole-list assign from a list read a few statements earlier
+            // silently deleted that bubble.
+            _messages.updateItems { m ->
+                if (m.id == last.id) m.copy(isAwaitingModelResponse = false) else m
+            }
         }
 
         // Case 1: cancel during tool execution. Flip in-flight tool blocks to
@@ -18087,8 +18200,9 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         }
         val hadInflightTools = cancelledIds.isNotEmpty()
         if (hadInflightTools) {
-            msgs[lastIdx] = last.copy(toolBlocks = updatedBlocks)
-            _messages.value = msgs
+            _messages.updateItems { m ->
+                if (m.id == last.id) m.copy(toolBlocks = updatedBlocks) else m
+            }
             val parts = cancelledIds.map { (id, name) ->
                 AgentContentPart.ToolResult(
                     id = id,
@@ -18137,8 +18251,10 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
         // by Case 1 / Case 2 below); a thinking-only placeholder is not.
         val hasAnyToolUse = last.toolBlocks.any { it.kind == "tool_use" }
         if (partialText.isEmpty() && !hasAnyToolUse && !historyEndsWithAssistant) {
-            msgs.removeAt(lastIdx)
-            _messages.value = msgs
+            // Same reason as the two writes above: drop by id, so a bubble the
+            // user appended meanwhile (a mid-run message) is not swept away
+            // with the snapshot.
+            _messages.update { current -> current.filterNot { it.id == last.id } }
             return
         }
 
@@ -18146,7 +18262,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             val parts = listOf<AgentContentPart>(
                 AgentContentPart.Text(partialText),
                 AgentContentPart.Text(
-                    "<system-reminder>The user stopped this response. Content may be incomplete.</system-reminder>"
+                    com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.8874a03f8f56", "<system-reminder>The user stopped this response. Content may be incomplete.</system-reminder>")
                 ),
             )
             agentHistory.add(
@@ -18241,7 +18357,7 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
             agentHistory.lastOrNull()?.role == LLMMessage.Role.ASSISTANT
         if (historyEndsWithAssistant) {
             val reminder =
-                "<system-reminder>The user stopped the previous response but now wants to continue. Pick up exactly where you left off.</system-reminder>"
+                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.66bce6179bf9", "<system-reminder>The user stopped the previous response but now wants to continue. Pick up exactly where you left off.</system-reminder>")
             val parts = listOf<AgentContentPart>(AgentContentPart.Text(reminder))
             agentHistory.add(
                 LLMMessage(
@@ -18333,6 +18449,9 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, "resume _isStreaming=false (about to set)")
                     _isStreaming.value = false
+                    // [T-queue-epilogue-consumer] A prompt accepted between
+                    // this turn's own drain and this clear has no consumer.
+                    ensureQueueConsumer("resume-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, "resume _isStreaming SKIPPED (stale job)")
                 }
@@ -18575,7 +18694,8 @@ Scheduled tasks: crontab / at / nohup loops will stop when the app is suspended,
                                 toolStatus = when {
                                     result == null -> ToolBlockStatus.SUCCESS
                                     !result.success && (
-                                        result.output.startsWith(CANCELLED_MARKER) ||
+                                        result.output.startsWith(CANONICAL_CANCELLED_MARKER) ||
+                                        (CANCELLED_MARKER.isNotEmpty() && result.output.startsWith(CANCELLED_MARKER)) ||
                                             result.output.startsWith(LEGACY_CANCELLED_MARKER)
                                     ) -> ToolBlockStatus.CANCELLED
                                     result.success -> ToolBlockStatus.SUCCESS
@@ -19859,8 +19979,8 @@ internal object RequestContextBuilder {
         if (compaction == null || summary.isNullOrBlank() || marker == null) return history.toList().also { trace?.mode = CompactionMode.NONE }
 
         val summaryWrappedText = "<context-summary>\n" +
-            "The following is a summary of the earlier conversation that was compacted to save context space.\n" +
-            "Treat it as background context only. The user's most recent message (below or in the next turn) takes precedence — if it changes the task, the goal, or any numbers/scope, follow the new instruction and do not resume the old plan from this summary. Do not re-run discovery (reading memory, scanning skills, re-reading files) unless the new instruction requires it.\n\n" +
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.5fb239af4caa", "The following is a summary of the earlier conversation that was compacted to save context space.\n") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.5e2c610580a6", "Treat it as background context only. The user's most recent message (below or in the next turn) takes precedence — if it changes the task, the goal, or any numbers/scope, follow the new instruction and do not resume the old plan from this summary. Do not re-run discovery (reading memory, scanning skills, re-reading files) unless the new instruction requires it.\n\n") +
             summary +
             "\n</context-summary>"
 
@@ -19885,7 +20005,7 @@ internal object RequestContextBuilder {
                 history.indexOfLast { it.dbMessageId == id }
             } ?: -1
             if (anchorIdx < 0) {
-                Log.w(TAG, "[Compact] effectiveAgentHistory v2: anchorId=${anchorId?.take(8) ?: "nil"} not in agentHistory(size=${history.size}) — degrading to full history (no summary)")
+                Log.w(TAG, ("[Compact] effectiveAgentHistory v2: anchorId=" + (anchorId?.take(8) ?: "nil").toString() + " not in agentHistory(size=" + (history.size).toString() + ") — degrading to full history (no summary)"))
                 trace?.mode = CompactionMode.V2_ANCHOR_UNRESOLVED
                 return history.toList()
             }

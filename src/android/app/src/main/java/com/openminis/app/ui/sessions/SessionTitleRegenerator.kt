@@ -74,14 +74,14 @@ class SessionTitleRegenerator(
                 val lastAssistantText = if (hasMultipleUserTurns) assistantTexts.lastOrNull()?.take(200) ?: "" else ""
 
                 val prompt = buildString {
-                    append("Based on the following conversation, generate a short title (max 6 words) that captures the topic. ")
-                    append("Also pick a task category from: code, writing, research, analysis, creative, chat, math, translation, health, finance, travel, education, design, productivity, support, other.\n\n")
-                    append("You MUST respond with valid JSON only. Example:\n")
-                    append("{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}\n\n")
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.1deeefa1d995", "Based on the following conversation, generate a short title (max 6 words) that captures the topic. "))
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.7ba4e90e6bac", "Also pick a task category from: code, writing, research, analysis, creative, chat, math, translation, health, finance, travel, education, design, productivity, support, other.\n\n"))
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.d3083f196c47", "You MUST respond with valid JSON only. Example:\n"))
+                    append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.b590b74b540f", "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}\n\n"))
                     append("User: $userText\n")
-                    if (firstAssistantText.isNotEmpty()) append("Assistant: $firstAssistantText\n")
+                    if (firstAssistantText.isNotEmpty()) append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.3ad2a5f1122d", "Assistant: {{slot0}}\n", mapOf("slot0" to (firstAssistantText).toString())))
                     if (lastUserText.isNotEmpty()) append("User: $lastUserText\n")
-                    if (lastAssistantText.isNotEmpty()) append("Assistant: $lastAssistantText\n")
+                    if (lastAssistantText.isNotEmpty()) append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessiontitleregenerator.3ad2a5f1122d", "Assistant: {{slot0}}\n", mapOf("slot0" to (lastAssistantText).toString())))
                     append(com.openminis.app.ui.chat.titleLanguageDirective())
                 }
 

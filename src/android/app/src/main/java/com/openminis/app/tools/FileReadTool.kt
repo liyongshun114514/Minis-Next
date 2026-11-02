@@ -12,14 +12,14 @@ object FileReadTool {
 
     fun definition(): AgentToolDefinition = AgentToolDefinition(
         name = NAME,
-        description = "Read a file from the Linux filesystem. Faster than shell_execute for reading files — no shell overhead. Returns file content with metadata. Rejects binary files.",
+        description = com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.94f60ae35433", "Read a file from the Linux filesystem. Faster than shell_execute for reading files — no shell overhead. Returns file content with metadata. Rejects binary files."),
         parameters = mapOf(
-            "tool_title" to AgentToolParam("string", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Read Python script contents', 'Check system configuration file'). Use the same language as the user."),
-            "path" to AgentToolParam("string", "Absolute Linux path to read (e.g. /var/minis/workspace/data.csv)"),
-            "offset" to AgentToolParam("integer", "1-based line number to start reading from (default: 1). Ignored when direction is 'tail'. If a previous read was truncated, its header ends with next_offset=N — pass that as offset to continue from where it stopped."),
-            "lines" to AgentToolParam("integer", "Maximum number of lines to return (default: all lines up to max_length)"),
-            "max_length" to AgentToolParam("integer", "Maximum character length of returned content (default: 15000)"),
-            "direction" to AgentToolParam("string", "Read direction: 'head' (from start, default) or 'tail' (from end of file)"),
+            "tool_title" to AgentToolParam("string", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.ae2a48d927f3", "A concise 5-10 word summary of what this tool call does, shown to the user (e.g. 'Read Python script contents', 'Check system configuration file'). Use the same language as the user.")),
+            "path" to AgentToolParam("string", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.49ff8d7cdbd7", "Absolute Linux path to read (e.g. /var/minis/workspace/data.csv)")),
+            "offset" to AgentToolParam("integer", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.5e0b5d1b7bc8", "1-based line number to start reading from (default: 1). Ignored when direction is 'tail'. If a previous read was truncated, its header ends with next_offset=N — pass that as offset to continue from where it stopped.")),
+            "lines" to AgentToolParam("integer", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.71730284a627", "Maximum number of lines to return (default: all lines up to max_length)")),
+            "max_length" to AgentToolParam("integer", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.d7de6a621262", "Maximum character length of returned content (default: 15000)")),
+            "direction" to AgentToolParam("string", com.openminis.app.agent.prompts.PromptOverrides.render("tools.filereadtool.17844866b47d", "Read direction: 'head' (from start, default) or 'tail' (from end of file)")),
         ),
         required = listOf("tool_title", "path"),
         propertyOrdering = listOf("tool_title", "path", "offset", "lines", "direction", "max_length"),

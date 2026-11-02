@@ -238,10 +238,7 @@ data class ChatMessage(
          * Verbatim from iOS RawMessage.scheduledResumeNudgeText (c9131e862).
          * Starts with <system-reminder>, so it is never rendered.
          */
-        internal const val SCHEDULED_RESUME_NUDGE_TEXT =
-            "<system-reminder>The scheduled task above has been handled. If the task you were working on before it " +
-                "arrived is not finished yet, continue it now from where you left off; if it is already complete, " +
-                "reply briefly and stop.</system-reminder>"
+        internal val SCHEDULED_RESUME_NUDGE_TEXT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatmodels.7ec85aead03c", "<system-reminder>The scheduled task above has been handled. If the task you were working on before it arrived is not finished yet, continue it now from where you left off; if it is already complete, reply briefly and stop.</system-reminder>")
 
         /** [T-bridge-to-reminder] No longer written either; the inserted
          *  envelope's own reminder ([ScheduledTaskMarker.insertionReminder])
@@ -258,12 +255,7 @@ data class ChatMessage(
          * it. Verbatim from iOS `RawMessage.queuedInterruptReminderText`.
          * Model-facing only: it goes into agentHistory, not the persisted row.
          */
-        internal const val QUEUED_INTERRUPT_REMINDER_TEXT =
-            "<system-reminder>This note is from the system, not something the user wrote. The user sent the " +
-                "message above while you were in the middle of a task. Decide from that message and the " +
-                "conversation so far whether the earlier task should continue; do not forget or abandon it unless " +
-                "the user explicitly asks you to stop or the message makes clear it is no longer needed. Do not " +
-                "repeat or mention this note.</system-reminder>"
+        internal val QUEUED_INTERRUPT_REMINDER_TEXT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatmodels.95f326c4f8b5", "<system-reminder>This note is from the system, not something the user wrote. The user sent the message above while you were in the middle of a task. Decide from that message and the conversation so far whether the earlier task should continue; do not forget or abandon it unless the user explicitly asks you to stop or the message makes clear it is no longer needed. Do not repeat or mention this note.</system-reminder>")
 
         /**
          * Every bridge text this app has ever generated. Matching only the

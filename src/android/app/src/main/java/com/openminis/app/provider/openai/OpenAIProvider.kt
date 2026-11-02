@@ -3274,16 +3274,16 @@ class OpenAIProvider private constructor(
         // `instructions`.
         val appPrompt = applicationSystemPrompt?.takeIf { it.isNotBlank() }
         val imageInstructions = if (appPrompt != null) {
-            appPrompt + "\n\n" + "You are a helpful assistant. Use tools when available."
+            appPrompt + "\n\n" + com.openminis.app.agent.prompts.PromptOverrides.render("provider.openai.openaiprovider.0c96af5399e9", "You are a helpful assistant. Use tools when available.")
         } else {
-            "You are a helpful assistant. Use tools when available."
+            com.openminis.app.agent.prompts.PromptOverrides.render("provider.openai.openaiprovider.0c96af5399e9", "You are a helpful assistant. Use tools when available.")
         }
         return JSONObject().apply {
             put("model", "gpt-5.5")
             put("instructions", imageInstructions)
             put("input", JSONArray().put(JSONObject().apply {
                 put("role", "user")
-                put("content", "Use the image generation tool to create: $prompt")
+                put("content", com.openminis.app.agent.prompts.PromptOverrides.render("provider.openai.openaiprovider.84bd7db6719b", "Use the image generation tool to create: {{slot0}}", mapOf("slot0" to (prompt).toString())))
             }))
             put("store", false)
             // [T-codex-gpt-image25-android] Name the image model in the tool

@@ -582,6 +582,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         // init is now fully guarded, so construction cannot escape here — see
         // the comment there for why an exception at this point permanently
         // breaks the Application and produces the GH#147 crash loop.
+        com.openminis.app.agent.prompts.PromptOverrides.initialize(this)
         skillRepository = SkillRepository(this)
         // [T-android-skill-scan-parity] Mirrors iOS reloading SkillStore on
         // scenePhase .active: pick up skills changed while the app was away.

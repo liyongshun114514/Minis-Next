@@ -540,7 +540,7 @@ internal suspend fun performTest(
                     messages = listOf(
                         LLMMessage(
                             role = LLMMessage.Role.USER,
-                            content = "Hi! I'm setting you up in Minis. Say hello back in one short, friendly sentence.",
+                            content = com.openminis.app.agent.prompts.PromptOverrides.render("ui.components.quicktestsheet.19ff2b5b393d", "Hi! I'm setting you up in Minis. Say hello back in one short, friendly sentence."),
                         ),
                     ),
                     systemPrompt = null,
@@ -559,7 +559,7 @@ internal suspend fun performTest(
                 ?: return@withContext failure(context.getString(R.string.quicktest_image_unsupported))
             runCatching {
                 val resp = openAI.generateImage(
-                    prompt = "A friendly cute mascot logo for an app called Minis, minimalist, centered, soft colors",
+                    prompt = com.openminis.app.agent.prompts.PromptOverrides.render("ui.components.quicktestsheet.821c2d3afbc8", "A friendly cute mascot logo for an app called Minis, minimalist, centered, soft colors"),
                     n = 1,
                     size = "1024x1024",
                     quality = null,

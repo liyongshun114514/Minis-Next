@@ -174,6 +174,7 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_chroot_file_tools.py -v
           python3 scripts/test_chroot_file_identity.py
           python3 -m unittest discover -s scripts/tests -p test_removed_native_ui.py -v
+          python3 scripts/check-prompt-catalog.py
       - name: Build APK
         id: build-apk
         working-directory: src/android
@@ -226,7 +227,10 @@ jobs:
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
             --tests '*SessionRunOwnershipTest' --tests '*LiveMessageAtomicityTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \
-            --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest'
+            --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
+            --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
+            --tests '*QueuedMessageStateTest' --tests '*BrowserLivePreviewTest' \
+            --tests '*BrowserPreviewPumpTest' --tests '*PreviewRetryGateTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions

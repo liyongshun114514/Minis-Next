@@ -13,14 +13,19 @@ import org.junit.Test
  * native arm64), so the iOS sentences about that variable are left out.
  */
 class SystemPromptJavaLineTest {
-    private val vm by lazy { ProductionSources.read("ui/chat/ChatViewModel.kt") }
+    private val vm by lazy {
+        val main = ProductionSources.mainRoot()!!.parentFile!!.parentFile!!.parentFile!!.parentFile!!
+        val entries = org.json.JSONArray(java.io.File(main, "assets/prompt-catalog.json").readText())
+        (0 until entries.length()).map { entries.getJSONObject(it).getString("defaultTemplate") }
+            .first { it.startsWith("You should proactively use shell commands") }
+    }
 
     @Test
     fun `the JDK line follows the Python note once and mentions no JAVA_TOOL_OPTIONS`() {
-        val line = "- Java: install a JDK with `apk add openjdk21-jdk` (openjdk17-jdk / openjdk11-jdk / openjdk8 for older projects). " +
+        val line = "- Java: install a JDK with `apt-get install -y openjdk-21-jdk-headless` (or openjdk-17-jdk-headless for older projects). " +
             "JDK 8's javac needs the `-d` output directory to exist.\n"
         assertEquals(1, vm.split(line).size - 1)
-        val python = vm.indexOf("- Python packages: many PyPI packages")
+        val python = vm.indexOf("- Python packages: use Ubuntu packages when suitable:")
         val java = vm.indexOf(line)
         assertTrue(python in 0 until java)
         assertFalse(vm.substring(python, java).contains("\n- "))

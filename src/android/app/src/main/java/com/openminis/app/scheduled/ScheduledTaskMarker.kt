@@ -105,8 +105,7 @@ data class ScheduledTaskMarker(
          * model the same thing.
          */
         fun prefillNote(tool: String): String =
-            "[This task's first step already ran for you: $tool — its call and output follow. " +
-                "Work from that output; re-run only if it failed.]"
+            com.openminis.app.agent.prompts.PromptOverrides.render("scheduled.scheduledtaskmarker.732620dda7de", "[This task's first step already ran for you: {{slot0}} — its call and output follow. Work from that output; re-run only if it failed.]", mapOf("slot0" to (tool).toString()))
 
         /**
          * [T-scheduled-preemptive-insert] What an inserted fire tells the model,
@@ -120,10 +119,7 @@ data class ScheduledTaskMarker(
             val name = label.replace("\n", " ").trim().ifEmpty { null }
                 ?.let { "Scheduled task \"$it\"" } ?: "A scheduled task"
             val preset = if (prefilledTool != null) " Preset command already ran; read the result below, don't re-run it." else ""
-            return "<system-reminder>$name fired and was inserted here — not your last tool result, not a user request." +
-                // [T-bridge-to-reminder] "unfinished": what the dropped
-                // assistant bridge used to add.
-                "$preset Handle briefly, then resume your unfinished prior task.</system-reminder>"
+            return com.openminis.app.agent.prompts.PromptOverrides.render("scheduled.scheduledtaskmarker.c1ac332bd386", "<system-reminder>{{slot0}} fired and was inserted here — not your last tool result, not a user request.{{slot1}} Handle briefly, then resume your unfinished prior task.</system-reminder>", mapOf("slot0" to (name).toString(), "slot1" to (preset).toString()))
         }
 
         fun isMarkerText(text: String): Boolean =

@@ -141,8 +141,8 @@ object ContextOffload {
      * to be.
      */
     fun stub(approxTokens: Int, byteCount: Int, linuxPath: String): String =
-        "$OFFLOADED_PREFIX Content (~$approxTokens tokens, $byteCount bytes) saved to: $linuxPath\n" +
-            "Use file_read tool to retrieve if needed."
+        com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.a09e4f78db56", "{{slot0}} Content (~{{slot1}} tokens, {{slot2}} bytes) saved to: {{slot3}}\n", mapOf("slot0" to (OFFLOADED_PREFIX).toString(), "slot1" to (approxTokens).toString(), "slot2" to (byteCount).toString(), "slot3" to (linuxPath).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.0b596c0d3fc9", "Use file_read tool to retrieve if needed.")
 
     /**
      * [T-offload-stub-system-reminder] (GH#374) The notice handed to the model in
@@ -156,12 +156,12 @@ object ContextOffload {
      */
     fun prunedArgumentNotice(approxTokens: Int, byteCount: Int, linuxPath: String): String =
         "$SYSTEM_REMINDER_OPEN\n" +
-            "$SYSTEM_NOTICE_TAG The original content (~$approxTokens tokens, " +
-            "$byteCount bytes) of this tool argument has been pruned to save context " +
-            "and offloaded to: $linuxPath\n\n" +
-            "CRITICAL: This is a placeholder notice, NOT actual file content. NEVER pass " +
-            "this placeholder or reuse it in subsequent file_write or file_edit calls. " +
-            "If you need the original content, call file_read on the offloaded path first.\n" +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.22b23232ed26", "{{slot0}} The original content (~{{slot1}} tokens, ", mapOf("slot0" to (SYSTEM_NOTICE_TAG).toString(), "slot1" to (approxTokens).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.841aabae8e56", "{{slot0}} bytes) of this tool argument has been pruned to save context ", mapOf("slot0" to (byteCount).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.f1e937b2a28e", "and offloaded to: {{slot0}}\n\n", mapOf("slot0" to (linuxPath).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.a274980dd8a4", "CRITICAL: This is a placeholder notice, NOT actual file content. NEVER pass ") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.24808876b155", "this placeholder or reuse it in subsequent file_write or file_edit calls. ") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.a89732f61ca0", "If you need the original content, call file_read on the offloaded path first.\n") +
             "</system-reminder>"
 
     /**
@@ -198,11 +198,11 @@ object ContextOffload {
      * argument at fault so the model knows which one to re-send.
      */
     fun placeholderWriteRefusal(field: String, path: String): String =
-        "Error: '$field' is an offload placeholder, not real " +
-            "content — the original text was moved out of context to free tokens and only " +
-            "this reference remains in the conversation. Nothing was written to $path; the " +
-            "file is unchanged. Use file_read on the path named inside the placeholder to " +
-            "recover the real content, then re-issue this write with it."
+        com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.9d9da4ee36b5", "Error: '{{slot0}}' is an offload placeholder, not real ", mapOf("slot0" to (field).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.a7058e1eaa44", "content — the original text was moved out of context to free tokens and only ") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.9ee0e7334106", "this reference remains in the conversation. Nothing was written to {{slot0}}; the ", mapOf("slot0" to (path).toString())) +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.5b9b0aa79fd6", "file is unchanged. Use file_read on the path named inside the placeholder to ") +
+            com.openminis.app.agent.prompts.PromptOverrides.render("data.contextoffload.55cc7febd62a", "recover the real content, then re-issue this write with it.")
 
     /**
      * [T-android-offload-readback] (GH#343) If [content] is a `file_read` of a

@@ -152,9 +152,9 @@ class ForegroundToolInterrupts {
 
     companion object {
         /** What a cut-short call answers. Read by the model, so it says what to do. */
-        const val INTERRUPTED_RESULT =
+        val INTERRUPTED_RESULT: String get() =
             "[Stopped by the user] This tool call was interrupted before it finished; any output above is partial. " +
-                "Do not run it again on your own - wait for the user's next message."
+                com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.stopscope.2f2d7df5c333", "Do not run it again on your own - wait for the user's next message.")
 
         fun withInterruptNote(output: String): String =
             if (output.isBlank()) INTERRUPTED_RESULT else "$output\n\n$INTERRUPTED_RESULT"

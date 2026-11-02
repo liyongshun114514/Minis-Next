@@ -206,28 +206,9 @@ class LlmCorrectionStrategy internal constructor(
          * restore the reference's spelling, never translate.
          */
         fun systemPrompt(profile: CorrectionLanguageProfile): String =
-            "You fix speech-recognition errors in transcribed text. Output ONLY the corrected text, " +
-                "with no explanation, no quotes, and no preamble. If the text needs no correction, output it unchanged.\n\n" +
-                "The situation: the user is talking to an AI agent in a chat app by voice, and the " +
-                "transcript is the message they are about to send it. Read the transcript as one whole " +
-                "message to that agent and work out what the user most likely means by it, given the " +
-                "conversation. Most of the time they are answering or acting on what the agent just said: " +
-                "picking one of the options it offered, naming something it mentioned (a noun, a file, an " +
-                "item in a list, an issue number, a step), or referring to content it described. Those " +
-                "names and options are the likeliest words in the transcript, so a misheard span that sounds " +
-                "like one of them almost certainly is that one.\n\n" +
-                "How recognition goes wrong for this user:\n" +
+            com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.c11376f6ce07", "You fix speech-recognition errors in transcribed text. Output ONLY the corrected text, with no explanation, no quotes, and no preamble. If the text needs no correction, output it unchanged.\n\nThe situation: the user is talking to an AI agent in a chat app by voice, and the transcript is the message they are about to send it. Read the transcript as one whole message to that agent and work out what the user most likely means by it, given the conversation. Most of the time they are answering or acting on what the agent just said: picking one of the options it offered, naming something it mentioned (a noun, a file, an item in a list, an issue number, a step), or referring to content it described. Those names and options are the likeliest words in the transcript, so a misheard span that sounds like one of them almost certainly is that one.\n\nHow recognition goes wrong for this user:\n") +
                 profile.failureModes + "\n\n" +
-                "How to fix it:\n" +
-                "- A span that reads oddly in its sentence is a suspect. Sound it out and compare it with " +
-                "the terms in the reference material: what is on screen, the recent conversation, the rare " +
-                "terms, the user's vocabulary and their past corrections. If a term there, in any language, " +
-                "sounds like the span and fits the sentence, replace the span with that term, written " +
-                "exactly as the reference material writes it (same spelling, letter case and script).\n" +
-                "- Restore the term itself; never translate it into another language or swap it for a " +
-                "word that merely means the same.\n" +
-                "- Use only terms supported by the reference material or common knowledge. Leave natural, " +
-                "plausible wording alone, and do not rephrase or polish."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.25a5465c351c", "How to fix it:\n- A span that reads oddly in its sentence is a suspect. Sound it out and compare it with the terms in the reference material: what is on screen, the recent conversation, the rare terms, the user's vocabulary and their past corrections. If a term there, in any language, sounds like the span and fits the sentence, replace the span with that term, written exactly as the reference material writes it (same spelling, letter case and script).\n- Restore the term itself; never translate it into another language or swap it for a word that merely means the same.\n- Use only terms supported by the reference material or common knowledge. Leave natural, plausible wording alone, and do not rephrase or polish.")
 
         /**
          * Output budget for the correction call: 1.2× the input, floored at
@@ -276,7 +257,7 @@ class LlmCorrectionStrategy internal constructor(
                 .distinct()
             packed(vocabTerms, CorrectionContextBudget.VOCAB_BLOCK)?.let {
                 blocks.add(
-                    "以下是该用户的常用词汇（来自历史文字输入，仅供参考）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.9f2892fce804", "以下是该用户的常用词汇（来自历史文字输入，仅供参考）：\n") +
                         it.joinToString("、"),
                 )
             }
@@ -288,7 +269,7 @@ class LlmCorrectionStrategy internal constructor(
                 .distinct()
             packed(confusionLines, CorrectionContextBudget.CONFUSION_BLOCK)?.let {
                 blocks.add(
-                    "以下是该用户过去的语音识别纠错记录（原文→修正，按可信度排序）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.1fd5a967628d", "以下是该用户过去的语音识别纠错记录（原文→修正，按可信度排序）：\n") +
                         it.joinToString("\n"),
                 )
             }
@@ -296,7 +277,7 @@ class LlmCorrectionStrategy internal constructor(
             // Block 3 — rare-content digest (re-clamped defensively).
             context.rareTermsDigest?.takeIf { it.isNotEmpty() }?.let { digest ->
                 blocks.add(
-                    "以下是近期对话中出现的少见词/专有名词（语音识别容易听错，供参考）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.657b9f57d0d9", "以下是近期对话中出现的少见词/专有名词（语音识别容易听错，供参考）：\n") +
                         digest.take(CorrectionContextBudget.RARE_DIGEST),
                 )
             }
@@ -304,7 +285,7 @@ class LlmCorrectionStrategy internal constructor(
             // Block 4 — conversation context.
             if (context.recentExcerpts.isNotEmpty()) {
                 blocks.add(
-                    "以下是当前对话的最近上下文（供理解语境使用，不是需要处理的内容）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.fea8610a38de", "以下是当前对话的最近上下文（供理解语境使用，不是需要处理的内容）：\n") +
                         context.recentExcerpts.joinToString("\n"),
                 )
             }
@@ -316,15 +297,14 @@ class LlmCorrectionStrategy internal constructor(
             val screen = context.screen
             if (screen != null && screen.viewportLines.isNotEmpty()) {
                 blocks.add(
-                    "以下是用户说话时屏幕上可见的对话内容（以屏幕中心为基准由近到远选取，按时间顺序排列；" +
-                        "供理解语境使用，不是需要处理的内容）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.7f9925478f4a", "以下是用户说话时屏幕上可见的对话内容（以屏幕中心为基准由近到远选取，按时间顺序排列；供理解语境使用，不是需要处理的内容）：\n") +
                         screen.viewportLines.joinToString("\n"),
                 )
             }
             if (screen?.latestReply != null) {
                 val where = if (screen.latestReplyOnScreen) "，此刻也显示在屏幕上" else "，此刻不在屏幕可见范围内"
                 blocks.add(
-                    "以下是本会话最新一条 AI 回复$where（供理解语境使用，不是需要处理的内容）：\n" +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.a426646500f2", "以下是本会话最新一条 AI 回复{{slot0}}（供理解语境使用，不是需要处理的内容）：\n", mapOf("slot0" to (where).toString())) +
                         screen.latestReply,
                 )
             }
@@ -335,19 +315,14 @@ class LlmCorrectionStrategy internal constructor(
             // the model to Chinese-only substitutes (iOS 8622ea275).
             val errorKinds = profile.errorKinds
             val lead = if (screen != null && screen.viewportLines.isNotEmpty()) {
-                "请结合以上参考信息，尤其是用户说话时屏幕上可见的对话内容，" +
-                    "推断用户这句要发给 AI 的话的整体意图（常常是在回应、选择或提及 AI 刚提到的名词、内容或选项），" +
-                    "据此判断并修正下面这段语音转录文本中可能的$errorKinds。"
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.c8862bc108c9", "请结合以上参考信息，尤其是用户说话时屏幕上可见的对话内容，推断用户这句要发给 AI 的话的整体意图（常常是在回应、选择或提及 AI 刚提到的名词、内容或选项），据此判断并修正下面这段语音转录文本中可能的{{slot0}}。", mapOf("slot0" to (errorKinds).toString()))
             } else {
-                "请结合以上参考信息和对话上下文，推断用户这句要发给 AI 的话的整体意图，" +
-                    "判断并修正下面这段语音转录文本中可能的$errorKinds。"
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.8633c2c846d9", "请结合以上参考信息和对话上下文，推断用户这句要发给 AI 的话的整体意图，判断并修正下面这段语音转录文本中可能的{{slot0}}。", mapOf("slot0" to (errorKinds).toString()))
             }
             Log.i(TAG, "[CorrectionPrompt] profile=${profile.name.lowercase()} evidenceBlocks=${blocks.size} transcript=${transcript.length}")
             return evidence +
                 lead +
-                "如果转录内容本身已经正确、或者是无法用参考信息判断的正常表达，请不要修改。" +
-                "只输出修正后的文本，不要输出任何解释。\n\n" +
-                "原文：$transcript"
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.df6791428f53", "如果转录内容本身已经正确、或者是无法用参考信息判断的正常表达，请不要修改。只输出修正后的文本，不要输出任何解释。\n\n原文：{{slot0}}", mapOf("slot0" to (transcript).toString()))
         }
 
         /**
@@ -421,40 +396,40 @@ enum class CorrectionLanguageProfile {
     val failureModes: String
         get() = when (this) {
             CHINESE ->
-                "- They speak Chinese mixed with English words, product names and code identifiers. " +
-                    "A Chinese recognizer often writes such an English word as Chinese characters that only " +
-                    "sound like it (for example \"遗穴\" for \"Issue\", \"扣米特\" for \"commit\", \"杰森\" for \"JSON\").\n" +
-                    "- Chinese names, product names and jargon come back as common words with the same or a " +
-                    "similar sound (同音字 / 近音词), often words that are valid on their own.\n" +
-                    "- If the context says \"Issue\", write \"Issue\", not a Chinese word with the same meaning " +
-                    "such as \"议题\" or \"问题\"."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.71e27140d58e", "- They speak Chinese mixed with English words, product names and code identifiers. ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.03f73e92c1b1", "A Chinese recognizer often writes such an English word as Chinese characters that only ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.f1fe83179836", "sound like it (for example \"遗穴\" for \"Issue\", \"扣米特\" for \"commit\", \"杰森\" for \"JSON\").\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.4d642ce4406c", "- Chinese names, product names and jargon come back as common words with the same or a ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.8ff81b374c45", "similar sound (同音字 / 近音词), often words that are valid on their own.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.6163ee013104", "- If the context says \"Issue\", write \"Issue\", not a Chinese word with the same meaning ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.422af687792d", "such as \"议题\" or \"问题\".")
             JAPANESE ->
-                "- They speak Japanese mixed with English words, product names and code identifiers. " +
-                    "The recognizer often writes such a term in katakana (\"イシュー\" for \"Issue\", \"コミット\" for " +
-                    "\"commit\") or splits it into unrelated words.\n" +
-                    "- It picks the wrong kanji among homophones (同音異義語, e.g. 機能/昨日, 公開/後悔) and " +
-                    "chooses between kana and kanji inconsistently.\n" +
-                    "- Write a term the way the reference material writes it: Latin letters if it is written " +
-                    "in Latin letters there, katakana if it is written in katakana there."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.f1f28bdee4c6", "- They speak Japanese mixed with English words, product names and code identifiers. ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.0adeb443b79e", "The recognizer often writes such a term in katakana (\"イシュー\" for \"Issue\", \"コミット\" for ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.804f8252160f", "\"commit\") or splits it into unrelated words.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.b8c64d761a64", "- It picks the wrong kanji among homophones (同音異義語, e.g. 機能/昨日, 公開/後悔) and ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.f4a40554bf43", "chooses between kana and kanji inconsistently.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.5c92c8622c7a", "- Write a term the way the reference material writes it: Latin letters if it is written ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.1d3bb90d80cd", "in Latin letters there, katakana if it is written in katakana there.")
             KOREAN ->
-                "- They speak Korean mixed with English words, product names and code identifiers. " +
-                    "The recognizer often writes such a term in Hangul (\"이슈\" for \"Issue\", \"커밋\" for " +
-                    "\"commit\") or splits it into unrelated words.\n" +
-                    "- It confuses words that sound alike, and misplaces word spacing (띄어쓰기) around " +
-                    "terms. Fix spacing only around a term you restore.\n" +
-                    "- Write a term the way the reference material writes it: Latin letters if it is written " +
-                    "in Latin letters there, Hangul if it is written in Hangul there."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.b250f26d8c9b", "- They speak Korean mixed with English words, product names and code identifiers. ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.7c810e047f0b", "The recognizer often writes such a term in Hangul (\"이슈\" for \"Issue\", \"커밋\" for ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.804f8252160f", "\"commit\") or splits it into unrelated words.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.4042f89e9260", "- It confuses words that sound alike, and misplaces word spacing (띄어쓰기) around ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.3d99d455db78", "terms. Fix spacing only around a term you restore.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.5c92c8622c7a", "- Write a term the way the reference material writes it: Latin letters if it is written ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.bd077ca943a6", "in Latin letters there, Hangul if it is written in Hangul there.")
             WESTERN ->
-                "- Product names, code identifiers and file names are split into or merged with ordinary " +
-                    "words (\"get hub\" for \"GitHub\", \"cube cuddle\" for \"kubectl\", \"read me dot MD\" for " +
-                    "\"README.md\"), and lose their letter case and punctuation.\n" +
-                    "- Names from other languages (often Chinese) are spelled out phonetically.\n" +
-                    "- Homophones and near-homophones are swapped (their/there, accept/except, " +
-                    "four/for). Leave spelling variants, grammar and style alone."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.f67829a9dac3", "- Product names, code identifiers and file names are split into or merged with ordinary ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.fbac507a27e8", "words (\"get hub\" for \"GitHub\", \"cube cuddle\" for \"kubectl\", \"read me dot MD\" for ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.bfd9b4624597", "\"README.md\"), and lose their letter case and punctuation.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.d1d65e989bbd", "- Names from other languages (often Chinese) are spelled out phonetically.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.e14ffdd6d420", "- Homophones and near-homophones are swapped (their/there, accept/except, ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.f6ec9bf6b55d", "four/for). Leave spelling variants, grammar and style alone.")
             GENERIC ->
-                "- Names, product names, code identifiers and words from other languages are misheard as " +
-                    "ordinary words, or spelled out phonetically in the user's script.\n" +
-                    "- Words that sound alike are swapped."
+                com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.e269ef4bdb9f", "- Names, product names, code identifiers and words from other languages are misheard as ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.c5aaf59def32", "ordinary words, or spelled out phonetically in the user's script.\n") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("speech.correction.correctionstrategy.9f308df9c594", "- Words that sound alike are swapped.")
         }
 
     /** What the user prompt's lead asks the model to fix (the user prompt is Chinese for every language). */

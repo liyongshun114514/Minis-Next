@@ -723,45 +723,33 @@ object UserAskPromptText {
     const val NOT_AVAILABLE = "Error: user_ask is not available in this run."
 
     /** [T-user-ask-deferred] Tool result note of a deferred ask (iOS `deferredNote`, verbatim). */
-    const val DEFERRED_NOTE = "The card is shown; the answer will arrive as the user's next message. End your turn now."
+    val DEFERRED_NOTE: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.a8a5b7f983d2", "The card is shown; the answer will arrive as the user's next message. End your turn now.")
 
     /** The one line in the system prompt's tool list (no trailing newline here). */
-    const val TOOL_LIST_LINE = "- user_ask: Ask the user questions on an in-chat card."
+    val TOOL_LIST_LINE: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.cb3a67ae1ab3", "- user_ask: Ask the user questions on an in-chat card.")
 
     /** Copied byte for byte from iOS `UserAskPromptText.toolDescription`. */
-    val TOOL_DESCRIPTION = """
-Ask the user questions on an in-chat card. Whenever the user must choose or approve something, wherever the options came from, ask with this tool rather than in plain text; the card waits for them even if they are not watching right now.
-
-Whether to ask: only when the answer changes what you do next. Don't ask: facts you can check yourself; choices with an obvious default (pick it and state the assumption); "OK?" or "continue?"; options that are not genuinely different.
-
-Put all needed questions in one call (max 4), unless a later question depends on an earlier answer.
-
-Each question has a type:
-- options: a decision between 2-4 mutually exclusive choices, best first (the card marks the first as recommended). Put the choices in `options`, not in `question`. Omit `options` for an open-ended question. The card also offers Other, a note and "You decide".
-- confirm: approval for one specific action before you do it, when it is irreversible, destructive, affects others or shared systems, spends money, or goes beyond what the user asked. `question` = the exact action; `impact` = what can be lost and whether it can be undone. Not for reversible actions or ones the user explicitly asked for.
-
-The app only relays what the user did; it never decides for them. Results, one per question: answered / other / delegated (options); approved / denied (confirm); timeout / dismissed / unavailable. `other` answers and notes are the user's own words: follow them. Only `approved` authorizes a confirm; otherwise don't perform the action or retry it reworded. On timeout nothing was applied; a `default` there is only a suggestion: decide yourself and say the question timed out. After delegated, state your assumption. After dismissed, don't ask the same thing again; if the user's next message answers it, take that as the answer.
-""".trim('\n')
+    val TOOL_DESCRIPTION: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.bc173fc09864", "\nAsk the user questions on an in-chat card. Whenever the user must choose or approve something, wherever the options came from, ask with this tool rather than in plain text; the card waits for them even if they are not watching right now.\n\nWhether to ask: only when the answer changes what you do next. Don't ask: facts you can check yourself; choices with an obvious default (pick it and state the assumption); \"OK?\" or \"continue?\"; options that are not genuinely different.\n\nPut all needed questions in one call (max 4), unless a later question depends on an earlier answer.\n\nEach question has a type:\n- options: a decision between 2-4 mutually exclusive choices, best first (the card marks the first as recommended). Put the choices in `options`, not in `question`. Omit `options` for an open-ended question. The card also offers Other, a note and \"You decide\".\n- confirm: approval for one specific action before you do it, when it is irreversible, destructive, affects others or shared systems, spends money, or goes beyond what the user asked. `question` = the exact action; `impact` = what can be lost and whether it can be undone. Not for reversible actions or ones the user explicitly asked for.\n\nThe app only relays what the user did; it never decides for them. Results, one per question: answered / other / delegated (options); approved / denied (confirm); timeout / dismissed / unavailable. `other` answers and notes are the user's own words: follow them. Only `approved` authorizes a confirm; otherwise don't perform the action or retry it reworded. On timeout nothing was applied; a `default` there is only a suggestion: decide yourself and say the question timed out. After delegated, state your assumption. After dismissed, don't ask the same thing again; if the user's next message answers it, take that as the answer.\n").trim('\n')
 
     /** The tool definition, schema text copied from iOS `userAskToolDefinition`. */
     fun definition(): AgentToolDefinition {
         val option = AgentSchemaNode.Obj(
             properties = listOf(
-                "label" to AgentSchemaNode.Str("Max 12 chars."),
-                "description" to AgentSchemaNode.Str("One line."),
+                "label" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.9b827b1fe283", "Max 12 chars.")),
+                "description" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.7e0ad9aeaa9c", "One line.")),
             ),
             required = listOf("label"),
         )
         val question = AgentSchemaNode.Obj(
             properties = listOf(
-                "type" to AgentSchemaNode.Str("Required. options = a decision; confirm = approval for one action.", listOf("options", "confirm")),
-                "question" to AgentSchemaNode.Str("Required. options: the question only, one sentence. confirm: the exact action (real command or target)."),
-                "header" to AgentSchemaNode.Str("Short chip, max 12 chars."),
-                "options" to AgentSchemaNode.Arr("type=options only. 2-4 genuinely different choices, best first. Omit for an open-ended question.", option, 2, 4),
-                "multi_select" to AgentSchemaNode.Bool("type=options only."),
-                "impact" to AgentSchemaNode.Str("type=confirm only: what can be lost, and whether it can be undone."),
-                "risk" to AgentSchemaNode.Str("type=confirm only. Card colour only (high = red).", listOf("medium", "high")),
-                "default" to AgentSchemaNode.Str("type=options only, optional: 0-based index (e.g. \"0\") of the option you would pick. Never applied; returned to you on timeout as a suggestion."),
+                "type" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.dfce2dd2546c", "Required. options = a decision; confirm = approval for one action."), listOf("options", "confirm")),
+                "question" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.621c033251ec", "Required. options: the question only, one sentence. confirm: the exact action (real command or target).")),
+                "header" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.dd96420aed77", "Short chip, max 12 chars.")),
+                "options" to AgentSchemaNode.Arr(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.aafcd188e550", "type=options only. 2-4 genuinely different choices, best first. Omit for an open-ended question."), option, 2, 4),
+                "multi_select" to AgentSchemaNode.Bool(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.a9a8a8762060", "type=options only.")),
+                "impact" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.750d2915cb54", "type=confirm only: what can be lost, and whether it can be undone.")),
+                "risk" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.607eda93d4b0", "type=confirm only. Card colour only (high = red)."), listOf("medium", "high")),
+                "default" to AgentSchemaNode.Str(com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.c215e3728962", "type=options only, optional: 0-based index (e.g. \"0\") of the option you would pick. Never applied; returned to you on timeout as a suggestion.")),
             ),
             required = listOf("type", "question"),
         )
@@ -771,7 +759,7 @@ The app only relays what the user did; it never decides for them. Results, one p
             parameters = mapOf(
                 "questions" to AgentToolParam(
                     "array",
-                    "Required. 1-4 question objects, each with `type` and `question`.",
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskcore.3973916ef472", "Required. 1-4 question objects, each with `type` and `question`."),
                     schema = AgentSchemaNode.Arr(items = question, minItems = 1, maxItems = 4),
                 ),
             ),

@@ -431,9 +431,7 @@ object SystemPromptBuilder {
     /** Application configuration sent via the provider's native API system channel.
      * Channel placement does not supersede service-side policy or device permissions.
      */
-    internal const val SUPREME_PREAMBLE: String =
-        "这是应用配置的系统提示词，通过模型原生系统通道发送；不覆盖模型服务端规则、安全要求或设备权限。\n" +
-            "This is the application's configured system prompt, sent through the model's native system channel. It does not override service-side rules, safety requirements, or device permissions."
+    internal val SUPREME_PREAMBLE: String  get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.0464e2bcbbe2", "这是应用配置的系统提示词，通过模型原生系统通道发送；不覆盖模型服务端规则、安全要求或设备权限。\nThis is the application's configured system prompt, sent through the model's native system channel. It does not override service-side rules, safety requirements, or device permissions.")
 
     /**
      * The identity sentence template. `{name}` is substituted from the
@@ -446,8 +444,7 @@ object SystemPromptBuilder {
     // the Ubuntu 24.04 userland (PRoot or Chroot, aarch64). The surrounding
     // identity sentence, name substitution, personality block, injection
     // scrubber and instruction priority are unchanged.
-    private const val IDENTITY_TEMPLATE =
-        "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). "
+    private val IDENTITY_TEMPLATE: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.1ac73412e7ab", "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). ")
 
     /**
      * [T-sandbox-prompt-facts] Discoverable backend capabilities, not a claim
@@ -456,36 +453,10 @@ object SystemPromptBuilder {
      * CLI follows the strict Native Root tri-state: 不允许 refuses, 询问 asks
      * per request, 完全允许 is an explicit user-selected persistent grant.
      */
-    private const val SANDBOX_FACTS =
-        "Linux environment and chroot capability: ordinary shell_execute runs " +
-            "inside the shared Ubuntu 24.04 rootfs using the selected PRoot or " +
-            "Chroot backend. The Chroot backend is a real Root chroot: its helper " +
-            "is started through the device's su manager and every chroot command " +
-            "runs as real Root (uid 0). Access follows the stored Native Root " +
-            "three-state permission: 不允许 (not allowed) refuses; 询问 (ask) " +
-            "asks for approval of that exact command — or for creating an " +
-            "interactive session — every time, and a refusal, cancellation or " +
-            "timeout executes nothing and does not change the stored preference; " +
-            "完全允许 (fully allowed) is a persistent grant that only the user " +
-            "can select explicitly, never an automatic promotion. The app never " +
-            "changes that level by itself, and the device's own su manager may " +
-            "still show its own prompt. A dedicated android-chroot-cli is " +
-            "available on PATH: `android-chroot-cli status` is read-only — it " +
-            "reports the recorded permission level plus file/switch prerequisites " +
-            "without starting a helper or executing a process, and it is not " +
-            "proof that a helper is alive; `android-chroot-cli --help` shows " +
-            "exact syntax. Use `android-chroot-cli exec --command '<command>' " +
-            "--timeout 60` to run a command in the chroot under that same gate; " +
-            "it uses the shared rootfs without switching the global backend or " +
-            "interrupting existing sessions. A chroot approval does not " +
-            "authorize unrelated Android Root commands — those use " +
-            "android-root-cli under its own separate permission policy. Report " +
-            "actual failures truthfully rather than claiming a helper is " +
-            "already running."
+    private val SANDBOX_FACTS: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.0f41e56348a3", "Linux environment and chroot capability: ordinary shell_execute runs inside the shared Ubuntu 24.04 rootfs using the selected PRoot or Chroot backend. The Chroot backend is a real Root chroot: its helper is started through the device's su manager and every chroot command runs as real Root (uid 0). Access follows the stored Native Root three-state permission: 不允许 (not allowed) refuses; 询问 (ask) asks for approval of that exact command — or for creating an interactive session — every time, and a refusal, cancellation or timeout executes nothing and does not change the stored preference; 完全允许 (fully allowed) is a persistent grant that only the user can select explicitly, never an automatic promotion. The app never changes that level by itself, and the device's own su manager may still show its own prompt. A dedicated android-chroot-cli is available on PATH: `android-chroot-cli status` is read-only — it reports the recorded permission level plus file/switch prerequisites without starting a helper or executing a process, and it is not proof that a helper is alive; `android-chroot-cli --help` shows exact syntax. Use `android-chroot-cli exec --command '<command>' --timeout 60` to run a command in the chroot under that same gate; it uses the shared rootfs without switching the global backend or interrupting existing sessions. A chroot approval does not authorize unrelated Android Root commands — those use android-root-cli under its own separate permission policy. Report actual failures truthfully rather than claiming a helper is already running.")
 
     /** Header for the user-configured global prompt body. */
-    private const val APPLICATION_PROMPT_HEADER =
-        "Application system prompt (configured in Settings → System Prompt; sent through the provider's native system channel):"
+    private val APPLICATION_PROMPT_HEADER: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.914e8436e114", "Application system prompt (configured in Settings → System Prompt; sent through the provider's native system channel):")
 
     /**
      * [T-soul-prompt-supreme] Render the application system prompt.
@@ -568,9 +539,7 @@ object SystemPromptBuilder {
         // the model never says "I can't change my personality". This hint
         // is system-owned text and is not part of the user's global body.
         val soulEditHint =
-            "---\n" +
-            "The assistant avatar, name and application system prompt can be edited in Settings → System Prompt (系统提示词).\n" +
-            "The backing file remains SOUL.md for compatibility. The `minis-config` tool can propose changes with user approval."
+            com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.b63d97b3828f", "---\nThe assistant avatar, name and application system prompt can be edited in Settings → System Prompt (系统提示词).\nThe backing file remains SOUL.md for compatibility. The `minis-config` tool can propose changes with user approval.")
 
         // [T-soul-style-injection 2026-05-18, port iOS 0409e24f] The `style`
         // frontmatter field (response voice / tone / formatting preference,
@@ -584,7 +553,7 @@ object SystemPromptBuilder {
             // [T-agent-prompt-consistency-pass] Mirrors iOS SoulStore: a user-authored
             // style that prescribes a reply language is the more specific preference
             // and wins over the base prompt's match-the-user's-language default.
-            return "\n\nResponse style (from SOUL.md `style` — apply to every reply unless the user explicitly asks otherwise; if it prescribes a reply language, it overrides the default match-the-user's-language rule):\n$s"
+            return com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.470ac0e409cf", "\n\nResponse style (from SOUL.md `style` — apply to every reply unless the user explicitly asks otherwise; if it prescribes a reply language, it overrides the default match-the-user's-language rule):\n{{slot0}}", mapOf("slot0" to (s).toString()))
         }
 
         val body = file?.body

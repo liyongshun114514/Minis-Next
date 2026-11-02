@@ -183,8 +183,8 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
         // 1. unknown_tool_repeat — most specific signal, runs first.
         val unknownStreak = countUnknownStreakFromTail(toolName)
         if (unknownStreak >= config.unknownToolThreshold) {
-            val msg = "[LOOP BLOCKED] CRITICAL: attempted unavailable tool '$toolName' " +
-                "$unknownStreak times. Stop retrying that missing tool and answer without it."
+            val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.b3aea01030f7", "[LOOP BLOCKED] CRITICAL: attempted unavailable tool '{{slot0}}' ", mapOf("slot0" to (toolName).toString())) +
+                com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.ef8362533611", "{{slot0}} times. Stop retrying that missing tool and answer without it.", mapOf("slot0" to (unknownStreak).toString()))
             AppLogger.warning("ToolLoopDetector",
                 "CRITICAL unknown_tool_repeat tool=$toolName streak=$unknownStreak")
             return LoopCheckResult(Level.CRITICAL, msg)
@@ -195,9 +195,9 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
         // 2. global_circuit_breaker — universal backstop, before poll-specific
         //    rule so a runaway non-poll loop can't slip past on lower thresholds.
         if (noProgressStreak >= config.globalCircuitBreakerThreshold) {
-            val msg = "[LOOP BLOCKED] CRITICAL: $toolName has repeated identical " +
-                "no-progress outcomes $noProgressStreak times. Session execution " +
-                "blocked by global circuit breaker."
+            val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.caaf1aec3dd6", "[LOOP BLOCKED] CRITICAL: {{slot0}} has repeated identical ", mapOf("slot0" to (toolName).toString())) +
+                com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.2ee345a2018d", "no-progress outcomes {{slot0}} times. Session execution ", mapOf("slot0" to (noProgressStreak).toString())) +
+                com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.2d7dbfe22bd4", "blocked by global circuit breaker.")
             AppLogger.warning("ToolLoopDetector",
                 "CRITICAL global_circuit_breaker tool=$toolName streak=$noProgressStreak")
             return LoopCheckResult(Level.CRITICAL, msg)
@@ -207,16 +207,16 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
         //    because polling without progress is the canonical waste case.
         if (isPollTool(toolName, params)) {
             if (noProgressStreak >= config.criticalThreshold) {
-                val msg = "[LOOP BLOCKED] CRITICAL: Called $toolName $noProgressStreak " +
-                    "times with identical no-progress results. Session execution blocked."
+                val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.0755b4374766", "[LOOP BLOCKED] CRITICAL: Called {{slot0}} {{slot1}} ", mapOf("slot0" to (toolName).toString(), "slot1" to (noProgressStreak).toString())) +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.a8e7fdd2d04e", "times with identical no-progress results. Session execution blocked.")
                 AppLogger.warning("ToolLoopDetector",
                     "CRITICAL known_poll_no_progress tool=$toolName streak=$noProgressStreak")
                 return LoopCheckResult(Level.CRITICAL, msg)
             }
             if (noProgressStreak >= config.warningThreshold) {
-                val msg = "[LOOP WARNING] You have called $toolName $noProgressStreak " +
-                    "times with no progress. Stop polling and either (1) increase wait " +
-                    "time, or (2) report the task as failed."
+                val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.af336eb5ba32", "[LOOP WARNING] You have called {{slot0}} {{slot1}} ", mapOf("slot0" to (toolName).toString(), "slot1" to (noProgressStreak).toString())) +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.fa61a798eb48", "times with no progress. Stop polling and either (1) increase wait ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.d481c5d60826", "time, or (2) report the task as failed.")
                 AppLogger.debug("ToolLoopDetector",
                     "WARNING known_poll_no_progress tool=$toolName streak=$noProgressStreak")
                 return LoopCheckResult(Level.WARNING, msg, "poll:$toolName:$argsHash")
@@ -228,9 +228,9 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
         if (!isPollTool(toolName, params)) {
             val totalCount = history.count { it.toolName == toolName && it.argsHash == argsHash }
             if (totalCount >= config.warningThreshold) {
-                val msg = "[LOOP WARNING] You have called $toolName $totalCount times " +
-                    "with identical arguments. If this is not making progress, stop " +
-                    "retrying and report the task as failed."
+                val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.5f6818fd79d5", "[LOOP WARNING] You have called {{slot0}} {{slot1}} times ", mapOf("slot0" to (toolName).toString(), "slot1" to (totalCount).toString())) +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.56587b9a1097", "with identical arguments. If this is not making progress, stop ") +
+                    com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.5a5254278a74", "retrying and report the task as failed.")
                 AppLogger.debug("ToolLoopDetector",
                     "WARNING generic_repeat tool=$toolName count=$totalCount")
                 return LoopCheckResult(Level.WARNING, msg, "repeat:$toolName:$argsHash")
@@ -284,9 +284,9 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
             if (streak in config.warningThreshold until config.criticalThreshold) {
                 val key = "poll:$toolName:$argsHash"
                 if (shouldEmitWarning(key, streak)) {
-                    val msg = "[LOOP WARNING] You have called $toolName $streak times " +
-                        "with no progress. Stop polling and either (1) increase wait " +
-                        "time, or (2) report the task as failed."
+                    val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.5f6818fd79d5", "[LOOP WARNING] You have called {{slot0}} {{slot1}} times ", mapOf("slot0" to (toolName).toString(), "slot1" to (streak).toString())) +
+                        com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.296bd90894dd", "with no progress. Stop polling and either (1) increase wait ") +
+                        com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.d481c5d60826", "time, or (2) report the task as failed.")
                     return LoopCheckResult(Level.WARNING, msg, key)
                 }
             }
@@ -295,9 +295,9 @@ class ToolLoopDetector(private val config: ToolLoopConfig = ToolLoopConfig()) {
             if (totalCount >= config.warningThreshold) {
                 val key = "repeat:$toolName:$argsHash"
                 if (shouldEmitWarning(key, totalCount)) {
-                    val msg = "[LOOP WARNING] You have called $toolName $totalCount " +
-                        "times with identical arguments. If this is not making " +
-                        "progress, stop retrying and report the task as failed."
+                    val msg = com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.af336eb5ba32", "[LOOP WARNING] You have called {{slot0}} {{slot1}} ", mapOf("slot0" to (toolName).toString(), "slot1" to (totalCount).toString())) +
+                        com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.37dc6d4f84ff", "times with identical arguments. If this is not making ") +
+                        com.openminis.app.agent.prompts.PromptOverrides.render("agent.toolloopdetector.13a9f370df9c", "progress, stop retrying and report the task as failed.")
                     return LoopCheckResult(Level.WARNING, msg, key)
                 }
             }

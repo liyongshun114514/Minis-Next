@@ -13,8 +13,7 @@ import java.util.Locale
  * block at the provider layer (and strips a caller-supplied one), so callers
  * do NOT need to prepend it themselves.
  */
-internal const val TITLE_GEN_SYSTEM_PROMPT: String =
-    "You generate concise titles for conversations. You MUST respond with a single valid JSON object: {\"title\": \"...\", \"category\": \"...\"}. No other text."
+internal val TITLE_GEN_SYSTEM_PROMPT: String  get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.titlepromptlocale.9473de7f6f5d", "You generate concise titles for conversations. You MUST respond with a single valid JSON object: {\"title\": \"...\", \"category\": \"...\"}. No other text.")
 
 /**
  * Build the bilingual language directive appended to the title-generation
@@ -30,10 +29,10 @@ internal fun titleLanguageDirective(locale: Locale = Locale.getDefault()): Strin
     val (code, human) = resolveTitleLanguageCode(locale)
     return buildString {
         append("\n\n")
-        append("The user's app interface language is \"").append(code)
-            .append("\" (").append(human).append("). Generate the title primarily in this language. ")
-        append("If the conversation content is in a different language, you may keep proper nouns ")
-        append("from it, but the overall title language should match the interface language.\n")
+        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.titlepromptlocale.d0940438211b", "The user's app interface language is \"")).append(code)
+            .append("\" (").append(human).append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.titlepromptlocale.b0543ea27e1d", "). Generate the title primarily in this language. "))
+        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.titlepromptlocale.8a1ca5fdd8f9", "If the conversation content is in a different language, you may keep proper nouns "))
+        append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.titlepromptlocale.7d3ec7c7f877", "from it, but the overall title language should match the interface language.\n"))
         append("用户的 App 界面语言是 \"").append(code).append("\"（").append(human).append("）。")
         append("请优先使用该语言生成标题。如果对话内容是其他语言，可保留专有名词，但标题整体语言应与界面语言一致。")
     }

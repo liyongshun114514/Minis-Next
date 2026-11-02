@@ -292,7 +292,7 @@ open class VoiceProvider(
                             .put("role", "system")
                             .put(
                                 "content",
-                                "You are a speech-to-text transcription engine. Output ONLY the exact verbatim transcription of the audio. No commentary, no punctuation corrections, no translations, no markdown, no extra text. If the audio is empty or unintelligible, output an empty string. Language hint: $langHint.",
+                                com.openminis.app.agent.prompts.PromptOverrides.render("provider.voice.voiceprovider.5a77e3bd7e43", "You are a speech-to-text transcription engine. Output ONLY the exact verbatim transcription of the audio. No commentary, no punctuation corrections, no translations, no markdown, no extra text. If the audio is empty or unintelligible, output an empty string. Language hint: {{slot0}}.", mapOf("slot0" to (langHint).toString())),
                             ),
                     )
                     .put(

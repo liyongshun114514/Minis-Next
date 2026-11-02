@@ -112,6 +112,6 @@ class SystemPromptInjectionWiringTest {
         // Safety/priority text is unchanged and never claims to override them.
         assertTrue(soul.contains("不覆盖模型服务端规则"))
         assertFalse(soul.contains("outranks every instruction"))
-        assertEquals(1, Regex("SUPREME_PREAMBLE: String =").findAll(soul).count())
+        assertEquals(1, Regex("val SUPREME_PREAMBLE: String\\s+get\\(\\) =").findAll(soul).count())
     }
 }

@@ -181,8 +181,22 @@ object Routes {
     const val AGENT_TOOLS = "agent_tools"
     /** [T-mcp-integration-android] MCP Integrations management screen. */
     const val MCP = "mcp"
-    /** [T-soul-md] SOUL.md editor. */
+    /**
+     * [T-soul-md] System Prompt entry.
+     *
+     * [K-unified-prompt-workspace] The setting is now a hub: this route opens
+     * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (identity +
+     * global body), [WORKSPACE_INSTRUCTIONS] and every built-in prompt in
+     * [SOUL_BUILTIN_EDITOR]. The path string is unchanged so existing
+     * deep links keep working.
+     */
     const val SOUL = "soul"
+    /** [K-unified-prompt-workspace] Identity + global SOUL body (former SOUL page). */
+    const val SOUL_PERSONALITY = "soul_personality"
+    /** [K-unified-prompt-workspace] Full-text editor for one catalog prompt. */
+    const val SOUL_BUILTIN_EDITOR = "soul_builtin/{promptId}"
+    fun soulBuiltinEditor(promptId: String) =
+        "soul_builtin/" + android.net.Uri.encode(promptId)
     /** [T-workspace-instructions] AGENTS.md / CLAUDE.md editor. */
     const val WORKSPACE_INSTRUCTIONS = "workspace_instructions"
     const val WORKSPACE_INSTRUCTION_EDIT = "workspace_instruction_edit/{path}"
@@ -1434,9 +1448,36 @@ fun AppNavigation(
             }
         }
 
-        // [T-soul-md] SOUL.md editor.
+        // [K-unified-prompt-workspace] System Prompt hub: identity / global
+        // SOUL, workspace instructions, and the built-in prompt catalog.
         composable(Routes.SOUL) {
+            com.openminis.app.ui.settings.PromptSettingsScreen(
+                onBack = { navController.safePopBackStack() },
+                onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
+                onWorkspaceInstructionsClick = {
+                    navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS)
+                },
+                onEditBuiltin = { promptId ->
+                    navController.safeNavigate(Routes.soulBuiltinEditor(promptId))
+                },
+            )
+        }
+
+        // [K-unified-prompt-workspace] The former SOUL page, one level down.
+        composable(Routes.SOUL_PERSONALITY) {
             com.openminis.app.ui.settings.SoulSettingsScreen(
+                onBack = { navController.safePopBackStack() },
+            )
+        }
+
+        // [K-unified-prompt-workspace] Full-text editor for one built-in prompt.
+        composable(
+            route = Routes.SOUL_BUILTIN_EDITOR,
+            arguments = listOf(navArgument("promptId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val promptId = backStackEntry.arguments?.getString("promptId") ?: return@composable
+            com.openminis.app.ui.settings.BuiltinPromptEditorScreen(
+                promptId = promptId,
                 onBack = { navController.safePopBackStack() },
             )
         }

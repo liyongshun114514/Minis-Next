@@ -63,8 +63,7 @@ object UserAskRecovery {
     const val MAX_AGE_MS = 7L * 24 * 3600 * 1000
 
     /** The result a sibling tool of a recovered batch gets: it never ran. */
-    const val INTERRUPTED_RESULT =
-        "<system-reminder>The app was closed before this tool finished; it did not run. Run it again if it is still needed.</system-reminder>"
+    val INTERRUPTED_RESULT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskrecovery.555e58763918", "<system-reminder>The app was closed before this tool finished; it did not run. Run it again if it is still needed.</system-reminder>")
 
     fun action(r: UserAskRecord, nowMs: Long, toolResultInStore: Boolean): UserAskRecoveryAction = when {
         // [T-user-ask-deferred] Its `deferred` result is in the store from the
@@ -260,7 +259,7 @@ object UserAskCodec {
  */
 object UserAskDeferred {
     const val STATUS = "deferred"
-    const val NOTE = UserAskPromptText.DEFERRED_NOTE
+    val NOTE: String get() = UserAskPromptText.DEFERRED_NOTE
 
     /**
      * [T-user-ask-deferred-ttl] How long a deferred card stays open (iOS
@@ -272,7 +271,7 @@ object UserAskDeferred {
     const val LIFETIME_MS = 60 * 60_000L
 
     /** The bubble note under the answers, for the model (stripped from the bubble). */
-    const val ANSWER_REMINDER = "<system-reminder>The user's answers to your earlier question card.</system-reminder>"
+    val ANSWER_REMINDER: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.userask.useraskrecovery.4ca4498ab976", "<system-reminder>The user's answers to your earlier question card.</system-reminder>")
 
     /**
      * [T-user-ask-deferred-delivery] How long a deferred answer waits for a

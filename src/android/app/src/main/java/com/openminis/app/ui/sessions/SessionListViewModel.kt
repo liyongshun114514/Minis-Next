@@ -51,8 +51,7 @@ class SessionListViewModel(
          * [T-android-group-ai-suggest] Verbatim from iOS `suggestFolder`, so
          * both platforms constrain the sub model identically.
          */
-        private const val GROUP_SUGGEST_SYSTEM_PROMPT =
-            "You organize chat sessions into folders. Respond with a single valid JSON object only."
+        private val GROUP_SUGGEST_SYSTEM_PROMPT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.1c8e4ad9e479", "You organize chat sessions into folders. Respond with a single valid JSON object only.")
 
         /**
          * [T-android-group-ai-suggest] Parse the sub model's JSON reply.
@@ -687,18 +686,18 @@ class SessionListViewModel(
         val foldersBlock = if (folderLines.isEmpty()) "The user has no folders yet."
         else "Existing folders with sample member titles:\n${folderLines.joinToString("\n")}"
         val prompt = buildString {
-            append("The user selected these chat sessions to file into a folder:\n")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.891755db0ad5", "The user selected these chat sessions to file into a folder:\n"))
             append(sessionLines.joinToString("\n"))
             append("\n\n")
             append(foldersBlock)
             append("\n\n")
-            append("Decide: merge them into ONE existing group (only if they clearly fit it), ")
-            append("or propose ONE new group name (2-8 characters preferred, in the same language as the session titles). ")
-            append("For a new group also write \"description\": one sentence (under 100 characters, same language as the name) ")
-            append("describing what belongs in it — it will guide future automatic grouping.\n\n")
-            append("You MUST respond with valid JSON only. Examples:\n")
-            append("{\"decision\": \"merge\", \"folder\": \"Work\"}\n")
-            append("{\"decision\": \"create\", \"name\": \"Trip Planning\", \"description\": \"Flights, hotels and itineraries for upcoming trips\"}")
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.73d7d69b3627", "Decide: merge them into ONE existing group (only if they clearly fit it), "))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.7f97567bd9a8", "or propose ONE new group name (2-8 characters preferred, in the same language as the session titles). "))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.7554bcde077e", "For a new group also write \"description\": one sentence (under 100 characters, same language as the name) "))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.fa31f205ed8c", "describing what belongs in it — it will guide future automatic grouping.\n\n"))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.c6d8c314019c", "You MUST respond with valid JSON only. Examples:\n"))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.383ea6de362f", "{\"decision\": \"merge\", \"folder\": \"Work\"}\n"))
+            append(com.openminis.app.agent.prompts.PromptOverrides.render("ui.sessions.sessionlistviewmodel.8c26287ee209", "{\"decision\": \"create\", \"name\": \"Trip Planning\", \"description\": \"Flights, hotels and itineraries for upcoming trips\"}"))
         }
 
         var lastError: Exception? = null

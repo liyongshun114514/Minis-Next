@@ -53,15 +53,7 @@ internal object QueuedCallbackReminder {
         val jobs = callbacks.joinToString("; ") {
             "${it.title.ifBlank { "sub agent" }} (job ${it.jobId}, ${it.status})"
         }
-        return "<system-reminder>\n" +
-            "Background update: sub agent(s) you delegated have finished, and the result is queued for this conversation: $jobs\n" +
-            "\n" +
-            "It has NOT been delivered to you yet. It arrives as a new message only after your current turn ends, i.e. when you reply without calling more tools. Your call:\n" +
-            "- If the result could change what you do next, or your remaining work is short or non-essential, wrap up now and end the turn with a brief summary. The result will then arrive.\n" +
-            "- If your current work is independent of it and must finish first, keep going. The result stays queued and won't be lost.\n" +
-            "\n" +
-            "Don't poll for it, re-delegate, or mention this reminder to the user.\n" +
-            "</system-reminder>"
+        return com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.queuedcallbackreminder.18c69265fd42", "<system-reminder>\nBackground update: sub agent(s) you delegated have finished, and the result is queued for this conversation: {{slot0}}\n\nIt has NOT been delivered to you yet. It arrives as a new message only after your current turn ends, i.e. when you reply without calling more tools. Your call:\n- If the result could change what you do next, or your remaining work is short or non-essential, wrap up now and end the turn with a brief summary. The result will then arrive.\n- If your current work is independent of it and must finish first, keep going. The result stays queued and won't be lost.\n\nDon't poll for it, re-delegate, or mention this reminder to the user.\n</system-reminder>", mapOf("slot0" to (jobs).toString()))
     }
 
     /**

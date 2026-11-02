@@ -22,8 +22,7 @@ object ToolTitleReminder {
     /** Unique tag, so detection/stripping never touch any other reminder. */
     const val MARKER = "[minis:tool-title-reminder]"
 
-    const val TEXT = "<system-reminder>$MARKER This is a soft reminder. " +
-        "This tool call has no `tool_title`; please include a short one next time.</system-reminder>"
+    val TEXT: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.tooltitlereminder.258825549999", "<system-reminder>{{slot0}} This is a soft reminder. This tool call has no `tool_title`; please include a short one next time.</system-reminder>", mapOf("slot0" to (MARKER).toString()))
 
     /** True when the call has no usable title: absent, not a string, or blank. */
     fun isMissingTitle(args: JSONObject): Boolean {
