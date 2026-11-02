@@ -9,9 +9,9 @@ The 1.3 update fixes App/CHROOT file handoff for newly created shared content. A
 
 The 1.2 update fixes the Android guest directory left over from the Alpine era. The live rootfs is now `filesDir/Ubuntu-rootfs` (capital U), extraction uses `filesDir/Ubuntu-rootfs.staging`, and a replaced guest is preserved as `filesDir/Ubuntu-rootfs.previous-<yyyyMMdd-HHmmss>[-n]`. On first launch an existing `filesDir/alpine-rootfs` is **renamed** to the new path — not copied, not re-extracted, and never unpacked over — so bytes, mtimes, installed packages and settings survive. PRoot `--link2symlink` `.l2s` records and older host-absolute references may still contain the old path, so an upgraded install additionally keeps exactly one relative compatibility alias `alpine-rootfs → Ubuntu-rootfs` (a symlink, never a data copy; all current readers use `Ubuntu-rootfs`). Fresh installs do not create the old name. A pending journal in `filesDir` makes an interruption between the rename and the alias recoverable on the next launch. If both directories contain data, both are left untouched and the conflict is surfaced as a visible error that blocks install and reset. Historical `alpine-rootfs.pre-ubuntu-*` backups and an old `alpine-rootfs.staging` remain discoverable through `RootfsManager.legacyBackupDirs` (the rootfs screen shows the latest preserved path) and are never auto-deleted.
 
-The 1.1 interactive features are unchanged: native math plot drag/hit-testing and continuous sliders, the composer's original 20dp corners with 16dp bottom safe-area clearance, a per-provider custom HTTPS balance URL, and live model-catalog replacement with a visible error on failed refreshes.
+The composer's original 20dp corners with 16dp bottom safe-area clearance, a per-provider custom HTTPS balance URL, and live model-catalog replacement with a visible error on failed refreshes are retained. The optional native interactive-card feature and its math/plot controls have been removed.
 
-Current branch: `minis-next`, repository https://github.com/liyongshun114514/Minis-Next . Continues Kairos 1.0.2 functions without removing features; display name Minis Next, applicationId com.openminis.app.next, namespace com.openminis.app. Launcher icons remain the pinned upstream originals. `docs/KAIROS.md` is historical, not current installation/signing guidance.
+Current branch: `minis-next`, repository https://github.com/liyongshun114514/Minis-Next . Continues the Kairos 1.0.2 base with the optional native interactive-card feature removed; display name Minis Next, applicationId com.openminis.app.next, namespace com.openminis.app. Launcher icons remain the pinned upstream originals. `docs/KAIROS.md` is historical, not current installation/signing guidance.
 
 ## New stable signing identity
 
@@ -19,9 +19,9 @@ Public certificate SHA-256: `f1464cfe2b280348ee1fa611733dc55818bdcdcae659dd4fcbf
 
 Release variants use explicit NEXT_KEYSTORE and NEXT_STORE_PASSWORD and alias minisnext; CI restores NEXT_KEYSTORE_BASE64 and NEXT_STORE_PASSWORD from encrypted repository secrets. Secrets/key material are never committed. This is NOT the old Next debug certificate or Kairos release certificate. **Cannot directly update either differently signed app.** Back up in the old app before any uninstall; do not claim uninstall is lossless. No automatic migration, uninstall, installation or device Root is performed by the build workflow.
 
-## Intelligent UI
+## Upstream build39 integration
 
-See [INTELLIGENT_UI.md](INTELLIGENT_UI.md) for protocol, native component catalog, upstream attribution, limitations and tests. Existing tools, terminal and web-preview functionality remain; generated Intelligent UI cards do not execute web code or replace approval prompts.
+See [the update and conflict report](upstream-build39.md). Existing tools, terminal, user questions and web-preview functionality remain. Historical removed-card tool results use the ordinary tool pill/detail view; no database migration or history deletion is performed.
 
 ## Provider settings (introduced in 1.1, unchanged in 1.2)
 

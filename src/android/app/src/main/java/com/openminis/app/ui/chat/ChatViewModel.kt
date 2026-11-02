@@ -9553,15 +9553,6 @@ class ChatViewModel(
         AppLogger.info(TAG, "[provider-edit] rebuilt provider for edited instance ${id.take(8)} (responses=${instance.useResponsesAPI})")
     }
 
-    /** A real UI tap, but not a composer send: never consumes a draft or staged files. */
-    internal fun sendNativeUiFollowUp(text: String) {
-        if (_isStreaming.value || _canResume.value) return
-        val outcome = sendMessage(text, skipContextCheck = false, headless = true, nativeUiFollowUp = true)
-        if (outcome is SubmitOutcome.Rejected) {
-            android.widget.Toast.makeText(context, context.getString(R.string.intelligent_ui_send_failed), android.widget.Toast.LENGTH_LONG).show()
-        }
-    }
-
     fun sendMessage(text: String) {
         // [T-android-stop-sibling-subagent] New work in this session lifts the
         // stop: delegations from here on may drive the turn again.
@@ -9629,7 +9620,6 @@ class ChatViewModel(
         userAskAnswer: Boolean = false,
         // [T-headless-own-attachments] A headless prompt's own files.
         headlessAttachments: List<InputAttachment> = emptyList(),
-        nativeUiFollowUp: Boolean = false,
     ): SubmitOutcome {
         // [T-android-mute-reset-on-drain] Headless submits (submitPrompt, a
         // scheduled fire into an idle chat) reach this funnel without the
@@ -9941,7 +9931,7 @@ class ChatViewModel(
 
             // Build system prompt
             // Anthropic OAuth requires the Claude Code prefix in the system prompt
-            decideUserAskExposureForRun(interactive = !headless || nativeUiFollowUp, userAskAnswer = userAskAnswer)  // [T-port-user-ask]
+            decideUserAskExposureForRun(interactive = !headless, userAskAnswer = userAskAnswer)  // [T-port-user-ask]
             val baseSystemPrompt = buildSystemPrompt()
             val systemPrompt = if ((provider as? com.openminis.app.provider.anthropic.AnthropicProvider)?.isOAuth == true) {
                 val prefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
@@ -14340,8 +14330,6 @@ class ChatViewModel(
         val toolTitle = try { JSONObject(argsJson).optString("tool_title", name) } catch (_: Exception) { name }
 
         return when (name) {
-            com.openminis.app.intelligentui.IntelligentUiTool.NAME ->
-                com.openminis.app.intelligentui.IntelligentUiTool.execute(argsJson)
             FileReadTool.NAME -> {
                 val result = FileReadTool.execute(argsJson, fsSessionId, context, executionSessionId = activeSessionId)
                 // Record skill usage when SKILL.md under /var/minis/skills/<id>/ is read.
@@ -16613,7 +16601,6 @@ Available tools:
 - file_write: Create new files or overwrite existing files (faster than echo/tee).
 - file_edit: Edit existing files with exact string replacement (old_string → new_string). Preferred over file_write for modifications — always file_read first.
 ${browserPromptBullet}${userAskPromptLine}
-${if (isHelper) "" else com.openminis.app.intelligentui.IntelligentUiTool.PROMPT}
 
 Shared directory /var/minis/ (bidirectional read/write between shell and app):
   /var/minis/attachments/ — Media files (images, audio, video). Display inline with ![desc](minis://attachments/filename).
