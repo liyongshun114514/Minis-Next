@@ -106,8 +106,12 @@ class ScheduledPrefillWiringTest {
 
     @Test
     fun `the system prompt teaches the prefilled command flags`() {
-        assertTrue(vm.contains("add `--command \"<shell command>\"` (optionally `--command-timeout 2m`)"))
-        assertTrue(vm.contains("`--tool shell_execute --tool-args '{\"command\":\"…\"}'`"))
+        // The editable prompt is a Kotlin normal string now, so its source
+        // contains escaped quotes. Check the full documented commands rather
+        // than weakening this to the flag names alone.
+        assertTrue(vm.contains("add `--command \\\"<shell command>\\\"` (optionally `--command-timeout 2m`)"))
+        assertTrue(vm.contains("`--tool shell_execute --tool-args '{\\\"command\\\":\\\"…\\\"}'`"))
+        assertTrue(vm.contains("PromptOverrides.render(\"ui.chat.chatviewmodel.53db6730678b\""))
         assertTrue(vm.contains("you receive its real output as an already-completed tool call"))
     }
 

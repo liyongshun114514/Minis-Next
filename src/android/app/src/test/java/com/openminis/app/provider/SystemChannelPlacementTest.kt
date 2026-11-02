@@ -147,6 +147,9 @@ class SystemChannelPlacementTest {
         }
         assertTrue(soul.contains("不覆盖模型服务端规则"))
         assertFalse(soul.contains("outranks every instruction"))
-        assertEquals(1, Regex("SUPREME_PREAMBLE: String =").findAll(soul).count())
+        // The editable template is resolved by a getter, not a cached value.
+        // Keep the single-definition contract and require the catalog wiring.
+        assertEquals(1, Regex("val SUPREME_PREAMBLE: String\\s+get\\(\\) =").findAll(soul).count())
+        assertTrue(soul.contains("PromptOverrides.render(\"agent.soulstore.0464e2bcbbe2\""))
     }
 }
