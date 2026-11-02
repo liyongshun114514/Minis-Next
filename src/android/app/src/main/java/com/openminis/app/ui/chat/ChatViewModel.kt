@@ -3415,6 +3415,11 @@ class ChatViewModel(
     internal val _autoCompactEnabled =
         MutableStateFlow(com.openminis.app.data.AutoCompactPrefs.isEnabled())
     val autoCompactEnabled: StateFlow<Boolean> = _autoCompactEnabled.asStateFlow()
+    private val autoCompactPreferenceObserver = viewModelScope.launch {
+        com.openminis.app.data.AutoCompactPrefs.config.collect { configured ->
+            _autoCompactEnabled.value = configured.enabled
+        }
+    }
 
     fun setAutoCompactEnabled(enabled: Boolean) {
         com.openminis.app.data.AutoCompactPrefs.setEnabled(context, enabled)
@@ -3679,7 +3684,18 @@ class ChatViewModel(
         } else {
             ContextPolicy.forContextWindow(window)
         }
-        return policy to window
+        val configured = com.openminis.app.data.AutoCompactPrefs.config.value
+        return com.openminis.app.data.AutoCompactPolicy.apply(
+            policy, window, configured.enabled, configured.thresholdTokens,
+        ) to window
+    }
+
+    /** A user threshold is measured before lossy trimming, including fixed prompt/tool tokens. */
+    private fun customCompactThresholdReached(): Boolean {
+        val configured = com.openminis.app.data.AutoCompactPrefs.config.value
+        if (!configured.enabled || configured.thresholdTokens == null) return false
+        val policy = currentContextPolicy()?.first ?: return false
+        return policy.compactThreshold > 0 && measureOutboundContextTokens() >= policy.compactThreshold
     }
 
     val currentModelMaxOutputTokens: Int?
@@ -4185,6 +4201,8 @@ class ChatViewModel(
             appendSystemInfo("No provider configured. Cannot compact.", "compact")
             return
         }
+        // Freeze the selection for the entire summary (including split calls).
+        val compactEntryId = com.openminis.app.data.AutoCompactPrefs.modelEntryId()
         val history = agentHistory.toList()
         if (history.isEmpty()) {
             appendSystemInfo("Nothing to compact — the session is empty.", "compact")
@@ -4333,6 +4351,12 @@ class ChatViewModel(
                 // normal turns agreeing about what "worth switching" means.
                 var summary = ""
                 run {
+                    var summaryProvider = if (compactEntryId == null) provider else resolveCompactProvider(compactEntryId)
+                    _compactProgress.value = _compactProgress.value?.copy(modelName = summaryProvider.model.displayName)
+                    // Only the default/current-model route keeps its existing fallback
+                    // chain. An explicitly selected compactor must never silently
+                    // send this transcript to a different provider or rebind chat.
+                    val compactFallbacks = if (compactEntryId == null) buildFallbackProviders(provider) else emptyList()
                     val strategy = _selectedGroupId.value
                         ?.let { gid ->
                             providerRepository.config.value.modelGroups
@@ -4350,6 +4374,7 @@ class ChatViewModel(
                                     messages = toCompact,
                                     previousSummary = existing,
                                     depth = 0,
+                                    compactProvider = summaryProvider,
                                 )
                             }.trim()
                             break
@@ -4363,17 +4388,18 @@ class ChatViewModel(
                                 actual is com.openminis.app.data.model.LLMError.RateLimited ||
                                 strategy == com.openminis.app.data.model.FallbackStrategy.always
                             val next = if (!worthSwitching) null else {
-                                buildFallbackProviders(
-                                    currentProvider ?: throw e,
-                                ).firstOrNull { it.entryId !in tried }
+                                compactFallbacks.firstOrNull { it.entryId !in tried }
                             }
                             if (next == null) throw e
                             tried.add(next.entryId)
-                            val from = currentModel?.displayName ?: "?"
+                            val from = summaryProvider.model.displayName
+                            summaryProvider = next.provider
                             withContext(Dispatchers.Main) {
+                                // Default-model fallback retains existing chat behavior.
+                                // Explicit compact models have an empty fallback chain.
                                 adoptFallbackCandidate(next)
                                 _compactProgress.value = _compactProgress.value
-                                    ?.copy(modelName = next.provider.model.displayName)
+                                    ?.copy(modelName = summaryProvider.model.displayName)
                             }
                             AppLogger.warning(
                                 TAG,
@@ -5303,6 +5329,7 @@ class ChatViewModel(
         messages: List<LLMMessage>,
         previousSummary: String? = null,
         depth: Int = 0,
+        compactProvider: LLMProvider,
     ): String {
         val transcript = buildConversationTextForSummary(messages)
         val conversationText = if (previousSummary.isNullOrBlank()) {
@@ -5328,7 +5355,7 @@ class ChatViewModel(
             callsIssued = spent,
         )
         return try {
-            generateCompactSummary(conversationText)
+            generateCompactSummary(conversationText, compactProvider)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -5352,8 +5379,8 @@ class ChatViewModel(
                 TAG,
                 ("[Compact] Splitting " + (messages.size).toString() + " messages into " + (firstHalf.size).toString() + " + " + (secondHalf.size).toString() + " (depth=" + (depth).toString() + ")"),
             )
-            val summary1 = generateCompactSummaryWithSplitting(firstHalf, null, depth + 1)
-            val summary2 = generateCompactSummaryWithSplitting(secondHalf, null, depth + 1)
+            val summary1 = generateCompactSummaryWithSplitting(firstHalf, null, depth + 1, compactProvider)
+            val summary2 = generateCompactSummaryWithSplitting(secondHalf, null, depth + 1, compactProvider)
             // Join the partials textually — the caller stores a single summary
             // string, so segmentation stays invisible downstream.
             //
@@ -5385,7 +5412,24 @@ class ChatViewModel(
      * summary. Throws on provider error so the splitter above can detect
      * context-too-large failures and retry with halved input.
      */
-    private suspend fun generateCompactSummary(conversationText: String): String {
+    private suspend fun resolveCompactProvider(entryId: String): LLMProvider {
+        val config = providerRepository.config.value
+        val entry = config.modelEntries.firstOrNull { it.id == entryId }
+            ?: throw IllegalStateException("Selected compaction model was removed. Choose another in Context compaction settings.")
+        val instance = config.instances.firstOrNull { it.id == entry.providerInstanceId }
+            ?: throw IllegalStateException("Selected compaction provider was removed.")
+        check(instance.isEnabled && instance.providerType.isUsable && !entry.isHidden && entry.model.isTextOutput) {
+            "Selected compaction model is disabled, hidden, or cannot output text."
+        }
+        val credential = providerRepository.requestCredential(instance)
+            ?: throw IllegalStateException("Selected compaction model has no available credential.")
+        return ProviderFactory.create(
+            instance, credential, entry.model, context,
+            sessionId = activeSessionId, overrides = entry.overrides,
+        ).also { seedApplicationSystemPrompt(it) }
+    }
+
+    private suspend fun generateCompactSummary(conversationText: String, provider: LLMProvider): String {
         // Wrap the transcript in explicit BEGIN/END framing so the model
         // treats it as material to summarize rather than as a chat turn to
         // continue. Mirrors iOS AIChatViewModel+Compaction.swift
@@ -5401,12 +5445,13 @@ class ChatViewModel(
                 com.openminis.app.agent.prompts.PromptOverrides.render("ui.chat.chatviewmodel.9d3b5352b240", "Now generate a structured context summary following the system prompt instructions. Do NOT continue the conversation above — summarize it. Write everything in past tense, framed as \"what was discussed / what was done\", NOT as an ongoing goal or todo list.")
             )
         }
-        val model = currentModel
-        val contextWindow = model?.contextWindow ?: 128_000
-        val estimatedInput = userMessage.length / 4
-        val maxOut = maxOf(1024, minOf(8192, contextWindow - estimatedInput))
-        val provider = currentProvider
-            ?: throw IllegalStateException(("No LLM provider available for compaction"))
+        val model = provider.model
+        val contextWindow = model.contextWindowTokens
+        val estimatedInput = com.openminis.app.data.ContextSizeMeter.estimateTokens(userMessage) +
+            com.openminis.app.data.ContextSizeMeter.estimateTokens(compactSummarySystemPrompt)
+        val maxOut = com.openminis.app.data.CompactRequestBudget.maxOutputTokens(
+            contextWindow, estimatedInput, model.maxOutputTokens,
+        )
         // [T-compact-idle-timeout] Stream rather than calling sendMessage.
         //
         // sendMessage is the same request underneath — every provider collects
@@ -5529,6 +5574,7 @@ class ChatViewModel(
         // provider's count for the previous one — which after a /compact or a
         // revert described a context that no longer exists.
         ensureContextFixedTokens()
+        val customThresholdCrossed = customCompactThresholdReached()
         // [T-ctx-trim-ladder] A trimmed history that fits needs neither a
         // compaction nor the user's confirmation.
         replanTrim("pre-send", allowCollapse = currentContextPolicy()?.first?.exhaustedOnly == true)
@@ -5540,7 +5586,7 @@ class ChatViewModel(
         // [T-ctx-user-cap] Honour a user-chosen group cap with proportional
         // thresholds; a native window keeps the legacy tier table.
         val (policy, window) = currentContextPolicy() ?: return PreSendContextAction.PROCEED
-        val verdict = policy.check(tokens, window)
+        val verdict = if (customThresholdCrossed) ContextPolicy.CheckResult.NEEDS_COMPACT else policy.check(tokens, window)
         logContextDecision("pre-send", m, policy.compactThreshold, window, verdict.name)
         return when (verdict) {
             ContextPolicy.CheckResult.OK -> PreSendContextAction.PROCEED
@@ -5716,6 +5762,7 @@ class ChatViewModel(
         // [T-ctx-trim-ladder] Trim first (no model call): reasoning, offload,
         // skeleton. Collapsing whole iterations waits until a model summary had
         // its chance, unless none is available here.
+        val customThresholdCrossed = customCompactThresholdReached()
         val compactAvailable = currentContextPolicy()?.first?.let { !it.exhaustedOnly } == true &&
             compactionsSoFar < maxInLoopCompactions && !lastInLoopCompactionMadeNoProgress
         replanTrim("in-loop", allowCollapse = !compactAvailable)
@@ -5729,7 +5776,7 @@ class ChatViewModel(
         if (tokens <= 0) return InLoopContextAction.PROCEED
         // [T-ctx-user-cap] Same resolution as the pre-send check.
         val (policy, window) = currentContextPolicy() ?: return InLoopContextAction.PROCEED
-        val policyVerdict = policy.check(tokens, window)
+        val policyVerdict = if (customThresholdCrossed) ContextPolicy.CheckResult.NEEDS_COMPACT else policy.check(tokens, window)
         // [T-ctx-trim-escalate] The re-plan above could not collapse and won
         // back less than half the room: go to the compaction branch now, where
         // collapse-first decides between collapsing and a model summary,
@@ -5749,7 +5796,7 @@ class ChatViewModel(
                 if (!canCompact) return settleWithoutCompacting(m, window, compactionsSoFar)
                 // [T-ctx-trim-ladder] Collapse first when a summary could not
                 // pay for its model call; compact only if that is not enough.
-                if (summaryWouldFreeLittle(tokens)) {
+                if (!customThresholdCrossed && summaryWouldFreeLittle(tokens)) {
                     trimReplanPending = true
                     replanTrim("collapse-first", allowCollapse = true)
                     val m2 = contextMeasurement()

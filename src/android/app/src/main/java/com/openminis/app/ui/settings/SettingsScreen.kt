@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
@@ -119,6 +120,12 @@ fun SettingsScreen(
     onWorkspaceInstructionsClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
     onUsageClick: () -> Unit = {},
+    /**
+     * [T-android-auto-compact-settings] Settings › Context Compaction.
+     * Default no-op keeps every existing caller compiling; AppNavigation wires
+     * the real route.
+     */
+    onAutoCompactClick: () -> Unit = {},
     onAppearanceClick: () -> Unit = {},
     onLogsClick: () -> Unit = {},
     // T219-2: Mount External Folders entry. Default no-op for any caller
@@ -184,6 +191,17 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_token_usage),
                     subtitle = stringResource(R.string.settings_token_usage_subtitle),
                     onClick = onUsageClick,
+                )
+                // [T-android-auto-compact-settings] Context Compaction sits with
+                // the model/usage rows: it changes WHICH model summarises and at
+                // what token line, not a chat-level behaviour the user tunes
+                // mid-conversation.
+                SettingsItem(
+                    icon = Icons.Outlined.Compress,
+                    iconColor = Color(0xFF5E5CE6),
+                    title = stringResource(R.string.auto_compact_settings_title),
+                    subtitle = stringResource(R.string.auto_compact_settings_subtitle),
+                    onClick = onAutoCompactClick,
                     showDivider = false,
                 )
             }

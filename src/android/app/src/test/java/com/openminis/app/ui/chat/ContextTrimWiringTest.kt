@@ -175,7 +175,7 @@ class ContextTrimWiringTest {
             check.contains("val verdict = if (policyVerdict == ContextPolicy.CheckResult.OK && escalate) {"))
         assertTrue(check.contains("[ctx-trim] the re-plan recovered too little without collapse"))
         // The branch it lands in still tries collapse before a model summary.
-        assertTrue(check.indexOf("ContextPolicy.CheckResult.NEEDS_COMPACT -> {") < check.indexOf("if (summaryWouldFreeLittle(tokens)) {"))
+        assertTrue(check.indexOf("ContextPolicy.CheckResult.NEEDS_COMPACT -> {") < check.indexOf("if (!customThresholdCrossed && summaryWouldFreeLittle(tokens)) {"))
     }
 
     @Test
@@ -267,7 +267,7 @@ class ContextTrimWiringTest {
     @Test
     fun `collapse is tried before a compaction that could not pay for itself, and never undone later`() {
         val check = body("private suspend fun inLoopContextCheck(", "private fun settleWithoutCompacting(")
-        val first = check.indexOf("if (summaryWouldFreeLittle(tokens)) {")
+        val first = check.indexOf("if (!customThresholdCrossed && summaryWouldFreeLittle(tokens)) {")
         assertTrue(first > 0 && first < check.indexOf("val ok = awaitCompaction()"))
         assertTrue(check.contains("replanTrim(\"collapse-first\", allowCollapse = true)"))
         assertTrue("compaction still follows when collapse is not enough",

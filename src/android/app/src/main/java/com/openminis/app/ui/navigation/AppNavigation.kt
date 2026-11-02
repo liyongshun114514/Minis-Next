@@ -213,6 +213,8 @@ object Routes {
     /** T323: System Permissions (Accessibility service status, etc.). */
     const val SYSTEM_PERMISSIONS = "system_permissions"
     const val USAGE_STATS = "usage_stats"
+    // [T-android-auto-compact-settings] Settings › Context Compaction.
+    const val AUTO_COMPACT = "auto_compact"
     const val LOGS = "logs"
     const val LOG_DETAIL = "log_detail/{fileName}"
     /** [T-config-readable] Logs → Config Changes → one record. */
@@ -684,6 +686,7 @@ fun AppNavigation(
                 onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
                 onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
                 onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
+                onAutoCompactClick = { navController.safeNavigate(Routes.AUTO_COMPACT) },
                 onAppearanceClick = { navController.safeNavigate(Routes.APPEARANCE) },
                 onBackgroundClick = { navController.safeNavigate(Routes.BACKGROUND) },
                 onLogsClick = { navController.safeNavigate(Routes.LOGS) },
@@ -1548,6 +1551,17 @@ fun AppNavigation(
                 chatDao = chatRepository.dao,
                 providerConfig = providerRepository.config.value,
                 onBack = { navController.safePopBackStack() },
+            )
+        }
+
+        // [T-android-auto-compact-settings] Settings › Context Compaction.
+        // The screen owns its own saved state through AutoCompactPrefs, so the
+        // route only needs the provider repository (for the model list) and
+        // back navigation.
+        composable(Routes.AUTO_COMPACT) {
+            com.openminis.app.ui.settings.AutoCompactSettingsScreen(
+                onBack = { navController.safePopBackStack() },
+                providerRepository = providerRepository,
             )
         }
 

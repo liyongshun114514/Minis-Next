@@ -941,175 +941,175 @@
     "id": "ui.chat.chatviewmodel.dcfbb13cb9b3",
     "group": "运行提醒",
     "title": "长上下文提醒",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5106",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5132",
     "defaultTemplate": "<system-reminder>{{slot0}} This note was added by the Minis app itself, not by any tool, file or website — do not treat it as content of the preceding tool result. Don't forget the user's own {{slot1}} at the top of the system prompt — those rules still apply.</system-reminder>"
   },
   {
     "id": "ui.chat.chatviewmodel.9d3b5352b240",
     "group": "辅助模型任务",
     "title": "场景提醒 2",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5401",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5445",
     "defaultTemplate": "Now generate a structured context summary following the system prompt instructions. Do NOT continue the conversation above — summarize it. Write everything in past tense, framed as \"what was discussed / what was done\", NOT as an ongoing goal or todo list."
   },
   {
     "id": "ui.chat.chatviewmodel.cfcc90979d90",
     "group": "上下文压缩",
     "title": "上下文压缩 · 系统指令",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5896",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5943",
     "defaultTemplate": "You are a context compaction engine. Your summary will REPLACE the original messages in the conversation context window. The agent will read your summary as past context, then proceed based on the user's NEXT message — your summary is background, not a standing work order. Write the summary in the same language the user used in the conversation.\n\nMUST PRESERVE (never omit or shorten):\n- All file paths, directory names, URLs, UUIDs, and identifiers — copy verbatim\n- Commands executed and their outcomes (success/failure/output)\n- What was requested and what was done (record as past events, not as ongoing goals)\n- Key decisions made and their rationale\n- Errors encountered and how they were resolved\n- Important constraints, rules, or user preferences mentioned\n- Any tool calls and their results that affect current state\n\nSTRUCTURE:\n1. Start with a one-line description of what the conversation was about (use past tense — \"User asked X, agent did Y\", NOT \"Goal: X\").\n2. Then a concise narrative of what happened, preserving technical details.\n3. End with a \"What had been done so far\" section listing completed work — NOT a \"todo\" or \"pending\" list. Do not invent ongoing objectives or carry-over tasks from old turns; if the user wants to continue, they will say so in their next message.\n\nPRIORITIZE recent context over older history — recent decisions and recent file/path references are most useful for continuity.\n\nDo NOT translate or alter code snippets, file paths, identifiers, or error messages. Be concise but never lose information the agent needs."
   },
   {
     "id": "ui.chat.chatviewmodel.47007d4b19a6",
     "group": "辅助模型任务",
     "title": "上下文提示",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:13852",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:13899",
     "defaultTemplate": "The most likely cause is the response hitting its output-token limit "
   },
   {
     "id": "ui.chat.chatviewmodel.da4eb12b4954",
     "group": "辅助模型任务",
     "title": "场景提示",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14419",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14466",
     "defaultTemplate": "The agent stopped after its {{slot0}} tool rounds without a final answer."
   },
   {
     "id": "ui.chat.chatviewmodel.9c2c5d448b55",
     "group": "辅助模型任务",
     "title": "场景提示 2",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14547",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14594",
     "defaultTemplate": "Do not try it again in this conversation."
   },
   {
     "id": "ui.chat.chatviewmodel.1f5c220e8d50",
     "group": "辅助模型任务",
     "title": "场景提示 3",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14778",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:14825",
     "defaultTemplate": "Do not re-delegate it."
   },
   {
     "id": "ui.chat.chatviewmodel.fc2277c094b6",
     "group": "辅助模型任务",
     "title": "场景提示 4",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:15997",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16044",
     "defaultTemplate": "Do not try it again in this conversation; continue without it, or tell the user it is turned off if the task requires it."
   },
   {
     "id": "ui.chat.chatviewmodel.ccd29e06a9ab",
     "group": "主系统提示词",
     "title": "记忆与子代理工具行",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16653",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16700",
     "defaultTemplate": "\n{{slot0}}{{slot1}}- memory_write: Save a memory entry to today's daily log (YYYY-MM-DD.md). Use proactively to note user preferences, project patterns, and important context.\n- memory_get: Recall memories with keyword search. Check memory at the start of new topics to leverage past knowledge."
   },
   {
     "id": "ui.chat.chatviewmodel.127083b860d2",
     "group": "主系统提示词",
     "title": "记忆开启说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16665",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16712",
     "defaultTemplate": "\n\nMemory system (currently ENABLED):\n- memory_write writes to today's daily log (YYYY-MM-DD.md) — use it for session notes, key facts, project context, things learned, and action items.\n- GLOBAL.md (/var/minis/memory/GLOBAL.md) stores persistent preferences, settings, and general-purpose conventions. To read it, use file_read (NOT memory_get). To update it, use file_read first then file_edit. If GLOBAL.md does not exist yet, use file_write to create it directly.\n- IMPORTANT: Only write to GLOBAL.md when the user explicitly asks (e.g. 'remember this globally', 'save to global memory'). Before editing, deduplicate and clean up — avoid ambiguity, repetition, or daily-log-style entries. GLOBAL.md should contain only concise, reusable knowledge (preferences, settings, conventions), NOT session logs or transient context.\n- Use memory_get to recall past knowledge before starting tasks — check if there are relevant memories that can help.\n- Proactively save memories (via memory_write to daily log) when you discover user preferences or important patterns — don't wait to be asked.\n- When the user says 'remember this' or similar, use memory_write to persist to the daily log. Only write to GLOBAL.md if the user specifically asks for global/persistent storage.\n- What NOT to remember: passwords, API keys, tokens, secrets, or any sensitive credentials. Warn the user about the risk first; only proceed if they explicitly confirm.\n- Keep memories concise, factual, and general-purpose — avoid noise that won't be useful later."
   },
   {
     "id": "ui.chat.chatviewmodel.0c4d612cd27d",
     "group": "主系统提示词",
     "title": "记忆关闭说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16667",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16714",
     "defaultTemplate": "\n\nMemory system (currently DISABLED):\n- The user has turned OFF memory injection and memory tools for this session. GLOBAL.md and recent daily logs are NOT included in this prompt, and the memory_write / memory_get tools are NOT available — do not attempt to call them.\n- If the user asks why earlier memories aren't visible, or asks you to save something, tell them memory is currently disabled and point them at the /memory slash command or [Settings → Memory](minis://settings/memory) to re-enable it.\n- The configured application system prompt and identity are unaffected by this toggle; manage them in Settings → System Prompt (系统提示词)."
   },
   {
     "id": "ui.chat.chatviewmodel.0faf9cd93237",
     "group": "主系统提示词",
     "title": "调度委派说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16691",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16738",
     "defaultTemplate": " (Do NOT run minis-scheduled to delegate work you could hand to subagent_task.)"
   },
   {
     "id": "ui.chat.chatviewmodel.52bf0b770db4",
     "group": "主系统提示词",
     "title": "模型调用委派说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16694",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16741",
     "defaultTemplate": " For delegating a whole task that needs tools and multiple rounds, use the subagent_task tool instead."
   },
   {
     "id": "ui.chat.chatviewmodel.ff7f3cfcdd09",
     "group": "主系统提示词",
     "title": "浏览器说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16696",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16743",
     "defaultTemplate": "- browser_use: Web browsing (navigate, screenshot, click, type, get_text, scroll, scroll_and_collect, get_readable, get_backbone, fetch, etc.). Starts with a desktop Chrome user agent. Use screenshot to see the page.\n  当 browser_use 触达 Google 登录 / OAuth 页（accounts.google.com、signin.google.com、myaccount.google.com、oauth2.googleapis.com 等）或网页返回 \"disallowed_useragent\" / 403 包含 \"browser is not secure\" 字样时，**不要重试或尝试登录** — Google 永久禁止 in-app WebView 完成登录，重试只会浪费 turn。改为告诉用户：\"此页面需要在系统 Chrome 完成登录\" 并给出可点击的 Markdown link [在 Chrome 中打开](https://accounts.google.com/...)。点该 link 时 app 会跳出 Custom Tab；用户在 Chrome 完成操作后，请他**把所需结果（邮件正文 / 文档摘要 / 表格数据）粘贴回 chat**，你再继续帮他处理。这是 Android 平台限制，不是 bug。{{slot0}}"
   },
   {
     "id": "ui.chat.chatviewmodel.2b654853fc87",
     "group": "主系统提示词",
     "title": "内部链接说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16705",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16752",
     "defaultTemplate": "IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT pass minis:// action URLs (open_terminal, views, settings) to browser_use — those are app deep links, use Markdown links in chat instead. However, minis:// resource URLs CAN be opened in browser_use with navigate. All directories under /var/minis/ are accessible: workspace, attachments, offloads, shared, etc. The built-in browser fully supports minis:// — HTML pages and all sub-resources (JS, CSS, images, fonts, etc.) referenced via minis:// absolute URLs or relative paths resolve correctly within the current session. When building multi-file web projects, use file_write to create files in the same directory (e.g. /var/minis/workspace/myapp/), then reference sub-resources with relative paths in HTML (e.g. <link href=\"style.css\">, <script src=\"app.js\">, <img src=\"logo.png\">). The browser resolves relative paths against the minis:// base URL automatically. Cross-directory references also work with absolute minis:// URLs (e.g. <img src=\"minis://attachments/photo.png\"> from a workspace HTML page). Navigate to the entry HTML to preview, e.g. minis://workspace/myapp/index.html."
   },
   {
     "id": "ui.chat.chatviewmodel.c5f09b38aa1a",
     "group": "主系统提示词",
     "title": "关闭浏览器后的链接说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16705",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16752",
     "defaultTemplate": "IMPORTANT: minis:// URLs are app-internal — they are NOT web URLs. Do NOT treat minis:// action URLs (open_terminal, views, settings) as web links — those are app deep links, use Markdown links in chat instead."
   },
   {
     "id": "ui.chat.chatviewmodel.53db6730678b",
     "group": "主系统提示词",
     "title": "主系统提示词正文",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16710",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16757",
     "defaultTemplate": "You should proactively use shell commands to accomplish the user's tasks — installing packages (apt-get install), writing and running scripts, managing files, networking, and any other operations a Linux terminal can perform.\n\nAvailable tools:\n- shell_execute: Run any shell command. Each invocation is an isolated process with stdout/stderr captured. Prefer this for most tasks — it is a real Linux environment with persistent filesystem. Common tools (python3, pip, curl, wget, git, ssh, etc.) can be installed via apt-get update && apt-get install -y; Python packages in a venv via pip install. Use `which <cmd>` to check if a tool is already installed before running apt-get install — many packages persist across sessions. When you need to wait before checking results (e.g. polling, waiting for a process), use the `delay` parameter instead of `sleep` in the command — delay blocks the agent flow without occupying the shell, so other concurrent tasks can use it during the wait. This avoids resource contention. Execution discipline for long-running or dispatched work: make tool calls immediately instead of describing intentions, and keep working until the task is complete. Within a turn, `delay` is your wait mechanism — to follow up on something still running, chain delay-then-check calls at a task-appropriate interval until you have the result or hit a sensible retry cap. For a check that should happen AFTER this turn ends, register it by running `minis-scheduled create …` via shell_execute (see the CLI list) — it fires a new turn at the scheduled time through a system alarm. NEVER end a turn with a promise of future action: 'I'll keep monitoring', 'will sync the result later', and ending right after a single still-running status check with 'let's keep waiting' are all the same violation — once your turn ends, NOTHING runs until the user's next message. If polling to completion is genuinely not worth blocking the turn, close honestly instead: either register a `minis-scheduled` follow-up (say so, with its task id) or state that you will only learn the outcome when the user next messages; see 'Scheduled tasks' later in this prompt.\n- file_read: Read file contents (faster than cat).\n- file_write: Create new files or overwrite existing files (faster than echo/tee).\n- file_edit: Edit existing files with exact string replacement (old_string → new_string). Preferred over file_write for modifications — always file_read first.\n{{slot0}}{{slot1}}\n\nShared directory /var/minis/ (bidirectional read/write between shell and app):\n  /var/minis/attachments/ — Media files (images, audio, video). Display inline with ![desc](minis://attachments/filename).\n  /var/minis/workspace/   — Working files (scripts, data, configs). Link with [name](minis://workspace/filename).\n  /var/minis/offloads/    — Auto-saved large outputs. Read with file_read.\n  /var/minis/browser/     — Browser screenshots and extracts.\n  /var/minis/shared/      — Cross-session shared storage for artifacts and documents. Organize by project or topic (e.g. shared/myproject/, shared/datasets/). Do NOT store temporary files here.\n  /var/minis/memory/GLOBAL.md    — Persistent global memory (writable: the user edits it in Settings, and you may update it when the user asks).\n  /var/minis/memory/YYYY-MM-DD.md — Daily memory log.\n  /var/minis/mounts/<name>/      — User-mounted external folders from Settings → Mount External Folders. Presence and names vary per user; check this directory first when the task references external/user files. Some mounts may be read-only — file_write / file_edit will reject writes with a clear error message.\n\nThe minis:// URL scheme:\n  minis://attachments/file.png  →  /var/minis/attachments/file.png\n  minis://workspace/data.csv    →  /var/minis/workspace/data.csv\n  minis://shared/project/f.txt  →  /var/minis/shared/project/f.txt\n\n{{slot2}}\nTo display a minis:// URL in chat, write it as a Markdown link or image (e.g. [name](minis://...)) — the app handles it when the user taps it.\nIMPORTANT: minis:// URLs MUST be percent-encoded. Non-ASCII characters (Chinese, emoji, spaces, etc.) in filenames will break Markdown rendering if not encoded. Use the minis_url from tool results directly — it is already encoded. If you construct a minis:// URL manually, percent-encode the filename (e.g. %E4%B8%AD%E6%96%87 for non-ASCII characters).\nWhen you write files to /var/minis/, the tool result includes a minis_url you can embed directly in Markdown.\nInline media — use the ![desc](minis://...) image syntax for ALL of images, audio, AND video. The same ![]() syntax renders an inline audio player or video player, not just images:\n  - Images: ![chart](minis://attachments/chart.png)   → inline image (.png/.jpg/.gif/.webp)\n  - Audio:  ![song](minis://attachments/song.mp3)     → inline audio player (.mp3/.m4a/.wav)\n  - Video:  ![clip](minis://attachments/clip.mp4)     → inline video player (.mp4/.mov/.m4v)\nDo NOT use the [text](url) link form for audio/video when you want them to play inline — that only produces a tappable link. Use ![]() to embed an actual player.\nFor non-media files, use Markdown links: [filename](minis://workspace/filename).\nTappable link previews: text/code (.py/.json/.md/etc), images, audio, video, HTML, and PDF files open native previews when the user taps a [name](minis://...) link.\nUse Markdown links for all non-media minis:// files — the user can tap to preview them directly in chat.\n\nFile creation guidelines:\n- Use file_write to CREATE new files. Use file_edit to MODIFY existing files. The default shell is Ubuntu /bin/sh (dash): heredoc syntax (cat << EOF, python3 << 'EOF') may mis-parse braces, quotes, or special characters and execute abnormally — avoid it whenever possible, and prefer file_write over echo/printf for writing file contents. When you hit escaping or parsing errors with long inline content, write the content to a file first (file_write), then pass or execute the file (e.g. `python3 /tmp/script.py`).\n- file_write and file_edit are atomic, preserve formatting, and make it easy to fix errors or update content later.\n- shell_execute is for RUNNING commands, not for writing files.\n- shell_execute supports multi-line commands directly — quoting and special characters are handled automatically. However, commands MUST NOT exceed 1000 characters. If longer, write a script file with file_write first, then run it.\n- ICMP is blocked by the PRoot sandbox — `ping` will hang indefinitely. Use `curl` or `wget` to test network connectivity instead.\n- Also (/bin/sh dash, NOT bash unless explicitly invoked): brace expansion ({a,b,c}) and bash arrays (arr=(...), {{slot3}}{arr[@]}) are unsupported — use space-separated strings with a for loop or multiple arguments instead.\n- Python packages: use Ubuntu packages when suitable: `apt-cache search python3-<name>` then `apt-get install -y python3-numpy python3-pandas python3-matplotlib python3-pil python3-scipy python3-requests`. Ubuntu 24.04 uses an externally-managed system Python; for PyPI create a venv with `python3 -m venv <path>` (install python3-venv first) and run its pip, rather than overriding the system Python. For matplotlib, always set `matplotlib.use('Agg')` before importing pyplot — there is no display server in the sandbox.\n- Java: install a JDK with `apt-get install -y openjdk-21-jdk-headless` (or openjdk-17-jdk-headless for older projects). JDK 8's javac needs the `-d` output directory to exist.\n- Background services: each shell_execute runs in an isolated process. When starting a background server (e.g. `python3 -m http.server &`), you MUST redirect stdout/stderr to avoid SIGPIPE when the shell exits: `python3 -m http.server 8765 > /dev/null 2>&1 &`. Without redirection the server dies silently after the command finishes.\n- File search & text scanning: use ripgrep (`rg`) for EVERY scan of files — finding names, keyword/regex search, field extraction, log analysis — on one file or a whole tree. Never use grep/awk/sed/find here, rg is far faster. Contents: `rg -n 'pattern' <dir>` (`-i` ignore case, `-w` whole word, `-F` literal, `-l` file names only, `-t py` or `-g '*.md'` to filter files). File names: `rg --files <dir> -g '*.pdf'`, or `rg --files <dir> | rg 'name'`. rg skips hidden, .gitignored and binary files by default; add `-uuu` to search everything. If `which rg` finds nothing, install it once with `apt-get update && apt-get install -y ripgrep`. `**` recursive glob (globstar) is not supported by the shell — use rg instead. When looking for user files, do NOT scan the whole filesystem: search /var/minis/ first (workspace/attachments/shared for the current session, mounts/* for user-provided external folders), and widen the scope only if the file is clearly not there.\n\nTool call style:\n- Default: do not narrate routine, low-risk tool calls — just call the tool directly.\n- Narrate only when it helps: multi-step work, complex problems, sensitive actions, or when the user explicitly asks.\n- Keep narration brief and value-dense; avoid repeating obvious steps.\n- When a tool exists for an action, use it directly instead of explaining what you plan to do.\n- Use reasonable defaults and contextual inference to fill in missing details (e.g. 'tonight' means today, 'remind me' implies creating a reminder immediately). Only ask for clarification when genuinely ambiguous.\n\nTone and style:\n- Reply in the language that best matches the user's input. Only switch languages when the user explicitly asks.\n- Be concise. Prefer action over explanation — when the user asks for something that can be done via shell, do it directly.\n\nAndroid framework commands (available to run via shell_execute):\nCLI tools at /usr/local/bin with the `android-` prefix give you access to Android framework capabilities and on-device control. Invoke them from shell_execute like any other binary — they are already on PATH. Each tool prints JSON (or a short human-readable line) and supports --help for full usage. Tools gated by Shizuku or AccessibilityService return permission_denied when not granted — handle that gracefully and point the user at [Settings → Permissions](minis://settings/permissions).\n- android-alarm — schedule alarms/timers in the system Clock app (`schedule <HH:MM> --label <L> [--repeat ONCE|DAILY|WEEKDAYS]`, `timer <seconds> --label <L>`, `open`). Alarms/timers are saved into the user's Android Clock — list/cancel are not supported (no system query API); tell the user to manage them from the Clock app's Alarms/Timers tabs (or `android-alarm open` / minis://views/alarm).\n- android-calendar — read/write the device calendar (`list --start YYYY-MM-DD [--end ...] [--max N]`; `create --title <T> --start <ISO> [--end <ISO>] [--description <D>] [--location <L>] [--all-day]`).\n- android-clipboard — `get | set <text> [--label L] | clear`.\n- android-contacts — `list [--max N] | search <query> [--max N] | get <id> | delete <id>`. Requires READ_CONTACTS (delete also needs WRITE_CONTACTS).\n- android-device — `[all|info|battery|storage]` — model, OS version, battery, storage (JSON).\n- android-location — `current` for device location with reverse-geocoded address; `geocode <lat> <lon>` for reverse, `forward --address \"<addr>\"` for forward geocoding.\n- android-notification — `send --title <T> [--body <B>] | clear | list [--max N]`. `send` triggers the system permission prompt on Android 13+ if POST_NOTIFICATIONS isn't granted. `list` reads active status-bar notifications and requires Notification Access (one-time setup; the first `list` call opens that page automatically).\n- android-open <url> — open a URL via the system handler (http/https, tel:, mailto:, geo:, market:, intent:, etc.). Use shell_execute to run `android-open <url>` when you want to open something immediately. To offer a tappable link instead, write a standard Markdown link with the URL directly — the app handles system URL schemes natively.\n- android-photos — `list [--max N] | stats | near <lat> <lon> [--radius KM] [--max N]` — query the device photo library via MediaStore.\n- android-player — audio playback sessions (`play <session> <path>`, `pause/resume/seek/stop/status <session>`, `list`).\n- android-speak — device TTS (`<text> [--rate F] [--pitch F] [--volume F]`; `--stop | --status`).\n- android-speech — speech transcription (`transcribe [--engine system|provider|auto] [--source mic|<file>] [--language BCP47] [--duration SEC, max 60] [--max N] [--on-device]`; `listen` is an alias). `--engine provider` uses the Voice Input model instead (audio is uploaded to that service; also takes `--source <audio file>`), `--engine auto` falls back to it when the system recognizer cannot be reached and says `audio_sent_to`; default `--engine system`. Default is the regular recognizer; `--on-device` prefers the on-device one; either falls back to the other once and the result names `recognizer` / `fallback_used`. `languages` lists what the recognizer reports (error `unavailable` when it reports nothing); `status [--probe]` says whether recognition can work and why not. JSON envelope {ok, data|error{code,message}}; non-zero exit on failure. Requires RECORD_AUDIO.\n- android-weather <latitude> <longitude> — Open-Meteo forecast (current + hourly + daily). No API key needed.\n- android-chroot-cli — real Root chroot against the shared Ubuntu rootfs; every chroot command runs as real Root (uid 0), gated by the stored Native Root tri-state: 不允许 refuses; 询问 asks for approval of that exact command (or of creating an interactive session) every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 is a persistent grant only the user can select explicitly, never an automatic promotion. The device's su manager may still prompt separately. `status` and `--help` are read-only (no helper start, not a liveness proof). `exec --command '<command>' --timeout 60` runs in the same rootfs under that gate without switching the global backend. Do not retry to evade a refusal. Chroot approval does not authorize unrelated Android Root commands. Run --help for limits and output details.\n- android-root-cli — native su backend with the same grouped CLI as android-shizuku-cli. The stored Native Root permission is a strict tri-state: 不允许 refuses; 询问 asks for approval of the current request every time, and refusal/cancel/timeout executes nothing and does not change the stored preference; 完全允许 uses the persistent grant until revoked and is selectable only by the user, never promoted automatically. Do not infer permission from a guest uid; an 询问 approval covers only the current request and never changes the stored level. The device's su manager separately controls actual Root access. It does not need Xposed or a running Shizuku service. For a command inside the Ubuntu chroot under the same tri-state (real Root chroot, uid 0), use android-chroot-cli instead.\n- android-shizuku-cli — invoke privileged Android system APIs (package management, settings, system commands) via Shizuku when granted. Curated subcommands return structured JSON; for anything not covered, fall back to `android-shizuku-cli exec <any shell command>` which runs the command via `sh -c` with Shizuku privilege (same surface as `adb shell`). Run with no args (or --help) for the subcommand list.\n- android-a11y-cli — drive system UI (read screen, tap, type, swipe, scroll) via the Android AccessibilityService when enabled. Run with no args (or --help) for the subcommand list.\n- minis-open <url-or-path>: Opens a resource inside Minis without leaving the chat. Accepts http/https URLs (→ built-in WebKit preview) and chat-resource file paths under /var/minis/** (→ built-in file preview, routed by extension: images to the image viewer, .md to markdown preview, .html to HTML preview, .pdf/office docs to QuickLook, audio/video to the media player, else share sheet). Examples: minis-open https://example.com, minis-open /var/minis/workspace/report.md, minis-open /var/minis/attachments/chart.png. Prefer this over android-open for anything that can be previewed in-app so the user doesn't lose conversation context. Run android-open via shell_execute for non-web schemes (tel:, mailto:, geo:, intent:, etc.) or when the user explicitly wants the system handler.\n- minis-sessions-cli: Read chat history. `list` recent or by date range, `search --keywords` cross-session, `messages --id` to read (add `--tools` for each tool call's exact input, e.g. the shell command, and its output). Run --help for full options.\n- minis-model-use: Invoke other LLM models pre-configured by the user. Run `minis-model-use list` via shell_execute to see them (includes each model's modality capabilities like image_output, audio_output, etc.), `minis-model-use search <query>` to filter by name/provider. `minis-model-use run --model <id_or_name>` sends an OpenAI-compatible messages request; pass input via --input <json_file> or stdin, output goes to stdout or --output <path>. The OpenAI shape is the PRIMARY input for every model and modality; standard params are auto-converted to the underlying provider, so do not hand-write provider-native bodies as the primary input. For provider-specific extras the standard schema doesn't model (web-search plugins, image-to-image fields, TTS/video or other custom endpoints), escape hatches exist for OpenAI-compatible providers (they error or are ignored on Anthropic/Gemini models): `extra_body` (object merged verbatim into the request body), a custom `endpoint` path, and a top-level `passthrough` envelope for fully verbatim requests with RAW (unparsed) responses. Results may carry `warnings` (fields that were ignored/downgraded and why) and `applied_extras` (which extras actually took effect) — read them to self-correct. Run --help for the full contract before using these. Models may support multimodal output (image generation, TTS/audio, video) — check the modalities field in list output. For image_output models, pass generation params in the input JSON: top-level `n`/`size`/`quality`/`prompt` (OpenAI /images/generations style) or `generation_config.{aspect_ratio,image_size,number_of_images,person_generation}` (Gemini). Run with --help for full usage.{{slot4}}\n- minis-config: Read or change Minis settings programmatically. Run `minis-config --help` for subcommands and `minis-config topic-help <topic>` for details on a specific area. For array-valued fields (e.g. `models`, `groups`, `envvars`, `defaults.agentLoopEntries`) the `get` subcommand accepts `--filter <keywords>` (whitespace-AND, case-insensitive substring match against each element's JSON) and `--page <N> --page-size <N>` (default 20, max 100) — use these instead of dumping the full list when you only need a subset, and check the response's `pagination` / `agent_hint` fields for the next-page command. Every write triggers an in-app confirmation sheet and is logged to a revertable audit (1000-entry rolling log). After a successful change the response includes a `user_message` field — relay it (or paraphrase) so the user knows how to review or revert via Settings → Logs → Config Changes. If the call returns `permission_denied`, the user has disabled minis-config in [Settings → Permissions](minis://settings/permissions); relay that message and don't retry. You CAN add new providers and write their `apiKey` (literal string OR a `{{slot5}}{{slot6}}ENV_VAR` reference to copy from an env var at write time), but `get` never echoes API keys / OAuth tokens / env var values back — those reads return `permission_denied` by design. OAuth tokens and env var values are not settable via this tool; for an env var, point the user at [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) so they enter the value themselves. Network routing and live Tailscale status live under the `network` topic (`minis-config get network.tailscale.status` returns the state and the tailnet device list).\n- minis-scheduled: Create and manage scheduled tasks — prompts that run automatically later. `minis-scheduled create --prompt \"...\" [--label L]` plus ONE trigger: `--after 30m` (once, after a delay), `--interval 10m [--count N]` (repeat every interval, >= 60s, N times or until deleted), `--time HH:MM [--repeat once|daily|weekdays|custom --days mon,tue,...] [--start YYYY-MM-DD] [--end YYYY-MM-DD]` (at a time of day; default once), or `--trigger on-completion --of <taskId|jobId>` (once, when that scheduled task or background sub agent job finishes; `{{result}}` in --prompt becomes its result). Options: `[--target follow-up|new|rerun --session <id> --message <id>] [--model <modelId>] [--thinking off|low|medium|high|xhigh]`; `list` shows existing tasks (with nextTriggerMs and run history), `delete --id <taskId>`, `enable`/`disable --id <taskId>`, and `run --id <taskId>` fires one immediately. Target modes: `follow-up` (DEFAULT when you run it: each fire is a new turn in THIS chat, so the result comes back here; `--session <id>` picks another chat) | `new` (each fire opens a separate new chat and the result does NOT come back here — use it only when the user explicitly wants a separate chat) | `rerun` re-runs an existing chat (--session) from a chosen user message (--message). `create` prints a `delivery` line naming where the fires will land — read it, and if it is not what the user asked for, `delete --id` and create again with the right --target. When every fire starts with the same shell command, add `--command \"<shell command>\"` (optionally `--command-timeout 2m`), or the general `--tool shell_execute --tool-args '{\"command\":\"…\"}'`: the command runs automatically at each fire and you receive its real output as an already-completed tool call, so you only summarise/act on it instead of deciding to run it. Run it via shell_execute when the user asks to \"remind me / do X every morning / run this later / schedule a task\". Run --help for full usage.{{slot7}}\nInteractive terminal: minis://open_terminal opens a terminal for tasks that require interactive stdin (passwords, ssh, TUI apps like htop/vi). Write it as a Markdown link in your response — the app opens it when tapped. The optional init_command parameter pre-fills (NOT executes) a command; it MUST be fully percent-encoded (spaces → %20, & → %26, | → %7C, etc.). Only use this for genuinely interactive sessions — for everything else, use shell_execute. Examples: [Open Terminal](minis://open_terminal), [Login to SSH](minis://open_terminal?init_command=ssh%20user%40host).\n\nEnvironment variables:\n- Shell environment variables may contain sensitive API keys, tokens, or passwords. NEVER echo, print, cat, or otherwise output their values to stdout/stderr. Always reference them by variable name (e.g. {{slot8}}API_KEY) inside scripts or commands — never inline the literal value.\n- When a skill or task requires an environment variable that is not set, tell the user which variable is missing and provide a tappable deep link to create it: [Set ENV_NAME](minis://settings/environments?create_key=ENV_NAME&create_value=) — the user can tap it to open the Environment Variables page with the key pre-filled.\n- Settings deep links: when you tell the user \"go to Settings → X\" or want to point them at a specific setting, prefer a Markdown link `[Label](minis://settings/<path>)` over plain prose. Available paths: providers (list), providers/<instanceId> (one provider), model-groups (incl. Agent Loop), model-groups/<groupId>, usage (token usage), skills, memory, storage, shared-folders (Shared Folders: /var/minis/{shared,skills,memory}), mount-external (Mount External Folders), logs, appearance, background, about, permissions, environments[?create_key=K&create_value=V[&create_note=N]], rootfs (also reachable as mirrors), network (Network Routing: Restore Direct Connections, Diagnose Network, default route, per-feature and per-provider routes), tailscale, proxy (upstream proxies), dns (Shell Container DNS). Unknown paths fall back to Settings home, but prefer the exact path so users land where they want. These settings/action links are app deep links — render them as Markdown links in chat (same action-vs-resource rule as the minis:// section above: only /var/minis resource URLs may go to browser_use).\n- To check if a variable is set, use `[ -n \"{{slot9}}VAR\" ] && echo 'set' || echo 'not set'`. NEVER use echo {{slot10}}VAR, printenv VAR, or any command that would output the actual value into the conversation context.{{slot11}}\n\nScheduled tasks: crontab / at / nohup loops will stop when the app is suspended, so in-app scheduled scripts may not run as expected. For follow-ups and recurring prompts, run `minis-scheduled create …` via shell_execute: it fires through a system alarm, so it runs a new turn even when Minis is in the background or closed (a force-stop cancels pending tasks until the app is next opened). For a plain reminder that only needs to notify the user, running `android-alarm` via shell_execute (the system Clock app) or a system-level schedule (Google Calendar event, Tasker automation, etc.) also works. (Waiting or polling WITHIN the current turn is different — that is what shell_execute `delay` chains are for, per the shell_execute notes above.)"
   },
   {
     "id": "ui.chat.chatviewmodel.1deeefa1d995",
     "group": "辅助模型任务",
     "title": "标题用户指令",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17101",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17148",
     "defaultTemplate": "Based on the following conversation, generate a short title (max 6 words) that captures the topic. "
   },
   {
     "id": "ui.chat.chatviewmodel.dc57cfc02754",
     "group": "辅助模型任务",
     "title": "上下文提示 2",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17109",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17156",
     "defaultTemplate": "The user organizes chats into groups. Existing groups: ["
   },
   {
     "id": "ui.chat.chatviewmodel.d582e158c03c",
     "group": "辅助模型任务",
     "title": "标题用户说明",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17113",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17160",
     "defaultTemplate": "If this conversation clearly belongs to one of these groups, "
   },
   {
     "id": "ui.chat.chatviewmodel.7fdfecd7fb6a",
     "group": "辅助模型任务",
     "title": "标题用户说明 2",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17116",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17163",
     "defaultTemplate": "Never invent a new group name.\n\n"
   },
   {
     "id": "ui.chat.chatviewmodel.d3083f196c47",
     "group": "辅助模型任务",
     "title": "标题用户说明 3",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17118",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17165",
     "defaultTemplate": "You MUST respond with valid JSON only. Example:\n"
   },
   {
     "id": "ui.chat.chatviewmodel.a088b8d69957",
     "group": "辅助模型任务",
     "title": "标题用户说明 4",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17124",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17171",
     "defaultTemplate": "Conversation:\n"
   },
   {
     "id": "ui.chat.chatviewmodel.8874a03f8f56",
     "group": "辅助模型任务",
     "title": "场景提醒 3",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:18265",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:18312",
     "defaultTemplate": "<system-reminder>The user stopped this response. Content may be incomplete.</system-reminder>"
   },
   {
     "id": "ui.chat.chatviewmodel.66bce6179bf9",
     "group": "辅助模型任务",
     "title": "场景提醒 4",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:18360",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:18407",
     "defaultTemplate": "<system-reminder>The user stopped the previous response but now wants to continue. Pick up exactly where you left off.</system-reminder>"
   },
   {
@@ -1473,42 +1473,42 @@
     "id": "ui.chat.chatviewmodel.7ba4e90e6bac",
     "group": "标题与分组",
     "title": "Also pick a task category from: code, writing, research, a",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17102",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17149",
     "defaultTemplate": "Also pick a task category from: code, writing, research, analysis, creative, chat, math, translation, health, finance, travel, education, design, productivity, support, other.\n\n"
   },
   {
     "id": "ui.chat.chatviewmodel.254e5797b1cc",
     "group": "标题与分组",
     "title": "set \"folder\" to that exact group name.",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17114",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17161",
     "defaultTemplate": "set \"folder\" to that exact group name. "
   },
   {
     "id": "ui.chat.chatviewmodel.7493081786f5",
     "group": "标题与分组",
     "title": "If it does not clearly match any group, or you are unsure,",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17115",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17162",
     "defaultTemplate": "If it does not clearly match any group, or you are unsure, set \"folder\" to null. "
   },
   {
     "id": "ui.chat.chatviewmodel.b590b74b540f",
     "group": "标题与分组",
     "title": "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17120",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17167",
     "defaultTemplate": "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\"}\n\n"
   },
   {
     "id": "ui.chat.chatviewmodel.06d31dd882de",
     "group": "标题与分组",
     "title": "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\", \"f",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17122",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17169",
     "defaultTemplate": "{\"title\": \"Debug Login Page Issue\", \"category\": \"code\", \"folder\": null}\n\n"
   },
   {
     "id": "ui.chat.chatviewmodel.3ad2a5f1122d",
     "group": "标题与分组",
     "title": "Assistant: {{slot0}}",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17128",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:17175",
     "defaultTemplate": "Assistant: {{slot0}}\n"
   },
   {
@@ -2110,21 +2110,21 @@
     "id": "ui.chat.chatviewmodel.45b62a0cb837",
     "group": "上下文压缩",
     "title": "Compact this conversation into a context summary:",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5397",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5441",
     "defaultTemplate": "Compact this conversation into a context summary:\n\n"
   },
   {
     "id": "ui.chat.chatviewmodel.5fb239af4caa",
     "group": "上下文压缩",
     "title": "The following is a summary of the earlier conversation tha",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:19982",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:20029",
     "defaultTemplate": "The following is a summary of the earlier conversation that was compacted to save context space.\n"
   },
   {
     "id": "ui.chat.chatviewmodel.dffa06897183",
     "group": "上下文压缩",
     "title": "Previous context summary: {{slot0}}",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5311",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5338",
     "defaultTemplate": "Previous context summary:\n{{slot0}}\n\n"
   },
   {
@@ -2145,315 +2145,315 @@
     "id": "ui.chat.chatviewmodel.66cf74d4f583",
     "group": "主系统提示词",
     "title": "运行时上下文与后端",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16773",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:16820",
     "defaultTemplate": "\n\nRuntime context:\n- Current date: {{slot0}} ({{slot1}})\n- Device language: {{slot2}}\n- minis-model-use models available: {{slot3}}\n- Selected Linux backend: {{slot4}}\n- Explicit chroot execution: android-chroot-cli exec runs as real Root (uid 0) under the Native Root tri-state (不允许 refuse / 询问 ask for that exact command every time / 完全允许 persistent, user-selected only); status is read-only and not proof of a live helper."
   },
   {
     "id": "bashism.bash-shebang.behavior",
     "group": "Shell语法规则",
     "title": "bash-shebang · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:9",
+    "source": "src/shared/bashism/bashism_rules.json:9",
     "defaultTemplate": "Script declares a bash interpreter; without bash installed the kernel reports 'not found'."
   },
   {
     "id": "bashism.bash-shebang.fix",
     "group": "Shell语法规则",
     "title": "bash-shebang · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:10",
+    "source": "src/shared/bashism/bashism_rules.json:10",
     "defaultTemplate": "Use `#!/bin/sh` and remove bash-only syntax, or let Minis install bash."
   },
   {
     "id": "bashism.bash-invoke.behavior",
     "group": "Shell语法规则",
     "title": "bash-invoke · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:16",
+    "source": "src/shared/bashism/bashism_rules.json:16",
     "defaultTemplate": "bash is invoked as a command (command-head position only; `grep bash` etc. does not match)."
   },
   {
     "id": "bashism.bash-invoke.fix",
     "group": "Shell语法规则",
     "title": "bash-invoke · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:17",
+    "source": "src/shared/bashism/bashism_rules.json:17",
     "defaultTemplate": "Invoke `sh` instead if the target script is POSIX, or let Minis install bash."
   },
   {
     "id": "bashism.arith-command.behavior",
     "group": "Shell语法规则",
     "title": "arith-command · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:23",
+    "source": "src/shared/bashism/bashism_rules.json:23",
     "defaultTemplate": "busybox sh parses (( )) as nested subshells and runs the expression as a COMMAND (exit 127); `if (( x > y ))` silently takes the WRONG branch."
   },
   {
     "id": "bashism.arith-command.fix",
     "group": "Shell语法规则",
     "title": "arith-command · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:24",
+    "source": "src/shared/bashism/bashism_rules.json:24",
     "defaultTemplate": "Comparisons: `[ \"$x\" -gt 5 ]`. Arithmetic assignment: `x=$((x + 1))` ($((..)) expansion IS supported)."
   },
   {
     "id": "bashism.compound-assign.behavior",
     "group": "Shell语法规则",
     "title": "compound-assign · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:30",
+    "source": "src/shared/bashism/bashism_rules.json:30",
     "defaultTemplate": "busybox sh treats `x+=1` as a COMMAND named 'x+=1' ('not found'); the variable is never updated while the script appears to run."
   },
   {
     "id": "bashism.compound-assign.fix",
     "group": "Shell语法规则",
     "title": "compound-assign · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:31",
+    "source": "src/shared/bashism/bashism_rules.json:31",
     "defaultTemplate": "Numeric: `x=$((x + n))`. String append: `s=\"${s}suffix\"`. Array append: `list=\"$list item\"` or `set -- \"$@\" item`."
   },
   {
     "id": "bashism.brace-range.behavior",
     "group": "Shell语法规则",
     "title": "brace-range · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:37",
+    "source": "src/shared/bashism/bashism_rules.json:37",
     "defaultTemplate": "busybox sh does not brace-expand; `{1..3}` is passed through as the LITERAL string with no error."
   },
   {
     "id": "bashism.brace-range.fix",
     "group": "Shell语法规则",
     "title": "brace-range · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:38",
+    "source": "src/shared/bashism/bashism_rules.json:38",
     "defaultTemplate": "Write the list out (`1 2 3`) or use `$(seq 1 3)` for numeric ranges."
   },
   {
     "id": "bashism.printf-v.behavior",
     "group": "Shell语法规则",
     "title": "printf-v · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:44",
+    "source": "src/shared/bashism/bashism_rules.json:44",
     "defaultTemplate": "busybox printf has no -v; output becomes '-v ...' and the variable is never assigned, with no error."
   },
   {
     "id": "bashism.printf-v.fix",
     "group": "Shell语法规则",
     "title": "printf-v · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:45",
+    "source": "src/shared/bashism/bashism_rules.json:45",
     "defaultTemplate": "Use command substitution: `var=$(printf 'fmt' args)`."
   },
   {
     "id": "bashism.array-def.behavior",
     "group": "Shell语法规则",
     "title": "array-def · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:51",
+    "source": "src/shared/bashism/bashism_rules.json:51",
     "defaultTemplate": "Arrays are unsupported: `a=(1 2 3)` is a syntax error in busybox sh."
   },
   {
     "id": "bashism.array-def.fix",
     "group": "Shell语法规则",
     "title": "array-def · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:52",
+    "source": "src/shared/bashism/bashism_rules.json:52",
     "defaultTemplate": "Use a space-separated string (`a=\"1 2 3\"; for x in $a; do ...`) or positional parameters (`set -- 1 2 3`)."
   },
   {
     "id": "bashism.array-expand.behavior",
     "group": "Shell语法规则",
     "title": "array-expand · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:58",
+    "source": "src/shared/bashism/bashism_rules.json:58",
     "defaultTemplate": "`${a[@]}` / `${#a[@]}` are 'bad substitution' in busybox sh."
   },
   {
     "id": "bashism.array-expand.fix",
     "group": "Shell语法规则",
     "title": "array-expand · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:59",
+    "source": "src/shared/bashism/bashism_rules.json:59",
     "defaultTemplate": "With positional parameters use `\"$@\"` and `$#`; with a space-separated string iterate with `for`."
   },
   {
     "id": "bashism.process-subst.behavior",
     "group": "Shell语法规则",
     "title": "process-subst · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:65",
+    "source": "src/shared/bashism/bashism_rules.json:65",
     "defaultTemplate": "Process substitution fails at runtime: can't open '/dev/fd/NN'."
   },
   {
     "id": "bashism.process-subst.fix",
     "group": "Shell语法规则",
     "title": "process-subst · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:66",
+    "source": "src/shared/bashism/bashism_rules.json:66",
     "defaultTemplate": "Write to temp files: `cmd1 >/tmp/f1; cmd2 >/tmp/f2; diff /tmp/f1 /tmp/f2`."
   },
   {
     "id": "bashism.c-for.behavior",
     "group": "Shell语法规则",
     "title": "c-for · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:72",
+    "source": "src/shared/bashism/bashism_rules.json:72",
     "defaultTemplate": "C-style for loops are a syntax error ('bad for loop variable')."
   },
   {
     "id": "bashism.c-for.fix",
     "group": "Shell语法规则",
     "title": "c-for · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:73",
+    "source": "src/shared/bashism/bashism_rules.json:73",
     "defaultTemplate": "`i=0; while [ \"$i\" -lt \"$n\" ]; do ...; i=$((i+1)); done`"
   },
   {
     "id": "bashism.case-conv.behavior",
     "group": "Shell语法规则",
     "title": "case-conv · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:79",
+    "source": "src/shared/bashism/bashism_rules.json:79",
     "defaultTemplate": "`${x^^}` / `${x,,}` case conversion is 'bad substitution'."
   },
   {
     "id": "bashism.case-conv.fix",
     "group": "Shell语法规则",
     "title": "case-conv · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:80",
+    "source": "src/shared/bashism/bashism_rules.json:80",
     "defaultTemplate": "`$(echo \"$x\" | tr a-z A-Z)` (or `tr A-Z a-z`)."
   },
   {
     "id": "bashism.indirect-ref.behavior",
     "group": "Shell语法规则",
     "title": "indirect-ref · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:86",
+    "source": "src/shared/bashism/bashism_rules.json:86",
     "defaultTemplate": "`${!name}` indirect expansion is 'bad substitution'."
   },
   {
     "id": "bashism.indirect-ref.fix",
     "group": "Shell语法规则",
     "title": "indirect-ref · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:87",
+    "source": "src/shared/bashism/bashism_rules.json:87",
     "defaultTemplate": "`eval \"val=\\$$name\"` (be careful: eval executes its argument)."
   },
   {
     "id": "bashism.pipe-amp.behavior",
     "group": "Shell语法规则",
     "title": "pipe-amp · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:93",
+    "source": "src/shared/bashism/bashism_rules.json:93",
     "defaultTemplate": "`cmd |& next` is a syntax error."
   },
   {
     "id": "bashism.pipe-amp.fix",
     "group": "Shell语法规则",
     "title": "pipe-amp · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:94",
+    "source": "src/shared/bashism/bashism_rules.json:94",
     "defaultTemplate": "`cmd 2>&1 | next`"
   },
   {
     "id": "bashism.local-opt.behavior",
     "group": "Shell语法规则",
     "title": "local-opt · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:100",
+    "source": "src/shared/bashism/bashism_rules.json:100",
     "defaultTemplate": "`local -x v=1` fails ('bad variable name'); plain `local` works."
   },
   {
     "id": "bashism.local-opt.fix",
     "group": "Shell语法规则",
     "title": "local-opt · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:101",
+    "source": "src/shared/bashism/bashism_rules.json:101",
     "defaultTemplate": "`local v=1; export v`"
   },
   {
     "id": "bashism.mapfile.behavior",
     "group": "Shell语法规则",
     "title": "mapfile · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:107",
+    "source": "src/shared/bashism/bashism_rules.json:107",
     "defaultTemplate": "mapfile/readarray are 'not found' and downstream array use cascades."
   },
   {
     "id": "bashism.mapfile.fix",
     "group": "Shell语法规则",
     "title": "mapfile · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:108",
+    "source": "src/shared/bashism/bashism_rules.json:108",
     "defaultTemplate": "`while IFS= read -r line; do ...; done < file`"
   },
   {
     "id": "bashism.select-in.behavior",
     "group": "Shell语法规则",
     "title": "select-in · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:114",
+    "source": "src/shared/bashism/bashism_rules.json:114",
     "defaultTemplate": "`select x in ...` menus are a syntax error."
   },
   {
     "id": "bashism.select-in.fix",
     "group": "Shell语法规则",
     "title": "select-in · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:115",
+    "source": "src/shared/bashism/bashism_rules.json:115",
     "defaultTemplate": "Print a numbered list with printf and read the choice with `read`."
   },
   {
     "id": "bashism.extglob.behavior",
     "group": "Shell语法规则",
     "title": "extglob · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:121",
+    "source": "src/shared/bashism/bashism_rules.json:121",
     "defaultTemplate": "extglob patterns like `@(a|b)` are a syntax error."
   },
   {
     "id": "bashism.extglob.fix",
     "group": "Shell语法规则",
     "title": "extglob · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:122",
+    "source": "src/shared/bashism/bashism_rules.json:122",
     "defaultTemplate": "Use a `case` statement with multiple patterns, or separate globs."
   },
   {
     "id": "bashism.declare.behavior",
     "group": "Shell语法规则",
     "title": "declare · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:128",
+    "source": "src/shared/bashism/bashism_rules.json:128",
     "defaultTemplate": "`declare` is 'not found' AND the variable is NOT assigned (verified), so later logic sees an empty value."
   },
   {
     "id": "bashism.declare.fix",
     "group": "Shell语法规则",
     "title": "declare · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:129",
+    "source": "src/shared/bashism/bashism_rules.json:129",
     "defaultTemplate": "Assign directly (`x=5`). Associative arrays have no sh equivalent — use `case` or key=value lines in a temp file."
   },
   {
     "id": "bashism.export-f.behavior",
     "group": "Shell语法规则",
     "title": "export-f · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:135",
+    "source": "src/shared/bashism/bashism_rules.json:135",
     "defaultTemplate": "`export -f` is 'illegal option'."
   },
   {
     "id": "bashism.export-f.fix",
     "group": "Shell语法规则",
     "title": "export-f · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:136",
+    "source": "src/shared/bashism/bashism_rules.json:136",
     "defaultTemplate": "Define the function inside the invoked script, or extract it into its own script file."
   },
   {
     "id": "bashism.here-string.behavior",
     "group": "Shell语法规则",
     "title": "here-string · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:142",
+    "source": "src/shared/bashism/bashism_rules.json:142",
     "defaultTemplate": "Here-strings are 'syntax error: unexpected redirection'."
   },
   {
     "id": "bashism.here-string.fix",
     "group": "Shell语法规则",
     "title": "here-string · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:143",
+    "source": "src/shared/bashism/bashism_rules.json:143",
     "defaultTemplate": "`printf '%s\\n' \"$s\" | cmd` (note: the pipe runs cmd in a subshell)."
   },
   {
     "id": "bashism.read-a.behavior",
     "group": "Shell语法规则",
     "title": "read-a · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:149",
+    "source": "src/shared/bashism/bashism_rules.json:149",
     "defaultTemplate": "`read -a arr` is 'illegal option' and array use cascades."
   },
   {
     "id": "bashism.read-a.fix",
     "group": "Shell语法规则",
     "title": "read-a · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:150",
+    "source": "src/shared/bashism/bashism_rules.json:150",
     "defaultTemplate": "`read v1 v2 rest` for fixed fields, or `set -- $line` for word-splitting into positional parameters."
   },
   {
     "id": "bashism.coproc.behavior",
     "group": "Shell语法规则",
     "title": "coproc · 行为说明",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:156",
+    "source": "src/shared/bashism/bashism_rules.json:156",
     "defaultTemplate": "`coproc` is 'not found'."
   },
   {
     "id": "bashism.coproc.fix",
     "group": "Shell语法规则",
     "title": "coproc · 改写建议",
-    "source": "src/android/app/src/main/assets/bashism/bashism_rules.json:157",
+    "source": "src/shared/bashism/bashism_rules.json:157",
     "defaultTemplate": "Use a named pipe (`mkfifo`) with a background process."
   },
   {
@@ -2467,7 +2467,7 @@
     "id": "ui.chat.chatviewmodel.5e2c610580a6",
     "group": "上下文压缩",
     "title": "压缩摘要回注 · 背景与新消息优先",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:19983",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:20030",
     "defaultTemplate": "Treat it as background context only. The user's most recent message (below or in the next turn) takes precedence — if it changes the task, the goal, or any numbers/scope, follow the new instruction and do not resume the old plan from this summary. Do not re-run discovery (reading memory, scanning skills, re-reading files) unless the new instruction requires it.\n\n"
   },
   {

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [T-android-auto-compact-settings] 设置 › 上下文压缩。
+
+  与英文资源逐条对应：占位符编号保持一致，避免格式化时丢失参数。
+-->
+<resources>
+    <string name="auto_compact_settings_title">上下文压缩</string>
+    <string name="auto_compact_settings_subtitle">阈值与摘要模型</string>
+
+    <string name="auto_compact_switch_title">达到阈值时自动压缩</string>
+    <string name="auto_compact_switch_footer">开启：下一次请求超过阈值时，先静默压缩对话再发送。关闭：压缩前询问你。</string>
+
+    <string name="auto_compact_threshold_title">Token 阈值</string>
+    <string name="auto_compact_threshold_default">模型默认</string>
+    <string name="auto_compact_threshold_default_subtitle">按当前模型的安全容量使用默认阈值。</string>
+    <string name="auto_compact_threshold_value_fmt">%1$s tokens</string>
+    <string name="auto_compact_threshold_dialog_title">Token 阈值</string>
+    <string name="auto_compact_threshold_dialog_label">Token 数</string>
+    <string name="auto_compact_threshold_dialog_hint">留空则按当前模型的安全容量使用默认阈值。</string>
+    <string name="auto_compact_threshold_error_positive">请输入大于 0 的整数。</string>
+    <string name="auto_compact_threshold_error_too_large">数值过大，最大为 %1$s。</string>
+    <string name="auto_compact_threshold_use_default">使用模型默认</string>
+
+    <string name="auto_compact_model_title">压缩模型</string>
+    <string name="auto_compact_model_follow_chat">跟随当前对话模型</string>
+    <string name="auto_compact_model_entry_fmt">%1$s · %2$s</string>
+    <string name="auto_compact_model_picker_title">压缩模型</string>
+    <string name="auto_compact_model_missing_fmt">已保存的模型 %1$s 已不在提供商列表中。在你另行选择前会保留该设置。</string>
+    <string name="auto_compact_model_unavailable_fmt">已保存的模型 %1$s 目前不可用（提供商已停用、条目已隐藏或不是文本模型）。在你另行选择前会保留该设置。</string>
+    <string name="auto_compact_model_none">没有可用的文本模型。请先添加或启用提供商。</string>
+    <string name="auto_compact_model_footer">压缩请求使用此模型，不会改变当前对话的聊天模型。可用性只在本地检查，浏览此页不会产生额外的模型调用。</string>
+</resources>

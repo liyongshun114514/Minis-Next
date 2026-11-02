@@ -70,7 +70,10 @@ def validate(root, refresh=False):
 
     # Shell rules are rendered by a data-driven id. Their detection patterns
     # stay immutable; only the behavior/fix text is user-editable.
-    rule_path = root / 'src/android/app/src/main/assets/bashism/bashism_rules.json'
+    # Read the tracked single source of truth. Android's assets/bashism copy
+    # is gitignored and only created by Gradle's copyBashismRules task; this
+    # static check must also run on a fresh checkout before Gradle starts.
+    rule_path = root / 'src/shared/bashism/bashism_rules.json'
     rule_source = rule_path.read_text()
     for rule in json.loads(rule_source)['rules']:
         for field, suffix in [('behaviorNote', '.behavior'), ('fixHint', '.fix')]:

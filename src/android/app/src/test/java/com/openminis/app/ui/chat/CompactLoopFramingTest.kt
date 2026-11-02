@@ -199,21 +199,23 @@ class CompactLoopFramingTest {
     @Test
     fun `drift guard - framing, past-tense prompt and summary wrapper still in production`() {
         val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
-        assertTrue(vm.contains("append(\"Compact this conversation into a context summary:\\n\\n\")"))
-        assertTrue(vm.contains("append(\"\\n\\n---\\nEND OF CONVERSATION TO COMPACT.\\n\\n\")"))
+        assertTrue(vm.contains("Compact this conversation into a context summary:\\n\\n"))
+        assertTrue(vm.contains("\\n\\n---\\nEND OF CONVERSATION TO COMPACT.\\n\\n"))
+        assertTrue(vm.contains("PromptOverrides.render(\"ui.chat.chatviewmodel.45b62a0cb837\""))
         assertTrue(vm.contains("Do NOT continue the conversation above — summarize it."))
         assertTrue(vm.contains("NOT as an ongoing goal or todo list."))
         // System prompt: past events, no carried-over objectives (old-task bleed).
         assertTrue(vm.contains("Do not invent ongoing objectives or carry-over tasks from old turns"))
-        assertTrue(vm.contains("NOT a \"todo\" or \"pending\" list"))
+        assertTrue(vm.contains("NOT a \\\"todo\\\" or \\\"pending\\\" list"))
         // Summary wrapper at read time: newest user instruction wins.
         assertTrue(vm.contains("The user's most recent message (below or in the next turn) takes precedence"))
         assertTrue(vm.contains("do not resume the old plan from this summary"))
         // Split-and-merge: textual join, halves get NO previous summary, depth cap 3.
-        assertTrue(vm.contains("val summary1 = generateCompactSummaryWithSplitting(firstHalf, null, depth + 1)"))
-        assertTrue(vm.contains("val summary2 = generateCompactSummaryWithSplitting(secondHalf, null, depth + 1)"))
+        assertTrue(vm.contains("val summary1 = generateCompactSummaryWithSplitting(firstHalf, null, depth + 1, compactProvider)"))
+        assertTrue(vm.contains("val summary2 = generateCompactSummaryWithSplitting(secondHalf, null, depth + 1, compactProvider)"))
         assertTrue(vm.contains("summary1 + \"\\n\\n\" + summary2"))
         assertTrue(vm.contains("messages.size < 2 || depth >= 3"))
-        assertTrue(vm.contains("Previous context summary:\\n\$previousSummary\\n\\n"))
+        assertTrue(vm.contains("Previous context summary:\\n{{slot0}}\\n\\n"))
+        assertTrue(vm.contains("mapOf(\"slot0\" to (previousSummary).toString())"))
     }
 }
