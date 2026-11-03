@@ -36,6 +36,15 @@ internal object WorkspaceInstructionStore {
     private const val KEY_WORKING_DIRECTORY = "working_directory"
     private const val KEY_MAX_BYTES = "max_bytes"
 
+    /**
+     * [K-agents-supreme] Exclusive mode: the workspace chain alone forms the
+     * application prompt, SOUL.md is dropped. Default ON because the feature is
+     * onerous to discover otherwise — and it is inert while no AGENTS.md exists
+     * (see [WorkspaceInstructionAuthority.isExclusive]), so a fresh install
+     * still behaves exactly as before.
+     */
+    private const val KEY_EXCLUSIVE = "exclusive_authority"
+
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun projectRoot(context: Context): String =
@@ -59,6 +68,17 @@ internal object WorkspaceInstructionStore {
     fun setMaxBytes(context: Context, maxBytes: Int) {
         prefs(context).edit().putInt(KEY_MAX_BYTES, if (maxBytes > 0) maxBytes else DEFAULT_MAX_BYTES).apply()
     }
+
+    /** [K-agents-supreme] See [KEY_EXCLUSIVE]. */
+    fun exclusive(context: Context): Boolean = prefs(context).getBoolean(KEY_EXCLUSIVE, true)
+
+    fun setExclusive(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_EXCLUSIVE, value).apply()
+    }
+
+    /** True when at least one instruction file is present for this scope. */
+    fun hasInstructions(context: Context): Boolean =
+        runCatching { snapshot(context).files.isNotEmpty() }.getOrDefault(false)
 
     fun normalizeLinuxPath(path: String): String {
         val trimmed = path.trim().ifEmpty { DEFAULT_PROJECT_ROOT }

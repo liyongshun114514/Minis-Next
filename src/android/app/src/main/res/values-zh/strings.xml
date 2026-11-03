@@ -269,6 +269,8 @@
     <string name="workspace_scope_project_root">项目根目录</string>
     <string name="workspace_scope_working_directory">工作目录</string>
     <string name="workspace_scope_hint">指令链从项目根目录到工作目录逐级加载。路径上存在 .git 时，项目根会收窄到该目录。</string>
+    <string name="workspace_exclusive_title">AGENTS.md 独占</string>
+    <string name="workspace_exclusive_note">开启后只发送 AGENTS.md 的内容，SOUL.md 与生成的身份/风格段不再进入请求。没有 AGENTS.md 时此项不起作用。</string>
     <string name="workspace_budget">每条链预算：%1$d 字节</string>
     <string name="workspace_section_global">用户全局</string>
     <string name="workspace_section_project">项目链</string>

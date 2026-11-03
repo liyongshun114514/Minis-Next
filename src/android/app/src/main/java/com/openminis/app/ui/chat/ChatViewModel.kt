@@ -7584,7 +7584,15 @@ class ChatViewModel(
                 .mandatoryBlock(context, activeSessionId)
         }.getOrNull()
         val soul = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
-        val prompt = listOfNotNull(workspace, soul).joinToString("\n\n").ifBlank { null }
+        // [K-agents-supreme] With exclusive mode on, the workspace block is the
+        // whole application prompt and SOUL.md is not sent.
+        val prompt = com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
+            workspaceBlock = workspace,
+            soul = soul,
+            exclusiveRequested = runCatching {
+                com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
+            }.getOrDefault(false),
+        )
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
@@ -11444,10 +11452,15 @@ class ChatViewModel(
             null
         }
         val applicationPromptForTurn = if (helperConfig == null) {
-            listOfNotNull(
-                workspaceBlockForTurn,
-                runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull(),
-            ).joinToString("\n\n").ifBlank { null }
+            // [K-agents-supreme] Exclusive mode sends the workspace block alone;
+            // SOUL.md stays on disk but never reaches the request.
+            com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
+                workspaceBlock = workspaceBlockForTurn,
+                soul = runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull(),
+                exclusiveRequested = runCatching {
+                    com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
+                }.getOrDefault(false),
+            )
         } else {
             null
         }
@@ -16683,10 +16696,23 @@ class ChatViewModel(
         // A sub agent keeps its own identity block; the top-level agent's is
         // now identity sentence + style + edit hint only (the application
         // prompt travels in the provider field described above).
-        val identitySection = helperConfig?.let {
-            com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
+        // [K-agents-supreme] Exclusive workspace mode owns the prompt: the
+        // generated "You are <name>, a capable AI assistant ..." paragraph and
+        // SOUL's personality/style sheet are dropped so nothing in the system
+        // channel competes with AGENTS.md. Without an instruction file the flag
+        // is inert and this stays byte-identical to the previous build.
+        val agentsExclusive = helperConfig == null && runCatching {
+            com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context) &&
+                com.openminis.app.agent.workspace.WorkspaceInstructionStore.hasInstructions(context)
+        }.getOrDefault(false)
+        val identitySection = if (agentsExclusive) {
+            ""
+        } else {
+            helperConfig?.let {
+                com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
+            }
+                ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
         }
-            ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
         // [T-memory-toggle-gates-injection-and-tools-android] Mirror the iOS
         // gate: when memory is disabled for this session, replace the
         // "memory_write / memory_get" tool bullets and the "Memory system:"

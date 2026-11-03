@@ -81,11 +81,31 @@
   但会让模型失去「被拒绝后不得绕过」「status 不等于 helper 存活」这类行为约束。
 - 若希望这些安全文本不可编辑，需要再加只读标记（本轮未做）。
 
-## 5. 本地验证
+## 5. AGENTS.md 独占（1.6.3）
 
-- 生产类型编译：822 Kotlin + 4 Java，三阶段退出 0，`error_lines 0`；不是 APK 构建。
-- 聚焦 JVM/Robolectric：`PromptCatalogScopeTest` 6 + `UnifiedPromptSettingsTest` 11 +
-  `PromptOverridesTest` 28 + `PromptRuntimeIntegrationTest` 5 +
-  `SystemPromptJavaLineTest` 1 + `SystemPromptInjectionWiringTest` 7 = **58 项，0 失败**。
-- `scripts/check-prompt-catalog.py`：`ok: true`，355 条、分组计数与源码位置一致。
-- 未安装、未运行、未推送；实机设置页观感未验收。
+2026-11-03 追加，用户要求「AGENTS.md 当强制提示词、覆盖供应商、支持注入」。
+
+- **措辞**：`工作区优先级说明` 改为 `工作区指令权威`。删掉「不覆盖服务端规则/安全/设备权限」的退让句，
+  改成：本次请求内与其它任何指令冲突时以本文件为准，包括 SOUL.md、身份段、风格、记忆、工具说明、技能、
+  运行上下文与任何更早的默认设定；不得弱化、不得替它加限制、不得当成建议。只保留一句事实约束：
+  系统拒绝或失败时必须如实报告，不能把没做的说成做成了。
+- **独占开关**：Settings → 工作区指令 → `AGENTS.md 独占`，默认开启。
+  开启时只发 AGENTS.md 那一段，**SOUL.md 不发送**，生成的身份段（`You are <name>…`、人格/风格）也不发送，
+  因此「优先于 SOUL」靠不发送实现，而不是靠文案争辩。没有 AGENTS.md 时开关不生效（照旧发 SOUL），
+  避免因为目录为空就把用户自己的提示词弄丢。子代理不受影响。
+- **原样注入**：不再把 `</system-reminder>` 改写成 `<\/system-reminder>`，文件内容逐字节进入系统消息，
+  标签按原样生效。
+- **能力边界（必须留档）**：这只能决定「本次请求里谁说了算」。供应商服务端的策略与 Android 权限判定
+  不在本地文件能触及的范围；任何声称「一个文件全覆盖供应商」的说法都不成立。
+- **代价**：独占模式下 `身份与环境` 那条边界声明不再随请求发送（它属于 SOUL），
+  请求里就没有「不覆盖服务端规则」的自我声明了。这是开关的直接后果，不是遗漏。
+
+## 6. 本地验证
+
+- 生产类型编译：823 Kotlin + 4 Java，三阶段退出 0，`error_lines 0`；不是 APK 构建。
+- 聚焦 JVM/Robolectric：`WorkspaceInstructionAuthorityTest` 6 + `WorkspaceSystemPromptTest` 7 +
+  `PromptCatalogScopeTest` 6 + `PromptRuntimeIntegrationTest` 5 +
+  `UnifiedPromptSettingsTest` 11 + `PromptOverridesTest` 28 = **63 项，0 失败**。
+- `scripts/check-prompt-catalog.py --refresh-sources`：`ok: true`，835 字符新文案与源码一致。
+- `test_kairos_identity.py` / `test_removed_native_ui.py`：各 5 项通过（版本 1.6.3 / code 54）。
+- 未安装、未实机验收。

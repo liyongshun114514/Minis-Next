@@ -24,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -70,6 +71,7 @@ fun WorkspaceInstructionsScreen(
     val projectRoot = remember(refresh) { WorkspaceInstructionStore.projectRoot(context) }
     val workingDirectory = remember(refresh) { WorkspaceInstructionStore.workingDirectory(context) }
     val maxBytes = remember(refresh) { WorkspaceInstructionStore.maxBytes(context) }
+    val exclusive = remember(refresh) { WorkspaceInstructionStore.exclusive(context) }
     val snapshot = remember(refresh) {
         WorkspaceInstructionStore.snapshot(context).also {
             if (it.error != null) error = it.error
@@ -139,6 +141,44 @@ fun WorkspaceInstructionsScreen(
                             text = stringResource(R.string.workspace_budget, maxBytes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            item {
+                // [K-agents-supreme] The one switch that decides whether AGENTS.md
+                // replaces SOUL.md instead of merely preceding it.
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.workspace_exclusive_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.workspace_exclusive_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = exclusive,
+                            onCheckedChange = {
+                                WorkspaceInstructionStore.setExclusive(context, it)
+                                refresh++
+                            },
                         )
                     }
                 }

@@ -310,6 +310,8 @@
     <string name="workspace_scope_project_root">Project root</string>
     <string name="workspace_scope_working_directory">Working directory</string>
     <string name="workspace_scope_hint">The chain runs from the project root down to the working directory. A .git marker on the path moves the root to that directory.</string>
+    <string name="workspace_exclusive_title">AGENTS.md exclusive</string>
+    <string name="workspace_exclusive_note">When on, only the AGENTS.md chain is sent: SOUL.md and the generated identity/style paragraph are dropped from the request. Inert while no AGENTS.md exists.</string>
     <string name="workspace_budget">Budget: %1$d bytes per chain</string>
     <string name="workspace_section_global">User-global</string>
     <string name="workspace_section_project">Project chain</string>

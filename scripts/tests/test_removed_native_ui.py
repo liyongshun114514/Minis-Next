@@ -57,8 +57,8 @@ class RemovedNativeUiTest(unittest.TestCase):
     def test_independent_next_identity_does_not_downgrade_to_upstream(self):
         gradle = (ROOT / "src/android/app/build.gradle.kts").read_text()
         self.assertIn('applicationId = "com.openminis.app.next"', gradle)
-        self.assertIn('versionCode = 53', gradle)
-        self.assertIn('versionName = "1.6.2"', gradle)
+        self.assertIn('versionCode = 54', gradle)
+        self.assertIn('versionName = "1.6.3"', gradle)
         self.assertIn('signingConfig = signingConfigs.getByName("nextRelease")', gradle)
 
 

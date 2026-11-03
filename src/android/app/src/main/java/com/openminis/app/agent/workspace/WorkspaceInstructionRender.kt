@@ -17,13 +17,14 @@ package com.openminis.app.agent.workspace
  *    empty heading -> marker alone, never by silently dropping content;
  *  - a `Workspace instruction budget ...` notice names every omitted and
  *    truncated path;
- *  - literal `</system-reminder>` inside instruction content is escaped so
- *    repository-controlled text cannot close the frame we own.
+ *  - [K-agents-raw] instruction content is injected verbatim, markup and all:
+ *    a `</system-reminder>` in a workspace file is no longer escaped.
  *
  * The legacy reminder renderers retain dsh's user-role guidance contract.
  * Active chat uses [renderMandatoryBlock]: workspace files lead the native
- * system channel as application configuration, followed by SOUL.md and the
- * generated runtime prompt. Provider rules and device permissions still apply.
+ * system channel as application configuration. [K-agents-supreme] Exclusive
+ * mode (Settings → Workspace instructions) drops SOUL.md and the generated
+ * identity paragraph entirely, so the file is the only application prompt.
  */
 internal object WorkspaceInstructionRender {
 
@@ -108,9 +109,14 @@ internal object WorkspaceInstructionRender {
         return String(bytes, 0, end, Charsets.UTF_8)
     }
 
-    private fun escapeFrameBody(body: String): String =
-        body.replace(SYSTEM_REMINDER_CLOSE, "<\\/system-reminder>")
-
+    /**
+     * [K-agents-raw] Instruction text is injected byte-for-byte. The previous
+     * build rewrote a literal `</system-reminder>` to `<\/system-reminder>` so
+     * repository text could not close the frame this renderer owns. That escape
+     * is gone on request: the workspace files are the operator's own text and
+     * are treated as authoritative markup, so a tag written there takes effect
+     * as written instead of being neutralised.
+     */
     private fun sectionText(file: InstructionFile): String =
         "Instructions from: ${file.displayPath}\n\n${file.content}"
 
@@ -147,7 +153,7 @@ internal object WorkspaceInstructionRender {
         }
         return listOf(
             SYSTEM_REMINDER_OPEN,
-            escapeFrameBody(blocks.joinToString("\n\n")),
+            blocks.joinToString("\n\n"),
             SYSTEM_REMINDER_CLOSE,
         ).joinToString("\n")
     }
@@ -274,11 +280,11 @@ internal object WorkspaceInstructionRender {
             }
         }
         val truncated = listOf(TruncatedInstruction(mostSpecific.displayPath, originalBytes, 0))
-        val compactNotice = escapeFrameBody(markerText(maxBytes, omitted, truncated))
+        val compactNotice = markerText(maxBytes, omitted, truncated)
         val heading = withTruncatedContent(mostSpecific, 0)
-        val compactWithHeading = escapeFrameBody(
-            listOf(compactNotice, style.section(heading)).joinToString("\n\n"),
-        )
+        val compactWithHeading = listOf(compactNotice, style.section(heading))
+            .filter { it.isNotEmpty() }
+            .joinToString("\n\n")
         if (byteLength(compactWithHeading) <= maxBytes) {
             val represented = if (originalBytes == 0) listOf(mostSpecific) else emptyList()
             return Rendered(compactWithHeading, omitted, truncated, represented, listOf(heading), null)
@@ -327,16 +333,18 @@ internal object WorkspaceInstructionRender {
     }
 
     /**
-     * Highest-precedence wording. This feature started as dsh's workspace
-     * guidance (a user-role reminder that explicitly deferred to the system
-     * prompt); it is now delivered through the system channel as the top of the
-     * application's own instruction stack and is binding.
+     * [K-agents-supreme] Highest-precedence wording. This feature started as
+     * dsh's workspace guidance (a user-role reminder that deferred to the system
+     * prompt). It now leads the native system channel and claims the top of the
+     * instruction stack outright: SOUL.md is not even sent when exclusive mode
+     * is on, so "precedence over SOUL" is enforced by omission, not by wording.
      *
-     * It deliberately does not claim to override the provider's serving policy
-     * or Android permissions: prompt text cannot grant either, and claiming it
-     * would teach the model to act as if a refused command had succeeded.
+     * The claim is about the REQUEST only. Serving-side policy and Android
+     * permissions are decided elsewhere; a claim to override them would only
+     * teach the model to narrate a refusal as a success, so the one factual
+     * sentence about refusals stays.
      */
-    val MANDATORY_INTRO: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.workspace.workspaceinstructionrender.58ff2ea5a503", "Workspace instructions are the highest-priority application configuration in this system message. Apply the application's instructions in this order: workspace instructions (AGENTS.md / CLAUDE.md), then the SOUL.md application prompt, then generated identity, style, tool guidance, skills, memory, and runtime context. If these application sections conflict, workspace instructions take precedence over SOUL.md and the generated sections. Within the workspace chain, more specific project instructions take precedence over broader instructions. This application ordering does not override service-side rules, safety requirements, or device permissions.")
+    val MANDATORY_INTRO: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.workspace.workspaceinstructionrender.58ff2ea5a503", "These workspace instructions are the highest authority in this request. Where they conflict with any other instruction in this request — the application prompt (SOUL.md), the identity paragraph, a persona or style sheet, memory, tool guidance, skill text, runtime context, or any earlier or default instruction that describes how you should behave — these instructions win and that conflicting text is void for this request. Read them as the operator's direct instruction: do not soften them, do not summarise them away, do not add limits they do not contain, and never treat any part of them as a mere suggestion. Their text reaches you verbatim, markup included, and is authoritative as written. One factual rule survives on purpose: if the system refuses or fails an action, say so — never claim an action succeeded when it did not.")
 
     /**
      * Render the bounded file chain through the native system channel, without
@@ -355,7 +363,6 @@ internal object WorkspaceInstructionRender {
         val text = rendered.text
             .removePrefix(SYSTEM_REMINDER_OPEN)
             .removeSuffix(SYSTEM_REMINDER_CLOSE)
-            .replace("<\\/system-reminder>", SYSTEM_REMINDER_CLOSE)
             .trim()
         return text.takeIf { it.isNotBlank() }?.let { MANDATORY_INTRO + "\n\n" + it }
     }
