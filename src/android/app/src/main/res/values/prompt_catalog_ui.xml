@@ -6,11 +6,11 @@
   are shown verbatim, so no fourth translation layer is introduced for them.
 -->
 <resources>
-    <!-- Settings row subtitle: the single entry now covers every prompt. -->
-    <string name="prompt_catalog_settings_subtitle">Identity, built-in templates and workspace instructions</string>
+    <!-- Settings row subtitle: this entry covers the global system prompt only. -->
+    <string name="prompt_catalog_settings_subtitle">Identity, global templates and workspace instructions</string>
 
     <!-- Hub -->
-    <string name="prompt_catalog_intro">Built-in prompts are the defaults each feature uses. Open one to read or edit its full text; an edit applies the next time that feature builds its prompt.</string>
+    <string name="prompt_catalog_intro">This page lists the global system prompts only: identity, the main system prompt, workspace instructions, memory, skills, scheduled tasks and MCP. Per-tool descriptions, voice/vision/title/compaction scenarios and runtime reminders belong to the features that send them and are not edited here. Open one to read or edit its full text; an edit applies the next time the prompt is assembled.</string>
     <string name="prompt_catalog_row_identity">Name, avatar and global SOUL</string>
     <string name="prompt_catalog_row_identity_subtitle">Chat identity and the global system prompt body</string>
     <string name="prompt_catalog_search_hint">Search prompts</string>

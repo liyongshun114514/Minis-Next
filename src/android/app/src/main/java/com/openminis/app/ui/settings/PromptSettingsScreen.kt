@@ -34,6 +34,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.openminis.app.R
+import com.openminis.app.agent.prompts.PromptCatalogScope
 import com.openminis.app.agent.prompts.PromptEntry
 import com.openminis.app.agent.prompts.PromptOverrides
 import kotlinx.coroutines.Dispatchers
@@ -49,8 +50,12 @@ import kotlinx.coroutines.withContext
  *  - workspace instructions (the existing WorkspaceInstructionsScreen, still
  *    reachable directly through Routes.WORKSPACE_INSTRUCTIONS for old deep
  *    links);
- *  - every built-in prompt from the catalog asset, grouped by the catalog's
- *    own `group` field and shown as title + source.
+ *  - the GLOBAL built-in prompts from the catalog asset
+ *    ([PromptCatalogScope]), grouped by the catalog's own `group` field and
+ *    shown as title + source. Per-tool schema text, scenario prompts and
+ *    runtime reminders are deliberately not listed here: they are owned by
+ *    the feature that sends them, and putting them on this page implied they
+ *    were part of the global system prompt.
  *
  * The page is a directory, not an editor: a group never inlines a text field
  * for each of its entries. Tapping a row navigates to
@@ -90,7 +95,11 @@ fun PromptSettingsScreen(
         }
         result
             .onSuccess {
-                entries = it
+                // [K-system-prompt-scope] Only global prompts are system-prompt
+                // settings. Tool descriptions, voice/vision/title/compaction
+                // prompts and runtime reminders stay editable by id but are not
+                // presented here as if they were part of this prompt.
+                entries = PromptCatalogScope.globalOnly(it)
                 loaded = true
             }
             .onFailure { loadFailed = true }

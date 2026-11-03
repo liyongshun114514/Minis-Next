@@ -5,11 +5,11 @@
   按原样显示，不在这里再做一层翻译。
 -->
 <resources>
-    <!-- 设置页副标题：该入口现在覆盖全部提示词。 -->
-    <string name="prompt_catalog_settings_subtitle">身份、内置模板与工作区指令</string>
+    <!-- 设置页副标题：该入口只覆盖全局系统提示词。 -->
+    <string name="prompt_catalog_settings_subtitle">身份、全局模板与工作区指令</string>
 
     <!-- 汇总页 -->
-    <string name="prompt_catalog_intro">内置提示词是各功能默认使用的文本。点开可查看或编辑完整内容；修改会在该功能下次组装提示词时生效。</string>
+    <string name="prompt_catalog_intro">此页只列出全局系统提示词：身份、主系统提示词、工作区指令、记忆、技能、计划任务与 MCP。单个工具的说明、语音/视觉/标题/压缩等场景文本和运行提醒由各自功能负责，不在这里编辑。点开可查看或修改完整内容，修改会在下次组装提示词时生效。</string>
     <string name="prompt_catalog_row_identity">名称、头像与全局 SOUL</string>
     <string name="prompt_catalog_row_identity_subtitle">聊天中显示的身份与全局系统提示词正文</string>
     <string name="prompt_catalog_search_hint">搜索提示词</string>
