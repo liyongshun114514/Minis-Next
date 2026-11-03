@@ -61,10 +61,19 @@ class SystemPromptInjectionWiringTest {
             vm.indexOf("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)", application))
         assertTrue("workspace precedes SOUL on the wire",
             assembly.indexOf("workspaceBlockForTurn,") < assembly.indexOf("SystemPromptBuilder.applicationPrompt(soulFileForTurn)"))
+        assertTrue("the frozen path uses the same authority helper",
+            assembly.contains("WorkspaceInstructionAuthority.applicationPrompt("))
+        assertTrue("exclusive mode is read per turn, not cached at construction",
+            assembly.contains("WorkspaceInstructionStore.exclusive(context)"))
         val fallback = body("private fun applyApplicationSystemPromptGlobal(provider: LLMProvider)")
         assertTrue(fallback.indexOf(".mandatoryBlock(context, activeSessionId)") <
             fallback.indexOf("SystemPromptBuilder.applicationPrompt(context)"))
-        assertTrue(fallback.contains("listOfNotNull(workspace, soul)"))
+        // [K-agents-supreme] Both call sites assemble through one helper, so the
+        // exclusive switch cannot be honoured in one place and forgotten in the
+        // other. The raw join is gone on purpose.
+        assertTrue(fallback.contains("WorkspaceInstructionAuthority.applicationPrompt("))
+        assertTrue(fallback.contains("WorkspaceInstructionStore.exclusive(context)"))
+        assertFalse(fallback.contains("listOfNotNull(workspace, soul)"))
     }
 
     @Test
