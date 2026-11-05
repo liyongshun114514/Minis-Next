@@ -39,6 +39,17 @@ class WorkflowResourceTests(unittest.TestCase):
         self.assertIn('CI_GRADLE_HEAP_MB=$HEAP_MB', self.build)
         self.assertIn('-Xmx${HEAP_MB}m', self.build)
 
+    def test_robolectric_sdk_repository_reaches_every_test_worker(self):
+        build_script = WORKFLOW.parents[2] / 'src/android/app/build.gradle.kts'
+        text = build_script.read_text()
+        self.assertIn('providers.systemProperty("robolectric.dependency.repo.url")', text)
+        self.assertIn('.orElse("https://repo.maven.apache.org/maven2")', text)
+        all_tests = text.split('tasks.withType<Test>().configureEach {', 1)[1]
+        self.assertIn('systemProperty("robolectric.dependency.repo.url", robolectricRepositoryUrl.get())', all_tests)
+        # Existing final-APK acceptance inputs and the legacy alias stay intact.
+        self.assertIn('systemProperties(githubUnitTests.get().systemProperties)', text)
+        self.assertIn('outputs.upToDateWhen { false }', all_tests)
+
     def test_final_acceptance_keeps_resource_and_no_skip_contract(self):
         self.assertIn('--max-workers=1 --no-parallel', self.acceptance)
         self.assertIn('-Pkotlin.compiler.execution.strategy=in-process', self.acceptance)
