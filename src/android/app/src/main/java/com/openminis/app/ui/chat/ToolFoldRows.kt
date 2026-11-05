@@ -76,10 +76,9 @@ internal fun applyToolFolds(
 }
 
 /**
- * [T-port-fold-tools] One chat's folding state: the setting, which runs the
- * user has opened, which runs have been folded once, and whether the user is
- * browsing (scrolled up). [changes] ticks whenever an input that is not part
- * of the message list changes, so the list pipeline re-folds.
+ * One chat's folding state: the setting and the runs the user has opened.
+ * Eligibility depends only on block contents, not scroll position or whether
+ * the message is still streaming. [changes] re-runs the list on user changes.
  *
  * Called from the list pipeline's collector, one call at a time.
  */
@@ -93,21 +92,7 @@ internal class ToolFoldController {
     @Volatile var enabled: Boolean = false
         set(value) { if (field != value) { field = value; bump() } }
 
-    /** True while the user is scrolled up, reading. */
-    @Volatile var browsing: Boolean = false
-        set(value) { if (field != value) { field = value; bump() } }
-
-    /** Runs folded at least once: they stay folded (no hold-back). */
-    private val foldedOnce = HashSet<String>()
-
-    /**
-     * The rows the last [fold] call published. Their keys are only collected
-     * when a hold-back check needs them (scrolled up, a run not folded yet),
-     * not on every streaming tick.
-     */
-    private var shownRows: List<FlatChatItem> = emptyList()
-
-    private class Cached(val blocks: List<AssistantBlock>, val streaming: Boolean, val runs: List<ToolFoldPlanner.FoldedRun>)
+    private class Cached(val blocks: List<AssistantBlock>, val runs: List<ToolFoldPlanner.FoldedRun>)
     private val planCache = HashMap<String, Cached>()
 
     fun toggle(runKey: String) {
@@ -134,9 +119,9 @@ internal class ToolFoldController {
 
     private fun runsFor(message: ChatMessage): List<ToolFoldPlanner.FoldedRun> {
         val c = planCache[message.id]
-        if (c != null && c.blocks === message.toolBlocks && c.streaming == message.isStreaming) return c.runs
+        if (c != null && c.blocks === message.toolBlocks) return c.runs
         val runs = ToolFoldPlanner.foldedRuns(message)
-        planCache[message.id] = Cached(message.toolBlocks, message.isStreaming, runs)
+        planCache[message.id] = Cached(message.toolBlocks, runs)
         return runs
     }
 
@@ -145,13 +130,9 @@ internal class ToolFoldController {
      * message(s) in [live], which take precedence by id).
      */
     fun fold(rows: List<FlatChatItem>, messages: List<ChatMessage>, live: List<ChatMessage>): List<FlatChatItem> {
-        if (!enabled) {
-            shownRows = emptyList()
-            return rows
-        }
+        if (!enabled) return rows
         val liveById = if (live.isEmpty()) emptyMap() else live.associateBy { it.id }
         val accepted = HashMap<String, List<ToolFoldPlanner.FoldedRun>>()
-        var rowKeys: Set<String>? = null
         for (m in messages) {
             // [T-fold-live-turn] The live copy first: during a turn the stored
             // message has no tool blocks yet (they stream into the overlay), so
@@ -160,23 +141,8 @@ internal class ToolFoldController {
             if (message.role != "assistant" || message.toolBlocks.size < ToolFoldPlanner.MINIMUM_TOOL_COUNT) continue
             val runs = runsFor(message)
             if (runs.isEmpty()) continue
-            val kept = runs.filter { run ->
-                val held = ToolFoldPlanner.holdsBack(
-                    browsing = browsing,
-                    alreadyFolded = run.key in foldedOnce,
-                    inRunningMessage = message.isStreaming,
-                ) {
-                    val keys = rowKeys ?: shownRows.mapTo(HashSet(shownRows.size)) { it.key }.also { rowKeys = it }
-                    "tool:${message.id}:${run.key}" in keys &&
-                        "toolgroup:${message.id}:${run.key}" !in keys
-                }
-                if (!held) foldedOnce.add(run.key)
-                !held
-            }
-            if (kept.isNotEmpty()) accepted[message.id] = kept
+            accepted[message.id] = runs
         }
-        val out = applyToolFolds(rows, accepted, _expanded.value)
-        shownRows = out
-        return out
+        return applyToolFolds(rows, accepted, _expanded.value)
     }
 }

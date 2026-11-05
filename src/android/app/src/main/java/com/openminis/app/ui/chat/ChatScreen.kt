@@ -2700,9 +2700,8 @@ fun ChatScreen(
         appearancePrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { appearancePrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    // [T-port-fold-tools] Folding of consecutive tool calls (ToolFoldRows.kt):
-    // the setting, the opened runs, and whether the user is scrolled up. Its
-    // `changes` re-runs the list pipeline below.
+    // Consecutive terminal tools fold by block status. The setting and opened
+    // runs re-run the list pipeline; scrolling does not change eligibility.
     val toolFold = remember(sessionId) {
         ToolFoldController().apply {
             enabled = appearancePrefs.getBoolean(
@@ -2718,9 +2717,6 @@ fun ChatScreen(
         }
         appearancePrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { appearancePrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    LaunchedEffect(toolFold) {
-        snapshotFlow { userScrolledAway }.collect { toolFold.browsing = it }
     }
     // [T-in-chat-search] Search in Chat for this conversation (ui/chat/search).
     // Screen-held, not in ChatViewModel: typing or stepping must redraw the

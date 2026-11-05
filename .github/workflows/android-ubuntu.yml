@@ -217,7 +217,7 @@ jobs:
             --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
             --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
-            --tests '*AutoCompactIntegrationTest' --tests '*AutoCompactContinuationTest' --tests '*CompactLoopFramingTest' \
+            --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.

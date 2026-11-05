@@ -9,8 +9,8 @@ import org.junit.Test
 import java.io.File
 
 /**
- * [T-port-fold-tools] Port of iOS ToolFoldPlannerTests: which runs of tool
- * calls the chat folds into one "Ran N tools" row, and when.
+ * Which terminal tool runs fold into one row, independent of model reply
+ * formatting, live/stored state and the timing of list updates.
  *
  * Block notation: T = succeeded tool, F = failed, C = cancelled, R = unfinished
  * (running / streaming), K = thinking, t = non-empty multi-line text, o =
@@ -51,11 +51,11 @@ class ToolFoldPlannerTest {
         "thinkOnly" to ("TKKTt" to "0-3:2/0/0"),
         "thinkMid" to ("TKTKTt" to "0-4:3/0/0"),
         "emptyMid" to ("TTeTt" to "0-3:3/0/0"),
-        "infoMid" to ("TTBTTt" to "3-4:2/0/0"),
-        "delegateSplit" to ("TTTBTTTt" to "4-6:3/0/0"),
-        "noReply" to ("tTTTT" to "none"),
-        "noReplyEmpty" to ("TTTe" to "none"),
-        "running" to ("TTTRt" to "none"),
+        "infoMid" to ("TTBTTt" to "0-1:2/0/0,3-4:2/0/0"),
+        "delegateSplit" to ("TTTBTTTt" to "0-2:3/0/0,4-6:3/0/0"),
+        "noReply" to ("tTTTT" to "1-4:4/0/0"),
+        "noReplyEmpty" to ("TTTe" to "0-2:3/0/0"),
+        "running" to ("TTTRt" to "0-2:3/0/0"),
         "runningFirst" to ("RTTTt" to "1-3:3/0/0"),
         "failCancel" to ("TFCTt" to "0-3:4/1/1"),
         "twoRuns" to ("TTTtTTTTt" to "0-2:3/0/0,4-7:4/0/0"),
@@ -66,12 +66,12 @@ class ToolFoldPlannerTest {
         "notesLong" to ("ToToTTt" to "0-5:4/0/0"),
         "multiLineMid" to ("TTtTTt" to "0-1:2/0/0,3-4:2/0/0"),
         "noteLive" to ("TToR" to "0-2:2/0/0"),
-        "noteNoReply" to ("TToTT" to "0-2:2/0/0"),
+        "noteNoReply" to ("TToTT" to "0-4:4/0/0"),
         "noteOneTool" to ("ToR" to "none"),
         "noteLead" to ("oTTt" to "1-2:2/0/0"),
         "noteBeforeBarrier" to ("TToBt" to "0-1:2/0/0"),
         "noteThink" to ("TKoTt" to "0-3:2/0/0"),
-        "noteAfterSoftEnd" to ("TToTTR" to "0-2:2/0/0"),
+        "noteBeforeRunning" to ("TToTTR" to "0-4:4/0/0"),
         "leadThink" to ("KTTt" to "0-2:2/0/0"),
         "leadThinks" to ("KKeTTt" to "0-4:2/0/0"),
         "leadThinkAfterText" to ("tKTTt" to "1-3:2/0/0"),
@@ -83,7 +83,7 @@ class ToolFoldPlannerTest {
     )
 
     @Test
-    fun `every iOS planner case gives the same groups`() {
+    fun `every terminal-run case gives the expected groups`() {
         for ((name, c) in cases) assertEquals(name, c.second, show(c.first))
     }
 
@@ -94,57 +94,13 @@ class ToolFoldPlannerTest {
     }
 
     @Test
-    fun `single line, line count and separator match iOS`() {
+    fun `only single-line remarks are soft members and multiline replies stay visible`() {
         assertTrue(ToolFoldPlanner.isSingleLine("  Now checking the logs.  \n"))
         assertFalse(ToolFoldPlanner.isSingleLine("line one\nline two"))
         assertTrue(ToolFoldPlanner.isSingleLine("\n\nOne line after blank lines\n\n"))
         assertTrue(ToolFoldPlanner.isSingleLine(""))
-        assertEquals(0, ToolFoldPlanner.nonEmptyLineCount(""))
-        assertEquals(1, ToolFoldPlanner.nonEmptyLineCount("Checking the logs now."))
-        assertEquals(1, ToolFoldPlanner.nonEmptyLineCount("\n  \nOnly one line\n\n   \n"))
-        assertEquals(2, ToolFoldPlanner.nonEmptyLineCount("First line\nSecond line"))
-        assertEquals(2, ToolFoldPlanner.nonEmptyLineCount("First\n\n\n   \nSecond\n"))
-        assertEquals(2, ToolFoldPlanner.nonEmptyLineCount("First\r\nSecond"))
-        assertEquals(3, ToolFoldPlanner.nonEmptyLineCount("- a\n- b\n- c"))
-        assertEquals(2, ToolFoldPlanner.SEPARATOR_MINIMUM_LINES)
-        assertFalse(ToolFoldPlanner.isFoldSeparator(""))
-        assertFalse(ToolFoldPlanner.isFoldSeparator("Now let me check the logs."))
-        assertFalse(ToolFoldPlanner.isFoldSeparator("One line\n\n   \n"))
-        assertTrue(ToolFoldPlanner.isFoldSeparator("Found it.\nThe config is wrong."))
-        assertTrue(ToolFoldPlanner.isFoldSeparator(listOf("First block", "Second block").joinToString("\n")))
-    }
-
-    @Test
-    fun `fold horizon and the step-by-step timing match iOS`() {
-        val ids = listOf("a", "b", "c", "d", "e")
-        assertEquals(0, ToolFoldPlanner.foldHorizon(ids, emptySet()))
-        assertEquals(3, ToolFoldPlanner.foldHorizon(ids, setOf("c")))
-        assertEquals(4, ToolFoldPlanner.foldHorizon(ids, setOf("b", "d")))
-        assertEquals(0, ToolFoldPlanner.foldHorizon(ids, setOf("x")))
-        assertEquals(2, ToolFoldPlanner.foldHorizon(ids, setOf("b", "x")))
-        assertEquals("none", show("TTt", horizon = 0))
-        assertEquals("none", show("TToR", horizon = 0))
-        assertEquals("0-1:2/0/0", show("TTtR", horizon = 4))
-        assertEquals("0-1:2/0/0", show("TTtTT", horizon = 4))
-        assertEquals("0-1:2/0/0", show("TTtTTt", horizon = 4))
         assertEquals("0-1:2/0/0,3-4:2/0/0", show("TTtTTt"))
-        assertEquals("none", show("TToTTo", horizon = 0))
         assertEquals("0-4:4/0/0", show("TToTTo"))
-    }
-
-    @Test
-    fun `browse hold matches iOS, row lookup only when needed`() {
-        var probed = 0
-        fun hb(b: Boolean, f: Boolean, r: Boolean, shown: Boolean) =
-            ToolFoldPlanner.holdsBack(b, f, r) { probed++; shown }
-        assertFalse(hb(false, false, true, true))
-        assertFalse(hb(true, true, true, true))
-        assertTrue(hb(true, false, true, false))
-        assertTrue(hb(true, false, false, true))
-        assertFalse(hb(true, false, false, false))
-        probed = 0
-        hb(false, false, false, true); hb(true, true, false, true); hb(true, false, true, true)
-        assertEquals(0, probed)
     }
 
     // --- AssistantBlock adapters and the live horizon ---------------------------
@@ -158,6 +114,7 @@ class ToolFoldPlannerTest {
     @Test
     fun `block inputs - barriers, statuses and notes`() {
         assertEquals(ToolFoldPlanner.Input.Barrier, ToolFoldPlanner.input(AssistantBlock(id = "i", kind = "info")))
+        assertEquals(ToolFoldPlanner.Input.Barrier, ToolFoldPlanner.input(AssistantBlock(id = "future", kind = "future_card", toolStatus = ToolBlockStatus.SUCCESS)))
         assertEquals(ToolFoldPlanner.Input.Barrier, ToolFoldPlanner.input(tool(name = "subagent_task")))
         assertEquals(ToolFoldPlanner.Input.Barrier, ToolFoldPlanner.input(tool(name = "delegate_task")))
         assertEquals(ToolFoldPlanner.Input.Barrier, ToolFoldPlanner.input(tool(name = "user_ask")))
@@ -190,27 +147,60 @@ class ToolFoldPlannerTest {
     }
 
     @Test
-    fun `live horizon - nothing folds while a reply streams or tools run, a long request end folds`() {
-        val t1 = tool(); val t2 = tool()
-        // Request 2 is a long reply that is still streaming (no tools yet).
-        val long = text("Found it.\nThe config is wrong.")
-        assertEquals(0, ToolFoldPlanner.liveHorizon(listOf(t1, t2, long)))
-        // It called a tool whose arguments are still streaming: not ended.
-        val r = tool(ToolBlockStatus.STREAMING)
-        assertEquals(0, ToolFoldPlanner.liveHorizon(listOf(t1, t2, long, r)))
-        // Its arguments are complete (the tool runs): that request ended.
-        val running = r.copy(toolStatus = ToolBlockStatus.RUNNING)
-        assertEquals(4, ToolFoldPlanner.liveHorizon(listOf(t1, t2, long, running)))
-        // A one-line remark is no separator.
-        assertEquals(0, ToolFoldPlanner.liveHorizon(listOf(t1, t2, text("Next."), running)))
-        // A later request started: the earlier long request is ended for sure.
-        val t3 = running.copy(toolStatus = ToolBlockStatus.SUCCESS)
-        val next = text("Checking")
-        assertEquals(4, ToolFoldPlanner.liveHorizon(listOf(t1, t2, long, t3, next)))
-        // A running message is planned up to its horizon; an ended one whole.
-        val msg = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = listOf(t1, t2, long, t3, tool(), text("Done.\nOk.")))
-        assertEquals(1, ToolFoldPlanner.foldedRuns(msg).size)
-        assertEquals(2, ToolFoldPlanner.foldedRuns(msg.copy(isStreaming = false)).size)
+    fun `live and stored runs fold without a reply or line count requirement`() {
+        val a = tool(); val b = tool()
+        for (reply in listOf(emptyList(), listOf(text("")), listOf(text("Next.")), listOf(text("Done.\nOk.")))) {
+            val blocks = listOf(a, b) + reply
+            val live = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
+            assertEquals(1, ToolFoldPlanner.foldedRuns(live).size)
+            assertEquals(ToolFoldPlanner.foldedRuns(live), ToolFoldPlanner.foldedRuns(live.copy(isStreaming = false)))
+        }
+    }
+
+    @Test
+    fun `all unfinished statuses remain separate while completed prefix folds`() {
+        val a = tool(); val b = tool(ToolBlockStatus.FAILED)
+        for (status in listOf(ToolBlockStatus.STREAMING, ToolBlockStatus.PENDING, ToolBlockStatus.RUNNING, null)) {
+            val active = tool().copy(toolStatus = status)
+            val blocks = listOf(a, b, active)
+            val run = ToolFoldPlanner.foldedRuns(blocks).single()
+            assertEquals(listOf(a.id, b.id), run.memberIds)
+            val msg = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
+            val rows = applyToolFolds(rowsFor(msg), mapOf(msg.id to listOf(run)), emptySet())
+            assertTrue(rows.any { it is FlatChatItem.AssistantToolUse && it.block.id == active.id })
+        }
+    }
+
+    @Test
+    fun `deterministic mixed snapshots never hide active calls or barriers`() {
+        val random = java.util.Random(55L)
+        repeat(300) {
+            val blocks = List(2 + random.nextInt(35)) {
+                when (random.nextInt(8)) {
+                    0 -> tool(ToolBlockStatus.RUNNING)
+                    1 -> tool(ToolBlockStatus.STREAMING)
+                    2 -> tool(ToolBlockStatus.SUCCESS)
+                    3 -> tool(ToolBlockStatus.FAILED)
+                    4 -> tool(ToolBlockStatus.CANCELLED)
+                    5 -> think()
+                    6 -> text("Progress.")
+                    else -> AssistantBlock(id = "barrier${n++}", kind = "info", content = "Notice")
+                }
+            }
+            val runs = ToolFoldPlanner.foldedRuns(blocks)
+            val members = HashSet<String>()
+            for (run in runs) {
+                assertTrue(run.group.toolCount >= 2)
+                for (id in run.memberIds) assertTrue("overlapping groups", members.add(id))
+                val hidden = blocks.filter { it.id in run.memberIds }
+                assertFalse(hidden.any { ToolFoldPlanner.input(it) == ToolFoldPlanner.Input.Barrier })
+                assertFalse(hidden.any { ToolFoldPlanner.input(it) == ToolFoldPlanner.Input.Tool(ToolFoldPlanner.ToolOutcome.UNFINISHED) })
+                assertEquals(hidden.count { it.kind == "tool_use" }, run.group.toolCount)
+            }
+            val live = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
+            assertEquals(runs, ToolFoldPlanner.foldedRuns(live))
+            assertEquals(runs, ToolFoldPlanner.foldedRuns(live.copy(isStreaming = false)))
+        }
     }
 
     // --- Rows ------------------------------------------------------------------
@@ -240,33 +230,36 @@ class ToolFoldPlannerTest {
     }
 
     @Test
-    fun `controller - off passes through, toggles, and holds a new fold while browsing`() {
-        val a = tool(); val b = tool(); val reply = text("Done.\nAll good.")
-        val m = ChatMessage(id = "m", role = "assistant", content = "", toolBlocks = listOf(a, b, reply))
+    fun `controller respects setting and expansion across growing live runs and reloads`() {
+        val a = tool(); val b = tool()
+        val m = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = listOf(a, b))
         val rows = rowsFor(m)
         val c = ToolFoldController()
         assertSame(rows, c.fold(rows, listOf(m), emptyList()))
-        val shownUnfolded = ToolFoldController().apply { enabled = true; browsing = true }
-        // A fresh controller has shown nothing: a just-opened chat folds at once.
-        assertTrue(shownUnfolded.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
-
-        val d = ToolFoldController().apply { enabled = true }
-        // While the task runs its rows are shown unfolded (horizon 0)...
-        val live = m.copy(isStreaming = true, toolBlocks = listOf(a, b, text("Done.\nAll")))
-        assertFalse(d.fold(rowsFor(live), listOf(live), listOf(live)).any { it is FlatChatItem.AssistantToolGroup })
-        // ...the task ends while the user is scrolled up: held, still rows.
-        d.browsing = true
-        assertFalse(d.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
-        // Back at the bottom: it folds, and stays folded when they scroll up again.
-        d.browsing = false
-        assertTrue(d.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
-        d.browsing = true
-        assertTrue(d.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
-        // A tap opens it in place and ticks `changes`.
-        val before = d.changes.value
-        d.toggle(a.id)
-        assertTrue(d.changes.value > before)
-        assertTrue(d.fold(rows, listOf(m), emptyList()).any { it.key == "tool:m:${a.id}" })
+        c.enabled = true
+        assertTrue(c.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
+        val before = c.changes.value
+        c.toggle(a.id)
+        assertTrue(c.changes.value > before)
+        assertTrue(c.fold(rows, listOf(m), emptyList()).any { it.key == "tool:m:${a.id}" })
+        val active = tool(ToolBlockStatus.RUNNING)
+        val growing = m.copy(toolBlocks = m.toolBlocks + active)
+        val growingRows = rowsFor(growing)
+        assertTrue(c.fold(growingRows, listOf(m), listOf(growing)).any { it.key == "tool:m:${active.id}" })
+        val finished = growing.copy(toolBlocks = growing.toolBlocks.dropLast(1) + active.copy(toolStatus = ToolBlockStatus.SUCCESS))
+        val out = c.fold(rowsFor(finished), listOf(m), listOf(finished))
+        val group = out.filterIsInstance<FlatChatItem.AssistantToolGroup>().single()
+        assertEquals(a.id, group.runKey)
+        assertEquals(3, group.toolCount)
+        assertTrue(group.expanded)
+        assertTrue(out.any { it.key == "tool:m:${active.id}" })
+        c.enabled = false
+        assertSame(rows, c.fold(rows, listOf(m), emptyList()))
+        c.enabled = true
+        assertTrue(c.fold(rows, listOf(m), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().expanded)
+        val reloaded = finished.copy(isStreaming = false)
+        val fresh = ToolFoldController().apply { enabled = true }
+        assertEquals(3, fresh.fold(rowsFor(reloaded), listOf(reloaded), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().toolCount)
     }
 
     @Test
@@ -275,7 +268,7 @@ class ToolFoldPlannerTest {
         // (they stream into the overlay); the fold used to test the stored copy's
         // block count first, so a running task never folded until it ended.
         val a = tool(); val b = tool()
-        val sep = text((1..ToolFoldPlanner.SEPARATOR_MINIMUM_LINES + 1).joinToString("\n") { "line $it" })
+        val sep = text("Next.")
         val c = tool()
         val stored = ChatMessage(id = "m", role = "assistant", content = "", toolBlocks = emptyList(), isStreaming = true)
         val live = stored.copy(toolBlocks = listOf(a, b, sep, c))
@@ -294,7 +287,7 @@ class ToolFoldPlannerTest {
         // [T-user-ask-resolved-expand] The tap also anchors the row's top first (ToggleAnchorTest).
         val tap = screen.substringAfter("is FlatChatItem.AssistantToolGroup -> ToolGroupRow(item) {").substringBefore("\n                            }")
         assertTrue(tap.contains("toolFold.toggle(item.runKey)"))
-        assertTrue(screen.contains("snapshotFlow { userScrolledAway }.collect { toolFold.browsing = it }"))
+        assertFalse(screen.contains("toolFold.browsing"))
         assertTrue(screen.contains("com.openminis.app.ui.settings.KEY_FOLD_TOOLS, com.openminis.app.ui.settings.FOLD_TOOLS_DEFAULT,"))
         assertTrue(screen.contains("sp.getBoolean(key, com.openminis.app.ui.settings.FOLD_TOOLS_DEFAULT)"))
         assertFalse(screen.contains("KEY_FOLD_TOOLS, false"))

@@ -73,8 +73,6 @@ import com.openminis.app.provider.splitThinkingPrefix
 import com.openminis.app.service.SessionActivityTracker
 import com.openminis.app.service.SessionConcurrencyManager
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.awaitAll
@@ -5927,52 +5925,16 @@ class ChatViewModel(
      */
     private suspend fun awaitCompaction(): Boolean =
         kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-            if (!cont.isActive) return@suspendCancellableCoroutine
-            val resumed = java.util.concurrent.atomic.AtomicBoolean(false)
-            val previousJob = compactJob
+            var resumed = false
             compactAll(allowDuringProcessing = true) { ok ->
-                if (resumed.compareAndSet(false, true) && cont.isActive) {
-                    cont.resume(ok) { _, _, _ -> }
+                // compactAll guarantees exactly one callback, but guard anyway:
+                // resuming a continuation twice throws.
+                if (!resumed) {
+                    resumed = true
+                    if (cont.isActive) cont.resume(ok) { _, _, _ -> }
                 }
             }
-            // The summary uses its own job. Stop must cancel the one this
-            // wait started, never a pre-existing compact rejected as busy.
-            val awaitedJob = compactJob?.takeUnless { it === previousJob }
-            cont.invokeOnCancellation {
-                awaitedJob?.cancel(CancellationException("compaction caller cancelled"))
-            }
         }
-
-    /** One hidden user message, persisted before the original loop continues. */
-    private suspend fun appendCompactContinuation() {
-        currentCoroutineContext().ensureActive()
-        val text = AutoCompactContinuation.MESSAGE
-        val row = chatRepository.appendMessage(
-            activeSessionId, "user", """[{"type":"text","value":${escapeJson(text)}}]""",
-        )
-        currentCoroutineContext().ensureActive()
-        agentHistory.add(LLMMessage(
-            role = LLMMessage.Role.USER,
-            content = text,
-            contentParts = listOf(AgentContentPart.Text(text)),
-            dbMessageId = row.id,
-        ))
-    }
-
-    /** Maintenance after a clean final answer: compact, but never wake a model. */
-    private suspend fun compactCompletedTurnIfNeeded(turnGen: Long) {
-        currentCoroutineContext().ensureActive()
-        if (!com.openminis.app.data.AutoCompactPrefs.isEnabled() ||
-            !liveTurn.isLive(turnGen) || _canResume.value || _isCompacting.value ||
-            _promptQueue.value.isNotEmpty()
-        ) return
-        ensureContextFixedTokens()
-        val (policy, window) = currentContextPolicy() ?: return
-        val tokens = measureOutboundContextTokens()
-        if (tokens <= 0 || policy.check(tokens, window) != ContextPolicy.CheckResult.NEEDS_COMPACT) return
-        AppLogger.info(TAG, "[AutoCompact] completed turn reached threshold — compacting without continuation")
-        awaitCompaction()
-    }
 
     /**
      * System prompt for the single-shot summarisation call. Matches iOS
@@ -11686,18 +11648,16 @@ class ChatViewModel(
             when (inLoopContextCheck(inLoopCompactions)) {
                 InLoopContextAction.PROCEED -> {}
                 InLoopContextAction.COMPACTED -> {
-                    // Summary instructions deliberately describe past events.
-                    // Give this still-running loop a fresh, bounded work order;
-                    // never launch another loop or wake an idle/completed task.
-                    currentCoroutineContext().ensureActive()
-                    if (!AutoCompactContinuation.shouldResume(
-                            compactSucceeded = true,
-                            workPending = true,
-                            sameRun = liveTurn.isLive(turnGen),
-                            cancelled = !currentCoroutineContext().isActive,
-                        )
-                    ) return
-                    appendCompactContinuation()
+                    // The next API call reads the freshly-compacted
+                    // effectiveAgentHistory automatically — compaction already
+                    // re-appends the recent turns, so no resume handoff is
+                    // needed. A compaction iteration is space management, not
+                    // task progress, so it must NOT consume a turn slot:
+                    // decrementing cancels this iteration's advance. The
+                    // MAX_AGENT_TURNS ceiling is never reset, and
+                    // maxInLoopCompactions bounds compact-thrash within a turn,
+                    // so a loop that keeps compacting cannot defeat the runaway
+                    // backstop.
                     inLoopCompactions++
 
                     // [T-android-inloop-compact-divider-order / GH#235] Seal the
@@ -14282,11 +14242,6 @@ class ChatViewModel(
             }
         } else {
             AppLogger.info(TAG_STREAM, "runAgentLoop EXIT (loop body ended naturally)")
-        }
-        // The final response is already persisted. This maintenance path has
-        // no continuation message and does not make another agent request.
-        if (loopExitedNormally && stopDiagExit == "no-tool-calls") {
-            compactCompletedTurnIfNeeded(turnGen)
         }
     }
 

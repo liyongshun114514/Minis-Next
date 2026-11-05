@@ -4,8 +4,8 @@ package com.openminis.app.ui.chat
  * [T-port-fold-tools] Decides which runs of consecutive tool calls in one
  * assistant message the chat list folds into a single "Ran N tools · 9s" row.
  * Pure: it sees only a compact description of each block, so the rule is
- * unit-tested without the list. Port of iOS `ToolFoldPlanner` (b42f64364,
- * 55a66303b, 1b5d69c60, fe1500201, e5651c84f, 2f59b72ee), final state.
+ * unit-tested without the list. Originally ported from iOS; Android now
+ * folds by terminal tool status rather than reply formatting or request horizon.
  *
  * A run starts at the first tool block and continues through
  * - more finished tool blocks (counted),
@@ -15,27 +15,17 @@ package com.openminis.app.ui.chat
  *   folded along, not counted.
  *
  * It ends at a non-empty text block, an info block, a sub agent / user_ask
- * block, or a tool that has not finished. Only a run of at least
- * [MINIMUM_TOOL_COUNT] tools that ends at a NON-EMPTY text block folds. A fold
- * covers the first tool through the last tool (or note) of the run.
+ * block, an unfinished tool, or the end of the current snapshot. Every run
+ * of at least [MINIMUM_TOOL_COUNT] finished tools folds, with or without a
+ * later reply. An unfinished tool is never included in the group.
  *
  * Thinking right before the run's first tool (only empty text between them)
  * folds with the run too. Thinking after the last member stays outside, next
- * to the reply it leads into.
- *
- * A note is also a soft end: when the run is then cut by an unfinished tool, a
- * barrier or the end of the message, the part up to its latest note still
- * folds.
+ * to the reply it leads into. One-line notes between tools are included.
  */
 object ToolFoldPlanner {
     /** The minimum number of tool blocks in a run before it folds. */
     const val MINIMUM_TOOL_COUNT = 2
-
-    /**
-     * The fewest lines a request's reply needs for the end of that request to
-     * fold the tool runs before it.
-     */
-    const val SEPARATOR_MINIMUM_LINES = 2
 
     enum class ToolOutcome { UNFINISHED, SUCCEEDED, FAILED, CANCELLED }
 
@@ -67,25 +57,23 @@ object ToolFoldPlanner {
         var tools = 0
         var failed = 0
         var cancelled = 0
-        var softEnd: Group? = null
-
-        fun reset() {
+        fun closeRun() {
+            val s = start
+            if (s != null && tools >= MINIMUM_TOOL_COUNT) {
+                groups.add(Group(s..lastMember, tools, failed, cancelled))
+            }
             start = null
             tools = 0; failed = 0; cancelled = 0
-            softEnd = null
-        }
-        fun closeAtSoftEnd() {
-            softEnd?.let { if (it.toolCount >= MINIMUM_TOOL_COUNT) groups.add(it) }
         }
 
         for ((i, block) in blocks.withIndex()) {
             when (block) {
                 is Input.Barrier -> {
-                    closeAtSoftEnd(); reset(); leadThinking = null
+                    closeRun(); leadThinking = null
                 }
                 is Input.Tool -> {
                     if (block.outcome == ToolOutcome.UNFINISHED) {
-                        closeAtSoftEnd(); reset(); leadThinking = null
+                        closeRun(); leadThinking = null
                         continue
                     }
                     if (start == null) start = leadThinking ?: i
@@ -105,23 +93,17 @@ object ToolFoldPlanner {
                         continue
                     }
                     lastMember = i
-                    softEnd = Group(s..i, tools, failed, cancelled)
                 }
                 is Input.Thinking -> if (start == null && leadThinking == null) leadThinking = i
                 is Input.Text -> {
                     if (block.isEmpty) continue
-                    val s = start
-                    if (s != null && tools >= MINIMUM_TOOL_COUNT) {
-                        groups.add(Group(s..lastMember, tools, failed, cancelled))
-                    }
-                    reset()
+                    closeRun()
                     leadThinking = null
                 }
             }
         }
-        // A run still open here has no reply after it: only its part up to the
-        // latest note folds.
-        closeAtSoftEnd()
+        // Terminal calls do not need a later model reply to become foldable.
+        closeRun()
         return groups
     }
 
@@ -150,63 +132,13 @@ object ToolFoldPlanner {
         return true
     }
 
-    private fun lines(text: String): Sequence<String> = text.splitToSequence("\r\n", "\n", "\r")
-
-    /** Lines with at least one visible character. */
-    fun nonEmptyLineCount(text: String): Int = lines(text).count { line -> line.any { !it.isWhitespace() } }
-
-    /**
-     * Whether a request whose reply text (all its text blocks, joined) is
-     * [requestText] folds the runs before it when it ends.
-     */
-    fun isFoldSeparator(requestText: String): Boolean {
-        var n = 0
-        for (line in lines(requestText)) {
-            if (line.any { !it.isWhitespace() }) {
-                n += 1
-                if (n >= SEPARATOR_MINIMUM_LINES) return true
-            }
-        }
-        return false
-    }
-
-    /**
-     * For a message whose task is still running: how many leading blocks may
-     * be planned - through the last block of the latest separator request; 0
-     * before the first one. Ids no longer in the message are ignored.
-     */
-    fun <ID> foldHorizon(blockIds: List<ID>, separators: Set<ID>): Int {
-        if (separators.isEmpty()) return 0
-        val last = blockIds.indexOfLast { it in separators }
-        return if (last < 0) 0 else last + 1
-    }
-
-    /**
-     * Whether a run that is due to fold is held back for now because folding
-     * it would move what the user is reading: only while they are scrolled up,
-     * never for a run already folded once, and only when it belongs to the
-     * running message or its blocks are on the list as separate rows right
-     * now. [shownAsRows] is only called when the cheaper conditions leave the
-     * answer open.
-     */
-    fun holdsBack(
-        browsing: Boolean,
-        alreadyFolded: Boolean,
-        inRunningMessage: Boolean,
-        shownAsRows: () -> Boolean,
-    ): Boolean {
-        if (!browsing || alreadyFolded) return false
-        return inRunningMessage || shownAsRows()
-    }
-
     // --- AssistantBlock adapters ---------------------------------------------
 
     /** The planner's view of one block. */
     fun input(block: AssistantBlock): Input = when (block.kind) {
         "text" -> Input.Text(isEmpty = block.content.none { !it.isWhitespace() })
         "thinking" -> Input.Thinking
-        "info" -> Input.Barrier
-        else -> when {
+        "tool_use" -> when {
             // iOS: delegate and user_ask blocks are never folded.
             com.openminis.app.agent.jobs.HelperRunner.isSubAgentToolName(block.toolName) -> Input.Barrier
             block.toolName == com.openminis.app.agent.userask.UserAskPromptText.TOOL_NAME -> Input.Barrier
@@ -219,6 +151,7 @@ object ToolFoldPlanner {
                     Input.Tool(ToolOutcome.UNFINISHED)
             }
         }
+        else -> Input.Barrier
     }
 
     /** The planner's view of a message's blocks, remarks marked as notes. */
@@ -253,54 +186,6 @@ object ToolFoldPlanner {
             )
         }
 
-    /**
-     * [T-port-fold-tools] The live message's fold horizon, from its blocks.
-     *
-     * iOS marks a request's end from inside the agent loop. Android derives it
-     * from the blocks the loop has written, which carry the same information:
-     * - a request is the stretch of blocks one LLM call produced. A new one
-     *   starts at the first non-tool block after a tool block (the model
-     *   speaks again only after the previous call's tools returned);
-     * - a request has ended when a later request has started, or when it has
-     *   tool calls and none of them is still streaming its arguments (the LLM
-     *   stream is over; its tools may still be running). A request with no
-     *   tool calls is the final reply, which ends with the task, and then the
-     *   whole message is planned anyway;
-     * - an ended request whose text has [SEPARATOR_MINIMUM_LINES]+ lines is a
-     *   separator, and the horizon runs through its last block.
-     * Text between parallel calls of one request counts as a new request here,
-     * a small difference from iOS that can only make a separator come later.
-     */
-    fun liveHorizon(blocks: List<AssistantBlock>): Int {
-        if (blocks.isEmpty()) return 0
-        val separators = HashSet<String>()
-        var start = 0
-        var i = 0
-        while (start < blocks.size) {
-            // Extend through the non-tool lead-in, then the tool calls.
-            i = start
-            while (i < blocks.size && blocks[i].kind != "tool_use") i++
-            while (i < blocks.size && blocks[i].kind == "tool_use") i++
-            val end = i - 1 // inclusive
-            val request = blocks.subList(start, end + 1)
-            val isLast = i >= blocks.size
-            val tools = request.filter { it.kind == "tool_use" }
-            val ended = !isLast || (tools.isNotEmpty() && tools.none { it.toolStatus == ToolBlockStatus.STREAMING })
-            if (ended) {
-                val text = request.filter { it.kind == "text" }.joinToString("\n") { it.content }
-                if (isFoldSeparator(text)) separators.add(blocks[end].id)
-            }
-            start = i
-        }
-        return foldHorizon(blocks.map { it.id }, separators)
-    }
-
-    /** Runs to fold in [message]: up to its live horizon while it is running, else all of it. */
-    fun foldedRuns(message: ChatMessage): List<FoldedRun> {
-        val blocks = message.toolBlocks
-        if (blocks.isEmpty()) return emptyList()
-        val horizon = if (message.isStreaming) liveHorizon(blocks) else blocks.size
-        if (horizon <= 0) return emptyList()
-        return foldedRuns(if (horizon >= blocks.size) blocks else blocks.subList(0, horizon))
-    }
+    /** Live and stored messages use the same terminal-status rule. */
+    fun foldedRuns(message: ChatMessage): List<FoldedRun> = foldedRuns(message.toolBlocks)
 }
