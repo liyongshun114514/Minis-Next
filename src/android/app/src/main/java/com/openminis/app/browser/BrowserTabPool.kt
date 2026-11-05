@@ -1,7 +1,6 @@
 package com.openminis.app.browser
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.os.Message
 import android.util.Log
 import android.webkit.WebView
@@ -191,72 +190,6 @@ class BrowserTabPool(private val context: Context) : BrowserTabPoolRegistry.Regi
             if (tabs.isEmpty()) return null
             return tabs.firstOrNull { it.id == _selectedTabId.value }?.manager ?: tabs.first().manager
         }
-
-    // ── Live preview  [T-android-browser-preview-live] ────────────────────────
-    //
-    // ONE preview engine per pool, shared by every surface that shows the chat's
-    // browser thumbnail. Each surface used to run its own
-    // `while (true) { capture(); delay(3s) }` producer, and every capture
-    // serialises on a single global mutex inside HeadlessRenderHost — so two
-    // visible surfaces starved each other, and neither could distinguish a
-    // fresh frame from a stale one. See [BrowserLivePreview].
-    // Lazy: a pool is also built by JVM tests and by screens that never show a
-    // thumbnail, and this must not touch Dispatchers.Main or start anything
-    // until the preview is actually used.
-    private val previewScope by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    }
-
-    internal val livePreview: BrowserLivePreview<Bitmap> by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        BrowserLivePreview(
-            scope = previewScope,
-            targetProvider = { previewTarget() },
-            capture = { tabId -> capturePreviewFrame(tabId) },
-        )
-    }
-
-    /**
-     * Which tab the preview shows.
-     *
-     * A tab an agent is actively driving wins, because that is the page the
-     * thumbnail is advertising; otherwise the chat's selected tab; otherwise
-     * the most recently used one. `activeManager` alone is not enough: an
-     * agent's implicit-tab action can run on a tab that is not the selected one
-     * (ownership routing in [executeAction]), and the preview then showed an
-     * idle tab's page while the agent navigated a different one — indistinguishable
-     * from a frozen preview.
-     *
-     * The signature (URL + title + loading flag) is state the tab already
-     * publishes, so a navigation, a finished load or a title change schedules an
-     * immediate capture instead of waiting out the poll interval.
-     */
-    internal fun previewTarget(): PreviewTarget? {
-        val tabs = _tabs.value
-        if (tabs.isEmpty()) return null
-        val chosen = tabs.filter { it.inUse }.maxByOrNull { it.lastActivityDate }
-            ?: tabs.firstOrNull { it.id == _selectedTabId.value }
-            ?: tabs.maxByOrNull { it.lastActivityDate }
-            ?: tabs.first()
-        val manager = chosen.manager
-        return PreviewTarget(
-            tabId = chosen.id,
-            signature = manager.currentURL.value + "|" + manager.pageTitle.value +
-                "|" + manager.isLoading.value,
-        )
-    }
-
-    private suspend fun capturePreviewFrame(tabId: Int): LiveCaptureResult<Bitmap> {
-        val tab = _tabs.value.firstOrNull { it.id == tabId }
-            ?: return LiveCaptureResult(null, trustworthy = false, reason = "tab $tabId is gone")
-        val frame = try {
-            tab.manager.captureLiveFrame()
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
-        } catch (failure: Throwable) {
-            return LiveCaptureResult(null, trustworthy = false, reason = failure.message)
-        } ?: return LiveCaptureResult(null, trustworthy = false, reason = "capture returned no bitmap")
-        return LiveCaptureResult(frame.bitmap, frame.trustworthy, frame.reason)
-    }
 
     private val _userAgentProfile = MutableStateFlow(UserAgentProfile.MOBILE_CHROME)
     val currentUserAgentProfile: StateFlow<UserAgentProfile> = _userAgentProfile.asStateFlow()
@@ -1001,11 +934,6 @@ class BrowserTabPool(private val context: Context) : BrowserTabPoolRegistry.Regi
             }
             updateTabs()
             saveState()
-            // [T-android-browser-preview-live] The page may have just changed.
-            // updateTabs() below tells the preview to capture now plus a bounded
-            // follow-up — the old per-composable loop only ever caught the
-            // pre-action frame of a fast action, which is the freeze users
-            // reported.
         }
     }
 
@@ -1502,7 +1430,6 @@ class BrowserTabPool(private val context: Context) : BrowserTabPoolRegistry.Regi
     fun selectTab(id: Int) {
         if (_tabs.value.any { it.id == id }) {
             _selectedTabId.value = id
-            livePreview.onActivity()
         }
     }
 
@@ -2035,12 +1962,5 @@ class BrowserTabPool(private val context: Context) : BrowserTabPoolRegistry.Regi
 
     private fun updateTabs() {
         _tabs.value = _tabs.value.toList()
-        // [T-android-browser-preview-live] Every tab mutation (create, close,
-        // select, action completion, grace expiry) funnels through here, so
-        // this is the one place that has to tell the preview "the page or the
-        // target may have moved". The engine decides whether that means work
-        // (subscribers, foreground, hold window) — a bump with no preview on
-        // screen costs one conflated channel send.
-        livePreview.onActivity()
     }
 }

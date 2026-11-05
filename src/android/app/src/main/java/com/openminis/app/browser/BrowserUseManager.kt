@@ -81,21 +81,6 @@ class BrowserUseManager(
         private const val SCROLL_PROBE_TIMEOUT_MS = 500L
 
         /**
-         * [T-android-browser-preview-live] Longest edge of a published live
-         * preview frame.
-         *
-         * The preview now refreshes about once a second while the page is
-         * moving (plus follow-ups), instead of once every three seconds, so
-         * keeping full viewport-sized ARGB bitmaps (~10 MB each on a 1080p
-         * phone) would hand the collector a steady stream of large objects.
-         * 720 px still covers the 100×65 dp chat thumbnail with room to spare
-         * and stays legible in the tool detail sheet, which reverts to the
-         * full-resolution saved screenshot once the browser goes idle. Agent
-         * screenshots are untouched — they use the full-size path.
-         */
-        private const val PREVIEW_MAX_EDGE_PX = 720
-
-        /**
          * [T-android-browser-fullpage-repaint] How long to let the renderer
          * paint the newly exposed area after the full-page capture stretches
          * the WebView's layout box. Without it the stretch and the draw happen
@@ -1089,54 +1074,8 @@ class BrowserUseManager(
      * the Minis Computer sheet and FloatingToolStatusBar can show the browser
      * state even for actions that don't save an imageFilePath (get_readable,
      * get_text, execute_js, fetch, etc.).
-     *
-     * Kept as a thin wrapper for callers that only want pixels; the preview
-     * pipeline itself uses [captureLiveFrame] because it also needs to know
-     * whether the pixels are CURRENT (see [LiveFramePath]).
      */
-    suspend fun captureLiveSnapshot(): Bitmap? = captureLiveFrame()?.bitmap
-
-    /**
-     * [T-android-browser-preview-live] Capture one preview frame and report how
-     * it was produced.
-     *
-     * The distinction matters and was previously invisible: the GPU host
-     * re-attaches the detached WebView so Chromium rasterises a fresh frame,
-     * while the software fallback draws a View that may not have rasterised
-     * anything since it lost its window — returning its last composited frame.
-     * Both return a Bitmap, so the old preview could not tell "current page"
-     * from "page as it looked minutes ago" and kept showing the latter. The
-     * frame now carries its provenance, and a detached software draw is treated
-     * as a stale result the preview retries rather than a success.
-     */
-    internal suspend fun captureLiveFrame(): BrowserLiveFrame? {
-        var path: LiveFramePath? = null
-        val bitmap = captureWebViewBitmap(gpu = true) { path = it } ?: return null
-        val published = downscalePreviewFrame(bitmap) ?: bitmap
-        return BrowserLiveFrame(published, path ?: LiveFramePath.SOFTWARE_DETACHED)
-    }
-
-    /**
-     * Bound a preview frame's memory cost (see [PREVIEW_MAX_EDGE_PX]). Returns
-     * null when the frame is already small enough; on success the source bitmap
-     * is recycled, which is safe because the caller only ever hands us a bitmap
-     * this capture just created.
-     */
-    private fun downscalePreviewFrame(src: Bitmap): Bitmap? {
-        val longest = maxOf(src.width, src.height)
-        if (longest <= PREVIEW_MAX_EDGE_PX) return null
-        val scale = PREVIEW_MAX_EDGE_PX.toFloat() / longest
-        val w = (src.width * scale).toInt().coerceAtLeast(1)
-        val h = (src.height * scale).toInt().coerceAtLeast(1)
-        return try {
-            Bitmap.createScaledBitmap(src, w, h, true).also { scaled ->
-                if (scaled !== src) src.recycle()
-            }
-        } catch (oom: OutOfMemoryError) {
-            Log.w(TAG, "preview downscale failed: ${oom.message}")
-            null
-        }
-    }
+    suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap()
 
     /**
      * [T-android-browser-screenshot-scroll-offset] The page's current scroll
@@ -1175,15 +1114,11 @@ class BrowserUseManager(
     /**
      * [gpu] routes the capture through [HeadlessRenderHost] — a real GPU frame,
      * so WebGL / video are included — whenever the WebView is headless (not on
-     * screen in the browser sheet). Both agent-facing and live-preview captures
-     * refresh the detached renderer; software-only preview could keep returning
-     * an old Chromium frame until opening the browser attached it to a window.
-     * Stretched full-page captures remain software. GPU misses fall back safely.
+     * screen in the browser sheet). Agent-facing captures pass true; the 3 s
+     * live-preview thumbnail and the stretched full-page capture keep the
+     * cheaper software draw. Any GPU-path miss falls through to that draw.
      */
-    private suspend fun captureWebViewBitmap(
-        gpu: Boolean = false,
-        onPath: (LiveFramePath) -> Unit = {},
-    ): Bitmap? = withContext(Dispatchers.Main) {
+    private suspend fun captureWebViewBitmap(gpu: Boolean = false): Bitmap? = withContext(Dispatchers.Main) {
         try {
             // WebView may be detached (pool-owned, never added to a window), so
             // width/height can be 0. Ensure it has a layout box matching the
@@ -1204,16 +1139,7 @@ class BrowserUseManager(
                 webView.layout(0, 0, targetW, targetH)
                 w = targetW; h = targetH
             }
-            if (gpu) {
-                HeadlessRenderHost.capture(webView, w, h)?.let { frame ->
-                    onPath(LiveFramePath.GPU)
-                    return@withContext frame
-                }
-            }
-            // The software path's honesty depends on the view being on screen:
-            // an attached WebView is genuinely current, a detached one draws
-            // whatever Chromium last composited (see [LiveFramePath]).
-            onPath(if (webView.isAttachedToWindow) LiveFramePath.SOFTWARE_ATTACHED else LiveFramePath.SOFTWARE_DETACHED)
+            if (gpu) HeadlessRenderHost.capture(webView, w, h)?.let { return@withContext it }
             val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             // [T-android-browser-screenshot-scroll-offset] Undo the scroll
@@ -1260,8 +1186,6 @@ class BrowserUseManager(
             Log.d(TAG, "captureWebViewBitmap ${w}x$h offset=(${offsetX},${offsetY}) " +
                 "css=(${cssScroll.first},${cssScroll.second}) view=(${webView.scrollX},${webView.scrollY})")
             bitmap
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
         } catch (e: Exception) {
             Log.e(TAG, "captureWebViewBitmap failed: ${e.message}")
             null

@@ -138,7 +138,7 @@ class ShiftingSessionServer:
                 headers={"Mcp-Session-Id": self.session_id,
                          "content-type": "application/json"},
                 text=json.dumps({"jsonrpc": "2.0", "id": body.get("id"),
-                                 "result": {"protocolVersion": "2025-06-18"}}),
+                                 "result": {}}),
             )
             # Shift AFTER responding, so the id the client caches is never the
             # one the next non-init call is validated against.
@@ -195,9 +195,6 @@ class _PatchedTransport:
 
     def __enter__(self):
         def _post(url, **kwargs):
-            # Routing belongs to the mock Client constructor, not Client.post.
-            for key in ('proxy', 'proxies', 'trust_env'):
-                kwargs.pop(key, None)
             return self._client.post(url, **kwargs)
         http_mod.httpx.post = _post
         return self

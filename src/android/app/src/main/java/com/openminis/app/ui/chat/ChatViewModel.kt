@@ -73,6 +73,8 @@ import com.openminis.app.provider.splitThinkingPrefix
 import com.openminis.app.service.SessionActivityTracker
 import com.openminis.app.service.SessionConcurrencyManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.awaitAll
@@ -5925,16 +5927,52 @@ class ChatViewModel(
      */
     private suspend fun awaitCompaction(): Boolean =
         kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-            var resumed = false
+            if (!cont.isActive) return@suspendCancellableCoroutine
+            val resumed = java.util.concurrent.atomic.AtomicBoolean(false)
+            val previousJob = compactJob
             compactAll(allowDuringProcessing = true) { ok ->
-                // compactAll guarantees exactly one callback, but guard anyway:
-                // resuming a continuation twice throws.
-                if (!resumed) {
-                    resumed = true
-                    if (cont.isActive) cont.resume(ok) { _, _, _ -> }
+                if (resumed.compareAndSet(false, true) && cont.isActive) {
+                    cont.resume(ok) { _, _, _ -> }
                 }
             }
+            // The summary uses its own job. Stop must cancel the one this
+            // wait started, never a pre-existing compact rejected as busy.
+            val awaitedJob = compactJob?.takeUnless { it === previousJob }
+            cont.invokeOnCancellation {
+                awaitedJob?.cancel(CancellationException("compaction caller cancelled"))
+            }
         }
+
+    /** One hidden user message, persisted before the original loop continues. */
+    private suspend fun appendCompactContinuation() {
+        currentCoroutineContext().ensureActive()
+        val text = AutoCompactContinuation.MESSAGE
+        val row = chatRepository.appendMessage(
+            activeSessionId, "user", """[{"type":"text","value":${escapeJson(text)}}]""",
+        )
+        currentCoroutineContext().ensureActive()
+        agentHistory.add(LLMMessage(
+            role = LLMMessage.Role.USER,
+            content = text,
+            contentParts = listOf(AgentContentPart.Text(text)),
+            dbMessageId = row.id,
+        ))
+    }
+
+    /** Maintenance after a clean final answer: compact, but never wake a model. */
+    private suspend fun compactCompletedTurnIfNeeded(turnGen: Long) {
+        currentCoroutineContext().ensureActive()
+        if (!com.openminis.app.data.AutoCompactPrefs.isEnabled() ||
+            !liveTurn.isLive(turnGen) || _canResume.value || _isCompacting.value ||
+            _promptQueue.value.isNotEmpty()
+        ) return
+        ensureContextFixedTokens()
+        val (policy, window) = currentContextPolicy() ?: return
+        val tokens = measureOutboundContextTokens()
+        if (tokens <= 0 || policy.check(tokens, window) != ContextPolicy.CheckResult.NEEDS_COMPACT) return
+        AppLogger.info(TAG, "[AutoCompact] completed turn reached threshold — compacting without continuation")
+        awaitCompaction()
+    }
 
     /**
      * System prompt for the single-shot summarisation call. Matches iOS
@@ -6859,37 +6897,6 @@ class ChatViewModel(
             // overlay; heal both before the first frame of the reopened chat.
             healStaleInFlightTools("load")
 
-            // [T-queued-bubble-survives-reload] Re-attach the dashed bubbles of
-            // prompts still in the queue.
-            //
-            // `_messages` was just REPLACED with rows read from the DB, and a
-            // queued prompt has no row yet — its bubble lives only in memory.
-            // Any reload therefore dropped every queued bubble while the
-            // prompts stayed queued: the drain then persisted and sent a
-            // message the screen did not show ("a reply with no question"), and
-            // if the view model was rebuilt instead, the text was gone for
-            // good. Re-attaching restores "one queued prompt, one bubble" for
-            // every wholesale rebuild, which is also what makes the bubble
-            // survive switching away from a chat and back (the view model is
-            // cached, the queue with it, but the screen is re-read from disk).
-            if (_promptQueue.value.isNotEmpty()) {
-                withContext(Dispatchers.Main) {
-                    _messages.update { current ->
-                        QueuedMessageState.reattach(
-                            current = current,
-                            prompts = _promptQueue.value,
-                            promptIdOf = { p -> p.id },
-                            queuedPromptIdOf = { m -> m.queuedPromptId },
-                            bubbleFor = { p -> queuedBubbleFor(p) },
-                        )
-                    }
-                }
-                AppLogger.info(
-                    TAG,
-                    ("[Queue] re-attached queued bubble(s) after reload: " + (_promptQueue.value.size).toString() + " pending"),
-                )
-            }
-
             // Cold-start interrupt detection: an agent loop that was killed by
             // the OS (or app force-quit) leaves agentHistory in one of four
             // tell-tale shapes. Detecting any of them lets the user tap
@@ -7429,16 +7436,9 @@ class ChatViewModel(
     private fun settleThinkingRows(site: String) {
         if (_isStreaming.value) return
         flushAllStreamingDeltas()
-        // [T-queued-bubble-atomic-delivery] CAS over the live list: this runs
-        // from the turn-exit paths, which are not always on Main, while a
-        // mid-run enqueue may be appending a bubble from Main. A snapshot
-        // write (`_messages.value = settled`) could drop it.
-        var settledAny = false
-        _messages.update { current ->
-            ThinkingRowSettle.settled(current)?.also { settledAny = true } ?: current
-        }
-        if (!settledAny) return
-        AppLogger.info(TAG_STREAM, ("[ThinkingRow] settled a bubble still marked as running after the run ended (site=" + (site).toString() + ")"))
+        val settled = ThinkingRowSettle.settled(_messages.value) ?: return
+        _messages.value = settled
+        AppLogger.info(TAG_STREAM, "[ThinkingRow] settled a bubble still marked as running after the run ended (site=$site)")
     }
 
     private fun cancelWorkBoundToPreviousModel(reason: String) {
@@ -8558,7 +8558,7 @@ class ChatViewModel(
         val retainedHead = messages.subList(0, keepThrough + 1).map { m ->
             if (m.id == messageId && m.isQueued) {
                 m.queuedPromptId?.let { pid ->
-                    _promptQueue.update { current -> current.filterNot { it.id == pid } }
+                    _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
                 }
                 m.copy(isQueued = false, queuedPromptId = null)
             } else m
@@ -8667,7 +8667,7 @@ class ChatViewModel(
         val retainedHead = messages.subList(0, cutFrom)
         for (m in deletedMessages) {
             m.queuedPromptId?.let { pid ->
-                _promptQueue.update { current -> current.filterNot { it.id == pid } }
+                _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
             }
         }
         _messages.value = retainedHead
@@ -8836,7 +8836,6 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
-                    owner = coroutineContext[Job],
                 )
                 val activeFallbackStrategy = run {
                     val groupId = _selectedGroupId.value
@@ -8880,11 +8879,9 @@ class ChatViewModel(
                     // non-null excerpt. Reading _messages here is safe:
                     // we're in the finally block of the agent loop and
                     // the stream has already flushed its last delta.
-                    if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
-                        publishOverlayReplyExcerpt(activeSessionId)
-                        markRunOutcomeForNotification(activeSessionId)
-                    }
-                    SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
+                    publishOverlayReplyExcerpt(activeSessionId)
+                    markRunOutcomeForNotification(activeSessionId)
+                    SessionActivityTracker.setInactive(activeSessionId)
                     if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                     AppLogger.info(TAG_STREAM, ((label).toString() + " streamJob FINALLY exit"))
                 }
@@ -8902,11 +8899,6 @@ class ChatViewModel(
             if (streamJob === coroutineContext[Job]) {
                 AppLogger.info(TAG_STREAM, ((label).toString() + " _isStreaming=false (about to set)"))
                 _isStreaming.value = false
-                // [T-queue-epilogue-consumer] Same window as the send
-                // epilogue: a prompt accepted while this loop was tearing down
-                // had no consumer — this tail does not drain by itself, so its
-                // dashed bubble waited for an unrelated send.
-                ensureQueueConsumer("rerun-epilogue")
             } else {
                 AppLogger.info(TAG_STREAM, ((label).toString() + " _isStreaming SKIPPED (stale job; current=" + (streamJob?.hashCode()).toString() + " this=" + (coroutineContext[Job]?.hashCode()).toString() + ")"))
             }
@@ -9125,25 +9117,13 @@ class ChatViewModel(
         // [T-headless-own-attachments] A prompt that does not own the composer
         // brings its own files (a CLI / RPC prompt with attachments).
         ownAttachments: List<InputAttachment> = emptyList(),
-    ): Boolean {
+    ) {
         val trimmed = text.trim()
         // [T-p2-gentle-injection] Only a USER prompt owns the composer's staged
         // attachments. A programmatic prompt arriving while the user has files
         // staged must not walk off with them (and must not clear them below).
         val pendingAttachments = PromptAttachments.of(ownsComposer, ownAttachments, _attachments.value)
-        // [T-queue-send-funnel] Answer instead of swallowing the decision.
-        //
-        // This used to be a bare `return` on both guards, and `sendMessage`
-        // inferred acceptance by comparing queue lengths. Two different
-        // outcomes collapsed into one silent no-op: "nothing to send" and "the
-        // run ended between my check and this one". The second is a real race
-        // (`_isStreaming` is cleared by the stream job on Dispatchers.IO, so
-        // the two reads are not guaranteed to agree), and `sendMessage`
-        // reported it as `Rejected("enqueue_declined")` — to a UI that had
-        // ALREADY cleared the composer and drops the outcome. The prompt then
-        // existed nowhere: no bubble, no queue entry, no request.
-        if (trimmed.isBlank() && pendingAttachments.isEmpty()) return false
-        if (!_isStreaming.value) return false
+        if ((trimmed.isBlank() && pendingAttachments.isEmpty()) || !_isStreaming.value) return
         // [T-port-user-ask] A new message from the user while a question waits
         // answers it in their own words: the card closes as replaced, the tool
         // call returns `dismissed`, and this message becomes the next turn.
@@ -9173,42 +9153,35 @@ class ChatViewModel(
         prompt.scheduledTaskId?.let { taskId ->
             val superseded = QueuedPromptBatching.supersededBy(_promptQueue.value, taskId).toSet()
             if (superseded.isNotEmpty()) {
-                _promptQueue.update { current -> current.filterNot { it.id in superseded } }
-                _messages.update { current -> current.filterNot { it.queuedPromptId in superseded } }
-                Log.i(TAG, ("Scheduled task " + (taskId).toString() + " fired again before delivery — replaced " + (superseded.size).toString() + " older queued fire(s)"))
+                _promptQueue.value = _promptQueue.value.filterNot { it.id in superseded }
+                _messages.value = _messages.value.filterNot { it.queuedPromptId in superseded }
+                Log.i(TAG, "Scheduled task $taskId fired again before delivery — replaced ${superseded.size} older queued fire(s)")
             }
         }
-        val chatMsg = queuedBubbleFor(prompt)
-        // Publish its bubble before making the prompt consumable by the IO loop.
-        _messages.update { it + chatMsg }
-        _promptQueue.update { it + prompt }
-        if (PromptAttachments.clearsComposer(ownsComposer)) clearAttachments()
-        Log.i(TAG, ("Enqueued prompt (" + (trimmed.length).toString() + "ch, " + (pendingAttachments.size).toString() + " attachments, origin=" + (origin).toString() + "), queue=" + (_promptQueue.value.size).toString()))
-        return true
-    }
+        _promptQueue.value = _promptQueue.value + prompt
 
-    /**
-     * [T-queued-bubble-survives-reload] The dashed bubble a queued prompt shows
-     * while it waits. One factory for both writers — [enqueuePrompt] when the
-     * prompt is accepted, and [loadSession] when a rebuilt message list has to
-     * be re-attached to the prompts still in [_promptQueue] — so the two can
-     * never drift into different ids or shapes.
-     */
-    private fun queuedBubbleFor(prompt: QueuedPrompt): ChatMessage = ChatMessage(
-        id = "queued_msg_${prompt.id}",
-        role = "user",
-        content = userBubbleText(prompt.text),
-        imageUris = prompt.attachments.filter { it.isImage }.map { it.uri },
-        attachmentNames = prompt.attachments.map { it.fileName },
-        attachmentUris = prompt.attachments.filterNot { it.isImage }.map { it.uri },
-        isQueued = true,
-        queuedPromptId = prompt.id,
-    )
+        val attachmentNames = pendingAttachments.map { it.fileName }
+        val imageUris = pendingAttachments.filter { it.isImage }.map { it.uri }
+        val attachmentUris = pendingAttachments.filterNot { it.isImage }.map { it.uri }
+        val chatMsg = ChatMessage(
+            id = "queued_msg_${prompt.id}",
+            role = "user",
+            content = userBubbleText(trimmed),
+            imageUris = imageUris,
+            attachmentNames = attachmentNames,
+            attachmentUris = attachmentUris,
+            isQueued = true,
+            queuedPromptId = prompt.id,
+        )
+        _messages.value = _messages.value + chatMsg
+        if (PromptAttachments.clearsComposer(ownsComposer)) clearAttachments()
+        Log.i(TAG, "Enqueued prompt (${trimmed.length}ch, ${pendingAttachments.size} attachments, origin=$origin), queue=${_promptQueue.value.size}")
+    }
 
     /** Remove a queued prompt and its chat message by prompt id. */
     fun removeQueuedPrompt(promptId: String) {
-        _promptQueue.update { current -> current.filterNot { it.id == promptId } }
-        _messages.update { current -> current.filterNot { it.queuedPromptId == promptId } }
+        _promptQueue.value = _promptQueue.value.filterNot { it.id == promptId }
+        _messages.value = _messages.value.filterNot { it.queuedPromptId == promptId }
     }
 
     /** Withdraw a queued message before it gets injected into the agent loop. */
@@ -9216,9 +9189,9 @@ class ChatViewModel(
         val msg = _messages.value.firstOrNull { it.id == messageId } ?: return
         if (!msg.isQueued) return
         val pid = msg.queuedPromptId ?: return
-        _promptQueue.update { current -> current.filterNot { it.id == pid } }
-        _messages.update { current -> current.filterNot { it.id == messageId } }
-        Log.i(TAG, ("Withdrew queued message, queue=" + (_promptQueue.value.size).toString()))
+        _promptQueue.value = _promptQueue.value.filterNot { it.id == pid }
+        _messages.value = _messages.value.filterNot { it.id == messageId }
+        Log.i(TAG, "Withdrew queued message, queue=${_promptQueue.value.size}")
     }
 
     /**
@@ -9348,7 +9321,7 @@ class ChatViewModel(
                 TAG_STREAM,
                 ("injectQueuedPromptsAsNewTurn: " + (queued.size).toString() + " queued prompt(s) produced no content, skipping"),
             )
-            _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
+            _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
             return null
         }
 
@@ -9385,7 +9358,7 @@ class ChatViewModel(
         // [T-queue-dequeue-after-persist] Dequeue only now that the row exists,
         // with no suspension point in between. Filter by id rather than
         // emptying: a prompt enqueued during the window above stays queued.
-        _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
+        _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
         agentHistory.add(
             ChatAttachmentIngest.queuedHistoryMessage(
                 userText = userText,
@@ -9405,14 +9378,15 @@ class ChatViewModel(
         // queued user ChatMessage + a NEW empty assistant placeholder so
         // the next iteration's streaming writes target the new bubble.
         val newAssistantId = "assistant_${System.currentTimeMillis()}"
-        val injectingJob = kotlin.coroutines.coroutineContext[Job]
-        // The user row is already durable and dequeued. A Stop while switching
-        // to Main must not cancel its UI commit and leave a disappearing bubble.
-        withContext(NonCancellable + Dispatchers.Main) {
-            // (b) Finalize the just-finished assistant bubble: flush the
-            // side-channel delta into the canonical row and clear isStreaming /
-            // isAwaitingModelResponse. In place, by id — it never reorders the
-            // list and never touches a row it does not own.
+        withContext(Dispatchers.Main) {
+            // (a) + (b) one emit: build the post-finalize list.
+            // Filter the LIVE list, not a snapshot taken before the suspends —
+            // see [T-android-midtask-msg-vanishes] above. Any bubble appended
+            // while we were persisting (another enqueue, a system notice) is
+            // preserved; only the placeholders we are replacing are removed.
+            _messages.value = _messages.value.filterNot { m ->
+                m.queuedPromptId != null && queuedIds.contains(m.queuedPromptId)
+            }
             updateAssistantMessage(
                 finishedAssistantId,
                 finishedAccumulatedText,
@@ -9420,27 +9394,9 @@ class ChatViewModel(
                 finishedAllToolBlocks,
                 isAwaitingModelResponse = false,
             )
-            // (a) + (c) ONE emit: swap the dashed placeholders for the real
-            // user bubble (+ the new assistant placeholder). Mirrors
-            // sendMessage's user-bubble append shape so attachments / images /
-            // file chips render the same.
-            //
-            // [T-queued-bubble-atomic-delivery] This used to be two emits —
-            // filter the placeholders out, then append the real bubble gated on
-            // a `mayCommitUser` predicate read BEFORE the filter. Whenever that
-            // predicate was false (a chat reloaded or cleared while this
-            // function was suspended in the four awaits above, an assistant
-            // bubble that a heal/reload had replaced) the placeholder was
-            // removed and NOTHING was put back: the user's mid-task message
-            // left the screen, while its row was already in the DB and the
-            // model answered it — "a reply with no question".
-            //
-            // [QueuedMessageState.deliver] decides inside the CAS, on the live
-            // list: remove only our own placeholders, and append the real
-            // bubbles only if something of ours was actually there. A chat the
-            // user cleared in the window therefore still stays empty (nothing
-            // to replace), while one where the placeholder is present always
-            // ends with a bubble on screen — never with neither.
+            // (c) — append the queued user bubble + the new assistant
+            // placeholder. Mirrors sendMessage's user-bubble append shape so
+            // attachments / images / file chips render the same.
             val queuedUserMsg = ChatMessage(
                 id = userEntity.id,
                 role = "user",
@@ -9448,7 +9404,6 @@ class ChatViewModel(
                 imageUris = prepared.imageUris,
                 attachmentNames = prepared.attachmentNames,
                 attachmentUris = prepared.nonImageUris,
-                sourceDbIds = listOf(userEntity.id),
             )
             val nextAssistantMsg = ChatMessage(
                 id = newAssistantId,
@@ -9458,17 +9413,7 @@ class ChatViewModel(
                 isAwaitingModelResponse = true,
                 thinkingLevel = _thinkingLevel.value,
             )
-            val canContinue = injectingJob?.isActive == true
-            _messages.update { current ->
-                QueuedMessageState.deliver(
-                    current = current,
-                    queuedIds = queuedIds,
-                    queuedPromptIdOf = { m -> m.queuedPromptId },
-                    idOf = { m -> m.id },
-                    newBubbles = if (canContinue) listOf(queuedUserMsg, nextAssistantMsg)
-                    else listOf(queuedUserMsg),
-                )
-            }
+            _messages.value = _messages.value + queuedUserMsg + nextAssistantMsg
             // Note: ChatScreen's `lastUserAppendMs` (the trailing-row
             // ScrollPin send-grace window) is updated reactively by
             // ChatScreen's `LaunchedEffect(messages.size)` user-send hook
@@ -9497,7 +9442,6 @@ class ChatViewModel(
         fallbackProviders: List<FallbackCandidate>,
         fallbackStrategy: com.openminis.app.data.model.FallbackStrategy,
     ) {
-        queueDrainFailed = false
         while (_promptQueue.value.isNotEmpty()) {
             // [T-android-mute-reset-on-drain] A drained batch is a new turn.
             // Stopping a sub agent mutes the parent's CURRENT turn (a sibling
@@ -9550,7 +9494,7 @@ class ChatViewModel(
                 bodyPartsJson = drainPaste?.partsJson,
             )
             val drainedRow = chatRepository.appendMessage(sid, "user", userPartsJson)
-            _promptQueue.update { current -> current.filterNot { it.id in queuedIds } }
+            _promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }
             // Flip isQueued=false on corresponding chat messages so they render as sent.
             // T189: also clear queuedPromptId so a later retry of this bubble
             // doesn't try to drop a phantom queue entry (and so the field state
@@ -9563,7 +9507,7 @@ class ChatViewModel(
             // bubbles over one row is exactly the skew counting gets wrong
             // (editing the second of two merged prompts cut the NEXT turn and
             // left the merged row, old text included, in the model's context).
-            _messages.updateItems { m ->
+            _messages.value = _messages.value.map { m ->
                 if (m.queuedPromptId != null && queuedIds.contains(m.queuedPromptId)) {
                     m.copy(isQueued = false, queuedPromptId = null, sourceDbIds = listOf(drainedRow.id))
                 } else m
@@ -9575,7 +9519,7 @@ class ChatViewModel(
                 imageParts = prepared.imageParts,
                 combinedParts = combinedParts,
                 interruptReminder = null,
-                dbMessageId = drainedRow.id,
+                dbMessageId = null,
             ))
 
             try {
@@ -9597,10 +9541,6 @@ class ChatViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, ("Agent loop (queued-drain) error"), e)
                 setInlineError(e.message ?: "Unknown error")
-                // [T-queue-epilogue-consumer] The prompts stay queued (their
-                // bubbles too) so a later send retries them; mark the drain as
-                // failed so no epilogue re-kicks it into a retry loop.
-                queueDrainFailed = true
                 break
             }
         }
@@ -9762,36 +9702,22 @@ class ChatViewModel(
         val trimmed = text.trim()
         // While streaming, enqueue instead of silently dropping (iOS: send vs enqueuePrompt).
         if (_isStreaming.value) {
-            // [T-queue-send-funnel] The enqueue re-reads the flag itself. When
-            // it DECLINES, that is not "nothing to send": the run's epilogue
-            // cleared `_isStreaming` between this read and that one — the flag
-            // is written by the stream job on Dispatchers.IO, so the two reads
-            // are not guaranteed to agree. This branch used to return
-            // `Rejected("enqueue_declined")` for that case, and the caller
-            // (ChatScreen.performSendOrEnqueueNow) had already cleared the
-            // composer and ignores the outcome — the typed message then existed
-            // nowhere at all: no bubble, no queue entry, no request.
-            //
-            // Falling through starts an ordinary turn with it instead. The
-            // claim further down is atomic, so "the run really did end" and
-            // "another run has since claimed the turn" are both handled.
+            // enqueuePrompt has its own blank/attachment guard and returns Unit;
+            // the queue length is the acceptance signal (iOS does the same).
+            val before = _promptQueue.value.size
             // [T-p2-gentle-injection] A headless send is PROGRAMMATIC: it waits
             // for the running loop to finish instead of interrupting it.
             // [T-user-ask-deferred] The user's answer is not gentle: it is
             // queued like their own follow-up, without the composer's files.
-            if (enqueuePrompt(
+            enqueuePrompt(
                 text,
                 if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
                 prefill,
                 ownsComposer = !headless,
                 ownAttachments = if (headless) headlessAttachments else emptyList(),
-            )) {
-                return SubmitOutcome.Queued
-            }
-            AppLogger.info(
-                TAG_STREAM,
-                ("send: enqueue declined (the run ended meanwhile) — starting a turn for it instead (sid=" + (activeSessionId).toString() + ")"),
             )
+            return if (_promptQueue.value.size == before + 1) SubmitOutcome.Queued
+            else SubmitOutcome.Rejected("enqueue_declined")
         }
         // T180: allow attachments-only sends (no caption). Mirrors iOS, where
         // an empty text + non-empty attachments still produces a valid user
@@ -9886,52 +9812,7 @@ class ChatViewModel(
         // T145: claim _isStreaming synchronously so a rapid second tap can't
         // slip past the entry guard during DB/OAuth setup. See retryFromMessage.
         AppLogger.info(TAG_STREAM, ("send _isStreaming=true (sync, sid=" + (activeSessionId).toString() + ")"))
-        // [T-queue-send-funnel] Claim it with a CAS, not a plain write.
-        //
-        // Two writers reach this line: the idle send (guarded by the read at the
-        // top of this function) and a `drain`/`resume` loop claiming its turn.
-        // A plain write let the loser start a SECOND agent loop beside the
-        // winner (duplicated replies, one of them writing into a bubble it does
-        // not own); the loser here hands its prompt to the queue instead, which
-        // is what the user asked for by sending during a run — and it can never
-        // drop the text. The composer's files were already taken above and are
-        // cleared for a user send, so they ride along as the prompt's own.
-        if (!_isStreaming.compareAndSet(false, true)) {
-            var queuedInstead = enqueuePrompt(
-                text,
-                if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
-                prefill,
-                ownsComposer = false,
-                ownAttachments = currentAttachments,
-            )
-            var attempts = 1
-            var claimed = false
-            while (!queuedInstead && !claimed && attempts < 4) {
-                attempts++
-                queuedInstead = enqueuePrompt(
-                    text,
-                    if (headless && !userAskAnswer) QueuedPromptOrigin.PROGRAMMATIC else QueuedPromptOrigin.USER,
-                    prefill,
-                    ownsComposer = false,
-                    ownAttachments = currentAttachments,
-                )
-                if (!queuedInstead) claimed = _isStreaming.compareAndSet(false, true)
-            }
-            AppLogger.info(
-                TAG_STREAM,
-                ("send lost the claim — queued=" + (queuedInstead).toString() + " claimed=" + (claimed).toString() + " (sid=" + (activeSessionId).toString() + ")"),
-            )
-            if (queuedInstead) return SubmitOutcome.Queued
-            if (claimed) {
-                // The flag flipped back to idle under us; fall through and run
-                // this prompt as the turn we just claimed.
-            } else {
-                // Neither queued nor claimed: surface it instead of swallowing
-                // the message silently.
-                setInlineError(("This chat is busy — send that again in a moment."))
-                return SubmitOutcome.Rejected("busy")
-            }
-        }
+        _isStreaming.value = true
 
         // [T-android-thinking-indicator-linger] Invariant sweep: a fresh send
         // only reaches here when no turn is streaming (the _isStreaming guard
@@ -10142,7 +10023,6 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
-                    owner = coroutineContext[Job],
                 )
 
                     // Resolve the active group's fallback strategy
@@ -10195,11 +10075,9 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
-                            publishOverlayReplyExcerpt(activeSessionId)
-                            markRunOutcomeForNotification(activeSessionId)
-                        }
-                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
+                        publishOverlayReplyExcerpt(activeSessionId)
+                        markRunOutcomeForNotification(activeSessionId)
+                        SessionActivityTracker.setInactive(activeSessionId)
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, ("send streamJob FINALLY exit"))
                     }
@@ -10212,17 +10090,6 @@ class ChatViewModel(
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, ("send _isStreaming=false (about to set)"))
                     _isStreaming.value = false
-                    // [T-queue-epilogue-consumer] A prompt that arrived after
-                    // the drain above ran (the epilogue between that call and
-                    // this clear takes tens of ms: overlay publish, activity
-                    // tracker, slot release) was accepted onto the queue while
-                    // `_isStreaming` was still true, and then had NO consumer
-                    // left — it stayed a dashed bubble and was never sent until
-                    // the user happened to send something else. Whatever is
-                    // still queued now gets the post-Stop resume path, which is
-                    // the one entry point that starts a turn from a queue with
-                    // nothing running.
-                    ensureQueueConsumer("send-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, ("send _isStreaming SKIPPED (stale job)"))
                 }
@@ -10284,13 +10151,12 @@ class ChatViewModel(
         val lastAssistantIdx = msgs.indexOfLast { it.role == "assistant" }
         if (lastAssistantIdx >= 0) {
             val msg = msgs[lastAssistantIdx]
-            _messages.updateItems { current ->
-                if (current.id != msg.id) current else current.copy(
-                    error = safeError,
-                    isStreaming = false,
-                    isAwaitingModelResponse = false,
-                )
-            }
+            msgs[lastAssistantIdx] = msg.copy(
+                error = safeError,
+                isStreaming = false,
+                isAwaitingModelResponse = false,
+            )
+            _messages.value = msgs
             // [T-error-persist-android] Persist the terminal error so the inline
             // error + Retry button survive a session reload. The in-memory bubble
             // id differs from the persisted row id, so the row is found in the DB.
@@ -10323,7 +10189,8 @@ class ChatViewModel(
         if (lastAssistantIdx < 0) return
         val msg = msgs[lastAssistantIdx]
         if (msg.error == null) return
-        _messages.updateItems { current -> if (current.id == msg.id) current.copy(error = null) else current }
+        msgs[lastAssistantIdx] = msg.copy(error = null)
+        _messages.value = msgs
         // [T-error-persist-android] Clear the persisted sticker too, so a
         // recovered turn doesn't resurrect the error banner on the next reload.
         // Clear by the message's source DB rows when known (the in-memory bubble
@@ -10540,7 +10407,6 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
-                    owner = coroutineContext[Job],
                 )
                     val activeFallbackStrategy = run {
                         val groupId = _selectedGroupId.value
@@ -10577,11 +10443,9 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
-                            publishOverlayReplyExcerpt(activeSessionId)
-                            markRunOutcomeForNotification(activeSessionId)
-                        }
-                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
+                        publishOverlayReplyExcerpt(activeSessionId)
+                        markRunOutcomeForNotification(activeSessionId)
+                        SessionActivityTracker.setInactive(activeSessionId)
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, ("retryLast streamJob FINALLY exit"))
                     }
@@ -10593,9 +10457,6 @@ class ChatViewModel(
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, ("retryLast _isStreaming=false (about to set)"))
                     _isStreaming.value = false
-                    // [T-queue-epilogue-consumer] A prompt accepted between
-                    // this turn's own drain and this clear has no consumer.
-                    ensureQueueConsumer("retry-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, ("retryLast _isStreaming SKIPPED (stale job)"))
                 }
@@ -11825,16 +11686,18 @@ class ChatViewModel(
             when (inLoopContextCheck(inLoopCompactions)) {
                 InLoopContextAction.PROCEED -> {}
                 InLoopContextAction.COMPACTED -> {
-                    // The next API call reads the freshly-compacted
-                    // effectiveAgentHistory automatically — compaction already
-                    // re-appends the recent turns, so no resume handoff is
-                    // needed. A compaction iteration is space management, not
-                    // task progress, so it must NOT consume a turn slot:
-                    // decrementing cancels this iteration's advance. The
-                    // MAX_AGENT_TURNS ceiling is never reset, and
-                    // maxInLoopCompactions bounds compact-thrash within a turn,
-                    // so a loop that keeps compacting cannot defeat the runaway
-                    // backstop.
+                    // Summary instructions deliberately describe past events.
+                    // Give this still-running loop a fresh, bounded work order;
+                    // never launch another loop or wake an idle/completed task.
+                    currentCoroutineContext().ensureActive()
+                    if (!AutoCompactContinuation.shouldResume(
+                            compactSucceeded = true,
+                            workPending = true,
+                            sameRun = liveTurn.isLive(turnGen),
+                            cancelled = !currentCoroutineContext().isActive,
+                        )
+                    ) return
+                    appendCompactContinuation()
                     inLoopCompactions++
 
                     // [T-android-inloop-compact-divider-order / GH#235] Seal the
@@ -12063,8 +11926,6 @@ class ChatViewModel(
             // [T-android-gemini3-thoughtsig / #179] toolCallId -> Gemini 3.x
             // thoughtSignature for this turn's calls (null for other providers).
             val toolCallSignatures = mutableMapOf<String, String>()
-            // Kept per response attempt; parse failures must never be repaired into commands.
-            val toolArgumentErrors = mutableMapOf<String, String>()
 
             // [T-dedupe-toolcallid 03fbcbfd] Per-turn dedupe of tool_call_id.
             // Some upstream OpenAI-compatible gateways occasionally emit
@@ -12612,13 +12473,6 @@ class ChatViewModel(
                         val toolCompleteId = dedupeToolCompleteId(chunk.id)
                         android.util.Log.d("ToolChain[VM]", ("[turn=" + (turn).toString() + "] ToolCallComplete id=" + (toolCompleteId).toString() + " name=" + (chunk.name).toString() + " args=" + (chunk.args.toString().take(300)).toString()))
                         toolCalls.add(Triple(toolCompleteId, chunk.name, chunk.args))
-                        chunk.argumentError?.let { toolArgumentErrors[toolCompleteId] = it }
-                        chunk.rawArguments?.let { raw ->
-                            // A final snapshot may be the ONLY argument event the relay sent.
-                            val ring = toolInputChunkRings.getOrPut(toolCompleteId) { mutableListOf() }
-                            ring.add(raw)
-                            if (ring.size > TOOL_INPUT_CHUNK_RING_MAX) ring.removeAt(0)
-                        }
                         // [T-android-gemini3-thoughtsig / #179] Stash the Gemini
                         // 3.x thought signature keyed by the (deduped) tool call id.
                         chunk.thoughtSignature?.let { toolCallSignatures[toolCompleteId] = it }
@@ -12912,7 +12766,6 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
-                        toolArgumentErrors.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // T94 fix 2 + T256: throttle bookkeeping is per-stream
                         // attempt; reset alongside the partial-block rollback so
@@ -13004,8 +12857,7 @@ class ChatViewModel(
                             turnTextBlockIdx = -1
                             turnThinking.clear()
                             toolCalls.clear()
-                            toolArgumentErrors.clear()
-                            toolCallSignatures.clear()
+                                toolCallSignatures.clear()
                             continue
                         }
                         AppLogger.warning(
@@ -13138,7 +12990,6 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
-                        toolArgumentErrors.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // loop continues — will retry collect with currentProvider
                     } else {
@@ -13871,8 +13722,7 @@ class ChatViewModel(
                         // Mutates `args` in place; downstream argsStr and preflight see
                         // the repaired payload. Mirrors iOS repairToolArgs in
                         // AIChatViewModel.swift.
-                        val argumentError = toolArgumentErrors[id]
-                        val repairs = if (argumentError != null) emptyList() else com.openminis.app.provider.ToolJsonRepair.repair(
+                        val repairs = com.openminis.app.provider.ToolJsonRepair.repair(
                             name, args, toolInputChunkRings[id]?.lastOrNull(), agentTools,
                         )
                         if (repairs.isNotEmpty()) {
@@ -13999,7 +13849,7 @@ class ChatViewModel(
                         // AIChatViewModel.swift. Synthesizes a tool_result error so the
                         // model can self-correct on the next turn without us spawning
                         // shells or touching the filesystem on `{}` args.
-                        val preflightError = argumentError ?: preflightValidateToolCall(name, args, agentTools)
+                        val preflightError = preflightValidateToolCall(name, args, agentTools)
                         if (preflightError != null) {
                             val chunkRing: List<String> = toolInputChunkRings.remove(id) ?: emptyList()
                             AppLogger.warning(
@@ -14007,7 +13857,6 @@ class ChatViewModel(
                                 "BLOCKED tool=$name id=$id reason=\"$preflightError\" " +
                                     "argsKeys=[${args.keys().asSequence().toList().sorted().joinToString(",")}] " +
                                     "chunkCount=${chunkRing.size} " +
-                                    "argumentParseError=${argumentError != null} " +
                                     "rawBytes=${chunkRing.lastOrNull()?.toByteArray(Charsets.UTF_8)?.size ?: 0}"
                             )
                             // English literal — string resource lookup intentionally
@@ -14015,11 +13864,7 @@ class ChatViewModel(
                             // strings.xml refactor in other sessions. Promote to a
                             // localized R.string entry in a follow-up if needed.
                             val uiMessage = "Blocked invalid tool call"
-                            val modelMessage = if (argumentError != null) {
-                                "Error: Tool call rejected before execution. $argumentError No operation was performed. Re-issue a complete JSON object with all required parameters; split large payloads into smaller calls. Do not repeat the same malformed arguments."
-                            } else {
-                                "Error: Tool call rejected before execution. $preflightError The received arguments were empty or missing required fields — re-issue the call with all required parameters filled in. Do not retry with the same empty arguments."
-                            }
+                            val modelMessage = "Error: Tool call rejected before execution. $preflightError The arguments your client sent were empty or missing required fields — re-issue the call with all required parameters filled in. Do not retry with the same empty arguments."
                             val blockIdxPre = allToolBlocks.indexOfFirst { it.id == id }
                             if (blockIdxPre >= 0) {
                                 val elapsedPre = System.currentTimeMillis() - allToolBlocks[blockIdxPre].startTimeMs
@@ -14437,6 +14282,11 @@ class ChatViewModel(
             }
         } else {
             AppLogger.info(TAG_STREAM, "runAgentLoop EXIT (loop body ended naturally)")
+        }
+        // The final response is already persisted. This maintenance path has
+        // no continuation message and does not make another agent request.
+        if (loopExitedNormally && stopDiagExit == "no-tool-calls") {
+            compactCompletedTurnIfNeeded(turnGen)
         }
     }
 
@@ -16349,8 +16199,12 @@ class ChatViewModel(
             // fixed here defensively so any future write-path that forgets
             // to clear can't strand a stale banner across the rest of
             // the turn.
-            if (_messages.value.lastOrNull { it.id == id }?.error != null) {
-                _messages.updateItems { m -> if (m.id == id && m.error != null) m.copy(error = null) else m }
+            val canonical = _messages.value
+            val canonicalIdx = canonical.indexOfLast { it.id == id }
+            if (canonicalIdx >= 0 && canonical[canonicalIdx].error != null) {
+                val updated = canonical.toMutableList()
+                updated[canonicalIdx] = canonical[canonicalIdx].copy(error = null)
+                _messages.value = updated
             }
             return
         }
@@ -16359,16 +16213,24 @@ class ChatViewModel(
         // the canonical drain below publishes the final, complete text.
         clearStreamFlushState(id)
         // Stream end → sync delta into canonical message + clear side-channel.
-        // Completion can run on IO while enqueuePrompt appends on Main. Retry
-        // against the current list instead of writing an obsolete whole-list snapshot.
-        _messages.updateItems { m ->
-            if (m.id != id) m else m.copy(
-                content = content,
-                isStreaming = false,
-                toolBlocks = toolBlocks.toList(),
-                isAwaitingModelResponse = isAwaitingModelResponse,
-            )
+        val current = _messages.value
+        val idx = current.indexOfLast { it.id == id }
+        if (idx < 0) {
+            // The message itself is gone (e.g. clearChat raced ahead) —
+            // just clear any leftover stream delta and bail.
+            if (_streamingById.value.containsKey(id)) {
+                _streamingById.value = _streamingById.value - id
+            }
+            return
         }
+        val updated = current.toMutableList()
+        updated[idx] = current[idx].copy(
+            content = content,
+            isStreaming = false,
+            toolBlocks = toolBlocks.toList(),
+            isAwaitingModelResponse = isAwaitingModelResponse,
+        )
+        _messages.value = updated
         if (_streamingById.value.containsKey(id)) {
             _streamingById.value = _streamingById.value - id
         }
@@ -16395,14 +16257,20 @@ class ChatViewModel(
      */
     private fun flushStreamingDelta(id: String) {
         val delta = _streamingById.value[id] ?: return
-        _messages.update { current -> current.map { m ->
-            if (m.id != id) m else m.copy(
+        val current = _messages.value
+        val idx = current.indexOfLast { it.id == id }
+        if (idx >= 0) {
+            val updated = current.toMutableList()
+            updated[idx] = current[idx].copy(
                 content = delta.content,
                 isStreaming = false,
-                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(m.toolBlocks, delta.toolBlocks),
+                // [T-android-stop-late-write] Never let the overlay undo a
+                // status the canonical message already holds as finished.
+                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(current[idx].toolBlocks, delta.toolBlocks),
                 isAwaitingModelResponse = delta.isAwaitingModelResponse,
             )
-        } }
+            _messages.value = updated
+        }
         // [T-android-stream-flush-review] Cancel the pending trailing flush
         // BEFORE clearing the side channel — otherwise its viewModelScope
         // coroutine (not cancelled by streamJob.cancel) fires later and
@@ -16417,15 +16285,22 @@ class ChatViewModel(
         clearAllStreamFlushStates()
         val pending = _streamingById.value
         if (pending.isEmpty()) return
-        _messages.update { current -> current.map { m ->
-            val delta = pending[m.id]
-            if (delta == null) m else m.copy(
+        val current = _messages.value.toMutableList()
+        var changed = false
+        for ((id, delta) in pending) {
+            val idx = current.indexOfLast { it.id == id }
+            if (idx < 0) continue
+            current[idx] = current[idx].copy(
                 content = delta.content,
                 isStreaming = false,
-                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(m.toolBlocks, delta.toolBlocks),
+                // [T-android-stop-late-write] A later cancel used to copy a
+                // stale overlay's RUNNING back over the CANCELLED history here.
+                toolBlocks = InFlightToolHeal.mergeOverlayBlocks(current[idx].toolBlocks, delta.toolBlocks),
                 isAwaitingModelResponse = delta.isAwaitingModelResponse,
             )
-        } }
+            changed = true
+        }
+        if (changed) _messages.value = current
         _streamingById.value = emptyMap()
     }
 
@@ -17856,12 +17731,10 @@ class ChatViewModel(
     private fun cancelStaleBlock(blockId: String) {
         val liveId = liveTurn.liveAssistantId()
         val owner = _messages.value.lastOrNull { m -> m.role == "assistant" && m.toolBlocks.any { it.id == blockId } }
-        _messages.update { current ->
-            current.map { m ->
-                if (m.role != "assistant" || m.id == liveId) m else {
-                    val fixed = InFlightToolHeal.cancelBlock(m.toolBlocks, blockId)
-                    if (fixed === m.toolBlocks) m else m.copy(toolBlocks = fixed)
-                }
+        _messages.value = _messages.value.map { m ->
+            if (m.role != "assistant" || m.id == liveId) m else {
+                val fixed = InFlightToolHeal.cancelBlock(m.toolBlocks, blockId)
+                if (fixed === m.toolBlocks) m else m.copy(toolBlocks = fixed)
             }
         }
         // An orphan overlay entry may be what showed the block as running.
@@ -17980,46 +17853,8 @@ class ChatViewModel(
      * verbatim (incl. OAuth token refresh + Claude Code prefix), so a queued
      * prompt drain after cancel uses the same plumbing as a fresh send.
      */
-    /** [T-queue-epilogue-consumer] The single in-flight drain of [_promptQueue]. */
-    private var queueConsumerKick: Job? = null
-
-    /** [T-queue-epilogue-consumer] The last drain gave up on an error; do not
-     *  auto-retry it from an epilogue (a provider 401 would spin). Any new turn
-     *  clears it, and that turn's own drain is the retry. */
-    private var queueDrainFailed = false
-
-    /**
-     * [T-queue-epilogue-consumer] Start a drain if [_promptQueue] has prompts
-     * and nothing is running (and no drain is already in flight).
-     *
-     * Called from the stream epilogue, AFTER `_isStreaming` is cleared: the
-     * loop's own drain runs before that point, so anything accepted in between
-     * had no consumer and its queued bubble never turned into a sent message.
-     */
-    private fun ensureQueueConsumer(reason: String) {
-        if (!QueuedMessageState.needsConsumer(
-                isStreaming = _isStreaming.value,
-                queueSize = _promptQueue.value.size,
-                kickActive = queueConsumerKick?.isActive == true,
-                drainFailed = queueDrainFailed,
-            )
-        ) return
-        AppLogger.info(
-            TAG_STREAM,
-            "queue consumer kicked ($reason): ${_promptQueue.value.size} pending prompt(s), nothing running",
-        )
-        resumeQueueAfterCancel()
-    }
-
     private fun resumeQueueAfterCancel() {
-        // [T-queue-epilogue-consumer] One consumer at a time. Two drains over
-        // the same queue would persist the same prompt twice (the dequeue
-        // happens only after its row exists).
-        if (queueConsumerKick?.isActive == true) {
-            AppLogger.info(TAG, "resumeQueueAfterCancel: a drain consumer is already in flight — not starting another")
-            return
-        }
-        queueConsumerKick = viewModelScope.launch {
+        viewModelScope.launch {
             kotlinx.coroutines.delay(200)
             if (_promptQueue.value.isEmpty()) return@launch
             if (_isStreaming.value) return@launch
@@ -18035,33 +17870,9 @@ class ChatViewModel(
 
             val initialProvider = currentProvider
             if (initialProvider == null) {
-                // [T-queued-bubble-no-provider-drop] Keep the queue and its
-                // bubbles.
-                //
-                // This used to empty `_promptQueue` and filter every `isQueued`
-                // bubble out of `_messages`. Nothing was persisted at that point,
-                // so the user's typed message was destroyed outright — the most
-                // destructive loss in the whole queue pipeline, reachable
-                // whenever the chat has no usable provider at drain time (the
-                // entry was deleted or lost its credential while the run was
-                // going, or the run was resumed before the provider config had
-                // loaded). A missing provider is a temporary condition; the
-                // message is not.
-                //
-                // The prompts stay queued, so the next successful send drains
-                // them at its epilogue (and the epilogue consumer re-kicks if
-                // the queue is still non-empty), and the dashed bubble stays on
-                // screen as the affordance telling the user what is waiting.
-                AppLogger.warning(
-                    TAG,
-                    "resumeQueueAfterCancel: no provider — keeping ${_promptQueue.value.size} queued prompt(s)",
-                )
-                appendSystemInfo(
-                    text = "No model is available right now, so the " +
-                        "${_promptQueue.value.size} message(s) you queued are still waiting. " +
-                        "Pick a model and send anything to deliver them.",
-                    iconKind = "info",
-                )
+                AppLogger.warning(TAG, "resumeQueueAfterCancel: no provider, dropping queue")
+                _promptQueue.value = emptyList()
+                _messages.value = _messages.value.filterNot { it.isQueued }
                 return@launch
             }
             var provider: LLMProvider = initialProvider
@@ -18109,30 +17920,7 @@ class ChatViewModel(
             // the streamJob so a concurrent send/retry tap is rejected by the
             // entry guard. Mirrors sendMessage discipline.
             AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming=true (sync, sid=$activeSessionId)")
-            // [T-queue-atomic-claim] CAS, not a plain write.
-            //
-            // Everything above this line suspends: the 200 ms delay, provider
-            // resolution, the OAuth refresh, buildSystemPrompt. A send that
-            // arrives in that window claims the flag with its own
-            // `compareAndSet(false, true)` and starts a turn; the old plain
-            // write here then re-wrote a value it already had and carried on to
-            // launch a SECOND agent loop beside it — two runs over the same
-            // session and the same queued batch, i.e. duplicated replies and a
-            // prompt delivered twice. The entry guard's read at the top of the
-            // coroutine is not a substitute: it is a read, not a claim.
-            //
-            // Standing down loses nothing. Every turn tail calls
-            // drainQueuedPrompts and then ensureQueueConsumer, so whoever won
-            // the claim consumes this queue; the prompts keep their dashed
-            // bubbles meanwhile.
-            if (!_isStreaming.compareAndSet(false, true)) {
-                AppLogger.info(
-                    TAG_STREAM,
-                    "resumeQueueAfterCancel lost the claim to a running turn — " +
-                        "leaving ${_promptQueue.value.size} prompt(s) to its drain (sid=$activeSessionId)",
-                )
-                return@launch
-            }
+            _isStreaming.value = true
             _canResume.value = false
             _error.value = null
 
@@ -18149,7 +17937,6 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
-                    owner = coroutineContext[Job],
                 )
 
                     val activeFallbackStrategy = run {
@@ -18183,11 +17970,9 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
-                            publishOverlayReplyExcerpt(activeSessionId)
-                            markRunOutcomeForNotification(activeSessionId)
-                        }
-                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
+                        publishOverlayReplyExcerpt(activeSessionId)
+                        markRunOutcomeForNotification(activeSessionId)
+                        SessionActivityTracker.setInactive(activeSessionId)
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel streamJob FINALLY exit")
                     }
@@ -18198,12 +17983,6 @@ class ChatViewModel(
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming=false (about to set)")
                     _isStreaming.value = false
-                    // [T-queue-epilogue-consumer] This consumer is finished;
-                    // a prompt accepted while it was clearing the flag needs a
-                    // successor (queueDrainFailed keeps a broken drain from
-                    // being retried in a loop).
-                    queueConsumerKick = null
-                    ensureQueueConsumer("resume-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, "resumeQueueAfterCancel _isStreaming SKIPPED (stale job)")
                 }
@@ -18250,15 +18029,8 @@ class ChatViewModel(
         // case runs so both tool-cancel and text-cancel paths benefit.
         if (last.isAwaitingModelResponse) {
             last = last.copy(isAwaitingModelResponse = false)
-            // [T-queued-bubble-atomic-delivery] Patch by id, never write the
-            // snapshot back: this cleanup runs from whatever thread called
-            // Stop (the overlay/notification path is not Main), while the user
-            // can enqueue a mid-run message on Main at the same moment. A
-            // whole-list assign from a list read a few statements earlier
-            // silently deleted that bubble.
-            _messages.updateItems { m ->
-                if (m.id == last.id) m.copy(isAwaitingModelResponse = false) else m
-            }
+            msgs[lastIdx] = last
+            _messages.value = msgs
         }
 
         // Case 1: cancel during tool execution. Flip in-flight tool blocks to
@@ -18273,9 +18045,8 @@ class ChatViewModel(
         }
         val hadInflightTools = cancelledIds.isNotEmpty()
         if (hadInflightTools) {
-            _messages.updateItems { m ->
-                if (m.id == last.id) m.copy(toolBlocks = updatedBlocks) else m
-            }
+            msgs[lastIdx] = last.copy(toolBlocks = updatedBlocks)
+            _messages.value = msgs
             val parts = cancelledIds.map { (id, name) ->
                 AgentContentPart.ToolResult(
                     id = id,
@@ -18324,10 +18095,8 @@ class ChatViewModel(
         // by Case 1 / Case 2 below); a thinking-only placeholder is not.
         val hasAnyToolUse = last.toolBlocks.any { it.kind == "tool_use" }
         if (partialText.isEmpty() && !hasAnyToolUse && !historyEndsWithAssistant) {
-            // Same reason as the two writes above: drop by id, so a bubble the
-            // user appended meanwhile (a mid-run message) is not swept away
-            // with the snapshot.
-            _messages.update { current -> current.filterNot { it.id == last.id } }
+            msgs.removeAt(lastIdx)
+            _messages.value = msgs
             return
         }
 
@@ -18470,7 +18239,6 @@ class ChatViewModel(
                     // [T-android-overlay-multitask] The capsule names the task
                     // rather than the assistant, so it needs this session's title.
                     sessionTitle = overlaySessionTitle(),
-                    owner = coroutineContext[Job],
                 )
                     val activeFallbackStrategy = run {
                         val groupId = _selectedGroupId.value
@@ -18506,11 +18274,9 @@ class ChatViewModel(
                         // non-null excerpt. Reading _messages here is safe:
                         // we're in the finally block of the agent loop and
                         // the stream has already flushed its last delta.
-                        if (SessionActivityTracker.ownsRun(activeSessionId, coroutineContext[Job])) {
-                            publishOverlayReplyExcerpt(activeSessionId)
-                            markRunOutcomeForNotification(activeSessionId)
-                        }
-                        SessionActivityTracker.setInactive(activeSessionId, owner = coroutineContext[Job])
+                        publishOverlayReplyExcerpt(activeSessionId)
+                        markRunOutcomeForNotification(activeSessionId)
+                        SessionActivityTracker.setInactive(activeSessionId)
                         if (holdsSlot) SessionConcurrencyManager.releaseSlot(activeSessionId)
                         AppLogger.info(TAG_STREAM, "resume streamJob FINALLY exit")
                     }
@@ -18522,9 +18288,6 @@ class ChatViewModel(
                 if (streamJob === coroutineContext[Job]) {
                     AppLogger.info(TAG_STREAM, "resume _isStreaming=false (about to set)")
                     _isStreaming.value = false
-                    // [T-queue-epilogue-consumer] A prompt accepted between
-                    // this turn's own drain and this clear has no consumer.
-                    ensureQueueConsumer("resume-epilogue")
                 } else {
                     AppLogger.info(TAG_STREAM, "resume _isStreaming SKIPPED (stale job)")
                 }

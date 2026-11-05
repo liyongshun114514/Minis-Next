@@ -861,21 +861,7 @@ internal fun ToolDetailSheet(
                         // Preview priority (matches iOS): live WebView snapshot while the
                         // tool is running → current block's saved imageFilePath → most
                         // recent preceding browser_use block's screenshot.
-                        // [T-android-browser-preview-live] A completed block that is the
-                        // newest browser_use block keeps the live page for as long as the
-                        // browser session stays warm; otherwise the fallback chain below
-                        // hands it an OLDER block's screenshot, which is exactly the
-                        // "preview is frozen" view the user was left with between two
-                        // tool calls.
-                        val liveBitmap = rememberBrowserLiveSnapshot(
-                            block,
-                            isLatestBrowserBlock = remember(block.id, block.toolName, toolBlocks) {
-                                if (block.toolName != "browser_use") false else {
-                                    val idx = toolBlocks.indexOfLast { it.id == block.id }
-                                    idx < 0 || toolBlocks.drop(idx + 1).none { it.toolName == "browser_use" }
-                                }
-                            },
-                        )
+                        val liveBitmap = rememberBrowserLiveSnapshot(block)
                         // T285: decode off main thread. Pre-T285 this was a
                         // synchronous BitmapFactory.decodeFile inside `remember{}`
                         // — for a multi-MB browser screenshot it ran a ~150-350ms

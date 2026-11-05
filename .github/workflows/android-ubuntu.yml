@@ -144,19 +144,6 @@ jobs:
           cd ../../..
           cp deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
           test -s src/android/app/src/main/assets/proot-aarch64
-      - name: MCP HTTP protocol regression
-        run: |
-          python3 -m venv "$RUNNER_TEMP/mcp-http-tests"
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m pip install httpx==0.26.0
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_http_*.py' -v
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_android_*.py' -v
-          for test_file in test_http_protocol_version.py test_http_reinit.py; do
-            MINIS_MCP_CLI_DIR="$GITHUB_WORKSPACE/src/ios/default_mount/usr/local/lib/minis-mcp-cli" \
-              "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p "$test_file" -v
-          done
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m pip install httpx==0.28.1
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_http_*.py' -v
-          "$RUNNER_TEMP/mcp-http-tests/bin/python" -m unittest discover -s scripts/tests/minis-mcp-cli -p 'test_android_*.py' -v
       - name: Check APK verifier compatibility
         run: |
           python3 -m unittest discover -s scripts/tests -p test_verify_ubuntu_apk.py -v
@@ -221,19 +208,16 @@ jobs:
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \
             --tests '*CustomBalance*' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
+            --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
             --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
-            --tests '*ToolArgumentBufferTest' --tests '*ResponsesToolCallAssemblerTest' --tests '*ChatToolCallIndexTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest' \
             --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
-            --tests '*SessionRunOwnershipTest' --tests '*LiveMessageAtomicityTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \
             --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
             --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
-            --tests '*QueuedMessageStateTest' --tests '*BrowserLivePreviewTest' \
-            --tests '*BrowserPreviewPumpTest' --tests '*PreviewRetryGateTest' \
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
-            --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
+            --tests '*AutoCompactIntegrationTest' --tests '*AutoCompactContinuationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.

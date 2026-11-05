@@ -198,7 +198,7 @@ class StopLateWriteTest {
     }
 
     @Test fun `flushes fold the overlay without regressing finished statuses`() {
-        assertEquals(2, vm.split("toolBlocks = InFlightToolHeal.mergeOverlayBlocks(m.toolBlocks, delta.toolBlocks),").size - 1)
+        assertEquals(2, vm.split("toolBlocks = InFlightToolHeal.mergeOverlayBlocks(current[idx].toolBlocks, delta.toolBlocks),").size - 1)
         assertFalse(vm.contains("toolBlocks = delta.toolBlocks,"))
     }
 

@@ -131,27 +131,22 @@ class Review0923SubAgentQueueInvariantsTest {
             val b = body(name)
             assertTrue("$name: the queue must not be emptied wholesale", !b.contains("_promptQueue.value = emptyList()"))
             val persist = b.indexOf("chatRepository.appendMessage(")
-            // The dequeue is a CAS by id (`update { filterNot { it.id in … } }`),
-            // which is the same "only after the row exists" shape as the
-            // whole-value form this assertion used to require.
-            val dequeueCas = b.indexOf("_promptQueue.update { current -> current.filterNot { it.id in queuedIds } }", persist)
-            val dequeueValue = b.indexOf("_promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }", persist)
-            val dequeue = maxOf(dequeueCas, dequeueValue)
+            val dequeue = b.indexOf("_promptQueue.value = _promptQueue.value.filterNot { it.id in queuedIds }", persist)
             assertTrue("$name: sanity: persist present", persist >= 0)
-            assertTrue("$name: the dequeue must follow the persist", dequeue > persist)
+            val restoresOnCancel = Regex("""catch \([^)]*CancellationException[^)]*\)[^}]*_promptQueue""")
+                .containsMatchIn(b)
+            assertTrue(
+                "$name: queue is dequeued before the suspending persist and never restored on cancellation",
+                dequeue > persist || restoresOnCancel,
+            )
         }
     }
 
-    /** Pins the 955e76d6a fix itself: the emit works on the LIVE list. */
+    /** Pins the 955e76d6a fix itself: the emit filters the LIVE list. */
     @Test
     fun `the inject emit filters the live message list, not a snapshot`() {
         val b = body("injectQueuedPromptsAsNewTurn")
-        // [T-queued-bubble-atomic-delivery] The swap happens inside one
-        // `_messages.update { … }` (CAS over the live list), so a bubble
-        // appended during the four suspends above it is preserved by
-        // construction; a whole-value write is what used to lose it.
-        assertTrue(b.contains("_messages.update { current ->"))
+        assertTrue(b.contains("_messages.value = _messages.value.filterNot"))
         assertTrue("no stale snapshot variable", !b.contains("msgsAfterUnqueue ="))
-        assertTrue("no whole-list write of a snapshot", !b.contains("_messages.value = "))
     }
 }

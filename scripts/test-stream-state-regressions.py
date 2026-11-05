@@ -63,7 +63,7 @@ files=[]
 for name, text in stubs.items():
     f=w/name; f.write_text(text); files.append(f)
 production=['provider/openai/ThinkPrefixStreamParser.kt', 'provider/ThinkingPrefixFlow.kt', 'data/model/LLMStreamChunk.kt', 'service/SessionActivityTracker.kt', 'service/ToolOutcome.kt']
-if not a.baseline: production += ['ui/chat/LiveMessageUpdates.kt']
+
 for rel in production:
     src=MAIN/rel
     if a.baseline:
@@ -76,7 +76,7 @@ for rel in production:
     else: files.append(src)
 tests=['provider/ThinkPrefixStreamParserTest.kt', 'provider/ThinkingPrefixFlowTest.kt']
 if not a.baseline:
-    tests += ['service/SessionRunOwnershipTest.kt', 'ui/chat/QueuedPromptInjectRaceTest.kt', 'ui/chat/LiveMessageAtomicityTest.kt', 'ui/chat/StreamStateWiringTest.kt', 'browser/HeadlessGpuCaptureWiringTest.kt', 'ui/chat/ScheduledPrefillWiringTest.kt']
+    tests += ['ui/chat/QueuedPromptInjectRaceTest.kt', 'ui/chat/StreamStateWiringTest.kt', 'browser/HeadlessGpuCaptureWiringTest.kt', 'ui/chat/ScheduledPrefillWiringTest.kt']
     files += [TEST/'ProductionSources.kt']
 files += [TEST/t for t in tests]
 cp=os.pathsep.join(map(str,jars))

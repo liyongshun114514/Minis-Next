@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('jvm', ROOT / 'scripts/test-tool-arguments.py')
+spec = importlib.util.spec_from_file_location('jvm', ROOT / 'scripts/kotlin_jvm_tools.py')
 jvm = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(jvm)
 BASE = ROOT / 'src/android/app/src'

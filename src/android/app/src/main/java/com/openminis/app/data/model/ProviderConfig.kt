@@ -137,6 +137,9 @@ enum class ThinkingLevel {
 
     val isEnabled: Boolean get() = this != OFF
 
+    /** Lowercase config/CLI wire value; persisted enum names stay unchanged. */
+    val configToken: String get() = name.lowercase(java.util.Locale.ROOT)
+
     val displayName: String
         get() = when (this) {
             OFF -> "Off"
@@ -164,6 +167,10 @@ enum class ThinkingLevel {
          * this for every "read from persisted data" path.
          */
         fun decoded(raw: String): ThinkingLevel = parseOrNull(raw) ?: XHIGH
+
+        /** Strict CLI tokens: unlike persisted values, no casing/space coercion. */
+        fun fromConfigToken(token: String): ThinkingLevel? =
+            entries.firstOrNull { it.configToken == token }
 
         /**
          * [T-android-restore-thinking-level] Case-insensitive parse, or null

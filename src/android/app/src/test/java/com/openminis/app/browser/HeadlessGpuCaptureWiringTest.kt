@@ -19,28 +19,15 @@ class HeadlessGpuCaptureWiringTest {
     private val host = File("src/main/java/com/openminis/app/browser/HeadlessRenderHost.kt").readText()
 
     @Test
-    fun `agent screenshots and live preview refresh GPU while full-page stays bounded`() {
+    fun `agent screenshots use the GPU host, the live preview and full-page stay on the software draw`() {
         assertTrue("viewport screenshot", manager.contains("captureWebViewBitmap(gpu = !didStretch)"))
         assertTrue("auto snapshot after an action", manager.contains("captureWebViewBitmap(gpu = true) ?: return result"))
-        // Software draw alone can return a stale detached Chromium frame.
-        // Live capture must use the bounded, serialised GPU refresh path too,
-        // and must report which path produced the pixels so the preview can
-        // tell "current page" from "last composited frame".
-        assertTrue(manager.contains("suspend fun captureLiveFrame(): BrowserLiveFrame?"))
+        // The 3 s live-preview thumbnail must not attach/detach the WebView
+        // on every tick.
+        assertTrue(manager.contains("suspend fun captureLiveSnapshot(): Bitmap? = captureWebViewBitmap()"))
         assertTrue(
-            "live frames are bounded in memory",
-            manager.contains("private const val PREVIEW_MAX_EDGE_PX = 720"),
-        )
-        assertTrue(
-            "a GPU miss falls through to the software draw, and the path is reported",
-            manager.contains("HeadlessRenderHost.capture(webView, w, h)?.let { frame ->") &&
-                manager.contains("onPath(LiveFramePath.GPU)") &&
-                manager.contains("if (webView.isAttachedToWindow) LiveFramePath.SOFTWARE_ATTACHED else LiveFramePath.SOFTWARE_DETACHED"),
-        )
-        assertTrue(
-            "an attached view draws live pixels, a detached one does not",
-            File("src/main/java/com/openminis/app/browser/BrowserLiveFrame.kt")
-                .readText().contains("val trustworthy: Boolean get() = path != LiveFramePath.SOFTWARE_DETACHED"),
+            "a GPU miss falls through to the software draw",
+            manager.contains("if (gpu) HeadlessRenderHost.capture(webView, w, h)?.let { return@withContext it }"),
         )
     }
 
@@ -58,12 +45,7 @@ class HeadlessGpuCaptureWiringTest {
         assertTrue(host.contains("const val IDLE_RELEASE_MS = 15_000L"))
         assertTrue(host.contains("main.postDelayed(releaseTask, IDLE_RELEASE_MS)"))
         assertTrue(host.contains("w > MAX_EDGE_PX || h > MAX_EDGE_PX"))
-        // [T-android-browser-preview-live] Degrade, don't die: a kill switch
-        // turned one background trip into a permanently frozen preview.
-        assertTrue("bounded cooldown, not a permanent disable", host.contains("retryGate.recordFailure(reason)"))
-        assertTrue("success clears the ladder", host.contains("retryGate.recordSuccess()"))
-        assertTrue("the path is always retried later", host.contains("if (!retryGate.allow()) return null"))
-        assertTrue("no permanent kill switch", !host.contains("GPU capture disabled for this process"))
+        assertTrue("circuit breaker", host.contains("disabled = reason"))
         assertEquals("pixel copy runs off the main thread", 1,
             Regex("""withContext\(Dispatchers\.Default\) \{ toBitmap""").findAll(host).count())
     }

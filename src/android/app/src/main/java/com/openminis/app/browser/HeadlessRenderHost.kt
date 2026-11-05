@@ -59,16 +59,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *    full-page capture (tens of thousands of px tall) stays on the software
  *    path rather than allocating a display that size.
  *  - Any failure returns null and the caller falls back to the software
- *    draw, so the worst case is the previous behaviour. Repeated failures back
- *    off through [PreviewRetryGate] (up to a minute between attempts) so a
- *    device that cannot do this does not pay the attempt on every screenshot —
- *    but the path is never disabled for the process. It used to be, and every
- *    cause it counted is transient: a `Presentation` raised while the app is
- *    backgrounded throws `BadTokenException`, a sheet opening mid-capture
- *    re-parents the WebView, a virtual display can be refused under memory
- *    pressure. Once tripped, the preview fell back to the detached software
- *    draw — the last composited frame — i.e. a permanently frozen thumbnail
- *    after one trip through the background.
+ *    draw, so the worst case is the previous behaviour. Repeated failures to
+ *    create the host trip [disabled] for the rest of the process, so a device
+ *    that cannot do this does not pay the attempt on every screenshot.
  *  - The window is NOT_FOCUSABLE / NOT_TOUCHABLE: a focused input inside the
  *    page must never raise the IME on the phone's real screen.
  */
@@ -98,6 +91,7 @@ internal object HeadlessRenderHost {
     private const val QUIET_MS = 150L
     /** At least this many frames after the content is ready. */
     private const val MIN_FRAMES = 2
+    private const val MAX_HOST_FAILURES = 3
 
     private val mutex = Mutex()
     private val main = Handler(Looper.getMainLooper())
@@ -112,16 +106,13 @@ internal object HeadlessRenderHost {
     private var latest: Image? = null
     private var frameCount = 0L
     private var lastFrameAt = 0L
+    private var hostFailures = 0
     private var visualStateRequest = 0L
 
-    /**
-     * [T-android-browser-preview-live] Backoff instead of a kill switch. Allow
-     * is checked on the main thread; the gate is only mutated under [mutex].
-     */
-    private val retryGate = PreviewRetryGate(now = { SystemClock.elapsedRealtime() })
-
-    /** Last recorded failure, for diagnostics. Never means "do not try again". */
-    val lastFailureReason: String? get() = retryGate.lastReason
+    /** Non-null once the GPU path has been given up on for this process. */
+    @Volatile
+    var disabled: String? = null
+        private set
 
     private val releaseTask = Runnable { release("idle") }
 
@@ -132,7 +123,7 @@ internal object HeadlessRenderHost {
      * or fails — callers then use the software draw.
      */
     suspend fun capture(webView: WebView, w: Int, h: Int): Bitmap? {
-        if (!retryGate.allow()) return null
+        if (disabled != null) return null
         return mutex.withLock { withContext(Dispatchers.Main) { captureOnMain(webView, w, h) } }
     }
 
@@ -186,15 +177,7 @@ internal object HeadlessRenderHost {
                 return null
             }
             if (!gotFrames || latest == null) {
-                // The host exists but produced no pixels for this page. Back
-                // off rather than rebuilding the display on every preview
-                // tick; the gate re-allows the attempt within a minute.
-                retryGate.recordFailure("no composited frame")
-                Log.w(
-                    TAG,
-                    "No composited frame (ready=$ready frames=${frameCount - start}); falling back, " +
-                        "retry in ${retryGate.cooldownRemainingMs()}ms",
-                )
+                Log.w(TAG, "No composited frame (ready=$ready frames=${frameCount - start}); falling back")
                 return null
             }
             // Take ownership so the listener cannot close it under us, and
@@ -205,7 +188,6 @@ internal object HeadlessRenderHost {
             onMain { host.removeView(webView) }
             val owned = image!!
             val bitmap = withContext(Dispatchers.Default) { toBitmap(owned, w, h) }
-            retryGate.recordSuccess()
             Log.i(
                 TAG,
                 "gpu capture ${w}x$h total=${SystemClock.elapsedRealtime() - t0}ms " +
@@ -214,8 +196,6 @@ internal object HeadlessRenderHost {
                     "mainBlock=${mainBlockMs}ms",
             )
             return bitmap
-        } catch (cancelled: kotlinx.coroutines.CancellationException) {
-            throw cancelled
         } catch (e: Exception) {
             Log.w(TAG, "gpu capture failed: ${e.javaClass.simpleName}: ${e.message}")
             return null
@@ -296,6 +276,7 @@ internal object HeadlessRenderHost {
             container = c
             hostW = w
             hostH = h
+            hostFailures = 0
             Log.i(TAG, "host created ${w}x$h dpi=${app.resources.displayMetrics.densityDpi}")
             return c
         } catch (e: Exception) {
@@ -306,12 +287,12 @@ internal object HeadlessRenderHost {
     }
 
     private fun fail(reason: String): FrameLayout? {
-        retryGate.recordFailure(reason)
-        Log.w(
-            TAG,
-            "$reason (failure ${retryGate.failureCount}, next attempt in " +
-                "${retryGate.cooldownRemainingMs()}ms)",
-        )
+        hostFailures++
+        Log.w(TAG, "$reason (failure $hostFailures/$MAX_HOST_FAILURES)")
+        if (hostFailures >= MAX_HOST_FAILURES) {
+            disabled = reason
+            Log.w(TAG, "GPU capture disabled for this process: $reason")
+        }
         return null
     }
 

@@ -545,12 +545,6 @@ private fun ToolPreviewThumbnail(
     // because toolBlocks isn't in scope here.
     fallbackImagePath: String? = null,
     /**
-     * [T-android-browser-preview-live] True when this is the newest browser_use
-     * block, i.e. the block whose page the live preview is allowed to stand in
-     * for once it is no longer running. Older blocks keep their own screenshot.
-     */
-    isLatestBrowserBlock: Boolean = false,
-    /**
      * [T-android-agent-inner-tool-front] How many sub-agent levels this tile has
      * already punched through. A sub agent can itself delegate, so without a cap
      * the substitution below would recurse for as long as the chain is deep.
@@ -903,7 +897,7 @@ private fun ToolPreviewThumbnail(
                 // synchronously on the composition thread, blocking the
                 // chat-tap → preview navigation transition for ~150-350ms
                 // on multi-MB browser screenshots.
-                val liveBitmap = rememberBrowserLiveSnapshot(block, isLatestBrowserBlock)
+                val liveBitmap = rememberBrowserLiveSnapshot(block)
                 val savedBitmap by androidx.compose.runtime.produceState<android.graphics.Bitmap?>(
                     initialValue = null,
                     block.imageFilePath,
@@ -1303,16 +1297,6 @@ internal fun FloatingToolStatusBar(
                     toolAccent = toolAccent,
                     onClick = { onOpenCurrentDetail() },
                     fallbackImagePath = fallbackImagePath,
-                    // [T-android-browser-preview-live] The bar can be paged back
-                    // to an earlier tool. Only the newest browser_use block may
-                    // show the live page; the others must keep their screenshot,
-                    // or the current frame bleeds into history.
-                    isLatestBrowserBlock = remember(block.id, block.toolName, toolBlocks) {
-                        if (block.toolName != "browser_use") false else {
-                            val idx = toolBlocks.indexOfLast { it.id == block.id }
-                            idx < 0 || toolBlocks.drop(idx + 1).none { it.toolName == "browser_use" }
-                        }
-                    },
                     onLongClick = { showThumbMenu = true },
                 )
                 DropdownMenu(expanded = showThumbMenu, onDismissRequest = { showThumbMenu = false }) {

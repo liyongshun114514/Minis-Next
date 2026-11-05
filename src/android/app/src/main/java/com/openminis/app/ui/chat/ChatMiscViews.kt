@@ -955,100 +955,49 @@ private fun parseInlineMarkdown(
 
 // ─── Browser live-preview plumbing ──────────────────────────────────────────
 //
-// Mirrors iOS `takeBrowserSnapshot()` (ToolLiveSheet.swift:1803-1825): while a
-// browser_use call is live the chat's tool preview shows the page itself, not
-// just screenshots saved by visual-change actions (NAVIGATE/CLICK/SCROLL/
-// HOVER/TYPE). Actions like get_readable, get_text, execute_js and fetch never
-// save an imageFilePath, so without this they render a blank/globe placeholder.
-//
-// [T-android-browser-preview-live] The producer itself moved out of Compose
-// into `BrowserTabPool.livePreview`. What went wrong with the old in-composable
-// loop, and why the shape changed:
-//
-//  1. `while (true) { capture(); delay(3000) }` captures on the LEADING edge
-//     and then waits. A browser action that finishes in 150 ms — a click, a
-//     scroll, an execute_js — therefore got exactly ONE frame: the state
-//     *before* the action. The loop was cancelled with the block, so the
-//     post-action page was never captured, and the thumbnail trailed the page
-//     by one action for the rest of the task. That is the "preview is frozen"
-//     report, and it reproduces on every fast action, not intermittently.
-//  2. Every surface that rendered a thumbnail ran its OWN loop
-//     (floating bar, tool detail sheet, sub-agent punch-through), and every
-//     capture serialises on one global mutex inside HeadlessRenderHost — so
-//     two visible surfaces starved each other.
-//  3. The loop kept running while the app was backgrounded, building GPU
-//     hosts and burning the host's failure budget; a `Presentation` cannot be
-//     raised from the background, and the resulting failures used to disable
-//     the GPU path for the rest of the process, leaving only the detached
-//     software draw (a stale Chromium frame).
-//  4. `activeManager` is the SELECTED tab; an agent's action can run on a
-//     different tab, so the loop could preview an idle page.
-//
-// The engine fixes all four; this composable is now only the subscription:
-// it holds a lease for as long as the thumbnail is on screen, tells the lease
-// whether the block is still live, forwards app foreground state, and reads
-// the shared frame. Cancellation is structural — closing the last lease
-// cancels the loop (the unit tests assert no further captures).
+// Mirrors iOS `takeBrowserSnapshot()` timer (ToolLiveSheet.swift:1803-1825):
+// while a browser_use block is RUNNING/STREAMING, poll the active WebView at
+// a fixed interval so the Minis Computer sheet, detail sheet, and floating
+// thumbnail can show the current page state — not just screenshots saved by
+// visualChangeActions (NAVIGATE/CLICK/SCROLL/HOVER/TYPE). Actions like
+// get_readable, get_text, execute_js, fetch never save an imageFilePath, so
+// without this they'd render a blank/globe placeholder.
 
 // [T-android-split-chat] internal (was private) — referenced from ChatScreen.kt
 // after the move.
 internal val LocalBrowserTabPool = compositionLocalOf<com.openminis.app.browser.BrowserTabPool?> { null }
 internal val LocalToolPreviewEnabled = compositionLocalOf { true }
 
-/**
- * Live frame for [block], or null when a saved screenshot is the honest
- * source.
- *
- * [isLatestBrowserBlock] lets a COMPLETED block keep showing the live page
- * while the browser session is still warm (the model thinking between two tool
- * calls). It must only be true for the newest browser_use block of the
- * conversation: a completed older block is a historical record and has to keep
- * its own screenshot, or the newest navigation's frame bleeds across every
- * earlier block (iOS parity: ToolLiveSheet resets `browserSnapshot` when
- * `imageFilePath` changes).
- */
 @Composable
 internal fun rememberBrowserLiveSnapshot(
     block: AssistantBlock,
-    isLatestBrowserBlock: Boolean = false,
+    intervalMs: Long = 3000L,
 ): android.graphics.Bitmap? {
     if (block.toolName != "browser_use") return null
     val isLive = block.toolStatus == ToolBlockStatus.RUNNING ||
         block.toolStatus == ToolBlockStatus.STREAMING ||
         block.toolStatus == ToolBlockStatus.PENDING
-    if (!isLive && !isLatestBrowserBlock) return null
+    // Only live blocks poll the WebView. Completed blocks fall through to
+    // their own saved imageFilePath — capturing the active WebView for a
+    // completed block would bleed the latest navigation's frame across all
+    // earlier completed blocks (iOS parity: ToolLiveSheet resets
+    // browserSnapshot on imageFilePath change, achieving the same result).
+    if (!isLive) return null
     val tabPool = LocalBrowserTabPool.current ?: return null
-
-    val preview = remember(tabPool) { tabPool.livePreview }
-    val lease = remember(preview) { preview.acquire() }
-    // A lease outlives many recompositions; keep the engine's notion of "a
-    // browser call is running right now" in sync with the block it belongs to.
-    SideEffect { lease.live = isLive }
-    DisposableEffect(lease) {
-        onDispose { lease.close() }
-    }
-    // Captures while backgrounded cannot produce a frame (a Presentation needs
-    // a foreground token) and used to burn the GPU path's failure budget.
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, preview) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            when (event) {
-                androidx.lifecycle.Lifecycle.Event.ON_START -> preview.setForeground(true)
-                androidx.lifecycle.Lifecycle.Event.ON_STOP -> preview.setForeground(false)
-                else -> Unit
-            }
+    val snapshot by produceState<android.graphics.Bitmap?>(
+        initialValue = null,
+        block.id,
+        tabPool,
+    ) {
+        val first = tabPool.activeManager?.captureLiveSnapshot()
+        if (first != null) value = first
+        while (true) {
+            kotlinx.coroutines.delay(intervalMs)
+            val next = tabPool.activeManager?.captureLiveSnapshot() ?: continue
+            value = next
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    val frame by preview.frame.collectAsState()
-    val active by preview.sessionActive.collectAsState()
-    // The window between two tool calls: no block is live, but the browser
-    // session is (an action just finished). Show the live page then; once the
-    // session goes cold the saved screenshot takes over again.
-    if (!isLive && !active) return null
-    return frame?.image
+    return snapshot
 }
 
 /**

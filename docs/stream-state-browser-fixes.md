@@ -2,6 +2,12 @@
 
 Baseline: `9068b21e1ecd12e087f0bb9976ca202015f14598`.
 
+> Historical record: items 2–4 (activity ownership, queued-message updates and
+> browser-preview changes) were withdrawn in 1.6.4 at the user's request.
+> Item 1 (thinking-prefix parsing) remains. The verification counts below
+> describe the historical patch, not current acceptance. See
+> `docs/maintenance-1.6.4.md` for the replacement change set.
+
 ## Changes
 
 1. `ThinkPrefixStreamParser` recognizes `<think>` and `<thinking>` at the response prefix, including fragmented opening/closing tags. The shared `splitThinkingPrefix()` adapter normalizes every provider stream before UI accumulation and persistence. Ordinary prose/code containing tags remains literal; ordinary Markdown whitespace is preserved by the shared adapter. Each collection has its own parser, including retries and long tool loops.

@@ -409,16 +409,14 @@ internal object ConfigBuiltins {
                     else {
                         val session = runBlocking { chatRepo.dao.getSession(sid) }
                         val raw = session?.thinkingOverride
-                        val token = if (raw == null) "off" else thinkingLevelToToken(
-                            ThinkingLevel.parseOrNull(raw) ?: ThinkingLevel.OFF
-                        )
+                        val token = (ThinkingLevel.parseOrNull(raw ?: "") ?: ThinkingLevel.OFF).configToken
                         ConfigValue.Str(token)
                     }
                 },
                 writer = { v ->
                     val token = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
-                    val level = thinkingLevelFromToken(token)
+                    val level = ThinkingLevel.fromConfigToken(token)
                         ?: throw ConfigError.InvalidValue("Unknown thinking level: $token")
                     val sid = ChatViewModelStore.activeSessionId
                         ?: throw ConfigError.InvalidValue("No active session — open a chat first")
@@ -492,30 +490,6 @@ internal object ConfigBuiltins {
         // `subModelSource` field in `model_binding` JSON, no agent-loop
         // fallback path). Reported up at the spec level rather than
         // adding a no-op key that silently throws on every write.
-    }
-
-    /** iOS uses lowercase tokens (`off`/`low`/…); Android `ThinkingLevel.name`
-     *  is uppercase. Centralised so reader/writer round-trip identical strings. */
-    private fun thinkingLevelToToken(level: ThinkingLevel): String = when (level) {
-        ThinkingLevel.OFF -> "off"
-        ThinkingLevel.LOW -> "low"
-        ThinkingLevel.MEDIUM -> "medium"
-        ThinkingLevel.HIGH -> "high"
-        ThinkingLevel.XHIGH -> "xhigh"
-        // [T-android-thinking-level-arch] GPT-5.6 higher tiers.
-        ThinkingLevel.MAX -> "max"
-        ThinkingLevel.ULTRA -> "ultra"
-    }
-
-    private fun thinkingLevelFromToken(token: String): ThinkingLevel? = when (token) {
-        "off" -> ThinkingLevel.OFF
-        "low" -> ThinkingLevel.LOW
-        "medium" -> ThinkingLevel.MEDIUM
-        "high" -> ThinkingLevel.HIGH
-        "xhigh" -> ThinkingLevel.XHIGH
-        "max" -> ThinkingLevel.MAX
-        "ultra" -> ThinkingLevel.ULTRA
-        else -> null
     }
 
     /** Convert the `model_binding` JSON the chat layer writes into the

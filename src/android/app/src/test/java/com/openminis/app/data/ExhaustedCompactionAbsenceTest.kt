@@ -118,7 +118,10 @@ class ExhaustedCompactionAbsenceTest {
         val branch = vm.substring(start, end)
         assertTrue(branch.contains("[T-compact-last-resort-removed]"))
         assertTrue(branch.contains("val trail = (fallbackReasons + skipped).joinToString(\"\\n\")"))
-        assertTrue(branch.contains("throw com.openminis.app.data.model.LLMError.ProviderError(\"\$trail\\n\$finalDesc\")"))
+        assertTrue(branch.contains("throw com.openminis.app.data.model.LLMError.ProviderError("))
+        assertTrue(branch.contains("val finalDesc = actual.message ?: actual.toString()"))
+        assertTrue(branch.contains("(trail).toString() + \"\\n\" + (finalDesc).toString()") ||
+            branch.contains("\"\$trail\\n\$finalDesc\""))
         assertTrue(branch.contains("throw actual"))
         for (forbidden in listOf("awaitCompaction(", "compact(", "compactBefore(", "agentHistory.clear", "agentHistory.removeAt", "_compactSummary")) {
             assertFalse("exhausted branch must not $forbidden", branch.contains(forbidden))

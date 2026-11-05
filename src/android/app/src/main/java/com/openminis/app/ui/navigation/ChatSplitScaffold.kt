@@ -94,8 +94,6 @@ import kotlinx.coroutines.flow.first
  */
 private const val LIST_PANE_DEFAULT_FRACTION = 0.28f
 
-private val LIST_PANE_WIDTH = 340.dp
-
 /**
  * [T-android-empty-state-soul-identity] Upper bound for the empty-state Soul
  * icon. A custom image is capped at its own stored pixel size so it is never

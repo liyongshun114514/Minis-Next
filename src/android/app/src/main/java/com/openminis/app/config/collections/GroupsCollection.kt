@@ -82,7 +82,7 @@ class GroupsCollection(
         // means "no override" (null). An unrecognised token is ignored (null).
         val defaultThinking = (obj["default_thinking_level"] as? ConfigValue.Str)?.value
             ?.takeIf { it.isNotEmpty() }
-            ?.let { thinkingLevelFromToken(it) }
+            ?.let { ThinkingLevel.fromConfigToken(it) }
 
         // 0 (or absent / non-positive) means "no limit" (null).
         val contextLimit = (obj["context_limit_tokens"] as? ConfigValue.Int)?.value
@@ -225,12 +225,12 @@ class GroupsCollection(
             reader = {
                 val g = group(id) ?: return@ClosureField ConfigValue.Null
                 // Wire token is lowercase to match iOS; null → empty string.
-                ConfigValue.Str(g.defaultThinkingLevel?.let { thinkingLevelToToken(it) } ?: "")
+                ConfigValue.Str(g.defaultThinkingLevel?.configToken ?: "")
             },
             writer = { v ->
                 val s = (v as? ConfigValue.Str)?.value ?: throw ConfigError.TypeMismatch("string")
                 mutate(id) {
-                    it.defaultThinkingLevel = if (s.isEmpty()) null else thinkingLevelFromToken(s)
+                    it.defaultThinkingLevel = if (s.isEmpty()) null else ThinkingLevel.fromConfigToken(s)
                 }
             },
         )
@@ -258,31 +258,6 @@ class GroupsCollection(
 
     /** Android's `default` is iOS's `limited`: fall back only when the provider rejects. */
     private val fallbackLabels = mapOf("default" to "Only when the provider rejects", "always" to "Also on transient errors")
-
-    /** iOS uses lowercase tokens (`off`/`low`/…); Android `ThinkingLevel.name`
-     *  is uppercase. Round-trip identical strings to keep the CLI contract
-     *  cross-platform. */
-    private fun thinkingLevelToToken(level: ThinkingLevel): String = when (level) {
-        ThinkingLevel.OFF -> "off"
-        ThinkingLevel.LOW -> "low"
-        ThinkingLevel.MEDIUM -> "medium"
-        ThinkingLevel.HIGH -> "high"
-        ThinkingLevel.XHIGH -> "xhigh"
-        // [T-android-thinking-level-arch] GPT-5.6 higher tiers.
-        ThinkingLevel.MAX -> "max"
-        ThinkingLevel.ULTRA -> "ultra"
-    }
-
-    private fun thinkingLevelFromToken(token: String): ThinkingLevel? = when (token) {
-        "off" -> ThinkingLevel.OFF
-        "low" -> ThinkingLevel.LOW
-        "medium" -> ThinkingLevel.MEDIUM
-        "high" -> ThinkingLevel.HIGH
-        "xhigh" -> ThinkingLevel.XHIGH
-        "max" -> ThinkingLevel.MAX
-        "ultra" -> ThinkingLevel.ULTRA
-        else -> null
-    }
 
     /**
      * Entries live as a JSON array of model entry UUIDs. Writing

@@ -2,7 +2,6 @@ package com.openminis.app.provider
 
 import com.openminis.app.data.model.LLMModel
 import com.openminis.app.provider.openai.OpenAIModelsApi
-import com.openminis.app.provider.xai.XAIModelsApi
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -23,12 +22,11 @@ import org.junit.Test
  * Refresh re-ran that same code. The fix routes xAI through the generic
  * OpenAI-compatible fetcher with the built-in list demoted to a fallback.
  *
- * These tests exercise the composed expression from refreshModels:
- *
- *     OpenAIModelsApi.fetchModels(key, base).ifEmpty { XAIModelsApi.fetchModelsOAuth() }
- *
- * against a MockWebServer, so the real HTTP + JSON parsing runs with no
- * network and no credential. What they cannot cover is the live api.x.ai
+ * These tests exercise the current fetchModelsDetailed result contract:
+ * parsed vendor lists replace the catalog, while errors preserve the stored
+ * catalog (the built-in list is only a seed, never a substitute live result).
+ * A MockWebServer runs real HTTP + JSON parsing with no external
+ * network or credential. What they cannot cover is the live api.x.ai
  * contract itself; that was checked by hand (an unauthenticated GET answers
  * 401 `invalid-argument`, i.e. an auth challenge rather than a 404, which is
  * what establishes the endpoint exists and is OpenAI-shaped).
@@ -52,10 +50,10 @@ class XAIDynamicCatalogTest {
     private fun baseUrl(): String = server.url("/v1").toString().trimEnd('/')
 
     /** The production expression under test. */
-    private fun resolve(base: String): List<LLMModel> =
+    private fun resolve(base: String, stored: List<LLMModel> = emptyList()): List<LLMModel> =
         runBlocking {
-            OpenAIModelsApi.fetchModels("test-key", base)
-                .ifEmpty { XAIModelsApi.fetchModelsOAuth() }
+            val result = OpenAIModelsApi.fetchModelsDetailed("test-key", base)
+            if (result.parsed) result.models.map { it.copy(provider = "xAI") } else stored
         }
 
     @Test
@@ -101,32 +99,23 @@ class XAIDynamicCatalogTest {
     }
 
     @Test
-    fun httpFailureFallsBackToTheBuiltInCatalog() {
+    fun httpFailureKeepsTheStoredCatalog() {
         server.enqueue(MockResponse().setResponseCode(401).setBody("""{"error":"nope"}"""))
-
-        val models = resolve(baseUrl())
-
-        // Custom base => fetchModels returns empty on failure (never a
-        // wrong-vendor guess), so the built-in list is what the user sees.
-        assertFalse("must not end up with an empty picker", models.isEmpty())
-        assertTrue(
-            "fallback must be the xAI built-ins, got ${models.map { it.id }}",
-            models.any { it.id == "grok-4.6" },
-        )
-        assertTrue(
-            "fallback must not contain OpenAI models",
-            models.none { it.id.startsWith("gpt-") },
-        )
+        val stored = listOf(LLMModel.allXAI.first().copy(id = "stored-grok", displayName = "Stored Grok"))
+        assertEquals(stored, resolve(baseUrl(), stored))
     }
 
     @Test
-    fun malformedBodyFallsBackRatherThanEmptyingThePicker() {
+    fun malformedBodyKeepsTheStoredCatalog() {
         server.enqueue(MockResponse().setResponseCode(200).setBody("not json at all"))
+        val stored = listOf(LLMModel.allXAI.first().copy(id = "stored-grok", displayName = "Stored Grok"))
+        assertEquals(stored, resolve(baseUrl(), stored))
+    }
 
-        val models = resolve(baseUrl())
-
-        assertFalse(models.isEmpty())
-        assertTrue(models.any { it.provider == "xAI" })
+    @Test
+    fun parsedEmptyVendorCatalogIsNotReplacedByTheSeed() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"object":"list","data":[]}"""))
+        assertTrue(resolve(baseUrl(), LLMModel.allXAI).isEmpty())
     }
 
     @Test
