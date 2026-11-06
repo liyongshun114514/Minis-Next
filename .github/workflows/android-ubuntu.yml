@@ -202,7 +202,7 @@ jobs:
             --tests '*ComposerPermissionMenuTest' --tests '*SoulPrompt*' \
             --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
             --tests '*SubAgentDefinitionTest' --tests '*SubAgentPersistenceTest' \
-            --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' \
+            --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' --tests '*SubAgentStatusPanelTest' \
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \

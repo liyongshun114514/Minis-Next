@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [T-android-subagent-status-panel] Read-only sub agent status viewer above the floating work bar. -->
+<resources>
+    <string name="subagent_status_title">Sub-agents</string>
+    <string name="subagent_status_counts">%1$d active · %2$d total</string>
+    <string name="subagent_status_expand">Show sub-agents</string>
+    <string name="subagent_status_collapse">Hide sub-agents</string>
+    <string name="subagent_status_expanded">Expanded</string>
+    <string name="subagent_status_collapsed">Collapsed</string>
+    <string name="subagent_status_open_tool">Open in conversation</string>
+    <string name="subagent_status_state_pending">Pending</string>
+    <string name="subagent_status_state_running">Running</string>
+    <string name="subagent_status_state_done">Done</string>
+    <string name="subagent_status_state_cancelled">Cancelled</string>
+    <string name="subagent_status_state_failed">Failed</string>
+    <string name="subagent_status_state_timeout">Timed out</string>
+</resources>

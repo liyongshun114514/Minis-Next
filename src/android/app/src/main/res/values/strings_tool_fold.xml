@@ -3,7 +3,7 @@
 <resources>
     <string name="tool_fold_setting_title">Fold Consecutive Tool Calls</string>
     <string name="tool_fold_section">Tool Calls</string>
-    <string name="tool_fold_setting_footer">Consecutive tool calls are shown as one line. Tap it to see each call.</string>
+    <string name="tool_fold_setting_footer">Tool calls stay expanded while the model works. When its response ends, consecutive finished calls collapse into one line. Tap to see each call.</string>
     <string name="tool_fold_ran_n_tools">Ran %1$d tools</string>
     <string name="tool_fold_n_failed">%1$d failed</string>
     <string name="tool_fold_n_cancelled">%1$d cancelled</string>

@@ -77,8 +77,8 @@ internal fun applyToolFolds(
 
 /**
  * One chat's folding state: the setting and the runs the user has opened.
- * Eligibility depends only on block contents, not scroll position or whether
- * the message is still streaming. [changes] re-runs the list on user changes.
+ * Current-turn messages stay unfolded until processing ends. Finished history
+ * stays folded while another turn runs. [changes] re-runs on user changes.
  *
  * Called from the list pipeline's collector, one call at a time.
  */
@@ -92,8 +92,15 @@ internal class ToolFoldController {
     @Volatile var enabled: Boolean = false
         set(value) { if (field != value) { field = value; bump() } }
 
-    private class Cached(val blocks: List<AssistantBlock>, val runs: List<ToolFoldPlanner.FoldedRun>)
+    private class Cached(
+        val blocks: List<AssistantBlock>,
+        val unfinished: Boolean,
+        val runs: List<ToolFoldPlanner.FoldedRun>,
+    )
     private val planCache = HashMap<String, Cached>()
+    // A loop may seal a bubble at a compaction/queue boundary and continue in
+    // another. Keep all its observed live bubbles open until processing ends.
+    private val pendingTurnIds = HashSet<String>()
 
     fun toggle(runKey: String) {
         _expanded.value = _expanded.value.let { if (runKey in it) it - runKey else it + runKey }
@@ -119,9 +126,10 @@ internal class ToolFoldController {
 
     private fun runsFor(message: ChatMessage): List<ToolFoldPlanner.FoldedRun> {
         val c = planCache[message.id]
-        if (c != null && c.blocks === message.toolBlocks) return c.runs
+        val unfinished = message.isStreaming || message.isAwaitingModelResponse
+        if (c != null && c.blocks === message.toolBlocks && c.unfinished == unfinished) return c.runs
         val runs = ToolFoldPlanner.foldedRuns(message)
-        planCache[message.id] = Cached(message.toolBlocks, runs)
+        planCache[message.id] = Cached(message.toolBlocks, unfinished, runs)
         return runs
     }
 
@@ -129,16 +137,39 @@ internal class ToolFoldController {
      * Fold [rows], built from [messages] (with the live overlay applied to the
      * message(s) in [live], which take precedence by id).
      */
-    fun fold(rows: List<FlatChatItem>, messages: List<ChatMessage>, live: List<ChatMessage>): List<FlatChatItem> {
-        if (!enabled) return rows
+    fun fold(
+        rows: List<FlatChatItem>,
+        messages: List<ChatMessage>,
+        live: List<ChatMessage>,
+        processing: Boolean = false,
+    ): List<FlatChatItem> {
         val liveById = if (live.isEmpty()) emptyMap() else live.associateBy { it.id }
+        if (!processing) pendingTurnIds.clear()
+        val currentTail = if (processing) {
+            messages.lastOrNull { it.role == "assistant" }?.id?.takeIf {
+                // Starting a new send sets processing before its placeholder
+                // lands. Do not reopen already-folded previous history then.
+                planCache[it]?.runs.isNullOrEmpty()
+            }
+        } else null
+        for (m in messages) {
+            val message = liveById[m.id] ?: m
+            if (message.role == "assistant" && (message.isStreaming || message.isAwaitingModelResponse ||
+                    message.id in liveById || message.id == currentTail)) {
+                pendingTurnIds.add(message.id)
+            }
+        }
+        if (!enabled) return rows
         val accepted = HashMap<String, List<ToolFoldPlanner.FoldedRun>>()
         for (m in messages) {
-            // [T-fold-live-turn] The live copy first: during a turn the stored
-            // message has no tool blocks yet (they stream into the overlay), so
-            // checking the stored one never folded a running task until it ended.
             val message = liveById[m.id] ?: m
             if (message.role != "assistant" || message.toolBlocks.size < ToolFoldPlanner.MINIMUM_TOOL_COUNT) continue
+            // Overlay presence is active even when a transient canonical copy
+            // has already been finalized. Never reuse a historical plan then.
+            if (message.id in liveById || (processing && message.id in pendingTurnIds)) {
+                planCache.remove(message.id)
+                continue
+            }
             val runs = runsFor(message)
             if (runs.isEmpty()) continue
             accepted[message.id] = runs

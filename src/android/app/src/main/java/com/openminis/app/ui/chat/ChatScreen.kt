@@ -204,6 +204,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -2700,8 +2701,8 @@ fun ChatScreen(
         appearancePrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { appearancePrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    // Consecutive terminal tools fold by block status. The setting and opened
-    // runs re-run the list pipeline; scrolling does not change eligibility.
+    // Current-turn tools stay expanded until the model finishes its response.
+    // The setting, opened runs and processing end re-run the list pipeline.
     val toolFold = remember(sessionId) {
         ToolFoldController().apply {
             enabled = appearancePrefs.getBoolean(
@@ -3594,15 +3595,26 @@ fun ChatScreen(
                 }
             }
 
+            // This is the actual visible area above the composer, after IME
+            // and Scaffold insets; status UI must never exceed these bounds.
+            var workAreaHeightPx by remember(sessionId) { mutableStateOf(0) }
             // Messages + scroll-to-bottom button
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()
+                .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
                 var toolBarHeightPx by remember { mutableStateOf(0) }
+                var subAgentPanelHeightPx by remember(sessionId) { mutableStateOf(0) }
                 // [T-p2-agent-callback] Synthetic delegate block behind a tapped
                 // callback card; hosted at this stable scope so the sheet survives
                 // LazyColumn item disposal.
                 var callbackDetailBlock by remember { mutableStateOf<AssistantBlock?>(null) }
                 val density = LocalDensity.current
                 val toolBarHeightDp = with(density) { toolBarHeightPx.toDp() }
+                val registryJobs by AgentJobRegistry.jobs.collectAsState()
+                val statusJobs = remember(sessionId, registryJobs) {
+                    subAgentStatusJobs(sessionId, registryJobs.values)
+                }
+                val workAreaHeightDp = with(density) { workAreaHeightPx.toDp() }
+                val statusPanelHeightDp = with(density) { subAgentPanelHeightPx.toDp() }
                 // T166 / T170 / T173: bottomReserve must clear the visible
                 // top of the floating tool-status overlay. Layout primitives
                 // come from FloatingToolStatusBar:
@@ -3717,8 +3729,21 @@ fun ChatScreen(
                 // is fed from, so the reserve and the bar change in the same
                 // frame; a toggle
                 // re-pins through LaunchedEffect(bottomReserve) below.
+                val hasSubAgentStatus = statusJobs.isNotEmpty()
+                val statusPanelMaxHeight = subAgentStatusHeightBudget(
+                    workAreaHeightDp,
+                    if (hasFloatingTools) FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) else FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING,
+                )
                 val bottomReserve =
-                    if (hasFloatingTools) {
+                    if (hasSubAgentStatus) {
+                        // Include panel expansion, not just the old preview's
+                        // fixed height, so neither rows nor FABs hide under it.
+                        val toolsHeight = if (hasFloatingTools) FloatingToolBarMetrics.visibleTop(toolPreviewEnabled)
+                            else FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING
+                        val panelGap = if (hasFloatingTools && statusPanelHeightDp > 0.dp) 6.dp else 0.dp
+                        (toolsHeight + statusPanelHeightDp + panelGap + FloatingToolBarMetrics.ROW_GAP)
+                            .coerceAtMost(workAreaHeightDp)
+                    } else if (hasFloatingTools) {
                         FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
                     } else 20.dp
                 // [T-android-reserve-anchor] The reserve is the reversed list's
@@ -3875,13 +3900,14 @@ fun ChatScreen(
                     kotlinx.coroutines.flow.combine(
                         kotlinx.coroutines.flow.flowOf(messages),
                         viewModel.streamingById,
-                        // [T-port-fold-tools] Re-fold on a toggle, the setting,
-                        // or the user coming back to the bottom.
+                        // Re-fold on toggles and when the entire agent loop
+                        // ends, even if its final tool-block list did not change.
                         toolFold.changes,
-                    ) { msgs, stream, _ -> msgs to stream }
+                        viewModel.isStreaming,
+                    ) { msgs, stream, _, processing -> Triple(msgs, stream, processing) }
                         .conflate()
                         .sample(80L)
-                        .collect { (msgs, stream) ->
+                        .collect { (msgs, stream, processing) ->
                             val tickStartNs = System.nanoTime()
                             if (stream.isNotEmpty() && !streamWasActive) {
                                 streamWasActive = true
@@ -4014,6 +4040,7 @@ fun ChatScreen(
                                 builtRows,
                                 msgs,
                                 if (stream.isEmpty()) emptyList() else streamingOverlaySubset(msgs, stream),
+                                processing = processing,
                             )
                             // [T-user-ask-resolved-expand] A fold row the user just
                             // tapped stays where it was: its position is requested
@@ -5252,7 +5279,7 @@ fun ChatScreen(
                 // [T-p2-agent-series] The agent block is just another entry of
                 // the floating tool bar (its background block stays RUNNING);
                 // the standalone capsule is gone.
-                if (lastToolBlocks.isNotEmpty()) {
+                if (lastToolBlocks.isNotEmpty() || hasSubAgentStatus) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -5276,12 +5303,28 @@ fun ChatScreen(
                             // no extra alignment is needed.
                             .widthIn(max = CHAT_MAX_CONTENT_WIDTH)
                             .fillMaxWidth()
+                            .heightIn(max = workAreaHeightDp)
+                            .then(Modifier.clipToBounds())
                             .onGloballyPositioned { toolBarHeightPx = it.size.height }
                             .padding(horizontal = 12.dp)
                             .padding(bottom = FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING),
                     ) {
                         Column {
-                        FloatingToolStatusBar(
+                        if (hasSubAgentStatus && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight) {
+                            androidx.compose.runtime.key(sessionId) {
+                                SubAgentStatusPanel(
+                                    jobs = statusJobs,
+                                    maxHeight = statusPanelMaxHeight,
+                                    onOpenTool = { viewModel.openToolDetail(it) },
+                                    availableToolUseIds = remember(lastToolBlocks) { lastToolBlocks.map { it.id }.toSet() },
+                                    modifier = Modifier.onGloballyPositioned { subAgentPanelHeightPx = it.size.height },
+                                )
+                            }
+                            if (lastToolBlocks.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                        } else {
+                            SideEffect { subAgentPanelHeightPx = 0 }
+                        }
+                        if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(
                             toolBlocks = lastToolBlocks,
                             // [T-android-stop-late-write] Same per-tool stop
                             // as the message-list pill, for the shown block.
@@ -5295,7 +5338,10 @@ fun ChatScreen(
                         }
                     }
                 } else {
-                    SideEffect { toolBarHeightPx = 0 }
+                    SideEffect {
+                        toolBarHeightPx = 0
+                        subAgentPanelHeightPx = 0
+                    }
                 }
 
                 // [T-android-tts-capsule] Floating speech-player control for
@@ -5320,7 +5366,10 @@ fun ChatScreen(
                 val upFabVisible = messages.isNotEmpty() && !isNearBottom.value
                 val downFabVisible =
                     userScrolledAway && contentOverflows.value && messages.isNotEmpty()
-                val fabBaseDp = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                val scrollControlsBottom = if (hasSubAgentStatus && statusPanelHeightDp > 0.dp) {
+                    maxOf(bottomReserve, if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp)
+                } else if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                val fabBaseDp = scrollControlsBottom
                 val fabStackTopDp = when {
                     upFabVisible -> fabBaseDp + 46.dp + 36.dp
                     downFabVisible -> fabBaseDp + 36.dp
@@ -5423,7 +5472,7 @@ fun ChatScreen(
                 // spacing). Tapping walks BACK one user turn at a time rather
                 // than jumping to the oldest message.
                 if (messages.isNotEmpty() && !isNearBottom.value) {
-                    val upBaseBottom = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                    val upBaseBottom = scrollControlsBottom
                     androidx.compose.material3.FilledIconButton(
                         onClick = {
                             // [T-android-updown-fab-asymmetry] Arm the same flag a
@@ -5465,7 +5514,7 @@ fun ChatScreen(
                 }
 
                 if (userScrolledAway && contentOverflows.value && messages.isNotEmpty()) {
-                    val fabBottomPadding = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                    val fabBottomPadding = scrollControlsBottom
                     androidx.compose.material3.FilledIconButton(
                         onClick = {
                             // [T-android-scroll-fab-down-stuck] Clear the

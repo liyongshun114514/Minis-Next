@@ -9,8 +9,8 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Which terminal tool runs fold into one row, independent of model reply
- * formatting, live/stored state and the timing of list updates.
+ * Which terminal tool runs fold into one row after the response ends,
+ * independent of reply formatting and the timing of list updates.
  *
  * Block notation: T = succeeded tool, F = failed, C = cancelled, R = unfinished
  * (running / streaming), K = thinking, t = non-empty multi-line text, o =
@@ -147,13 +147,15 @@ class ToolFoldPlannerTest {
     }
 
     @Test
-    fun `live and stored runs fold without a reply or line count requirement`() {
+    fun `only ended responses fold regardless of reply line count`() {
         val a = tool(); val b = tool()
         for (reply in listOf(emptyList(), listOf(text("")), listOf(text("Next.")), listOf(text("Done.\nOk.")))) {
             val blocks = listOf(a, b) + reply
             val live = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
-            assertEquals(1, ToolFoldPlanner.foldedRuns(live).size)
-            assertEquals(ToolFoldPlanner.foldedRuns(live), ToolFoldPlanner.foldedRuns(live.copy(isStreaming = false)))
+            assertTrue(ToolFoldPlanner.foldedRuns(live).isEmpty())
+            val ended = live.copy(isStreaming = false)
+            assertEquals(1, ToolFoldPlanner.foldedRuns(ended).size)
+            assertTrue(ToolFoldPlanner.foldedRuns(ended.copy(isAwaitingModelResponse = true)).isEmpty())
         }
     }
 
@@ -198,7 +200,7 @@ class ToolFoldPlannerTest {
                 assertEquals(hidden.count { it.kind == "tool_use" }, run.group.toolCount)
             }
             val live = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
-            assertEquals(runs, ToolFoldPlanner.foldedRuns(live))
+            assertTrue(ToolFoldPlanner.foldedRuns(live).isEmpty())
             assertEquals(runs, ToolFoldPlanner.foldedRuns(live.copy(isStreaming = false)))
         }
     }
@@ -230,51 +232,103 @@ class ToolFoldPlannerTest {
     }
 
     @Test
-    fun `controller respects setting and expansion across growing live runs and reloads`() {
+    fun `controller defers growing live runs then preserves manual expansion and reload`() {
         val a = tool(); val b = tool()
         val m = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = listOf(a, b))
         val rows = rowsFor(m)
         val c = ToolFoldController()
-        assertSame(rows, c.fold(rows, listOf(m), emptyList()))
+        assertSame(rows, c.fold(rows, listOf(m), emptyList(), processing = true))
         c.enabled = true
-        assertTrue(c.fold(rows, listOf(m), emptyList()).any { it is FlatChatItem.AssistantToolGroup })
-        val before = c.changes.value
-        c.toggle(a.id)
-        assertTrue(c.changes.value > before)
-        assertTrue(c.fold(rows, listOf(m), emptyList()).any { it.key == "tool:m:${a.id}" })
+        assertSame(rows, c.fold(rows, listOf(m), emptyList(), processing = true))
         val active = tool(ToolBlockStatus.RUNNING)
         val growing = m.copy(toolBlocks = m.toolBlocks + active)
         val growingRows = rowsFor(growing)
-        assertTrue(c.fold(growingRows, listOf(m), listOf(growing)).any { it.key == "tool:m:${active.id}" })
+        assertSame(growingRows, c.fold(growingRows, listOf(m), listOf(growing), processing = true))
         val finished = growing.copy(toolBlocks = growing.toolBlocks.dropLast(1) + active.copy(toolStatus = ToolBlockStatus.SUCCESS))
-        val out = c.fold(rowsFor(finished), listOf(m), listOf(finished))
+        val finishedRows = rowsFor(finished)
+        assertSame(finishedRows, c.fold(finishedRows, listOf(m), listOf(finished), processing = true))
+        val ended = finished.copy(isStreaming = false)
+        val endedRows = rowsFor(ended)
+        // Canonical drain may happen before the outer processing flag clears.
+        assertSame(endedRows, c.fold(endedRows, listOf(ended), emptyList(), processing = true))
+        val out = c.fold(endedRows, listOf(ended), emptyList(), processing = false)
         val group = out.filterIsInstance<FlatChatItem.AssistantToolGroup>().single()
         assertEquals(a.id, group.runKey)
         assertEquals(3, group.toolCount)
-        assertTrue(group.expanded)
-        assertTrue(out.any { it.key == "tool:m:${active.id}" })
+        assertFalse(group.expanded)
+        val before = c.changes.value
+        c.toggle(a.id)
+        assertTrue(c.changes.value > before)
+        assertTrue(c.fold(endedRows, listOf(ended), emptyList()).any { it.key == "tool:m:${a.id}" })
         c.enabled = false
-        assertSame(rows, c.fold(rows, listOf(m), emptyList()))
+        assertSame(endedRows, c.fold(endedRows, listOf(ended), emptyList()))
         c.enabled = true
-        assertTrue(c.fold(rows, listOf(m), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().expanded)
-        val reloaded = finished.copy(isStreaming = false)
+        assertTrue(c.fold(endedRows, listOf(ended), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().expanded)
         val fresh = ToolFoldController().apply { enabled = true }
-        assertEquals(3, fresh.fold(rowsFor(reloaded), listOf(reloaded), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().toolCount)
+        assertEquals(3, fresh.fold(endedRows, listOf(ended), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().single().toolCount)
     }
 
     @Test
-    fun `a running task folds its finished requests - the live copy is checked, not the empty stored one`() {
-        // [T-fold-live-turn] During a turn the stored message has no tool blocks
-        // (they stream into the overlay); the fold used to test the stored copy's
-        // block count first, so a running task never folded until it ended.
+    fun `live overlay stays open and the final stored message folds`() {
+        // The live overlay wins over the stale canonical copy; only the final
+        // stored message becomes foldable after the loop ends.
         val a = tool(); val b = tool()
         val sep = text("Next.")
         val c = tool()
         val stored = ChatMessage(id = "m", role = "assistant", content = "", toolBlocks = emptyList(), isStreaming = true)
         val live = stored.copy(toolBlocks = listOf(a, b, sep, c))
         val d = ToolFoldController().apply { enabled = true }
-        val out = d.fold(rowsFor(live), listOf(stored), listOf(live))
+        val liveRows = rowsFor(live)
+        assertSame(liveRows, d.fold(liveRows, listOf(stored), listOf(live), processing = true))
+        val ended = live.copy(isStreaming = false)
+        val out = d.fold(rowsFor(ended), listOf(ended), emptyList(), processing = false)
         assertTrue(out.map { it.key }.toString(), out.any { it is FlatChatItem.AssistantToolGroup && it.runKey == a.id })
+    }
+
+    @Test
+    fun `ending a response invalidates cached no-fold plan with identical blocks`() {
+        val blocks = listOf(tool(), tool())
+        val live = ChatMessage(id = "m", role = "assistant", content = "", isStreaming = true, toolBlocks = blocks)
+        val d = ToolFoldController().apply { enabled = true }
+        val rows = rowsFor(live)
+        assertSame(rows, d.fold(rows, listOf(live), emptyList()))
+        val waiting = live.copy(isStreaming = false, isAwaitingModelResponse = true)
+        assertSame(rows, d.fold(rows, listOf(waiting), emptyList()))
+        val ended = waiting.copy(isAwaitingModelResponse = false)
+        assertSame(blocks, ended.toolBlocks)
+        assertEquals(1, d.fold(rows, listOf(ended), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().size)
+    }
+
+    @Test
+    fun `history stays folded during next turn while sealed current bubbles wait for its end`() {
+        val history = ChatMessage(id = "old", role = "assistant", content = "", toolBlocks = listOf(tool(), tool()))
+        val d = ToolFoldController().apply { enabled = true }
+        assertEquals(1, d.fold(rowsFor(history), listOf(history), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().size)
+        // Global processing can become true before the next placeholder arrives.
+        assertEquals(1, d.fold(rowsFor(history), listOf(history), emptyList(), processing = true).filterIsInstance<FlatChatItem.AssistantToolGroup>().size)
+        val active = history.copy(id = "current", isStreaming = true, toolBlocks = listOf(tool(), tool()))
+        val messages = listOf(history, active)
+        val during = d.fold(buildFlatChatItems(messages), messages, listOf(active), processing = true)
+        assertEquals(listOf("old"), during.filterIsInstance<FlatChatItem.AssistantToolGroup>().map { it.messageId })
+        val sealed = active.copy(isStreaming = false)
+        val next = active.copy(id = "after-compact", toolBlocks = emptyList())
+        val swapped = listOf(history, sealed, next)
+        val beforeEnd = d.fold(buildFlatChatItems(swapped), swapped, listOf(next), processing = true)
+        assertEquals(listOf("old"), beforeEnd.filterIsInstance<FlatChatItem.AssistantToolGroup>().map { it.messageId })
+        val ended = listOf(history, sealed, next.copy(isStreaming = false))
+        val afterEnd = d.fold(buildFlatChatItems(ended), ended, emptyList(), processing = false)
+        assertEquals(listOf("old", "current"), afterEnd.filterIsInstance<FlatChatItem.AssistantToolGroup>().map { it.messageId })
+    }
+
+    @Test
+    fun `overlay presence defers folding even with finalized flags`() {
+        val message = ChatMessage(id = "m", role = "assistant", content = "", toolBlocks = listOf(tool(), tool()))
+        val d = ToolFoldController().apply { enabled = true }
+        val rows = rowsFor(message)
+        assertEquals(1, d.fold(rows, listOf(message), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().size)
+        assertSame(rows, d.fold(rows, listOf(message), listOf(message)))
+        assertTrue(d.runKeyContaining(message.id, message.toolBlocks.first().id) == null)
+        assertEquals(1, d.fold(rows, listOf(message), emptyList()).filterIsInstance<FlatChatItem.AssistantToolGroup>().size)
     }
 
     // --- Wiring ----------------------------------------------------------------
@@ -284,6 +338,11 @@ class ToolFoldPlannerTest {
         val screen = ProductionSources.read("ui/chat/ChatScreen.kt")
         assertTrue(screen.contains("flatItems = toolFold.fold("))
         assertTrue(screen.contains("toolFold.changes,"))
+        val pipeline = screen.substringAfter("kotlinx.coroutines.flow.flowOf(messages),", "")
+            .substringBefore("val tickStartNs")
+        assertTrue(pipeline.contains("viewModel.isStreaming,"))
+        assertTrue(pipeline.contains("Triple(msgs, stream, processing)"))
+        assertTrue(screen.substringAfter("flatItems = toolFold.fold(").take(500).contains("processing = processing,"))
         // [T-user-ask-resolved-expand] The tap also anchors the row's top first (ToggleAnchorTest).
         val tap = screen.substringAfter("is FlatChatItem.AssistantToolGroup -> ToolGroupRow(item) {").substringBefore("\n                            }")
         assertTrue(tap.contains("toolFold.toggle(item.runKey)"))

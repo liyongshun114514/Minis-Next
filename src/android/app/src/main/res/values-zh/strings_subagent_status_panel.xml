@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [T-android-subagent-status-panel] Read-only sub agent status viewer above the floating work bar. -->
+<resources>
+    <string name="subagent_status_title">子代理</string>
+    <string name="subagent_status_counts">%1$d 个进行中 · 共 %2$d 个</string>
+    <string name="subagent_status_expand">展开子代理</string>
+    <string name="subagent_status_collapse">收起子代理</string>
+    <string name="subagent_status_expanded">已展开</string>
+    <string name="subagent_status_collapsed">已收起</string>
+    <string name="subagent_status_open_tool">在对话中打开</string>
+    <string name="subagent_status_state_pending">等待中</string>
+    <string name="subagent_status_state_running">运行中</string>
+    <string name="subagent_status_state_done">已完成</string>
+    <string name="subagent_status_state_cancelled">已取消</string>
+    <string name="subagent_status_state_failed">失败</string>
+    <string name="subagent_status_state_timeout">超时</string>
+</resources>

@@ -186,6 +186,8 @@ object ToolFoldPlanner {
             )
         }
 
-    /** Live and stored messages use the same terminal-status rule. */
-    fun foldedRuns(message: ChatMessage): List<FoldedRun> = foldedRuns(message.toolBlocks)
+    /** Do not collapse a response until it has finished, including model-wait gaps. */
+    fun foldedRuns(message: ChatMessage): List<FoldedRun> =
+        if (message.isStreaming || message.isAwaitingModelResponse) emptyList()
+        else foldedRuns(message.toolBlocks)
 }
