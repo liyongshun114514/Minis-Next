@@ -5310,7 +5310,8 @@ fun ChatScreen(
                             .heightIn(max = workAreaHeightDp)
                             .then(Modifier.clipToBounds())
                             .onGloballyPositioned { toolBarHeightPx = it.size.height }
-                            .padding(horizontal = 12.dp)
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
+                            .padding(horizontal = ComposerSurfaceGeometry.SIDE_INSET_DP.dp)
                             .padding(bottom = FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING),
                     ) {
                         Column {

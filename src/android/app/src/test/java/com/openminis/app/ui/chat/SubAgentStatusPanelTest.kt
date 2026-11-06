@@ -458,13 +458,28 @@ class SubAgentStatusPanelTest {
         assertEquals("子代理", zh["subagent_status_title"])
         assertTrue("counts must carry both numbers", en.getValue("subagent_status_counts").contains("%1\$d"))
         assertTrue(en.getValue("subagent_status_counts").contains("%2\$d"))
-        // [T-android-subagent-toggle] The compact entry is text only: one
-        // number (active jobs), and the total lives in the accessibility text.
+        // [T-android-subagent-toggle] One visible number (active jobs);
+        // the total lives in the accessibility text.
         assertTrue(en.getValue("subagent_status_toggle").contains("%1\$d"))
         assertFalse("the visible entry must stay one number", en.getValue("subagent_status_toggle").contains("%2\$d"))
         assertTrue(en.getValue("subagent_status_toggle_description").contains("%1\$d"))
         assertTrue(en.getValue("subagent_status_toggle_description").contains("%2\$d"))
         assertTrue(zh.getValue("subagent_status_toggle").startsWith("子代理"))
+    }
+
+    @Test
+    fun `compact subagent entry uses the work bar surface within existing height`() {
+        val src = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
+            .substringAfter("fun SubAgentStatusToggle(").substringBefore("fun SubAgentStatusPanel(")
+        assertTrue(src.contains("RoundedCornerShape(10.dp)"))
+        assertTrue(src.contains(".background(ChatColors.inputBg, shape)"))
+        assertTrue(src.contains(".border(0.5.dp, ChatColors.toolBorder, shape)"))
+        assertTrue(src.contains(".height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT - 3.dp)"))
+        assertTrue(src.contains("Icons.Filled.Groups"))
+        assertTrue(src.contains("Icons.Filled.KeyboardArrowUp"))
+        assertTrue(src.contains("Icons.Filled.KeyboardArrowDown"))
+        assertTrue(src.contains("contentDescription = description"))
+        assertTrue(src.contains("modifier = Modifier.weight(1f)"))
     }
 
     @Test

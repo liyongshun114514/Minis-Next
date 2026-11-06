@@ -2,6 +2,17 @@ package com.openminis.app.ui.chat
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -340,17 +351,16 @@ fun SubAgentStatusToggle(
     // Resolved out here: the semantics lambda is not composable.
     val description = stringResource(R.string.subagent_status_toggle_description, active, total)
 
-    Text(
-        text = stringResource(R.string.subagent_status_toggle, active),
-        fontSize = 11.sp,
-        lineHeight = 12.sp,
-        fontWeight = FontWeight.Medium,
-        color = if (expanded) ChatColors.primaryText else ChatColors.secondaryText,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-            // One node for TalkBack: the visible "Sub-agents 2" plus the total
-            // and the open/closed state, instead of a bare unlabelled text.
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = modifier.fillMaxWidth()
+            // A compact version of the work bar: same surface, border and
+            // corners, still inside the existing 27dp top slot.
+            .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT - 3.dp)
+            .shadow(8.dp, shape, ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
+            .clip(shape)
+            .background(ChatColors.inputBg, shape)
+            .border(0.5.dp, ChatColors.toolBorder, shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = description
                 stateDescription = if (expanded) expandedState else collapsedState
@@ -360,10 +370,28 @@ fun SubAgentStatusToggle(
                 onClickLabel = if (expanded) collapseLabel else expandLabel,
                 onClick = onToggle,
             )
-            // Padding, never a min height: the entry has to live inside the
-            // toolbar's 27 dp dead space and must not force it taller.
-            .padding(horizontal = 6.dp, vertical = 3.dp),
-    )
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Groups, contentDescription = null, tint = helperAccent(), modifier = Modifier.size(13.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(R.string.subagent_status_toggle, active),
+            fontSize = 11.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = ChatColors.primaryText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = null,
+            tint = ChatColors.secondaryText,
+            modifier = Modifier.size(14.dp),
+        )
+    }
 }
 
 /**

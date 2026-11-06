@@ -1028,8 +1028,11 @@ internal object FloatingToolBarMetrics {
     /** How far the bar's visible top (the thumbnail's, when shown) sits above the list's bottom edge. */
     val STATUS_ENTRY_HEIGHT = THUMBNAIL_HEIGHT - BAR_HEIGHT
     val THUMBNAIL_WIDTH = 100.dp
-    val THUMBNAIL_INSET = 10.dp
-    val STATUS_ENTRY_START = THUMBNAIL_WIDTH + THUMBNAIL_INSET + 8.dp
+    // The host already applies the composer's 12dp side inset. No second
+    // thumbnail inset: its left edge must match the input surface.
+    val THUMBNAIL_INSET = 0.dp
+    val PREVIEW_TEXT_GAP = 8.dp
+    val STATUS_ENTRY_START = THUMBNAIL_WIDTH + THUMBNAIL_INSET + PREVIEW_TEXT_GAP
 
     fun visibleTop(previewEnabled: Boolean) =
         WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
@@ -1129,7 +1132,7 @@ internal fun FloatingToolStatusBar(
     val thumbnailOverhang = thumbnailHeight - barHeight  // 27dp above bar
     val thumbnailInset = FloatingToolBarMetrics.THUMBNAIL_INSET
     val topSlotHeight = if (previewEnabled || statusEntry != null) thumbnailOverhang else 0.dp
-    val barStartPadding = if (previewEnabled) thumbnailWidth + thumbnailInset + 8.dp else 12.dp
+    val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 12.dp
 
     Box(
         modifier = modifier
@@ -1288,7 +1291,7 @@ internal fun FloatingToolStatusBar(
             Box(
                 modifier = Modifier.align(Alignment.TopEnd)
                     .fillMaxWidth()
-                    .padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 12.dp, end = 12.dp)
+                    .padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 0.dp)
                     .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT),
                 contentAlignment = Alignment.CenterStart,
             ) { statusEntry() }
