@@ -3602,7 +3602,6 @@ fun ChatScreen(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()
                 .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
                 var toolBarHeightPx by remember { mutableStateOf(0) }
-                var subAgentPanelHeightPx by remember(sessionId) { mutableStateOf(0) }
                 var subAgentStatusExpanded by remember(sessionId) { mutableStateOf(false) }
                 // [T-p2-agent-callback] Synthetic delegate block behind a tapped
                 // callback card; hosted at this stable scope so the sheet survives
@@ -3615,12 +3614,11 @@ fun ChatScreen(
                     subAgentStatusJobs(sessionId, registryJobs.values)
                 }
                 val workAreaHeightDp = with(density) { workAreaHeightPx.toDp() }
-                val statusPanelHeightDp = with(density) { subAgentPanelHeightPx.toDp() }
                 // T166 / T170 / T173: bottomReserve must clear the visible
                 // top of the floating tool-status overlay. Layout primitives
                 // come from FloatingToolStatusBar:
-                //   - status bar height = 38 dp
-                //   - thumbnail floats over the bar with overhang = 27 dp
+                //   - status bar height = 32.5 dp
+                //   - thumbnail floats over the bar with overhang = 32.5 dp
                 //   - thumbnail TOP = bar top - overhang = 65 dp above the
                 //     input bar's upper edge (which is also the LazyColumn
                 //     bottom edge under reverseLayout).
@@ -3737,19 +3735,12 @@ fun ChatScreen(
                     FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING +
                         if (hasSubAgentStatus) FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT else 0.dp
                 }
-                val statusPanelMaxHeight = subAgentStatusHeightBudget(workAreaHeightDp, statusToolbarHeight)
-                val bottomReserve =
-                    if (hasSubAgentStatus) {
-                        // Include panel expansion, not just the old preview's
-                        // fixed height, so neither rows nor FABs hide under it.
-                        val toolsHeight = statusToolbarHeight
-                        val visiblePanelHeight = if (subAgentStatusExpanded) statusPanelHeightDp else 0.dp
-                        val panelGap = if (visiblePanelHeight > 0.dp) SubAgentStatusPanelGap else 0.dp
-                        (toolsHeight + visiblePanelHeight + panelGap + FloatingToolBarMetrics.ROW_GAP)
-                            .coerceAtMost(workAreaHeightDp)
-                    } else if (hasFloatingTools) {
-                        FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
-                    } else 20.dp
+                // A modal sheet does not occupy conversation layout space.
+                val bottomReserve = if (hasSubAgentStatus) {
+                    (statusToolbarHeight + FloatingToolBarMetrics.ROW_GAP).coerceAtMost(workAreaHeightDp)
+                } else if (hasFloatingTools) {
+                    FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
+                } else 20.dp
                 // [T-android-reserve-anchor] The reserve is the reversed list's
                 // bottom contentPadding, which sits BEFORE every item: when it
                 // grows (the floating tool bar appears with a turn's first
@@ -5315,23 +5306,9 @@ fun ChatScreen(
                             .padding(bottom = FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING),
                     ) {
                         Column {
-                        if (hasSubAgentStatus && subAgentStatusExpanded && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight) {
-                            androidx.compose.runtime.key(sessionId) {
-                                SubAgentStatusPanel(
-                                    jobs = statusJobs,
-                                    maxHeight = statusPanelMaxHeight,
-                                    toolBlocks = lastToolBlocks,
-                                    onOpenTool = { viewModel.openToolDetail(it) },
-                                    availableToolUseIds = remember(lastToolBlocks) { lastToolBlocks.map { it.id }.toSet() },
-                                    modifier = Modifier.onGloballyPositioned { subAgentPanelHeightPx = it.size.height },
-                                )
-                            }
-                            Spacer(Modifier.height(SubAgentStatusPanelGap))
-                        } else {
-                            SideEffect { subAgentPanelHeightPx = 0 }
-                        }
                         if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(
                             toolBlocks = lastToolBlocks,
+                            selectionScope = sessionId to messages.lastOrNull { it.rendersAsUserBubble() }?.id,
                             // [T-android-stop-late-write] Same per-tool stop
                             // as the message-list pill, for the shown block.
                             onStop = { blockId -> viewModel.stopTool(blockId) },
@@ -5366,7 +5343,44 @@ fun ChatScreen(
                     SideEffect {
                         subAgentStatusExpanded = false
                         toolBarHeightPx = 0
-                        subAgentPanelHeightPx = 0
+                    }
+                }
+
+                // Same ModalBottomSheet surface/gesture/dismissal as Settings >
+                // Sub-agents > concurrency, not an extra row in the transcript.
+                if (hasSubAgentStatus && subAgentStatusExpanded) {
+                    val statusSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ModalBottomSheet(
+                        onDismissRequest = { subAgentStatusExpanded = false },
+                        sheetState = statusSheetState,
+                    ) {
+                        BoxWithConstraints(Modifier.fillMaxWidth().heightIn(max = LocalConfiguration.current.screenHeightDp.dp * 0.85f)) {
+                        val sheetMaxHeight = maxHeight
+                        Column(Modifier.fillMaxWidth().heightIn(max = sheetMaxHeight).padding(bottom = 24.dp)) {
+                            Text(
+                                stringResource(R.string.subagent_status_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            )
+                            Text(
+                                stringResource(R.string.subagent_status_counts, subAgentStatusActiveCount(statusJobs), statusJobs.size),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                            )
+                            SubAgentStatusPanel(
+                                jobs = statusJobs,
+                                maxHeight = sheetMaxHeight,
+                                toolBlocks = lastToolBlocks,
+                                availableToolUseIds = remember(lastToolBlocks) { lastToolBlocks.map { it.id }.toSet() },
+                                onOpenTool = {
+                                    subAgentStatusExpanded = false
+                                    viewModel.openToolDetail(it)
+                                },
+                                modifier = Modifier.weight(1f, fill = false).padding(horizontal = 16.dp),
+                            )
+                        }
+                        }
                     }
                 }
 
@@ -5392,7 +5406,7 @@ fun ChatScreen(
                 val upFabVisible = messages.isNotEmpty() && !isNearBottom.value
                 val downFabVisible =
                     userScrolledAway && contentOverflows.value && messages.isNotEmpty()
-                val scrollControlsBottom = if (hasSubAgentStatus && statusPanelHeightDp > 0.dp) {
+                val scrollControlsBottom = if (hasSubAgentStatus) {
                     maxOf(bottomReserve, if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp)
                 } else if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
                 val fabBaseDp = scrollControlsBottom

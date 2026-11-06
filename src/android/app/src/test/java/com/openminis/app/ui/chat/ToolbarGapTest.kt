@@ -18,19 +18,21 @@ class ToolbarGapTest {
 
     @Test fun `the gap above the overlay's visible top is the same in both states`() {
         assertEquals("preview ON keeps the reserve it always had (65 + 14)", 79.dp, reserve(true))
-        assertEquals("preview OFF reserves for the 38dp bar, not the 65dp thumbnail", 52.dp, reserve(false))
+        assertEquals("preview OFF reserves for the 32.5dp bar, not the 65dp thumbnail", 46.5.dp, reserve(false))
         assertEquals(reserve(true) - FloatingToolBarMetrics.visibleTop(true), reserve(false) - FloatingToolBarMetrics.visibleTop(false))
-        assertEquals("the difference is exactly the thumbnail overhang", 27.dp, reserve(true) - reserve(false))
+        assertEquals("the difference is exactly the thumbnail overhang", 32.5.dp, reserve(true) - reserve(false))
     }
 
     @Test fun `count entry uses existing top right space without increasing preview height`() {
-        assertEquals(27.dp, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
-        assertEquals(108.dp, FloatingToolBarMetrics.STATUS_ENTRY_START)
+        assertEquals(32.5.dp, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
+        assertEquals(FloatingToolBarMetrics.THUMBNAIL_HEIGHT / 2, FloatingToolBarMetrics.BAR_HEIGHT)
+        assertEquals(FloatingToolBarMetrics.BAR_HEIGHT, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
+        assertEquals(100.dp, FloatingToolBarMetrics.STATUS_ENTRY_START)
         assertEquals(0.dp, FloatingToolBarMetrics.THUMBNAIL_INSET)
         assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(true, true))
         assertEquals(FloatingToolBarMetrics.visibleTop(true), FloatingToolBarMetrics.visibleTopWithStatus(true, true))
         assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, true))
-        assertEquals(44.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, false))
+        assertEquals(38.5.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, false))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains(".height(barHeight + topSlotHeight)"))
         assertTrue(bar.contains(".align(Alignment.TopEnd)"))
@@ -45,7 +47,7 @@ class ToolbarGapTest {
         assertTrue(overlay.contains(".padding(horizontal = ComposerSurfaceGeometry.SIDE_INSET_DP.dp)"))
         assertTrue(overlay.contains("WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)"))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
-        assertTrue(bar.contains("val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 12.dp"))
+        assertTrue(bar.contains("val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
         assertTrue(bar.contains(".padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 0.dp)"))
     }
 

@@ -1011,12 +1011,12 @@ private fun ToolPreviewThumbnail(
  *
  * The reserve used to be pinned to the thumbnail's 65dp whenever the bar was
  * mounted. With Tool preview OFF no thumbnail is drawn and the bar is only
- * 38dp, so the last row sat 27dp (the thumbnail overhang) further from the bar
+ * 38dp, so the last row sat 32.5dp (the thumbnail overhang) further from the bar
  * than it sits from the thumbnail with preview ON.
  */
 internal object FloatingToolBarMetrics {
-    val BAR_HEIGHT = 38.dp
     val THUMBNAIL_HEIGHT = 65.dp
+    val BAR_HEIGHT = THUMBNAIL_HEIGHT / 2
     /** ChatScreen's wrapper padding below the bar (above the composer). */
     val WRAPPER_BOTTOM_PADDING = 6.dp
     /**
@@ -1032,7 +1032,8 @@ internal object FloatingToolBarMetrics {
     // thumbnail inset: its left edge must match the input surface.
     val THUMBNAIL_INSET = 0.dp
     val PREVIEW_TEXT_GAP = 8.dp
-    val STATUS_ENTRY_START = THUMBNAIL_WIDTH + THUMBNAIL_INSET + PREVIEW_TEXT_GAP
+    val STATUS_ENTRY_START = THUMBNAIL_WIDTH + THUMBNAIL_INSET
+    val WORK_CONTENT_START = STATUS_ENTRY_START + PREVIEW_TEXT_GAP
 
     fun visibleTop(previewEnabled: Boolean) =
         WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
@@ -1056,39 +1057,25 @@ internal fun FloatingToolStatusBar(
     // Compact status entry occupies the unused top-right area, NOT a full
     // extra row above both the thumbnail and work bar.
     statusEntry: (@Composable () -> Unit)? = null,
+    selectionScope: Any? = null,
 ) {
-    var currentIndex by remember { mutableStateOf(toolBlocks.lastIndex.coerceAtLeast(0)) }
-    val lastIndex = toolBlocks.lastIndex
-    // [T-android-tool-bar-stuck-on-finished] The follow rule below is keyed on
-    // the DISPLAYED block's status, not on lastIndex alone.
-    //
-    // Keying on lastIndex meant this only ever re-ran when a tool was ADDED.
-    // A background sub agent finishes without adding one: writeDelegateBlock
-    // rewrites its existing block in place (blocks.map { it.copy(...) }), so
-    // the list length is unchanged and the status flip from RUNNING to
-    // FAILED/SUCCESS produced no recomposition key change. The bar stayed on
-    // the finished agent until the parent happened to start another tool —
-    // and with a background delegation that gap is exactly the period the
-    // parent is idle waiting for the callback, so it is long and very visible.
-    //
-    // Including the status makes the flip itself the trigger. Manual paging is
-    // preserved: parking on a still-running block keeps its status stable, so
-    // the effect does not re-fire and does not yank the view away.
-    val currentStatus = toolBlocks.getOrNull(currentIndex)?.toolStatus
-    LaunchedEffect(lastIndex, currentStatus) {
-        val isCurrentActive = currentStatus == ToolBlockStatus.RUNNING ||
-            currentStatus == ToolBlockStatus.STREAMING ||
-            currentStatus == ToolBlockStatus.PENDING
-        if (!isCurrentActive) {
-            // Prefer the newest STILL-ACTIVE tool; only fall back to the last
-            // block when nothing is running, which is the idle case where the
-            // most recent result is the right thing to show.
-            val newestActive = toolBlocks.indexOfLast {
-                it.toolStatus == ToolBlockStatus.RUNNING ||
-                    it.toolStatus == ToolBlockStatus.STREAMING ||
-                    it.toolStatus == ToolBlockStatus.PENDING
-            }
-            currentIndex = if (newestActive >= 0) newestActive else lastIndex.coerceAtLeast(0)
+    // Follow new MAIN-model work even while a background delegate is alive.
+    // Manual paging is ID-based and never snapped back by status emissions.
+    var selectedToolId by remember(selectionScope) { mutableStateOf<String?>(null) }
+    var followLatest by remember(selectionScope) { mutableStateOf(true) }
+    val selectedStillExists = selectedToolId == null || toolBlocks.any { it.id == selectedToolId }
+    LaunchedEffect(selectionScope, selectedStillExists) {
+        if (!selectedStillExists) {
+            selectedToolId = null
+            followLatest = true
+        }
+    }
+    val currentIndex = floatingToolSelectedIndex(toolBlocks, selectedToolId, followLatest)
+    val canStepNext = currentIndex < toolBlocks.lastIndex
+    fun selectTool(index: Int) {
+        toolBlocks.getOrNull(index)?.let {
+            selectedToolId = it.id
+            followLatest = false
         }
     }
     val block = toolBlocks.getOrNull(currentIndex) ?: return
@@ -1125,14 +1112,14 @@ internal fun FloatingToolStatusBar(
     }
 
     // iOS layout: ZStack(alignment: .bottomLeading)
-    // Thumbnail (100×65dp) floats ABOVE the status bar (38dp tall)
+    // Thumbnail (100×65dp) spans both equal-height 32.5dp bars.
     val thumbnailWidth = FloatingToolBarMetrics.THUMBNAIL_WIDTH
     val thumbnailHeight = FloatingToolBarMetrics.THUMBNAIL_HEIGHT
     val barHeight = FloatingToolBarMetrics.BAR_HEIGHT
-    val thumbnailOverhang = thumbnailHeight - barHeight  // 27dp above bar
+    val thumbnailOverhang = thumbnailHeight - barHeight  // 32.5dp above bar
     val thumbnailInset = FloatingToolBarMetrics.THUMBNAIL_INSET
     val topSlotHeight = if (previewEnabled || statusEntry != null) thumbnailOverhang else 0.dp
-    val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 12.dp
+    val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp
 
     Box(
         modifier = modifier
@@ -1233,8 +1220,8 @@ internal fun FloatingToolStatusBar(
                                 enabled = currentIndex > 0,
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
-                                onLongClick = { currentIndex = 0 },
-                                onClick = { if (currentIndex > 0) currentIndex-- },
+                                onLongClick = { selectTool(0) },
+                                onClick = { selectTool(currentIndex - 1) },
                             ),
                     )
                     val positionLabel = stringResource(
@@ -1262,20 +1249,23 @@ internal fun FloatingToolStatusBar(
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = "Next",
-                        tint = if (currentIndex < toolBlocks.lastIndex) MaterialTheme.colorScheme.onSurface
+                        tint = if (canStepNext || !followLatest) MaterialTheme.colorScheme.onSurface
                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                         modifier = Modifier
                             .size(18.dp)
-                            // [T-android-tool-pager-longpress] Long-press jumps
-                            // to the last call — the live one while a turn is
-                            // still running, which is the position this bar
-                            // resets to on its own.
+                            // [T-android-tool-pager-longpress] Long-press restores
+                            // automatic follow of the latest MAIN-model work.
+                            // Short-click pages by stable ID without background
+                            // delegates taking the selection back.
                             .combinedClickable(
-                                enabled = currentIndex < toolBlocks.lastIndex,
+                                enabled = canStepNext || !followLatest,
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
-                                onLongClick = { currentIndex = toolBlocks.lastIndex },
-                                onClick = { if (currentIndex < toolBlocks.lastIndex) currentIndex++ },
+                                onLongClick = { followLatest = true },
+                                onClick = {
+                                    if (canStepNext) selectTool(currentIndex + 1)
+                                    else followLatest = true
+                                },
                             ),
                     )
                 }

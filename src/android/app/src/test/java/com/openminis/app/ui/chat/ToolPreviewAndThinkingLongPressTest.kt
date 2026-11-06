@@ -24,7 +24,7 @@ class ToolPreviewAndThinkingLongPressTest {
         assertTrue(fn.contains("setToolPreview(!previewEnabled)"))
         assertTrue(fn.contains("onLongClick = { showThumbMenu = true }"))
         assertTrue(fn.contains("R.string.tool_preview_closed_toast"))
-        assertTrue("pager chevrons keep their own long-press", fn.contains("onLongClick = { currentIndex = 0 }"))
+        assertTrue("pager chevrons keep their own long-press", fn.contains("onLongClick = { selectTool(0) }"))
     }
 
     @Test

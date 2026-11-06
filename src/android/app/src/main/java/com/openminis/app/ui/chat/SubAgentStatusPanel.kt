@@ -355,8 +355,8 @@ fun SubAgentStatusToggle(
     Row(
         modifier = modifier.fillMaxWidth()
             // A compact version of the work bar: same surface, border and
-            // corners, still inside the existing 27dp top slot.
-            .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT - 3.dp)
+            // corners, equal to the work bar and half of the 65dp preview.
+            .height(FloatingToolBarMetrics.BAR_HEIGHT)
             .shadow(8.dp, shape, ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
             .clip(shape)
             .background(ChatColors.inputBg, shape)

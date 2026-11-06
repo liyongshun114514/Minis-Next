@@ -206,7 +206,7 @@ jobs:
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \
-            --tests '*ToolbarGapTest' --tests '*ToolPreviewAndThinkingLongPressTest' --tests '*TaskCardMetricsTest' \
+            --tests '*ToolbarGapTest' --tests '*FloatingToolPagerTest' --tests '*ToolPreviewAndThinkingLongPressTest' --tests '*TaskCardMetricsTest' \
             --tests '*CustomBalance*' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \

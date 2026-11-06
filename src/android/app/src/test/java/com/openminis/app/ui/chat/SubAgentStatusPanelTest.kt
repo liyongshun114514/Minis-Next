@@ -193,37 +193,29 @@ class SubAgentStatusPanelTest {
     }
 
     @Test
-    fun `host owns the expansion, mounts the list above the bar and the count entry in it`() {
+    fun `host opens status in settings style modal sheet not in conversation layout`() {
         val screen = ProductionSources.read("ui/chat/ChatScreen.kt")
         assertTrue(screen.contains("AgentJobRegistry.jobs.collectAsState()"))
         assertTrue(screen.contains("subAgentStatusJobs(sessionId, registryJobs.values)"))
-        // The expanded flag is the HOST's: the panel has no state of its own.
         assertTrue(screen.contains("var subAgentStatusExpanded by remember(sessionId)"))
-        assertTrue(
-            screen.contains(
-                "hasSubAgentStatus && subAgentStatusExpanded && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight",
-            ),
-        )
-        assertTrue(screen.contains(".onGloballyPositioned { workAreaHeightPx = it.size.height }"))
-        assertTrue(screen.contains(".heightIn(max = workAreaHeightDp)"))
-        assertTrue(screen.contains("Modifier.clipToBounds()"))
-        // The reserve pays for the list only while it is open.
-        assertTrue(screen.contains("val visiblePanelHeight = if (subAgentStatusExpanded) statusPanelHeightDp else 0.dp"))
-        assertTrue(screen.contains("toolsHeight + visiblePanelHeight + panelGap"))
-        val panel = screen.substringAfter("SubAgentStatusPanel(")
-            .substringBefore("if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(")
-        assertTrue(panel.contains("jobs = statusJobs"))
-        // [T-android-subagent-model] Real models come from the real blocks.
-        assertTrue(panel.contains("toolBlocks = lastToolBlocks"))
-        assertTrue(panel.contains("onOpenTool = { viewModel.openToolDetail(it) }"))
-        assertTrue(panel.contains("availableToolUseIds = remember(lastToolBlocks)"))
-        // The compact entry rides the floating bar's top slot, and still
-        // exists when no tool block is left to draw a bar for.
+        val modal = screen.substringAfter("if (hasSubAgentStatus && subAgentStatusExpanded)")
+            .substringBefore("// [T-android-tts-capsule]")
+        assertTrue(modal.contains("ModalBottomSheet("))
+        assertTrue(modal.contains("onDismissRequest = { subAgentStatusExpanded = false }"))
+        assertTrue(modal.contains("skipPartiallyExpanded = true"))
+        assertTrue(modal.contains("BoxWithConstraints("))
+        assertTrue(modal.contains("Modifier.weight(1f, fill = false)"))
+        assertTrue(modal.contains("SubAgentStatusPanel("))
+        assertTrue(modal.contains("jobs = statusJobs"))
+        assertTrue(modal.contains("toolBlocks = lastToolBlocks"))
+        assertTrue(modal.contains("availableToolUseIds = remember(lastToolBlocks)"))
+        assertFalse(screen.contains("subAgentPanelHeightPx"))
+        assertFalse(screen.contains("visiblePanelHeight"))
+        val overlay = screen.substringAfter(".onGloballyPositioned { toolBarHeightPx = it.size.height }")
+            .substringBefore("// Same ModalBottomSheet")
+        assertFalse(overlay.contains("SubAgentStatusPanel("))
         assertTrue(screen.contains("statusEntry = if (hasSubAgentStatus)"))
         assertTrue(screen.contains("SubAgentStatusToggle("))
-        assertTrue(screen.contains("expanded = subAgentStatusExpanded"))
-        assertTrue(screen.contains("onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded }"))
-        assertTrue(screen.contains("subAgentPanelHeightPx = 0"))
         assertTrue(screen.contains("val upBaseBottom = scrollControlsBottom"))
         assertTrue(screen.contains("val fabBottomPadding = scrollControlsBottom"))
     }
@@ -474,7 +466,7 @@ class SubAgentStatusPanelTest {
         assertTrue(src.contains("RoundedCornerShape(10.dp)"))
         assertTrue(src.contains(".background(ChatColors.inputBg, shape)"))
         assertTrue(src.contains(".border(0.5.dp, ChatColors.toolBorder, shape)"))
-        assertTrue(src.contains(".height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT - 3.dp)"))
+        assertTrue(src.contains(".height(FloatingToolBarMetrics.BAR_HEIGHT)"))
         assertTrue(src.contains("Icons.Filled.Groups"))
         assertTrue(src.contains("Icons.Filled.KeyboardArrowUp"))
         assertTrue(src.contains("Icons.Filled.KeyboardArrowDown"))
