@@ -10,6 +10,7 @@ import com.openminis.app.agent.jobs.AgentJobState
 import com.openminis.app.agent.jobs.AgentJobTarget
 import com.openminis.app.agent.jobs.AgentJobThen
 import com.openminis.app.agent.jobs.AgentJobTrigger
+import com.openminis.app.agent.jobs.HelperRunner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -22,12 +23,13 @@ import java.io.File
 /**
  * [T-android-subagent-status-panel] Pure behaviour of the read-only sub agent
  * status panel: which jobs it may show, in what order, what a row is allowed to
- * claim, and the height arithmetic that keeps the panel inside the screen.
+ * claim, what the compact entry counts, whose model it may print, and the
+ * height arithmetic that keeps the list inside the screen.
  *
  * No Compose/Robolectric here on purpose — the panel's only decisions are pure
  * functions, and the composition itself adds nothing but layout that the
  * source guard at the bottom pins (`heightIn(max = …)`, a bounded LazyColumn,
- * no polling and no invented progress).
+ * the shared TaskCard skeleton, no polling and no invented progress).
  */
 class SubAgentStatusPanelTest {
 
@@ -191,18 +193,36 @@ class SubAgentStatusPanelTest {
     }
 
     @Test
-    fun `host subscribes to current chat and constrains the complete overlay`() {
+    fun `host owns the expansion, mounts the list above the bar and the count entry in it`() {
         val screen = ProductionSources.read("ui/chat/ChatScreen.kt")
         assertTrue(screen.contains("AgentJobRegistry.jobs.collectAsState()"))
         assertTrue(screen.contains("subAgentStatusJobs(sessionId, registryJobs.values)"))
+        // The expanded flag is the HOST's: the panel has no state of its own.
+        assertTrue(screen.contains("var subAgentStatusExpanded by remember(sessionId)"))
+        assertTrue(
+            screen.contains(
+                "hasSubAgentStatus && subAgentStatusExpanded && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight",
+            ),
+        )
         assertTrue(screen.contains(".onGloballyPositioned { workAreaHeightPx = it.size.height }"))
         assertTrue(screen.contains(".heightIn(max = workAreaHeightDp)"))
         assertTrue(screen.contains("Modifier.clipToBounds()"))
-        assertTrue(screen.contains("statusPanelMaxHeight >= SubAgentStatusPanelMinHeight"))
-        assertTrue(screen.contains("toolsHeight + statusPanelHeightDp + panelGap"))
-        val panel = screen.substringAfter("SubAgentStatusPanel(").substringBefore("if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(")
+        // The reserve pays for the list only while it is open.
+        assertTrue(screen.contains("val visiblePanelHeight = if (subAgentStatusExpanded) statusPanelHeightDp else 0.dp"))
+        assertTrue(screen.contains("toolsHeight + visiblePanelHeight + panelGap"))
+        val panel = screen.substringAfter("SubAgentStatusPanel(")
+            .substringBefore("if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(")
+        assertTrue(panel.contains("jobs = statusJobs"))
+        // [T-android-subagent-model] Real models come from the real blocks.
+        assertTrue(panel.contains("toolBlocks = lastToolBlocks"))
         assertTrue(panel.contains("onOpenTool = { viewModel.openToolDetail(it) }"))
         assertTrue(panel.contains("availableToolUseIds = remember(lastToolBlocks)"))
+        // The compact entry rides the floating bar's top slot, and still
+        // exists when no tool block is left to draw a bar for.
+        assertTrue(screen.contains("statusEntry = if (hasSubAgentStatus)"))
+        assertTrue(screen.contains("SubAgentStatusToggle("))
+        assertTrue(screen.contains("expanded = subAgentStatusExpanded"))
+        assertTrue(screen.contains("onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded }"))
         assertTrue(screen.contains("subAgentPanelHeightPx = 0"))
         assertTrue(screen.contains("val upBaseBottom = scrollControlsBottom"))
         assertTrue(screen.contains("val fabBottomPadding = scrollControlsBottom"))
@@ -257,6 +277,108 @@ class SubAgentStatusPanelTest {
         assertEquals(ids.size, ids.toSet().size)
         assertEquals(R.string.subagent_status_state_running, subAgentStatusStateLabelRes(AgentJobState.RUNNING))
         assertEquals(R.string.subagent_status_state_timeout, subAgentStatusStateLabelRes(AgentJobState.TIMEOUT))
+    }
+
+    // ------------------------------------------------------ compact entry data
+
+    @Test
+    fun `the compact entry counts running plus queued, and the total is separate`() {
+        val jobs = listOf(
+            job("run-1", state = AgentJobState.RUNNING),
+            job("run-2", state = AgentJobState.RUNNING),
+            job("queue-1", state = AgentJobState.PENDING),
+            job("done", state = AgentJobState.DONE, finishedAtMs = 5_000L),
+            job("failed", state = AgentJobState.FAILED, finishedAtMs = 6_000L),
+        )
+        // "Sub-agents 3": only work in flight is counted, so a finished run
+        // cannot inflate the number the entry prints.
+        assertEquals(3, subAgentStatusActiveCount(jobs))
+        assertEquals(0, subAgentStatusActiveCount(jobs.filterNot { it.isActive }))
+        assertEquals(0, subAgentStatusActiveCount(emptyList()))
+    }
+
+    @Test
+    fun `every registry state maps to the sub agent card's own status vocabulary`() {
+        assertEquals("completed", subAgentStatusWireStatus(AgentJobState.DONE))
+        assertEquals("cancelled", subAgentStatusWireStatus(AgentJobState.CANCELLED))
+        assertEquals("failed", subAgentStatusWireStatus(AgentJobState.FAILED))
+        assertEquals("timeout", subAgentStatusWireStatus(AgentJobState.TIMEOUT))
+        assertEquals("running", subAgentStatusWireStatus(AgentJobState.RUNNING))
+        assertEquals("queued", subAgentStatusWireStatus(AgentJobState.PENDING))
+        // Distinct per state: the row's glyph/colour can never be ambiguous.
+        assertEquals(
+            AgentJobState.values().size,
+            AgentJobState.values().map { subAgentStatusWireStatus(it) }.toSet().size,
+        )
+    }
+
+    private fun helperBlock(
+        id: String,
+        content: String,
+        status: ToolBlockStatus,
+        toolName: String = HelperRunner.TOOL_NAME,
+    ): AssistantBlock = AssistantBlock(
+        id = id,
+        kind = "tool_use",
+        content = content,
+        toolStatus = status,
+        toolTitle = "Delegated task",
+        toolName = toolName,
+    )
+
+    @Test
+    fun `the model is the one a finished block reported, never a guess`() {
+        val models = subAgentStatusBlockModels(
+            listOf(
+                helperBlock(
+                    "tool-1",
+                    """{"status":"completed","model_used":"claude-sonnet-4.5","result":"ok"}""",
+                    ToolBlockStatus.SUCCESS,
+                ),
+            ),
+        )
+        assertEquals(mapOf("tool-1" to "claude-sonnet-4.5"), models)
+        assertEquals("claude-sonnet-4.5", subAgentStatusModelFor(job("x", toolUseId = "tool-1"), models))
+        // A CLI child was never delegated from a block, so it has no model.
+        assertNull(subAgentStatusModelFor(job("x", toolUseId = null), models))
+        assertNull(subAgentStatusModelFor(job("x", toolUseId = "tool-missing"), models))
+        assertNull(subAgentStatusModelFor(job("x", toolUseId = "tool-1"), emptyMap()))
+    }
+
+    @Test
+    fun `a running or modelless block contributes no model`() {
+        val running = helperBlock(
+            "tool-run",
+            """{"status":"running","model_used":"claude-sonnet-4.5"}""",
+            ToolBlockStatus.RUNNING,
+        )
+        val noModel = helperBlock("tool-plain", """{"status":"completed"}""", ToolBlockStatus.SUCCESS)
+        val blank = helperBlock("tool-blank", """{"status":"completed","model_used":""}""", ToolBlockStatus.SUCCESS)
+        // Another tool's JSON may hold a model_used key for its own reasons;
+        // it is not a sub agent's model.
+        val unrelated = helperBlock(
+            "tool-other",
+            """{"status":"completed","model_used":"not-a-subagent"}""",
+            ToolBlockStatus.SUCCESS,
+            toolName = "file_read",
+        )
+        // An unreadable payload has no model to report.
+        val garbage = helperBlock("tool-garbage", "not json at all", ToolBlockStatus.SUCCESS)
+        assertTrue(
+            subAgentStatusBlockModels(listOf(running, noModel, blank, unrelated, garbage)).isEmpty(),
+        )
+        assertTrue(subAgentStatusBlockModels(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `a legacy delegation block still reports the model it really used`() {
+        val legacy = helperBlock(
+            "tool-legacy",
+            """{"status":"completed","model_used":"gpt-5","result":"done"}""",
+            ToolBlockStatus.SUCCESS,
+            toolName = HelperRunner.LEGACY_TOOL_NAME,
+        )
+        assertEquals(mapOf("tool-legacy" to "gpt-5"), subAgentStatusBlockModels(listOf(legacy)))
     }
 
     // --------------------------------------------------------------- height cap
@@ -336,24 +458,55 @@ class SubAgentStatusPanelTest {
         assertEquals("子代理", zh["subagent_status_title"])
         assertTrue("counts must carry both numbers", en.getValue("subagent_status_counts").contains("%1\$d"))
         assertTrue(en.getValue("subagent_status_counts").contains("%2\$d"))
+        // [T-android-subagent-toggle] The compact entry is text only: one
+        // number (active jobs), and the total lives in the accessibility text.
+        assertTrue(en.getValue("subagent_status_toggle").contains("%1\$d"))
+        assertFalse("the visible entry must stay one number", en.getValue("subagent_status_toggle").contains("%2\$d"))
+        assertTrue(en.getValue("subagent_status_toggle_description").contains("%1\$d"))
+        assertTrue(en.getValue("subagent_status_toggle_description").contains("%2\$d"))
+        assertTrue(zh.getValue("subagent_status_toggle").startsWith("子代理"))
     }
 
     @Test
-    fun `the panel is height-bounded, scrolls internally and never invents progress`() {
+    fun `the panel is a controlled list that reuses the task card and invents nothing`() {
         val src = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
+        // Both halves, and the two of them own no state between them.
         assertTrue("panel signature changed", src.contains("fun SubAgentStatusPanel("))
+        assertTrue("compact entry missing", src.contains("fun SubAgentStatusToggle("))
+        assertTrue(src.contains("expanded: Boolean"))
+        assertTrue(src.contains("onToggle: () -> Unit"))
         assertTrue(src.contains("maxHeight: Dp"))
         assertTrue(src.contains("onOpenTool: (String) -> Unit"))
+        assertTrue(src.contains("availableToolUseIds: Set<String>"))
+        assertTrue(src.contains("toolBlocks: List<AssistantBlock>"))
+        // The header is gone: expansion belongs to the host.
+        assertFalse(src.contains("SubAgentStatusHeader"))
+        assertFalse(src.contains("mutableStateOf"))
+        // Rows are the transcript's own task card, so a sub agent looks the
+        // same here as it does in the conversation.
+        assertTrue(src.contains("TaskCardFrame("))
+        assertTrue(src.contains("TaskCardTitleRow {"))
+        assertTrue(src.contains("TaskCardChip("))
+        assertTrue(src.contains("TaskCardTitle("))
+        assertTrue(src.contains("TaskCardStatusRow {"))
+        // A card that cannot be opened must not look like a button.
+        assertTrue(src.contains("enabled = openToolUseId != null"))
+        // Real model, only from a finished block's payload.
+        assertTrue(src.contains("parseHelperBlock("))
+        assertTrue(src.contains(".finished?.model"))
         // The single hard cap, and no min that could defeat it.
-        assertTrue("the panel must clamp itself", src.contains(".heightIn(max = heightBudget)"))
+        assertTrue("the list must clamp itself", src.contains(".heightIn(max = heightBudget)"))
         assertTrue("no min-height may exceed the cap", !src.contains("heightIn(min"))
-        // List scrolls inside the panel instead of growing the panel.
+        // List scrolls inside itself instead of growing.
         assertTrue(src.contains("LazyColumn("))
         // No polling, no registry subscription, no per-job ViewModel.
         assertFalse(src.contains("AgentJobRegistry"))
         assertFalse(src.contains("LaunchedEffect"))
         assertFalse(src.contains("delay("))
-        // No invented progress percentage and no fake affordances.
+        // Nothing time-based is read at composition: a finished duration is a
+        // fixed number from the job, never a live clock.
+        assertFalse(src.contains("System.currentTimeMillis"))
+        // No invented progress percentage.
         assertFalse(src.contains("LinearProgressIndicator"))
         assertFalse(src.contains("CircularProgressIndicator"))
         // Tap only through the real tool-block id.

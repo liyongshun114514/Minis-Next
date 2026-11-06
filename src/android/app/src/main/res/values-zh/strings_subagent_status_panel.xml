@@ -3,6 +3,9 @@
 <resources>
     <string name="subagent_status_title">子代理</string>
     <string name="subagent_status_counts">%1$d 个进行中 · 共 %2$d 个</string>
+    <!-- 紧凑入口：只显示一个数字（进行中的任务），总数交给无障碍朗读。 -->
+    <string name="subagent_status_toggle">子代理 %1$d</string>
+    <string name="subagent_status_toggle_description">子代理，%1$d 个进行中，共 %2$d 个</string>
     <string name="subagent_status_expand">展开子代理</string>
     <string name="subagent_status_collapse">收起子代理</string>
     <string name="subagent_status_expanded">已展开</string>

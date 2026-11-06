@@ -3603,6 +3603,7 @@ fun ChatScreen(
                 .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
                 var toolBarHeightPx by remember { mutableStateOf(0) }
                 var subAgentPanelHeightPx by remember(sessionId) { mutableStateOf(0) }
+                var subAgentStatusExpanded by remember(sessionId) { mutableStateOf(false) }
                 // [T-p2-agent-callback] Synthetic delegate block behind a tapped
                 // callback card; hosted at this stable scope so the sheet survives
                 // LazyColumn item disposal.
@@ -3730,18 +3731,21 @@ fun ChatScreen(
                 // frame; a toggle
                 // re-pins through LaunchedEffect(bottomReserve) below.
                 val hasSubAgentStatus = statusJobs.isNotEmpty()
-                val statusPanelMaxHeight = subAgentStatusHeightBudget(
-                    workAreaHeightDp,
-                    if (hasFloatingTools) FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) else FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING,
-                )
+                val statusToolbarHeight = if (hasFloatingTools) {
+                    FloatingToolBarMetrics.visibleTopWithStatus(toolPreviewEnabled, hasSubAgentStatus)
+                } else {
+                    FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING +
+                        if (hasSubAgentStatus) FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT else 0.dp
+                }
+                val statusPanelMaxHeight = subAgentStatusHeightBudget(workAreaHeightDp, statusToolbarHeight)
                 val bottomReserve =
                     if (hasSubAgentStatus) {
                         // Include panel expansion, not just the old preview's
                         // fixed height, so neither rows nor FABs hide under it.
-                        val toolsHeight = if (hasFloatingTools) FloatingToolBarMetrics.visibleTop(toolPreviewEnabled)
-                            else FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING
-                        val panelGap = if (hasFloatingTools && statusPanelHeightDp > 0.dp) 6.dp else 0.dp
-                        (toolsHeight + statusPanelHeightDp + panelGap + FloatingToolBarMetrics.ROW_GAP)
+                        val toolsHeight = statusToolbarHeight
+                        val visiblePanelHeight = if (subAgentStatusExpanded) statusPanelHeightDp else 0.dp
+                        val panelGap = if (visiblePanelHeight > 0.dp) SubAgentStatusPanelGap else 0.dp
+                        (toolsHeight + visiblePanelHeight + panelGap + FloatingToolBarMetrics.ROW_GAP)
                             .coerceAtMost(workAreaHeightDp)
                     } else if (hasFloatingTools) {
                         FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
@@ -5310,17 +5314,18 @@ fun ChatScreen(
                             .padding(bottom = FloatingToolBarMetrics.WRAPPER_BOTTOM_PADDING),
                     ) {
                         Column {
-                        if (hasSubAgentStatus && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight) {
+                        if (hasSubAgentStatus && subAgentStatusExpanded && statusPanelMaxHeight >= SubAgentStatusPanelMinHeight) {
                             androidx.compose.runtime.key(sessionId) {
                                 SubAgentStatusPanel(
                                     jobs = statusJobs,
                                     maxHeight = statusPanelMaxHeight,
+                                    toolBlocks = lastToolBlocks,
                                     onOpenTool = { viewModel.openToolDetail(it) },
                                     availableToolUseIds = remember(lastToolBlocks) { lastToolBlocks.map { it.id }.toSet() },
                                     modifier = Modifier.onGloballyPositioned { subAgentPanelHeightPx = it.size.height },
                                 )
                             }
-                            if (lastToolBlocks.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(SubAgentStatusPanelGap))
                         } else {
                             SideEffect { subAgentPanelHeightPx = 0 }
                         }
@@ -5334,11 +5339,31 @@ fun ChatScreen(
                             // state as in-list pills so both surfaces share
                             // one always-mounted sheet instance.
                             onOpenDetail = { viewModel.openToolDetail(it) },
-                        )
+                            statusEntry = if (hasSubAgentStatus) {
+                                {
+                                    SubAgentStatusToggle(
+                                        jobs = statusJobs,
+                                        expanded = subAgentStatusExpanded,
+                                        onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
+                                    )
+                                }
+                            } else null,
+                        ) else if (hasSubAgentStatus) {
+                            // No tool/preview remains (e.g. after compaction).
+                            // Keep the same compact entry, not an empty work bar.
+                            Box(Modifier.fillMaxWidth().height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)) {
+                                SubAgentStatusToggle(
+                                    jobs = statusJobs,
+                                    expanded = subAgentStatusExpanded,
+                                    onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
+                                )
+                            }
+                        }
                         }
                     }
                 } else {
                     SideEffect {
+                        subAgentStatusExpanded = false
                         toolBarHeightPx = 0
                         subAgentPanelHeightPx = 0
                     }

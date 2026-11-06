@@ -1026,8 +1026,16 @@ internal object FloatingToolBarMetrics {
     val ROW_GAP = 8.dp
 
     /** How far the bar's visible top (the thumbnail's, when shown) sits above the list's bottom edge. */
+    val STATUS_ENTRY_HEIGHT = THUMBNAIL_HEIGHT - BAR_HEIGHT
+    val THUMBNAIL_WIDTH = 100.dp
+    val THUMBNAIL_INSET = 10.dp
+    val STATUS_ENTRY_START = THUMBNAIL_WIDTH + THUMBNAIL_INSET + 8.dp
+
     fun visibleTop(previewEnabled: Boolean) =
         WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
+
+    fun visibleTopWithStatus(previewEnabled: Boolean, hasStatus: Boolean) =
+        visibleTop(previewEnabled) + if (hasStatus && !previewEnabled) STATUS_ENTRY_HEIGHT else 0.dp
 }
 
 @Composable
@@ -1042,6 +1050,9 @@ internal fun FloatingToolStatusBar(
     // dueling local-remember sheets, no LaunchedEffect(lastIndex) page
     // jumps when a new tool starts mid-view).
     onOpenDetail: (String) -> Unit = {},
+    // Compact status entry occupies the unused top-right area, NOT a full
+    // extra row above both the thumbnail and work bar.
+    statusEntry: (@Composable () -> Unit)? = null,
 ) {
     var currentIndex by remember { mutableStateOf(toolBlocks.lastIndex.coerceAtLeast(0)) }
     val lastIndex = toolBlocks.lastIndex
@@ -1112,17 +1123,18 @@ internal fun FloatingToolStatusBar(
 
     // iOS layout: ZStack(alignment: .bottomLeading)
     // Thumbnail (100×65dp) floats ABOVE the status bar (38dp tall)
-    val thumbnailWidth = 100.dp
+    val thumbnailWidth = FloatingToolBarMetrics.THUMBNAIL_WIDTH
     val thumbnailHeight = FloatingToolBarMetrics.THUMBNAIL_HEIGHT
     val barHeight = FloatingToolBarMetrics.BAR_HEIGHT
     val thumbnailOverhang = thumbnailHeight - barHeight  // 27dp above bar
-    val thumbnailInset = 10.dp
+    val thumbnailInset = FloatingToolBarMetrics.THUMBNAIL_INSET
+    val topSlotHeight = if (previewEnabled || statusEntry != null) thumbnailOverhang else 0.dp
     val barStartPadding = if (previewEnabled) thumbnailWidth + thumbnailInset + 8.dp else 12.dp
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = if (previewEnabled) thumbnailOverhang else 0.dp),  // reserve space for overhang
+            .height(barHeight + topSlotHeight),  // top slot shared by preview and count entry
     ) {
         // Layer 1: Status bar (bottom layer, fills from bottom)
         Row(
@@ -1268,6 +1280,18 @@ internal fun FloatingToolStatusBar(
             // T170: stop button removed from the floating bar — only the
             // in-list ToolCallPill keeps the red square. Two stop affordances
             // on the same active tool felt redundant on tight screens.
+        }
+
+        // The previously empty space RIGHT of the preview and ABOVE the
+        // work bar. This does not add height when the preview is enabled.
+        if (statusEntry != null) {
+            Box(
+                modifier = Modifier.align(Alignment.TopEnd)
+                    .fillMaxWidth()
+                    .padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 12.dp, end = 12.dp)
+                    .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT),
+                contentAlignment = Alignment.CenterStart,
+            ) { statusEntry() }
         }
 
         // Layer 2: Thumbnail floating above the bar (iOS: ZStack overlay)

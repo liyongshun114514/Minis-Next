@@ -1,13 +1,8 @@
 package com.openminis.app.ui.chat
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,26 +11,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -45,33 +34,50 @@ import com.openminis.app.R
 import com.openminis.app.agent.jobs.AgentJob
 import com.openminis.app.agent.jobs.AgentJobState
 import com.openminis.app.agent.jobs.AgentJobTarget
+import com.openminis.app.agent.jobs.HelperRunner
+import com.openminis.app.ui.components.DecorativeSpinner
 import com.openminis.app.ui.theme.ChatColors
 
 // [T-android-subagent-status-panel] A READ-ONLY status viewer for the child
 // (sub agent) jobs of the conversation on screen.
 //
-// Placement: ChatScreen mounts it directly above the floating tool/work bar
-// that sits above the composer, so the two never overlap. This file owns only
-// the panel + the pure helpers; the host owns measurement (available area,
-// toolbar reserve) and passes a `maxHeight`.
+// Two halves, both controlled by the host:
+//
+//   * [SubAgentStatusToggle] — the compact entry. ONE line of text,
+//     "Sub-agents N", where N is the number of ACTIVE jobs (running + queued).
+//     The total is exposed to TalkBack only, because the entry has 27 dp of
+//     room in the toolbar's right-hand dead space and a second number would
+//     either wrap or shrink the tap target. It keeps no state of its own:
+//     `expanded` comes in, `onToggle` goes out.
+//   * [SubAgentStatusPanel] — the expanded LIST, and nothing else. It has no
+//     header and no `remember` of its own; the host owns the expanded flag and
+//     mounts the list above the whole floating tool bar when it is open.
+//
+// Rows reuse the transcript's own task card (TaskCardFrame / TaskCardTitleRow /
+// TaskCardChip / TaskCardTitle / TaskCardStatusRow) so a sub agent reads the
+// same here as it does as a [HelperToolBlock] in the conversation: purple
+// accent tint + border, a round status disc, the agent badge + task title, then
+// the real state, the real model (only when a finished block reported one) and
+// the finished duration.
 //
 // Hard rules this file keeps:
-//   * The panel NEVER exceeds `maxHeight`, collapsed OR expanded. maxHeight is
-//     the WHOLE panel: header + list + every vertical padding. Negative or
-//     non-finite budgets hide the panel instead of producing an invalid
-//     constraint, and tiny budgets clip rather than push a min-height past the
-//     cap (nothing in this file asks for a minimum height).
-//   * The list is a LazyColumn whose height is bounded by the Column above it
-//     (Column hands the remaining max height down), so there is no unbounded
-//     scrollable-inside-scrollable and no nested-scroll fight with the chat.
-//   * No progress percentage: the registry has no progress number, so showing
-//     one would be invented. A row shows the genuine [AgentJobState] word, and
-//     elapsed time only for a FINISHED run (a fixed duration). There is no
-//     ticker, no polling, no per-job ViewModel.
-//   * A row is tappable only when the job can actually be opened: its
-//     `ChildOfCurrent.parentToolUseId` must be non-blank AND still available
-//     in the parent's detail viewer. Otherwise there is no clickable
-//     modifier, no ripple and no click semantics — no fake interaction.
+//   * The list NEVER exceeds `maxHeight`. Negative or non-finite budgets hide
+//     the list instead of producing an invalid constraint, and tiny budgets
+//     clip rather than push a minimum height past the cap (nothing in this file
+//     asks for a minimum height).
+//   * The list is a LazyColumn bounded by its own heightIn AND by the host's
+//     column, so there is no unbounded scrollable-inside-scrollable and no
+//     nested-scroll fight with the chat.
+//   * No progress percentage and no live timer: the registry has no progress
+//     number and no ticker, so a row shows the genuine [AgentJobState] word, the
+//     genuine model, and elapsed time only for a FINISHED run (a fixed number).
+//   * The model is only ever the one a FINISHED helper block actually recorded
+//     (`parseHelperBlock(block).finished?.model`). Nothing is inferred from the
+//     agent name, the tier or the group.
+//   * A row is openable only when the job can actually be opened: its
+//     `ChildOfCurrent.parentToolUseId` must be non-blank AND still available in
+//     the parent's detail viewer. Otherwise the card is passed `enabled = false`
+//     — no ripple, no click semantics, no silent no-op callback.
 //   * No cancel / steer affordances. The registry's stop paths belong to the
 //     owning runner; a status panel must not pretend to own the run.
 
@@ -83,13 +89,13 @@ import com.openminis.app.ui.theme.ChatColors
 internal val SubAgentStatusPanelGap = 6.dp
 
 /**
- * Below this the panel renders nothing. The collapsed header is ~38–40 dp at
- * the default font scale; showing a slice of it would be a clipped, unusable
- * control, so "constrain or hide" resolves to hide here.
+ * Below this the list renders nothing. One task card is ~66 dp with its own
+ * outer padding; showing a slice of it would be a clipped, unreadable row, so
+ * "constrain or hide" resolves to hide here.
  */
 internal val SubAgentStatusPanelMinHeight = 40.dp
 
-/** Max characters of a job's real `summaryLine` kept in one row. */
+/** Max characters of a job's real `summaryLine` kept in one line. */
 internal const val SubAgentStatusSummaryMaxChars = 96
 
 /**
@@ -99,13 +105,13 @@ internal const val SubAgentStatusSummaryMaxChars = 96
  * floored at 0 so the result is always a legal constraint (never negative, and
  * never more than half the screen). Zero/negative/garbage inputs are safe:
  *
- *   * `available` not finite or ≤ 0            → 0 dp (panel hides)
+ *   * `available` not finite or ≤ 0            → 0 dp (list hides)
  *   * `toolbarReserve` not finite              → treated as "everything is
  *     reserved" → 0 dp
  *   * `toolbarReserve` negative                → clamped to 0
  *
- * The result counts the WHOLE panel — header, list and all vertical padding —
- * and the host is expected to cap the wrapper at its real work area height.
+ * The result counts the WHOLE list — every row and its padding — and the host
+ * is expected to cap the wrapper at its real work area height.
  */
 internal fun subAgentStatusHeightBudget(available: Dp, toolbarReserve: Dp): Dp {
     if (!available.value.isFinite() || available <= 0.dp) return 0.dp
@@ -202,6 +208,20 @@ internal fun subAgentStatusOpenToolUseId(
         ?.trim()
         ?.takeIf { it.isNotEmpty() && (availableToolUseIds == null || it in availableToolUseIds) }
 
+/** The id of the tool block this job was delegated from, blank-safe. */
+internal fun subAgentStatusToolUseId(job: AgentJob): String? =
+    (job.target as? AgentJobTarget.ChildOfCurrent)
+        ?.parentToolUseId
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+/**
+ * Number of jobs that are actually in flight — RUNNING plus queued (PENDING).
+ * This is the number the compact entry prints; the registry snapshot is the
+ * only source, so nothing is derived from timings or from the list order.
+ */
+internal fun subAgentStatusActiveCount(jobs: Collection<AgentJob>): Int = jobs.count { it.isActive }
+
 /**
  * One-line rendering of the runner's REAL summary line (`Summary: tools … ·
  * turns … · tokens …`), or null when the runner never wrote one. Newlines and
@@ -244,93 +264,95 @@ internal fun subAgentStatusStateLabelRes(state: AgentJobState): Int = when (stat
 }
 
 /**
- * Read-only sub agent status viewer.
- *
- * @param jobs the ALREADY SELECTED rows, normally `subAgentStatusJobs(...)`
- *   applied by the host to the in-process job registry's StateFlow snapshot.
- *   The panel renders them in the given order and does no filtering of its own.
- * @param maxHeight the whole panel's cap (header + list + all vertical
- *   padding). Small or zero values hide the panel; negative ones cannot
- *   produce a negative constraint.
- * @param onOpenTool invoked with the job's `parentToolUseId` when a row is
- *   actually openable. Never invoked for jobs without one.
- * @param availableToolUseIds IDs currently supported by the host detail
- *   viewer; compacted/deleted tool blocks remain visible as read-only statuses.
- * @param modifier host modifier; the host positions the panel.
+ * The completed run's status in the sub agent card's own vocabulary, so the
+ * row can reuse the very glyph and colour [HelperToolBlock] draws for the same
+ * outcome. RUNNING/PENDING are not "results" — they map to the live tokens the
+ * card already understands, and the row branches on them before asking for a
+ * glyph.
  */
-@Composable
-fun SubAgentStatusPanel(
-    jobs: List<AgentJob>,
-    maxHeight: Dp,
-    onOpenTool: (String) -> Unit,
-    availableToolUseIds: Set<String>,
-    modifier: Modifier = Modifier,
-) {
-    // Nothing to report, or no room to report it in. Both resolve to "draw
-    // nothing" — an empty shell above the toolbar would just be noise.
-    val heightBudget = subAgentStatusPanelBudget(maxHeight)
-    if (jobs.isEmpty() || heightBudget < SubAgentStatusPanelMinHeight) return
-
-    var expanded by remember { mutableStateOf(false) }
-    val activeCount = jobs.count { it.isActive }
-    val shape = RoundedCornerShape(10.dp)
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            // The single hard height gate. `heightIn` has no `min`, so a tiny
-            // budget shrinks the panel (clipped by the shape) instead of being
-            // overridden by the header's natural height. This also bounds the
-            // LazyColumn below: Column passes the remaining max height down,
-            // which is what makes the list scroll rather than overflow.
-            .heightIn(max = heightBudget)
-            .clip(shape)
-            .background(ChatColors.inputBg, shape)
-            .border(0.5.dp, ChatColors.toolBorder, shape),
-    ) {
-        SubAgentStatusHeader(
-            activeCount = activeCount,
-            totalCount = jobs.size,
-            expanded = expanded,
-            onToggle = { expanded = !expanded },
-        )
-        if (expanded) {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                // Inside the budget like everything else.
-                contentPadding = PaddingValues(bottom = 4.dp),
-            ) {
-                items(jobs, key = { it.id }) { job ->
-                    SubAgentStatusRow(
-                        job = job,
-                        onOpenTool = onOpenTool,
-                        availableToolUseIds = availableToolUseIds,
-                    )
-                }
-            }
-        }
-    }
+internal fun subAgentStatusWireStatus(state: AgentJobState): String = when (state) {
+    AgentJobState.DONE -> "completed"
+    AgentJobState.CANCELLED -> "cancelled"
+    AgentJobState.FAILED -> "failed"
+    AgentJobState.TIMEOUT -> "timeout"
+    AgentJobState.RUNNING -> "running"
+    AgentJobState.PENDING -> "queued"
 }
 
+/**
+ * The model each delegation's tool block actually REPORTED, keyed by block id.
+ *
+ * Only blocks written by the delegation tool itself are read
+ * ([HelperRunner.isSubAgentToolName]) — every other tool's JSON is unrelated
+ * and a stray `model_used` key in one of them must never become a sub agent's
+ * model. Only a FINISHED helper block carries `model_used`; [parseHelperBlock]
+ * already refuses to call a stale `status: running` finished, so an interrupted
+ * run contributes nothing here instead of advertising a model it may never have
+ * used. Blocks that are still running, that carry no model, or whose payload is
+ * unreadable are simply absent from the map — the row then shows no model.
+ */
+internal fun subAgentStatusBlockModels(blocks: List<AssistantBlock>): Map<String, String> {
+    if (blocks.isEmpty()) return emptyMap()
+    val out = LinkedHashMap<String, String>()
+    for (block in blocks) {
+        if (!HelperRunner.isSubAgentToolName(block.toolName)) continue
+        val model = parseHelperBlock(block).finished?.model?.trim().orEmpty()
+        if (model.isEmpty()) continue
+        out.putIfAbsent(block.id, model)
+    }
+    return out
+}
+
+/** The real model for [job], or null when its block never reported one. */
+internal fun subAgentStatusModelFor(job: AgentJob, models: Map<String, String>): String? {
+    val id = subAgentStatusToolUseId(job) ?: return null
+    return models[id]?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+/**
+ * The compact entry: one line, `Sub-agents N` (N = active jobs), nothing else.
+ *
+ * Deliberately stateless. The host owns `expanded` and places this in the
+ * toolbar's right-hand dead space; the list itself is a separate composable
+ * mounted above the whole floating bar. The total is carried in the
+ * accessibility description (and the expanded/collapsed state in
+ * `stateDescription`) so a TalkBack user still learns how many runs the panel
+ * is holding without the visible line growing a second number.
+ *
+ * @param jobs the ALREADY SELECTED rows (`subAgentStatusJobs(...)`); an empty
+ *   list draws nothing at all — there is no such thing as a "0" entry.
+ */
 @Composable
-private fun SubAgentStatusHeader(
-    activeCount: Int,
-    totalCount: Int,
+fun SubAgentStatusToggle(
+    jobs: List<AgentJob>,
     expanded: Boolean,
     onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    if (jobs.isEmpty()) return
+
+    val active = subAgentStatusActiveCount(jobs)
+    val total = jobs.size
     val expandLabel = stringResource(R.string.subagent_status_expand)
     val collapseLabel = stringResource(R.string.subagent_status_collapse)
     val expandedState = stringResource(R.string.subagent_status_expanded)
     val collapsedState = stringResource(R.string.subagent_status_collapsed)
+    // Resolved out here: the semantics lambda is not composable.
+    val description = stringResource(R.string.subagent_status_toggle_description, active, total)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // mergeDescendants first: the whole header is ONE TalkBack node —
-            // "Sub-agents, 1 active · 3 total, Collapsed, button" — instead of
-            // three separate announcements.
+    Text(
+        text = stringResource(R.string.subagent_status_toggle, active),
+        fontSize = 11.sp,
+        lineHeight = 12.sp,
+        fontWeight = FontWeight.Medium,
+        color = if (expanded) ChatColors.primaryText else ChatColors.secondaryText,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            // One node for TalkBack: the visible "Sub-agents 2" plus the total
+            // and the open/closed state, instead of a bare unlabelled text.
             .semantics(mergeDescendants = true) {
+                contentDescription = description
                 stateDescription = if (expanded) expandedState else collapsedState
             }
             .clickable(
@@ -338,121 +360,172 @@ private fun SubAgentStatusHeader(
                 onClickLabel = if (expanded) collapseLabel else expandLabel,
                 onClick = onToggle,
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            // Padding, never a min height: the entry has to live inside the
+            // toolbar's 27 dp dead space and must not force it taller.
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+    )
+}
+
+/**
+ * The expanded list of child jobs — no header, no internal expanded state.
+ *
+ * @param jobs the ALREADY SELECTED rows, normally `subAgentStatusJobs(...)`
+ *   applied by the host to the in-process job registry's StateFlow snapshot.
+ *   The list renders them in the given order and does no filtering of its own.
+ * @param maxHeight the whole list's cap (every row and its padding). Small or
+ *   zero values hide the list; negative ones cannot produce a negative
+ *   constraint.
+ * @param onOpenTool invoked with the job's `parentToolUseId` when a row is
+ *   actually openable. Never invoked for jobs without one.
+ * @param availableToolUseIds IDs currently supported by the host detail
+ *   viewer; compacted/deleted tool blocks remain visible as read-only statuses.
+ * @param toolBlocks the conversation's tool blocks, used for ONE thing: the
+ *   real model a finished delegation reported. Missing/partial blocks simply
+ *   mean no model on that row — never a guess.
+ * @param modifier host modifier; the host positions the list.
+ */
+@Composable
+fun SubAgentStatusPanel(
+    jobs: List<AgentJob>,
+    maxHeight: Dp,
+    onOpenTool: (String) -> Unit,
+    availableToolUseIds: Set<String>,
+    toolBlocks: List<AssistantBlock> = emptyList(),
+    modifier: Modifier = Modifier,
+) {
+    // Nothing to report, or no room to report it in. Both resolve to "draw
+    // nothing"; the host's toggle still tells the user there are jobs.
+    val heightBudget = subAgentStatusPanelBudget(maxHeight)
+    if (jobs.isEmpty() || heightBudget < SubAgentStatusPanelMinHeight) return
+
+    val models = remember(toolBlocks) { subAgentStatusBlockModels(toolBlocks) }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            // The single hard height gate. `heightIn` has no `min`, so a tiny
+            // budget shrinks the list (clipped) instead of being overridden by
+            // a row's natural height, and the LazyColumn is never handed an
+            // infinite constraint.
+            .heightIn(max = heightBudget),
+        contentPadding = PaddingValues(bottom = 2.dp),
     ) {
-        Text(
-            text = stringResource(R.string.subagent_status_title),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = ChatColors.primaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.subagent_status_counts, activeCount, totalCount),
-            fontSize = 11.sp,
-            color = ChatColors.secondaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Icon(
-            imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-            contentDescription = null, // the header's state/action labels carry this
-            tint = ChatColors.secondaryText,
-            modifier = Modifier.size(18.dp),
-        )
+        items(jobs, key = { it.id }) { job ->
+            SubAgentStatusRow(
+                job = job,
+                model = subAgentStatusModelFor(job, models),
+                onOpenTool = onOpenTool,
+                availableToolUseIds = availableToolUseIds,
+            )
+        }
     }
 }
 
+/**
+ * One child job, drawn with the transcript's own task card so it reads exactly
+ * like the [HelperToolBlock] the delegation came from: purple tint + border,
+ * round status disc, agent badge + title, then state · model · duration.
+ *
+ * The card is only interactive when [subAgentStatusOpenToolUseId] resolves;
+ * otherwise it is passed `enabled = false` so there is no ripple, no click
+ * semantics and no callback that would go nowhere.
+ */
 @Composable
 private fun SubAgentStatusRow(
     job: AgentJob,
+    model: String?,
     onOpenTool: (String) -> Unit,
     availableToolUseIds: Set<String>,
 ) {
+    val accent = helperAccent()
     val stateLabel = stringResource(subAgentStatusStateLabelRes(job.state))
     val openToolUseId = subAgentStatusOpenToolUseId(job, availableToolUseIds)
     val openLabel = stringResource(R.string.subagent_status_open_tool)
 
-    // Primary line: the named sub agent when there is one (that is what the
-    // parent asked for), else the job's own title.
+    // The badge names the sub agent once the registry has a name for it; the
+    // generic "Sub-agents" word until then. The title is the task the parent
+    // asked for, and is never dropped — a card of badges says nothing.
     val agentName = job.agentName?.trim()?.takeIf { it.isNotEmpty() }
-    val primary = agentName ?: job.title
-    val secondary = job.title.trim().takeIf { it.isNotEmpty() && it != primary }
-    val summary = subAgentStatusSummaryText(job)
+    val chip = agentName ?: stringResource(R.string.subagent_status_title)
+    val title = job.title.trim().ifEmpty { chip }
+    val stateColor = subAgentStatusStateColor(job.state)
+    val wireStatus = subAgentStatusWireStatus(job.state)
     val duration = subAgentStatusFinishedDurationMs(job)
         ?.let { formatStepDuration(it / 1000, stillRunning = false) }
-    val stateColor = subAgentStatusStateColor(job.state)
 
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        // One announcement per row, and it includes the state word.
-        .semantics(mergeDescendants = true) { stateDescription = stateLabel }
-        .let { base ->
-            // No click modifier at all when the row is not openable: no ripple,
-            // no "double tap to activate", no silent no-op callback.
-            if (openToolUseId != null) {
-                base.clickable(role = Role.Button, onClickLabel = openLabel) {
-                    onOpenTool(openToolUseId)
-                }
-            } else {
-                base
-            }
-        }
-        .padding(horizontal = 12.dp, vertical = 6.dp)
-
-    Row(modifier = rowModifier, verticalAlignment = Alignment.Top) {
-        Box(
-            modifier = Modifier
-                .padding(top = 5.dp)
-                .size(7.dp)
-                .background(stateColor, CircleShape),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = primary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = ChatColors.primaryText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (secondary != null) {
-                Text(
-                    text = secondary,
-                    fontSize = 12.sp,
-                    color = ChatColors.secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+    TaskCardFrame(
+        accent = accent,
+        // A card that cannot be opened is passed enabled = false, so
+        // TaskCardFrame itself drops the clickable: one clickable path in the
+        // card, no ripple and no click semantics on a read-only row.
+        enabled = openToolUseId != null,
+        onClick = { openToolUseId?.let(onOpenTool) },
+        onClickLabel = if (openToolUseId != null) openLabel else null,
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            stateDescription = stateLabel
+        },
+        icon = {
+            when (job.state) {
+                // Live work: the same decorative spinner the transcript's card
+                // uses. Not a progress indicator — the registry has no
+                // percentage to show.
+                AgentJobState.RUNNING -> DecorativeSpinner(
+                    color = accent,
+                    modifier = Modifier.size(TaskCardMetrics.iconGlyph),
+                    strokeWidth = 2.dp,
+                )
+                // Waiting for a slot is paused work, so it wears the pause
+                // glyph, not the generic Groups mark of a run that is starting.
+                AgentJobState.PENDING -> Icon(
+                    Icons.Filled.Pause,
+                    contentDescription = null,
+                    tint = stateColor,
+                    modifier = Modifier.size(TaskCardMetrics.iconGlyph),
+                )
+                else -> Icon(
+                    helperStatusGlyph(wireStatus),
+                    contentDescription = null,
+                    tint = stateColor,
+                    modifier = Modifier.size(TaskCardMetrics.iconGlyph),
                 )
             }
-            if (summary != null) {
-                Text(
-                    text = summary,
-                    fontSize = 11.sp,
-                    color = ChatColors.tertiaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        },
+    ) {
+        TaskCardTitleRow {
+            TaskCardChip(chip, accent)
+            TaskCardTitle(title)
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
+        TaskCardStatusRow {
             Text(
                 text = stateLabel,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = TaskCardMetrics.subtitleSize,
+                lineHeight = TaskCardMetrics.subtitleLineHeight,
+                fontWeight = FontWeight.SemiBold,
                 color = stateColor,
                 maxLines = 1,
             )
+            if (model != null) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = model,
+                    fontSize = TaskCardMetrics.subtitleSize,
+                    lineHeight = TaskCardMetrics.subtitleLineHeight,
+                    fontFamily = FontFamily.Monospace,
+                    color = ChatColors.tertiaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    // Shrinks before the duration does; a long model id must
+                    // not push the completion time off the card.
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
             if (duration != null) {
+                Spacer(Modifier.width(6.dp))
                 Text(
                     text = duration,
-                    fontSize = 11.sp,
+                    fontSize = TaskCardMetrics.subtitleSize,
+                    lineHeight = TaskCardMetrics.subtitleLineHeight,
+                    fontFamily = FontFamily.Monospace,
                     color = ChatColors.tertiaryText,
                     maxLines = 1,
                 )
@@ -461,12 +534,14 @@ private fun SubAgentStatusRow(
     }
 }
 
-/** Reuses the tool-row state colours so the panel reads as part of chat. */
+/**
+ * The state word's colour, taken from the same vocabulary the sub agent card
+ * uses for a finished run. Live states are not results: a running job is the
+ * panel's own accent (matching its spinner) and a queued one is neutral grey.
+ */
 @Composable
 private fun subAgentStatusStateColor(state: AgentJobState): Color = when (state) {
-    AgentJobState.RUNNING -> ChatColors.thinking
+    AgentJobState.RUNNING -> helperAccent()
     AgentJobState.PENDING -> ChatColors.secondaryText
-    AgentJobState.DONE -> ToolCheckColor
-    AgentJobState.CANCELLED -> ToolCancelColor
-    AgentJobState.FAILED, AgentJobState.TIMEOUT -> ToolErrorColor
+    else -> helperStatusColor(subAgentStatusWireStatus(state))
 }

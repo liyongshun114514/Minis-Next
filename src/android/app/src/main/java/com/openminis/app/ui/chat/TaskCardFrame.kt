@@ -98,6 +98,8 @@ internal fun TaskCardFrame(
     onClick: () -> Unit,
     onClickLabel: String?,
     modifier: Modifier = Modifier,
+    /** Read-only registry cards may outlive their underlying detail block. */
+    enabled: Boolean = true,
     /**
      * [ISS-017] True when a tap opens / shuts the card in place (the resolved
      * question card) rather than navigating: that tap gets no ripple, see
@@ -118,7 +120,9 @@ internal fun TaskCardFrame(
             .background(accent.copy(alpha = 0.07f))
             .border(0.8.dp, accent.copy(alpha = 0.35f), shape)
             .then(
-                if (expandsInPlace) {
+                if (!enabled) {
+                    Modifier
+                } else if (expandsInPlace) {
                     Modifier.expandToggleClickable(onClickLabel = onClickLabel, pressedShape = RectangleShape, onClick = onClick)
                 } else {
                     Modifier.clickable(onClickLabel = onClickLabel, onClick = onClick)

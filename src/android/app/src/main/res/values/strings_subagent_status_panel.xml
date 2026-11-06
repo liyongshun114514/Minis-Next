@@ -3,6 +3,9 @@
 <resources>
     <string name="subagent_status_title">Sub-agents</string>
     <string name="subagent_status_counts">%1$d active · %2$d total</string>
+    <!-- Compact entry: ONE number (jobs in flight). The total is spoken only. -->
+    <string name="subagent_status_toggle">Sub-agents %1$d</string>
+    <string name="subagent_status_toggle_description">Sub-agents, %1$d active, %2$d total</string>
     <string name="subagent_status_expand">Show sub-agents</string>
     <string name="subagent_status_collapse">Hide sub-agents</string>
     <string name="subagent_status_expanded">Expanded</string>
