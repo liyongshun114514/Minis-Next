@@ -36,7 +36,7 @@ class ToolbarGapTest {
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains(".height(barHeight + topSlotHeight)"))
         assertTrue(bar.contains(".align(Alignment.TopEnd)"))
-        assertTrue(bar.contains("FloatingToolBarMetrics.STATUS_ENTRY_START"))
+        assertTrue(bar.contains("val WORK_CONTENT_START = STATUS_ENTRY_START + PREVIEW_TEXT_GAP"))
         assertTrue(bar.contains(".height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)"))
         assertFalse("old padding displaced thumbnail below its intended top", bar.contains(".padding(top = if (previewEnabled) thumbnailOverhang"))
     }
@@ -48,7 +48,11 @@ class ToolbarGapTest {
         assertTrue(overlay.contains("WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)"))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains("val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
-        assertTrue(bar.contains(".padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 0.dp)"))
+        val statusSurface = bar.substringAfter("if (statusEntry != null)").substringBefore("// Layer 2:")
+        assertTrue(statusSurface.contains(".fillMaxWidth()"))
+        assertFalse(statusSurface.contains(".padding(start ="))
+        assertTrue(screen.contains("contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
+        assertTrue(bar.indexOf("if (statusEntry != null)") < bar.indexOf("// Layer 2: Thumbnail"))
     }
 
     @Test fun `the list and the bar read one geometry and one preview flag`() {

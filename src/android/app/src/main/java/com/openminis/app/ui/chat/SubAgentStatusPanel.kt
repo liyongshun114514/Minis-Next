@@ -339,6 +339,7 @@ fun SubAgentStatusToggle(
     expanded: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    contentStartPadding: Dp = 12.dp,
 ) {
     if (jobs.isEmpty()) return
 
@@ -370,15 +371,15 @@ fun SubAgentStatusToggle(
                 onClickLabel = if (expanded) collapseLabel else expandLabel,
                 onClick = onToggle,
             )
-            .padding(horizontal = 8.dp),
+            // Inset CONTENT only: keep the surface continuous under the preview.
+            .padding(start = contentStartPadding, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Groups, contentDescription = null, tint = helperAccent(), modifier = Modifier.size(13.dp))
+        Icon(Icons.Filled.Groups, contentDescription = null, tint = helperAccent(), modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.subagent_status_toggle, active),
-            fontSize = 11.sp,
-            lineHeight = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = ChatColors.primaryText,
             maxLines = 1,

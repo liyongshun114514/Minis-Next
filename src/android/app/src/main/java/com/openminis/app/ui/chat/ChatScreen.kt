@@ -5321,6 +5321,7 @@ fun ChatScreen(
                                 {
                                     SubAgentStatusToggle(
                                         jobs = statusJobs,
+                                        contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp,
                                         expanded = subAgentStatusExpanded,
                                         onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
                                     )

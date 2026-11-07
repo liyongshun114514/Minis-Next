@@ -1275,13 +1275,12 @@ internal fun FloatingToolStatusBar(
             // on the same active tool felt redundant on tight screens.
         }
 
-        // The previously empty space RIGHT of the preview and ABOVE the
-        // work bar. This does not add height when the preview is enabled.
+        // Full-width surface, just like the work bar. The thumbnail is drawn
+        // last over BOTH bars; only the status entry's content clears it.
         if (statusEntry != null) {
             Box(
                 modifier = Modifier.align(Alignment.TopEnd)
                     .fillMaxWidth()
-                    .padding(start = if (previewEnabled) FloatingToolBarMetrics.STATUS_ENTRY_START else 0.dp)
                     .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT),
                 contentAlignment = Alignment.CenterStart,
             ) { statusEntry() }

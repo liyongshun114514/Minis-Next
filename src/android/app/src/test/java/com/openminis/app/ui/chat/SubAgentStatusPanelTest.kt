@@ -472,6 +472,11 @@ class SubAgentStatusPanelTest {
         assertTrue(src.contains("Icons.Filled.KeyboardArrowDown"))
         assertTrue(src.contains("contentDescription = description"))
         assertTrue(src.contains("modifier = Modifier.weight(1f)"))
+        assertTrue(src.contains("fontSize = 13.sp"))
+        assertFalse(src.contains("fontSize = 11.sp"))
+        assertFalse(src.contains("lineHeight = 12.sp"))
+        assertTrue(src.contains(".padding(start = contentStartPadding, end = 12.dp)"))
+        assertTrue(src.indexOf(".background(ChatColors.inputBg, shape)") < src.indexOf(".padding(start = contentStartPadding"))
     }
 
     @Test
