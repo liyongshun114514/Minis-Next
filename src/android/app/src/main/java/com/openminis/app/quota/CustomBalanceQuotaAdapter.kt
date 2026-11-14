@@ -32,6 +32,28 @@ object CustomBalanceEndpoint {
         return s
     }
 
+    /** Accept a site/API base as shorthand without duplicating /v1. */
+    fun queryURL(raw: String): String {
+        val uri = URI(raw)
+        val path = uri.rawPath.orEmpty().trimEnd('/')
+        val queryPath = when {
+            path.isEmpty() || path == "/v1" -> "/v1/dashboard/billing/subscription"
+            path.endsWith("/dashboard/billing/usage") -> path.removeSuffix("usage") + "subscription"
+            path.endsWith("/dashboard/billing/subscription") -> path
+            else -> return raw
+        }
+        return "https://${uri.rawAuthority}$queryPath" + (uri.rawQuery?.let { "?$it" } ?: "")
+    }
+
+    /** Same origin, same path prefix and query credentials; never resolve a foreign URL. */
+    fun usageURL(subscriptionURL: String): String? {
+        val uri = URI(subscriptionURL)
+        val path = uri.rawPath.orEmpty().trimEnd('/')
+        if (!path.endsWith("/dashboard/billing/subscription")) return null
+        return "https://${uri.rawAuthority}${path.removeSuffix("subscription")}usage" +
+            (uri.rawQuery?.let { "?$it" } ?: "")
+    }
+
     /** "host[:port]/path" - what may be persisted or logged; the query is dropped. */
     fun display(raw: String?): String {
         val url = normalize(raw) ?: return "custom balance endpoint"
@@ -49,7 +71,8 @@ object CustomBalanceEndpoint {
      */
     fun capabilityIdentity(raw: String?): String {
         val url = normalize(raw) ?: return "invalid"
-        return display(url) + "#" + sha256(url).take(16)
+        // New query semantics must retry previously cached unsupported endpoints.
+        return display(url) + "#" + sha256("billing-v2|$url").take(16)
     }
 
     private fun sha256(value: String): String =
@@ -62,9 +85,10 @@ object CustomBalanceEndpoint {
  * configured on the instance.
  *
  * Safety:
- * - ONE request, to exactly that URL, with this instance's own API key as
- *   `Authorization: Bearer ...`. Nothing is sent anywhere else, and a blank
- *   URL falls back to the normal vendor adapter instead of this one.
+ * - Reuses this instance's saved API key as `Authorization: Bearer ...`.
+ *   A site or /v1 URL expands to billing/subscription; a subscription response
+ *   can trigger one same-origin billing/usage request. Redirects are disabled
+ *   for both requests. A blank URL keeps automatic vendor detection.
  * - A missing / unreadable amount is an ERROR ([QuotaError.Kind.unsupportedResponse]);
  *   it is never shown as 0.
  * - Provenance is compatibleInterface / userDeclared: these figures are the
@@ -103,10 +127,31 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
     override suspend fun fetch(ctx: QuotaFetchContext): QuotaFetchOutcome {
         val url = CustomBalanceEndpoint.normalize(ctx.descriptor.customBalanceURL)
             ?: throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "custom balance URL is not a valid HTTPS URL")
-        val endpoint = CustomBalanceEndpoint.display(url)
-        val r = ctx.transport.getWithoutRedirect(url, ctx.credential, ctx.extraHeaders)
-        QuotaHttp.error(r, endpoint, ctx.now)?.let { throw it }
-        val snapshot = parse(r.body, url, ctx.subjectId, ctx.now, QuotaHttp.clockOffset(r, ctx.now))
+        val queryURL = CustomBalanceEndpoint.queryURL(url)
+        suspend fun get(target: String): QuotaHttpResponse {
+            val response = ctx.transport.getWithoutRedirect(target, ctx.credential, ctx.extraHeaders)
+            QuotaHttp.error(response, CustomBalanceEndpoint.display(target), ctx.now)?.let { throw it }
+            return response
+        }
+        val r = get(queryURL)
+        val root = QuotaHttp.jsonObject(r.body, CustomBalanceEndpoint.display(queryURL))
+        val billing = root.obj("data") ?: root
+        val usageURL = CustomBalanceEndpoint.usageURL(queryURL)
+        // A subscription response is a total cap, not the current balance. Fetch
+        // the matching ledger with the provider's existing key; never invent 0 usage.
+        val body = if (billing.dec("hard_limit_usd") != null && billing.dec("balance") == null &&
+            billing.dec("total_usage") == null && billing.dec("used_usd") == null && usageURL != null
+        ) {
+            val usageRoot = QuotaHttp.jsonObject(get(usageURL).body, CustomBalanceEndpoint.display(usageURL))
+            val usage = usageRoot.obj("data") ?: usageRoot
+            val field = when {
+                usage.dec("total_usage") != null -> "total_usage"
+                usage.dec("used_usd") != null -> "used_usd"
+                else -> throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "billing usage has no readable amount")
+            }
+            JsonObject(billing + (field to usage.getValue(field))).toString().toByteArray(Charsets.UTF_8)
+        } else r.body
+        val snapshot = parse(body, queryURL, ctx.subjectId, ctx.now, QuotaHttp.clockOffset(r, ctx.now))
         return QuotaFetchOutcome(snapshot, isComplete = true)
     }
 
@@ -191,8 +236,9 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
         }
 
         // OpenAI billing: hard_limit_usd, with total_usage in cents when present.
-        o.dec("hard_limit_usd")?.let { hard ->
-            return listOf(openAIBilling(o, hard, o.obj("data"), subjectId, prov, now))
+        val billing = o.obj("data")?.takeIf { it.dec("hard_limit_usd") != null } ?: o
+        billing.dec("hard_limit_usd")?.let { hard ->
+            return listOf(openAIBilling(billing, hard, o.obj("data"), subjectId, prov, now))
         }
 
         // Moonshot / SiliconFlow / New API live under `data`.
@@ -402,8 +448,9 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
     ): QuotaPool {
         val cents = root.dec("total_usage") ?: data?.dec("total_usage")
         val usedUSD = cents?.divide(BigDecimal(100))?.canonical() ?: root.dec("used_usd") ?: data?.dec("used_usd")
-        val unlimited = hard >= UNLIMITED_SENTINEL_USD
-        val remaining = if (usedUSD != null) hard.subtract(usedUSD).max(BigDecimal.ZERO).canonical() else null
+        val balance = root.dec("balance")
+        val unlimited = hard >= UNLIMITED_SENTINEL_USD && balance == null
+        val remaining = balance ?: if (usedUSD != null) hard.subtract(usedUSD).max(BigDecimal.ZERO).canonical() else null
         return pool(
             subjectId, prov, now, "USD", QuotaPool.Kind.spendCap,
             label = "Relay billing",

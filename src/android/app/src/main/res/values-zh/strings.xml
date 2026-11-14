@@ -2325,7 +2325,7 @@
     <string name="quota_custom_balance_url_automatic">自动识别</string>
     <string name="quota_custom_balance_url_add">设置</string>
     <string name="quota_custom_balance_url_edit">编辑</string>
-    <string name="quota_custom_balance_url_description">可选。使用当前供应商 API Key 查询的完整 HTTPS 地址；留空则自动识别。</string>
+    <string name="quota_custom_balance_url_description">可选。填写 HTTPS 站点或完整余额接口链接，自动使用当前供应商已保存的 API Key，无需额外输入；billing 接口会补查用量计算美元余额。留空则自动识别。</string>
     <string name="quota_custom_balance_url_invalid">请输入带主机名的完整 https:// 地址；不允许 user-info 和 # 片段。</string>
     <string name="quota_custom_balance_url_clear">清空</string>
     <string name="quota_custom_balance_url_save">保存</string>

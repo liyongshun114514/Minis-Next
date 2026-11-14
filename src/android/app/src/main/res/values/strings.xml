@@ -2526,7 +2526,7 @@
     <string name="quota_custom_balance_url_automatic">Automatic detection</string>
     <string name="quota_custom_balance_url_add">Set</string>
     <string name="quota_custom_balance_url_edit">Edit</string>
-    <string name="quota_custom_balance_url_description">Optional. A full HTTPS endpoint queried with this provider\'s API key. Leave blank to keep automatic detection.</string>
+    <string name="quota_custom_balance_url_description">Optional. Enter an HTTPS site or full balance endpoint. Uses this provider\'s saved API key automatically; no extra key is needed. Billing links also fetch usage to calculate the USD balance. Leave blank for automatic detection.</string>
     <string name="quota_custom_balance_url_invalid">Enter a full https:// URL with a host. User-info and #fragments are not allowed.</string>
     <string name="quota_custom_balance_url_clear">Clear</string>
     <string name="quota_custom_balance_url_save">Save</string>

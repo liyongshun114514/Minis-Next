@@ -72,6 +72,87 @@ class CustomBalanceQuotaTest {
         assertFalse("query string must not be persisted", p.provenance.endpoint!!.contains("token"))
     }
 
+    @Test fun `site and v1 links expand without a duplicate v1`() {
+        for (site in listOf("https://sta1n.ai", "https://sta1n.ai/", "https://sta1n.ai/v1", "https://sta1n.ai/v1/")) {
+            assertEquals("https://sta1n.ai/v1/dashboard/billing/subscription", CustomBalanceEndpoint.queryURL(site))
+        }
+        assertEquals("https://sta1n.ai/v1/dashboard/billing/usage?token=secret",
+            CustomBalanceEndpoint.usageURL("https://sta1n.ai/v1/dashboard/billing/subscription?token=secret"))
+        assertEquals("https://sta1n.ai/dashboard/billing/usage",
+            CustomBalanceEndpoint.usageURL("https://sta1n.ai/dashboard/billing/subscription"))
+        assertNull(CustomBalanceEndpoint.usageURL("https://sta1n.ai/api/balance"))
+    }
+
+    @Test fun `billing link reuses saved provider key for subscription and usage`() = runBlocking {
+        for (link in listOf("https://sta1n.ai", "https://sta1n.ai/v1",
+            "https://sta1n.ai/v1/dashboard/billing/subscription",
+            "https://sta1n.ai/v1/dashboard/billing/usage",
+            "https://sta1n.ai/v1/dashboard/billing/subscription/",
+            "https://cdn.sta1n.cn/v1/dashboard/billing/subscription?token=secret")) {
+            val urls = mutableListOf<String>()
+            val t = object : QuotaHttpTransport {
+                override suspend fun get(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse =
+                    error("custom query must not follow redirects")
+                override suspend fun getWithoutRedirect(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse {
+                    assertEquals("saved-provider-key", bearer)
+                    assertEquals(mapOf("X-Provider" to "existing"), headers)
+                    urls += url
+                    val body = if (URI(url).path.endsWith("subscription"))
+                        """{"data":{"hard_limit_usd":458.364966}}"""
+                    else """{"data":{"total_usage":34828.8922}}"""
+                    return QuotaHttpResponse(200, body.toByteArray(), emptyMap())
+                }
+            }
+            val out = CustomBalanceQuotaAdapter.fetch(QuotaFetchContext(desc(link), subject,
+                "saved-provider-key", t, now, mapOf("X-Provider" to "existing")))
+            assertEquals(listOf(CustomBalanceEndpoint.queryURL(link),
+                CustomBalanceEndpoint.usageURL(CustomBalanceEndpoint.queryURL(link))), urls)
+            val p = out.snapshot.pools.single()
+            assertTrue(same(p.amounts?.remaining, "110.076044"))
+            assertTrue(same(p.amounts?.used, "348.288922"))
+            assertEquals(QuotaPool.Kind.spendCap, p.kind)
+            assertEquals(QuotaUnit.Currency("USD"), p.unit)
+            assertEquals(QuotaFormat.currency(BigDecimal("110.076044"), "USD", java.util.Locale.CHINA),
+                QuotaFormat.amount(p.amounts!!.remaining!!, p.unit, java.util.Locale.CHINA))
+            assertFalse(p.provenance.endpoint.orEmpty().contains("secret"))
+        }
+    }
+
+    @Test fun `usage failure never turns the total cap into a balance`() = runBlocking {
+        val t = object : QuotaHttpTransport {
+            override suspend fun get(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse = error("redirect")
+            override suspend fun getWithoutRedirect(url: String, bearer: String, headers: Map<String, String>): QuotaHttpResponse =
+                if (url.endsWith("subscription")) QuotaHttpResponse(200, """{"hard_limit_usd":458.364966}""".toByteArray(), emptyMap())
+                else QuotaHttpResponse(403, ByteArray(0), emptyMap())
+        }
+        val e = runCatching { CustomBalanceQuotaAdapter.fetch(QuotaFetchContext(desc("https://sta1n.ai"), subject, "key", t, now)) }
+            .exceptionOrNull() as QuotaFetchError
+        assertEquals(QuotaError.Kind.forbidden, e.kind)
+    }
+
+    @Test fun `inline usage needs no second request`() = runBlocking {
+        val t = FakeTransport(body = """{"hard_limit_usd":10,"total_usage":125}""")
+        val p = CustomBalanceQuotaAdapter.fetch(QuotaFetchContext(
+            desc("https://sta1n.ai/v1/dashboard/billing/subscription"), subject, "key", t, now)).snapshot.pools.single()
+        assertEquals(1, t.urls.size)
+        assertTrue(same(p.amounts?.remaining, "8.75"))
+    }
+
+    @Test fun `explicit billing balance takes priority over unlimited cap`() = runBlocking {
+        val t = FakeTransport(body = """{"hard_limit_usd":100000000,"balance":12.5}""")
+        val p = CustomBalanceQuotaAdapter.fetch(QuotaFetchContext(desc("https://sta1n.ai"), subject, "key", t, now)).snapshot.pools.single()
+        assertEquals(1, t.urls.size)
+        assertFalse(p.unlimited)
+        assertTrue(same(p.amounts?.remaining, "12.5"))
+    }
+
+    @Test fun `new billing capability does not reuse an old failed probe`() {
+        val url = "https://sta1n.ai"
+        val oldHash = java.security.MessageDigest.getInstance("SHA-256").digest(url.toByteArray())
+            .joinToString("") { "%02x".format(it) }.take(16)
+        assertNotEquals(CustomBalanceEndpoint.display(url) + "#" + oldHash, CustomBalanceEndpoint.capabilityIdentity(url))
+    }
+
     @Test fun `blank URL keeps automatic detection`() {
         val auto = desc(url = null)
         assertEquals(QuotaVendor.deepSeek, QuotaVendorDetector.vendor(auto))
