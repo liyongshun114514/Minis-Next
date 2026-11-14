@@ -1,6 +1,10 @@
 package com.openminis.app.provider
 
+import com.openminis.app.data.model.LLMStreamChunk
 import com.openminis.app.provider.openai.ThinkPrefixStreamParser
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -183,5 +187,161 @@ class ThinkPrefixStreamParserTest {
         // …and the tag still resolves once the rest arrives.
         val o2 = p.feed("nk>abc</think>\n\nbody")
         assertEquals("abc", o2.thinking)
+    }
+
+    // ── [T-android-think-prefix-orphan-close] Explicit CLOSING marker at the
+    // ── turn start: the reasoning itself arrived through the provider's
+    // ── reasoning field, so only `</think>` reached `content`. It is a tag, not
+    // ── prose, and must not be rendered in the reply body.
+
+    /** Same as [run], but pins that the shipped adapter agrees with it. */
+    private fun runBoth(vararg chunks: String): Pair<String, String> {
+        val parser = run(*chunks)
+        val shipped = runShipped(*chunks)
+        assertEquals("parser and shipped adapter must agree", parser, shipped)
+        return parser
+    }
+
+    /**
+     * Drives [text] through the shipped adapter (`splitThinkingPrefix()`, the
+     * path every provider stream takes) and returns (visible, thinking).
+     */
+    private fun runShipped(vararg chunks: String): Pair<String, String> = runBlocking {
+        val events = chunks.map { LLMStreamChunk.Text(it) } + LLMStreamChunk.Finished("stop")
+        val out = events.asFlow().splitThinkingPrefix().toList()
+        out.filterIsInstance<LLMStreamChunk.Text>().joinToString("") { it.text } to
+            out.filterIsInstance<LLMStreamChunk.ThinkingDelta>().joinToString("") { it.text }
+    }
+
+    /**
+     * Drives [text] through every 2-way chunking (both whitespace modes) and
+     * every 3-way chunking (parser default mode). A streaming split must never
+     * change the split result.
+     */
+    private fun assertEverySplit(text: String, expectVisible: String, expectThinking: String) {
+        for (cut in 0..text.length) {
+            val pair = runBoth(text.substring(0, cut), text.substring(cut))
+            assertEquals("cut=$cut visible", expectVisible, pair.first)
+            assertEquals("cut=$cut thinking", expectThinking, pair.second)
+        }
+        for (a in 0..text.length) for (b in a..text.length) {
+            val pair = run(text.substring(0, a), text.substring(a, b), text.substring(b))
+            assertEquals("cuts=$a,$b visible", expectVisible, pair.first)
+            assertEquals("cuts=$a,$b thinking", expectThinking, pair.second)
+        }
+    }
+
+    @Test
+    fun `orphan closing tag at the turn start is dropped, not rendered`() {
+        // Both spellings, both of which relays leave behind in `content` when
+        // they route the reasoning into `reasoning_content`.
+        assertEverySplit("</think>\n\nAnswer", "Answer", "")
+        assertEverySplit("</thinking>\n\nAnswer", "Answer", "")
+    }
+
+    @Test
+    fun `orphan closing tag is dropped with no separator or with padding`() {
+        assertEverySplit("</think>Answer", "Answer", "")
+        assertEverySplit("\n  </thinking>\n\nAnswer", "Answer", "")
+    }
+
+    @Test
+    fun `orphan closing tag only turn leaves a completely empty body`() {
+        // A think-only tool turn: no whitespace-only text block may survive.
+        assertEverySplit("</think>\n\n", "", "")
+        assertEquals("", runBoth("</thinking>").first)
+    }
+
+    @Test
+    fun `a closing tag after any body text stays literal`() {
+        // The rule is strictly positional: only offset 0 (modulo padding) is a
+        // marker. Prose and code examples that mention the tag are untouched.
+        for (input in listOf(
+            "Intro </think> tail",
+            " x</think>",
+            "Use `</thinking>` to end reasoning.",
+            "```xml\n<thinking>example</thinking>\n```",
+        )) {
+            val (vis, think) = runBoth(input)
+            assertEquals(input, vis)
+            assertEquals("", think)
+        }
+    }
+
+    @Test
+    fun `a close tag prefix that never completes is ordinary body text`() {
+        // Nothing proves "</thi" was a tag at end of turn; dropping it would eat
+        // body bytes, so it stays verbatim (same rule as a partial `<thin`).
+        val (vis, think) = runBoth("</thi")
+        assertEquals("</thi", vis)
+        assertEquals("", think)
+    }
+
+    @Test
+    fun `a possible partial closing marker stays buffered across a tool boundary`() {
+        val p = ThinkPrefixStreamParser()
+        assertEquals("", p.feed("</thi").visible)
+        assertEquals("", p.resolveAtToolBoundary().visible)
+        // …and is still dropped once the marker completes.
+        val rest = p.feed("nk>\n\nAnswer")
+        assertEquals("Answer", rest.visible)
+        assertEquals("", rest.thinking)
+    }
+
+    // ── [T-android-think-prefix-orphan-close] Prefix padding must include a
+    // ── BOM: Char.isWhitespace(U+FEFF) is false, so one prepended BOM used to
+    // ── make the turn look like plain body and stream ALL reasoning verbatim.
+
+    @Test
+    fun `a leading BOM before the open tag does not disable the split`() {
+        assertEverySplit("\uFEFF<thinking>reasoning</thinking>\n\nBody", "Body", "reasoning")
+        assertEverySplit("\uFEFF<think>reasoning</think>\n\nBody", "Body", "reasoning")
+    }
+
+    @Test
+    fun `a leading BOM before an orphan closing tag is padding too`() {
+        assertEverySplit("\uFEFF</think>\n\nAnswer", "Answer", "")
+    }
+
+    @Test
+    fun `a BOM in a plain turn is still body content`() {
+        // Padding is only dropped when an explicit tag follows it.
+        val (vis, think) = runBoth("\uFEFFplain reply")
+        assertEquals("\uFEFFplain reply", vis)
+        assertEquals("", think)
+    }
+
+    // ── Shipped adapter (`preserveBodyWhitespace = true`), the path every
+    // ── provider stream goes through before UI accumulation/persistence.
+
+    @Test
+    fun `shipped adapter renders no marker when reasoning arrived natively`() = runBlocking {
+        // The reported transition: the provider streams the chain of thought on
+        // its reasoning field, then `content` starts with the leftover closing
+        // marker. The body must be exactly "Answer" and no tag may reach Text.
+        val events = listOf(
+            LLMStreamChunk.ThinkingDelta("native plan"),
+            LLMStreamChunk.Text("</thi"),
+            LLMStreamChunk.Text("nking>\n\nAn"),
+            LLMStreamChunk.Text("swer"),
+            LLMStreamChunk.Finished("stop"),
+        )
+        val out = events.asFlow().splitThinkingPrefix().toList()
+        assertEquals("Answer", out.filterIsInstance<LLMStreamChunk.Text>().joinToString("") { it.text })
+        assertTrue(out.none { it is LLMStreamChunk.Text && it.text.contains("think") })
+        assertEquals("native plan", out.filterIsInstance<LLMStreamChunk.ThinkingDelta>().joinToString("") { it.text })
+        assertTrue(out.last() is LLMStreamChunk.Finished)
+    }
+
+    @Test
+    fun `shipped adapter emits no empty text block for an orphan-marker-only turn`() = runBlocking {
+        val out = listOf(
+            LLMStreamChunk.Text("</thinking>\n\n"),
+            LLMStreamChunk.ToolUseStart("t", "shell_execute"),
+            LLMStreamChunk.Finished("tool_calls"),
+        ).asFlow().splitThinkingPrefix().toList()
+        assertTrue("no visible text may be emitted", out.none { it is LLMStreamChunk.Text })
+        assertTrue("no thinking may be emitted", out.none { it is LLMStreamChunk.ThinkingDelta })
+        assertTrue(out.any { it is LLMStreamChunk.ToolUseStart })
     }
 }

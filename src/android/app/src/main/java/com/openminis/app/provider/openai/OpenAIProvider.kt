@@ -1200,8 +1200,7 @@ class OpenAIProvider private constructor(
         }
 
         // Chat Completions: tool calls are streamed as deltas keyed by index.
-        data class ToolCallAccumulator(var id: String = "", var name: String = "", val args: StringBuilder = StringBuilder(), var started: Boolean = false)
-        val toolCallAccumulators = mutableMapOf<Int, ToolCallAccumulator>()
+        val toolCallAccumulators = ChatToolCallAccumulator()
         // Responses API: function_call items are keyed by their item_id (fc_…). We store
         // the call_id separately because the agent loop needs the call_id to correlate
         // tool results, but the next request must echo back the item_id verbatim — so we
@@ -1731,13 +1730,12 @@ class OpenAIProvider private constructor(
                             for (i in 0 until toolCalls.length()) {
                                 val tc = toolCalls.getJSONObject(i)
                                 val idx = tc.optInt("index", 0)
-                                val acc = toolCallAccumulators.getOrPut(idx) { ToolCallAccumulator() }
-
-                                tc.safeOptString("id", "").let { if (it.isNotEmpty()) acc.id = it }
-                                tc.optJSONObject("function")?.let { fn ->
-                                    fn.safeOptString("name", "").let { if (it.isNotEmpty()) acc.name = it }
-                                    fn.safeOptString("arguments", "").let { if (it.isNotEmpty()) acc.args.append(it) }
-                                }
+                                val fn = tc.optJSONObject("function")
+                                val acc = toolCallAccumulators.append(
+                                    idx, tc.safeOptString("id", ""),
+                                    fn?.safeOptString("name", "").orEmpty(),
+                                    fn?.safeOptString("arguments", "").orEmpty(),
+                                )
 
                                 // Emit start exactly once per tool call
                                 if (!acc.started && acc.id.isNotEmpty() && acc.name.isNotEmpty()) {
@@ -1770,7 +1768,7 @@ class OpenAIProvider private constructor(
                                     sawFinishReason = true
                                     com.openminis.app.logging.AppLogger.info(
                                         "OpenAIProvider",
-                                        "[T321] finish_reason=$it contentLen=$contentLen reasoningLen=$reasoningLen encryptedReasoningChunks=$encryptedReasoningChunks toolCallEvents=$toolCallEventCount accumulators=${toolCallAccumulators.size}"
+                                        "[T321] finish_reason=$it contentLen=$contentLen reasoningLen=$reasoningLen encryptedReasoningChunks=$encryptedReasoningChunks toolCallEvents=$toolCallEventCount accumulators=${toolCallAccumulators.calls.size}"
                                     )
                                 }
                             }
@@ -1800,7 +1798,7 @@ class OpenAIProvider private constructor(
             }
 
             // Emit ToolCallComplete for all accumulated tool calls
-            for ((_, acc) in toolCallAccumulators) {
+            for (acc in toolCallAccumulators.calls) {
                 if (acc.id.isNotEmpty() && acc.name.isNotEmpty()) {
                     val args = try { JSONObject(acc.args.toString()) } catch (_: Exception) { JSONObject() }
                     android.util.Log.d("ToolChain[Provider]", "→ ToolCallComplete id=${acc.id} name=${acc.name} args=${args.toString().take(300)}")

@@ -284,6 +284,36 @@ class ToolCallDeltaAccumulationTest {
         assertFalse("nothing started under an empty id", s.any { it.id.isEmpty() })
     }
 
+    @Test
+    fun `relay reusing index keeps every start paired with its own complete`() {
+        val chunks = stream(sse(
+            toolDelta(0, id = "A", name = "file_read", args = """{"path":"/a","tool_title":"\u8bfb\u53d6"}"""),
+            toolDelta(0, id = "B", name = "shell_execute", args = """{"command":"pwd","tool_title":"Run pwd"}"""),
+            finishToolCalls,
+        ))
+        assertEquals(listOf("A", "B"), starts(chunks).map { it.id })
+        assertEquals(starts(chunks).map { it.id }, completes(chunks).map { it.id })
+        val calls = completes(chunks)
+        assertEquals("file_read", calls[0].name)
+        assertEquals("/a", calls[0].args.getString("path"))
+        assertEquals("读取", calls[0].args.getString("tool_title"))
+        assertEquals("shell_execute", calls[1].name)
+        assertEquals("pwd", calls[1].args.getString("command"))
+    }
+
+    @Test
+    fun `repeated full snapshot for same identity produces one complete with valid args`() {
+        val args = """{"path":"/a","tool_title":"Read a"}"""
+        val chunks = stream(sse(
+            toolDelta(0, id = "A", name = "file_read", args = args),
+            toolDelta(0, id = "A", name = "file_read", args = args),
+            finishToolCalls,
+        ))
+        assertEquals(1, starts(chunks).size)
+        assertEquals(1, completes(chunks).size)
+        assertEquals("/a", completes(chunks).single().args.getString("path"))
+    }
+
     // ============================================================ Responses API
 
     /**

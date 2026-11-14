@@ -211,7 +211,8 @@ jobs:
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
             --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
-            --tests '*ToolCallDeltaAccumulationTest' --tests '*ToolPreflightTest' \
+            --tests '*ToolCallDeltaAccumulationTest' --tests '*ChatToolCallAccumulatorTest' --tests '*ToolPreflightTest' \
+            --tests '*PartialJsonStringTest' --tests '*ToolStreamLifecycleTest' \
             --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \

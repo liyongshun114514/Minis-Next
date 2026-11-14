@@ -11886,6 +11886,7 @@ class ChatViewModel(
             // [T-android-gemini3-thoughtsig / #179] toolCallId -> Gemini 3.x
             // thoughtSignature for this turn's calls (null for other providers).
             val toolCallSignatures = mutableMapOf<String, String>()
+            val incompleteStreamToolIds = mutableSetOf<String>()
 
             // [T-dedupe-toolcallid 03fbcbfd] Per-turn dedupe of tool_call_id.
             // Some upstream OpenAI-compatible gateways occasionally emit
@@ -12436,6 +12437,16 @@ class ChatViewModel(
                         // [T-android-gemini3-thoughtsig / #179] Stash the Gemini
                         // 3.x thought signature keyed by the (deduped) tool call id.
                         chunk.thoughtSignature?.let { toolCallSignatures[toolCompleteId] = it }
+                        // Defensive against providers omitting the start event:
+                        // a dispatchable complete must always have a matching card.
+                        if (allToolBlocks.none { it.id == toolCompleteId }) {
+                            allToolBlocks.add(AssistantBlock(
+                                id = toolCompleteId, kind = "tool_use", toolName = chunk.name,
+                                toolStatus = ToolBlockStatus.PENDING,
+                                toolTitle = friendlyToolTitle(chunk.name),
+                                startTimeMs = System.currentTimeMillis(),
+                            ))
+                        }
                         val idx = allToolBlocks.indexOfFirst { it.id == toolCompleteId }
                         if (idx >= 0) {
                             val providedTitle = chunk.args.optString("tool_title", "").takeIf { it.isNotEmpty() }
@@ -12726,6 +12737,9 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
+                        dedupeStartCounts.clear()
+                        dedupeCompleteCounts.clear()
+                        inFlightRenamedId.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // T94 fix 2 + T256: throttle bookkeeping is per-stream
                         // attempt; reset alongside the partial-block rollback so
@@ -12950,6 +12964,9 @@ class ChatViewModel(
                         turnTextBlockIdx = -1
                         turnThinking.clear()
                         toolCalls.clear()
+                        dedupeStartCounts.clear()
+                        dedupeCompleteCounts.clear()
+                        inFlightRenamedId.clear()
                         toolCallSignatures.clear()  // [T-android-gemini3-thoughtsig / #179]
                         // loop continues — will retry collect with currentProvider
                     } else {
@@ -13002,6 +13019,26 @@ class ChatViewModel(
                 toolCalls.clear()
                 withContext(Dispatchers.Main) {
                     updateAssistantMessage(assistantId, accumulatedText, true, allToolBlocks)
+                }
+            }
+
+            // A provider may close with a start but no complete. Do not leave
+            // that card STREAMING, and never execute a partially generated call.
+            // Carry an explicit failed result through the normal persistence
+            // path so the UI and model history agree about the same identity.
+            val completedStreamIds = toolCalls.map { it.first }.toSet()
+            for (i in turnStartBlockIndex until allToolBlocks.size) {
+                val b = allToolBlocks[i]
+                if (b.kind == "tool_use" && b.id !in completedStreamIds &&
+                    b.toolStatus == ToolBlockStatus.STREAMING) {
+                    incompleteStreamToolIds.add(b.id)
+                    val received = runCatching { JSONObject(b.toolArgs) }.getOrElse { JSONObject() }
+                    toolCalls.add(Triple(b.id, b.toolName, received))
+                    allToolBlocks[i] = b.copy(
+                        toolStatus = ToolBlockStatus.FAILED,
+                        content = "Tool argument stream ended without completion; not executed.",
+                        durationMs = System.currentTimeMillis() - b.startTimeMs,
+                    )
                 }
             }
 
@@ -13647,6 +13684,15 @@ class ChatViewModel(
                         // AND lose ordering, so each call fills its own list
                         // and the lists are concatenated in index order below.
                         val resultParts = mutableListOf<AgentContentPart>()
+                        if (id in incompleteStreamToolIds) {
+                            resultParts.add(AgentContentPart.ToolResult(
+                                id = id, name = name,
+                                content = "Error: Tool argument stream ended without completion. This call was NOT executed. Send a fresh complete call; do not assume it succeeded.",
+                                isError = true,
+                            ))
+                            slotResults[slotIndex] = resultParts
+                            return@async
+                        }
                         slots.withPermit {
                             // [T-android-concurrent-tools] Ref-count this call so
                             // the overlay clears only when the LAST of a
@@ -16282,7 +16328,7 @@ class ChatViewModel(
                 "tool_use" -> {
                     val name = block.toolName
                     if (name.isBlank()) continue
-                    val inputStr = toolCallInputs[block.id] ?: "{}"
+                    val inputStr = toolCallInputs[block.id] ?: block.toolArgs.ifBlank { "{}" }
                     val inputJson = try { JSONObject(inputStr) } catch (_: Exception) { JSONObject() }
                     // [T-android-gemini3-thoughtsig / #179] Carry the block's
                     // signature into the persisted/replayed ToolUse.
@@ -18693,13 +18739,8 @@ class ChatViewModel(
         return s
     }
 
-    /** Unescape common JSON string escapes. */
-    private fun unescapePartialJsonString(s: String): String =
-        s.replace("\\n", "\n")
-            .replace("\\t", "\t")
-            .replace("\\\"", "\"")
-            .replace("\\/", "/")
-            .replace("\\\\", "\\")
+    /** Decode complete escapes only; Unicode/emoji may straddle stream chunks. */
+    private fun unescapePartialJsonString(s: String): String = PartialJsonString.decode(s)
 
     /**
      * Humanize a snake_case tool name into a Title-Case label for pill headers

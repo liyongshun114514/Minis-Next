@@ -310,7 +310,9 @@ class ChatCompletionsToolPairingTest {
         // The history repair's own text: the provider must know it to let a real result win.
         val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
         val repair = vm.substringAfter("private fun sanitizeAgentHistory() {").substringBefore("\n    }\n")
-        assertTrue(repair.contains("content = \"${ChatCompletionsToolPairing.HISTORY_REPAIR_REPLY}\","))
+        val expectedRepair = ChatCompletionsToolPairing.HISTORY_REPAIR_REPLY
+        assertTrue(repair.contains("content = \"$expectedRepair\",") ||
+            repair.contains("content = (\"$expectedRepair\"),"))
     }
 
     @Test fun `the Chat Completions builder runs it last, after the id dedupe, and sends its result`() {

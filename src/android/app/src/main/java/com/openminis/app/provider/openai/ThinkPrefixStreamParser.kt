@@ -28,6 +28,19 @@ package com.openminis.app.provider.openai
  *  - After `</think>`, leading whitespace is dropped, and a trailing-whitespace
  *    run is withheld until proven interior — so a think-only turn ends with an
  *    empty body rather than "\n\n".
+ *  - [T-android-think-prefix-orphan-close] An explicit CLOSING marker at the very
+ *    START of a turn (`</think>` / `</thinking>`, same leading-padding rule) is
+ *    a structural tag, not prose: the turn began inside a reasoning block whose
+ *    opening tag never reached `content` (a relay that splits the reasoning into
+ *    `reasoning_content` keeps only the close tag in `content`; likewise a
+ *    server-side `<think>` prefix prefill). It is dropped — and nothing is
+ *    emitted as thinking — instead of being rendered in the reply. Only the tag
+ *    characters are dropped; the body after it is byte-identical. A close tag
+ *    anywhere else stays literal body text (see the mid-text tests).
+ *  - Leading PADDING tolerated before either marker is `Char.isWhitespace()` plus
+ *    U+FEFF: Kotlin's `isWhitespace()` is false for a BOM, so one prepended BOM
+ *    used to defeat prefix detection for the WHOLE turn and stream all reasoning
+ *    into the visible body.
  *
  * Not thread-safe; one instance per streaming turn (the provider creates one
  * per request).
@@ -56,6 +69,17 @@ internal class ThinkPrefixStreamParser(private val preserveBodyWhitespace: Boole
 
     private companion object {
         val OPEN_TAGS = listOf("<think>", "<thinking>")
+        val CLOSE_TAGS = listOf("</think>", "</thinking>")
+
+        /** Every explicit tag this parser reacts to, for cross-chunk prefix holds. */
+        val TAG_PREFIXES = OPEN_TAGS + CLOSE_TAGS
+
+        /**
+         * Invisible prefix padding tolerated before a structural tag. A BOM is
+         * not `Char.isWhitespace()`; without it here a single prepended U+FEFF
+         * would make the turn look like plain body and leak all reasoning.
+         */
+        fun isPad(c: Char): Boolean = c.isWhitespace() || c == '\uFEFF'
     }
 
     private var closingTag = "</think>"
@@ -71,26 +95,39 @@ internal class ThinkPrefixStreamParser(private val preserveBodyWhitespace: Boole
         loop@ while (pending.isNotEmpty()) {
             when (state) {
                 State.UNDECIDED -> {
-                    // Tolerate (and drop) leading whitespace before a <think>.
-                    val firstNonSpace = pending.indexOfFirst { !it.isWhitespace() }
+                    // Tolerate (and drop) leading padding before a <think>.
+                    val firstNonSpace = pending.indexOfFirst { !isPad(it) }
                     if (firstNonSpace < 0) {
-                        // All whitespace so far — can't decide yet. Keep it: if a
+                        // All padding so far — can't decide yet. Keep it: if a
                         // <think> follows we drop it, otherwise it belongs to the body.
                         break@loop
                     }
                     val rest = pending.substring(firstNonSpace)
                     val open = OPEN_TAGS.firstOrNull { rest.startsWith(it) }
-                    if (open == null && OPEN_TAGS.any { it.startsWith(rest) }) break@loop
                     if (open != null) {
                         state = State.THINKING
                         closingTag = "</" + open.substring(1)
-                        // Drop the tolerated leading whitespace AND the tag.
+                        // Drop the tolerated leading padding AND the tag.
                         pending.delete(0, firstNonSpace + open.length)
-                    } else {
-                        // No think prefix — the whole turn is body, tags and all.
-                        state = State.BODY
-                        // Leading whitespace here is genuine body content.
+                        continue@loop
                     }
+                    val orphanClose = CLOSE_TAGS.firstOrNull { rest.startsWith(it) }
+                    if (orphanClose != null) {
+                        // [T-android-think-prefix-orphan-close] The turn started
+                        // inside a reasoning block and only the closing marker
+                        // reached `content`. Drop the marker itself and the
+                        // padding around it; nothing is thinking here (the
+                        // reasoning came through the native field) and the body
+                        // after it is untouched.
+                        state = State.BODY
+                        dropBodyLeadingWhitespace = true
+                        pending.delete(0, firstNonSpace + orphanClose.length)
+                        continue@loop
+                    }
+                    if (TAG_PREFIXES.any { it.startsWith(rest) }) break@loop
+                    // No think prefix — the whole turn is body, tags and all.
+                    // Leading whitespace here is genuine body content.
+                    state = State.BODY
                 }
 
                 State.THINKING -> {
@@ -111,7 +148,7 @@ internal class ThinkPrefixStreamParser(private val preserveBodyWhitespace: Boole
 
                 State.BODY -> {
                     if (dropBodyLeadingWhitespace) {
-                        while (pending.isNotEmpty() && pending[0].isWhitespace()) pending.deleteCharAt(0)
+                        while (pending.isNotEmpty() && isPad(pending[0])) pending.deleteCharAt(0)
                         if (pending.isEmpty()) break@loop
                         dropBodyLeadingWhitespace = false
                     }
@@ -171,9 +208,11 @@ internal class ThinkPrefixStreamParser(private val preserveBodyWhitespace: Boole
      */
     fun resolveAtToolBoundary(): Output {
         if (state != State.UNDECIDED || pending.isEmpty()) return Output("", "")
-        // If the buffer could still grow into "<think>", leave it alone.
-        val rest = pending.trimStart()
-        if (rest.isNotEmpty() && OPEN_TAGS.any { it.startsWith(rest) && rest.length < it.length }) {
+        // If the buffer could still grow into ANY structural tag (including a
+        // leading orphan close tag), leave it alone: flushing it now would emit
+        // the tag into the body.
+        val rest = pending.trimStart { isPad(it) }
+        if (rest.isNotEmpty() && TAG_PREFIXES.any { it.startsWith(rest) && rest.length < it.length }) {
             return Output("", "")
         }
         state = State.BODY
