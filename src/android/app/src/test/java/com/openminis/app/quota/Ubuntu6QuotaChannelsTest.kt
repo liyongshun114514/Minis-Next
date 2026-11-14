@@ -225,12 +225,12 @@ class Ubuntu6QuotaChannelsTest {
         }
     }
 
-    @Test fun `a LiteLLM proxy is detected on the fourth probe and reused afterwards`() {
+    @Test fun `a LiteLLM proxy is detected after generic billing probes and reused afterwards`() {
         val t = RouteTransport(mapOf("/key/info" to (200 to liteLLM)))
         val o = probe(t).getOrThrow()
         assertEquals(RelayKind.liteLLM, o.relayKind)
         assertEquals(
-            listOf("/v1/usage", "/api/usage/token", "/v1/dashboard/billing/subscription", "/key/info"),
+            listOf("/v1/usage", "/v1/dashboard/billing/subscription", "/dashboard/billing/subscription", "/api/usage/token", "/key/info"),
             t.hits.map { URI(it).path },
         )
         assertEquals("LiteLLM", RelayKind.liteLLM.displayName)

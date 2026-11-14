@@ -1,6 +1,8 @@
-# Minis Next 1.6.5 / code 56
+# Minis Next 1.6.6 / code 57
 
-Current update: [single-link relay balance queries](balance-1.6.5.md). Site and subscription links reuse the provider's saved API key and fetch the companion usage endpoint to calculate USD remaining. Original quota UI and currency formatting are retained.
+Current update: [default generic relay balance detection](balance-1.6.6.md). The provider's API base and saved key automatically discover standard USD billing ledgers, without a separate balance URL or site-specific adapter. Both automatic and optional custom URLs use the same prepaid-balance parser and original 余额 · USD / US$amount display, not spend-cap progress. Existing cached relay types are reprobed after upgrading.
+
+Previous update: [single-link balance query overrides](balance-1.6.5.md) remain optional.
 
 Previous maintenance: [three targeted reversions, dead-code cleanup, deterministic tool folding and removal of the experimental compaction continuation](maintenance-1.6.4.md). Package, signing identity and user data remain unchanged. The descriptions below document retained file/guest behavior from earlier versions.
 

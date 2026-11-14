@@ -203,7 +203,7 @@ jobs:
             --tests '*OffloadWireTest' --tests '*OffloadClientInstallTest' --tests '*NativeOffloadHardeningTest' \
             --tests '*SubAgentDefinitionTest' --tests '*SubAgentPersistenceTest' \
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' --tests '*SubAgentStatusPanelTest' \
-            --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*Ubuntu6QuotaChannelsTest' \
+            --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*BillingBalanceTest' --tests '*QuotaHeadlineCurrencyTest' --tests '*Ubuntu6QuotaChannelsTest' \
             --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \
             --tests '*ToolbarGapTest' --tests '*FloatingToolPagerTest' --tests '*ToolPreviewAndThinkingLongPressTest' --tests '*TaskCardMetricsTest' \

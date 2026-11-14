@@ -86,7 +86,12 @@ data class QuotaInstanceDescriptor(
                     CustomBalanceEndpoint.capabilityIdentity(custom),
                 )
             }
-            return QuotaCapabilityKey(providerKind.name, QuotaCapabilityKey.normalize(customBaseURL))
+            // A new protocol preference must not inherit a cached raw-quota
+            // detection or a 24-hour failed probe from the previous version.
+            val kind = if (QuotaVendorDetector.vendor(this) == QuotaVendor.customRelay) {
+                providerKind.name + "#relay-balance-v2"
+            } else providerKind.name
+            return QuotaCapabilityKey(kind, QuotaCapabilityKey.normalize(customBaseURL))
         }
 }
 
@@ -1526,7 +1531,7 @@ object QuotaResponseShape {
 /** [T-quota-relay-probe] Which relay family answered, and so which endpoint to use next time. */
 @Suppress("EnumEntryName")
 enum class RelayKind {
-    sub2api, newAPI, openAIBilling,
+    sub2api, openAIBilling, newAPI,
     /**
      * [UBUNTU6] LiteLLM Proxy (self-hosted gateway). `GET /key/info` is
      * documented (docs.litellm.ai/docs/proxy/virtual_keys) and, with no `key`
@@ -1576,11 +1581,12 @@ enum class RelayKind {
  * 1. Sub2API `GET /v1/usage` - a boolean `isValid` marks it. Modes:
  *    `quota_limited` (quota.remaining / limit / used), wallet (`balance`),
  *    subscription (`remaining`, -1 = unlimited). USD.
- * 2. New API `GET /api/usage/token` - `data.total_granted / total_used /
+ * 2. OpenAI-compatible `GET /v1/dashboard/billing/subscription` (+ `/usage`):
+ *    `hard_limit_usd` (>= 1e8 = unlimited), `total_usage` in cents; also accepts
+ *    `/dashboard/billing/` under the same gateway prefix. Parsed as USD balance.
+ * 3. New API `GET /api/usage/token` - `data.total_granted / total_used /
  *    total_available / unlimited_quota` in the relay's quota units (shown as
  *    units: the per-dollar rate is a per-site setting, never assumed).
- * 3. OpenAI-compatible `GET /v1/dashboard/billing/subscription` (+ `/usage`):
- *    `hard_limit_usd` (>= 1e8 = unlimited), `total_usage` in cents.
  * 4. [UBUNTU6] LiteLLM Proxy `GET /key/info` - `info.spend` / `info.max_budget`
  *    in USD (docs.litellm.ai/docs/proxy/virtual_keys). Detected by the `info`
  *    object carrying a numeric spend or max_budget.
@@ -1592,7 +1598,6 @@ enum class RelayKind {
 object RelayQuotaAdapter : ProviderQuotaAdapter {
     override val adapterId = "relay.probe"
     override val vendor = QuotaVendor.customRelay
-    private val UNLIMITED_SENTINEL_USD = BigDecimal(100_000_000)
 
     override fun capability(d: QuotaInstanceDescriptor): QuotaCapability {
         if (d.customHost == null || root(d) == null) {
@@ -1642,7 +1647,7 @@ object RelayQuotaAdapter : ProviderQuotaAdapter {
 
     private suspend fun query(kind: RelayKind, root: String, ctx: QuotaFetchContext): UpstreamQuotaSnapshot {
         suspend fun get(path: String): QuotaHttpResponse {
-            val r = ctx.transport.get(root + path, ctx.credential, ctx.extraHeaders)
+            val r = ctx.transport.getWithoutRedirect(root + path, ctx.credential, ctx.extraHeaders)
             QuotaHttp.error(r, path, ctx.now)?.let { throw it }
             return r
         }
@@ -1651,15 +1656,35 @@ object RelayQuotaAdapter : ProviderQuotaAdapter {
             RelayKind.sub2api -> parseSub2API(get(kind.path).body, ctx.subjectId, host, ctx.now)
             RelayKind.newAPI -> parseNewAPI(get(kind.path).body, ctx.subjectId, host, ctx.now)
             RelayKind.openAIBilling -> {
-                val sub = get(kind.path).body
-                val usage = try {
-                    get("/v1/dashboard/billing/usage").body
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    null
+                // Both protocol paths are used by compatible ledgers, regardless
+                // of hostname. Keep the configured gateway prefix and origin.
+                var subscription: Pair<String, ByteArray>? = null
+                var failure: QuotaFetchError? = null
+                for (path in listOf(kind.path, "/dashboard/billing/subscription")) {
+                    try {
+                        val body = get(path).body
+                        val data = BillingBalance.unwrap(obj(body, kind))
+                        if (data.dec("hard_limit_usd") == null && data.dec("balance") == null) {
+                            throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "not a billing ledger at $path")
+                        }
+                        subscription = path to body
+                        break
+                    } catch (e: QuotaFetchError) {
+                        // Never turn a credential, redirect, rate-limit or server
+                        // error into another authenticated request.
+                        if (e.kind != QuotaError.Kind.notFound && e.kind != QuotaError.Kind.unsupportedResponse) throw e
+                        failure = e
+                    }
                 }
-                parseOpenAIBilling(sub, usage, ctx.subjectId, host, ctx.now)
+                val (path, sub) = subscription ?: throw checkNotNull(failure)
+                val usage = if (BillingBalance.needsUsage(obj(sub, kind))) {
+                    // Missing usage is not zero usage. Use the paired endpoint
+                    // on exactly the same origin/path with the saved provider key.
+                    get(path.removeSuffix("subscription") + "usage").body
+                } else null
+                val snapshot = parseOpenAIBilling(sub, usage, ctx.subjectId, host, ctx.now)
+                val source = snapshot.provenance.copy(endpoint = path)
+                snapshot.copy(provenance = source, pools = snapshot.pools.map { it.copy(provenance = source) })
             }
             RelayKind.liteLLM -> parseLiteLLM(get(kind.path).body, ctx.subjectId, host, ctx.now)
         }
@@ -1753,29 +1778,15 @@ object RelayQuotaAdapter : ProviderQuotaAdapter {
         relayHost: String,
         now: Long,
     ): UpstreamQuotaSnapshot {
-        fun unwrap(o: JsonObject): JsonObject = o.obj("data") ?: o
-        val sub = unwrap(obj(subscription, RelayKind.openAIBilling))
-        val use = usage?.let { runCatching { QuotaHttp.json.parseToJsonElement(it.decodeToString()) as? JsonObject }.getOrNull() }
-            ?.let(::unwrap) ?: JsonObject(emptyMap())
-        val key = QuotaPoolKey.of(subjectId, "relay")
-        var pool = QuotaPool(
-            id = key, subjectId = subjectId, kind = QuotaPool.Kind.spendCap, unit = QuotaUnit.Currency("USD"),
-            vendorLabel = "Relay billing", provenance = provenance(RelayKind.openAIBilling, relayHost), observedAt = now,
+        val parsed = BillingBalance.parse(
+            obj(subscription, RelayKind.openAIBilling), usage?.let { obj(it, RelayKind.openAIBilling) },
         )
-        val usedUSD = use.dec("total_usage")?.divide(BigDecimal(100))?.canonical() ?: use.dec("used_usd")
-        val balance = sub.dec("balance")
-        val hard = sub.dec("hard_limit_usd")
-        pool = when {
-            balance != null -> pool.copy(kind = QuotaPool.Kind.prepaidBalance, amounts = QuotaAmounts(used = usedUSD, remaining = balance))
-            hard != null -> if (hard >= UNLIMITED_SENTINEL_USD) {
-                pool.copy(unlimited = true, amounts = usedUSD?.let { QuotaAmounts(used = it) })
-            } else {
-                pool.copy(amounts = QuotaAmounts(
-                    total = hard, used = usedUSD, remaining = usedUSD?.let { hard.subtract(it).max(BigDecimal.ZERO).canonical() },
-                ))
-            }
-            else -> throw QuotaFetchError(QuotaError.Kind.unsupportedResponse, "no hard_limit_usd / balance: not a billing API")
-        }
+        val pool = QuotaPool(
+            id = QuotaPoolKey.of(subjectId, "relay"), subjectId = subjectId,
+            kind = QuotaPool.Kind.prepaidBalance, unit = QuotaUnit.Currency("USD"),
+            vendorLabel = "Relay balance", amounts = parsed.amounts, unlimited = parsed.unlimited,
+            provenance = provenance(RelayKind.openAIBilling, relayHost), observedAt = now,
+        )
         return snapshot(pool, RelayKind.openAIBilling, subjectId, relayHost, now)
     }
 

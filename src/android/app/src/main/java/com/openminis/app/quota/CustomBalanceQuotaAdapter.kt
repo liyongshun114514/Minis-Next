@@ -113,8 +113,6 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
     override val adapterId = "custom.balance-url"
     override val vendor = QuotaVendor.customBalance
 
-    private val UNLIMITED_SENTINEL_USD = BigDecimal(100_000_000)
-
     override fun capability(d: QuotaInstanceDescriptor): QuotaCapability =
         if (CustomBalanceEndpoint.normalize(d.customBalanceURL) != null) {
             QuotaCapability.activeQuery(QuotaSource.compatibleInterface, QuotaConfidence.userDeclared)
@@ -139,9 +137,7 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
         val usageURL = CustomBalanceEndpoint.usageURL(queryURL)
         // A subscription response is a total cap, not the current balance. Fetch
         // the matching ledger with the provider's existing key; never invent 0 usage.
-        val body = if (billing.dec("hard_limit_usd") != null && billing.dec("balance") == null &&
-            billing.dec("total_usage") == null && billing.dec("used_usd") == null && usageURL != null
-        ) {
+        val body = if (BillingBalance.needsUsage(root) && usageURL != null) {
             val usageRoot = QuotaHttp.jsonObject(get(usageURL).body, CustomBalanceEndpoint.display(usageURL))
             val usage = usageRoot.obj("data") ?: usageRoot
             val field = when {
@@ -237,8 +233,8 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
 
         // OpenAI billing: hard_limit_usd, with total_usage in cents when present.
         val billing = o.obj("data")?.takeIf { it.dec("hard_limit_usd") != null } ?: o
-        billing.dec("hard_limit_usd")?.let { hard ->
-            return listOf(openAIBilling(billing, hard, o.obj("data"), subjectId, prov, now))
+        if (billing.dec("hard_limit_usd") != null) {
+            return listOf(openAIBilling(o, subjectId, prov, now))
         }
 
         // Moonshot / SiliconFlow / New API live under `data`.
@@ -440,23 +436,14 @@ object CustomBalanceQuotaAdapter : ProviderQuotaAdapter {
 
     private fun openAIBilling(
         root: JsonObject,
-        hard: BigDecimal,
-        data: JsonObject?,
         subjectId: QuotaSubjectID,
         prov: QuotaProvenance,
         now: Long,
     ): QuotaPool {
-        val cents = root.dec("total_usage") ?: data?.dec("total_usage")
-        val usedUSD = cents?.divide(BigDecimal(100))?.canonical() ?: root.dec("used_usd") ?: data?.dec("used_usd")
-        val balance = root.dec("balance")
-        val unlimited = hard >= UNLIMITED_SENTINEL_USD && balance == null
-        val remaining = balance ?: if (usedUSD != null) hard.subtract(usedUSD).max(BigDecimal.ZERO).canonical() else null
+        val parsed = BillingBalance.parse(root)
         return pool(
-            subjectId, prov, now, "USD", QuotaPool.Kind.spendCap,
-            label = "Relay billing",
-            amounts = if (unlimited) usedUSD?.let { QuotaAmounts(used = it) }
-            else QuotaAmounts(total = hard, used = usedUSD, remaining = remaining),
-            unlimited = unlimited,
+            subjectId, prov, now, "USD", QuotaPool.Kind.prepaidBalance,
+            label = "Relay balance", amounts = parsed.amounts, unlimited = parsed.unlimited,
         )
     }
 

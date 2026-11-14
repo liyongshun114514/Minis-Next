@@ -447,7 +447,9 @@ object QuotaStore {
         }
         if (singleFlight.isRunning(subjectId)) {
             AppLogger.info(TAG, "[Quota] join in-flight fetch $subjectId reason=$reason")
-        } else {
+        } else if (adapter.vendor != QuotaVendor.customRelay || rec != null) {
+            // A new generic-ledger capability key must probe immediately after
+            // upgrade, not wait on the old raw-quota snapshot refresh timer.
             val decision = QuotaRefreshGate.decide(
                 _state.value.subjects[subjectId]?.lastRefresh, now, forced, policy, attended,
             )
@@ -820,6 +822,11 @@ object QuotaStore {
             if (st.instanceNotes[instance.id] != null) return@filter false
             val d = descriptor(instance)
             if (!QuotaAdapterRegistry.adapter(d).capability(d).active) return@filter false
+            // The generic balance protocol changed: probe the new capability
+            // even if the previous raw-quota subject's timer is not due yet.
+            if (QuotaVendorDetector.vendor(d) == QuotaVendor.customRelay && st.capabilities[d.capabilityKey] == null) {
+                return@filter true
+            }
             // Skip without a credential read when the known subject is not due.
             val sid = st.instanceSubjects[instance.id]
             !(

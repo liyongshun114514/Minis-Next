@@ -110,9 +110,15 @@ class CustomBalanceQuotaTest {
             val p = out.snapshot.pools.single()
             assertTrue(same(p.amounts?.remaining, "110.076044"))
             assertTrue(same(p.amounts?.used, "348.288922"))
-            assertEquals(QuotaPool.Kind.spendCap, p.kind)
+            // A relay's billing ledger is a prepaid balance, not a spend cap, and
+            // the cap is never shown as a total: only "balance · USD US$110.08".
+            assertEquals(QuotaPool.Kind.prepaidBalance, p.kind)
+            assertNull("the hard limit is not a displayed total", p.amounts?.total)
             assertEquals(QuotaUnit.Currency("USD"), p.unit)
             assertEquals(QuotaFormat.currency(BigDecimal("110.076044"), "USD", java.util.Locale.CHINA),
+                QuotaFormat.amount(p.amounts!!.remaining!!, p.unit, java.util.Locale.CHINA))
+            // The amount itself still goes through the untouched QuotaFormat.
+            assertEquals("US$110.08",
                 QuotaFormat.amount(p.amounts!!.remaining!!, p.unit, java.util.Locale.CHINA))
             assertFalse(p.provenance.endpoint.orEmpty().contains("secret"))
         }
@@ -143,6 +149,7 @@ class CustomBalanceQuotaTest {
         val p = CustomBalanceQuotaAdapter.fetch(QuotaFetchContext(desc("https://sta1n.ai"), subject, "key", t, now)).snapshot.pools.single()
         assertEquals(1, t.urls.size)
         assertFalse(p.unlimited)
+        assertEquals(QuotaPool.Kind.prepaidBalance, p.kind)
         assertTrue(same(p.amounts?.remaining, "12.5"))
     }
 
