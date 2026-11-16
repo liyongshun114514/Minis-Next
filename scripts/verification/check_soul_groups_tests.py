@@ -95,6 +95,7 @@ PINNED_TESTS = [
     "com.openminis.app.ui.settings.UnifiedPromptSettingsTest",
     "com.openminis.app.agent.SystemPromptInjectionWiringTest",
     "com.openminis.app.agent.ApplicationSystemPromptTest",
+    "com.openminis.app.provider.SystemChannelPlacementTest",
     "com.openminis.app.agent.SoulBodyLimitPolicyTest",
     "com.openminis.app.agent.SoulPromptRulesTest",
     "com.openminis.app.agent.SoulIconTest",

@@ -149,7 +149,10 @@ class SystemChannelPlacementTest {
             assertFalse("$name still yields to later messages",
                 src.contains("defer to the user's latest") || src.contains("may be overridden"))
         }
-        assertTrue(soul.contains("不覆盖模型服务端规则"))
+        // Match the current SOUL contract (also exercised by
+        // ApplicationSystemPromptTest), rather than requiring retired copy.
+        assertTrue("SOUL must retain truthful reporting of failed actions",
+            soul.contains("if the system refuses or fails an action, say so"))
         assertFalse(soul.contains("outranks every instruction"))
         // The editable template is resolved by a getter, not a cached value.
         // Keep the single-definition contract and require the catalog wiring.

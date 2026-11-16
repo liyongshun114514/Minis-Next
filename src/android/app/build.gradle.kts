@@ -31,6 +31,9 @@ android {
     // Android 16 behavior changes; the Live Updates path is runtime-gated on
     // Build.VERSION.SDK_INT >= 36 (see DynamicIslandSupport / AgentForegroundService).
     compileSdk = 36
+    // Keep local Android tests and CI on the same SDK package. AGP 8.7.3
+    // otherwise defaults to 34.0.0, even with newer build-tools installed.
+    buildToolsVersion = "35.0.0"
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
