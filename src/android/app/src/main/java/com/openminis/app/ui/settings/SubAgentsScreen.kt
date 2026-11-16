@@ -439,6 +439,14 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
                     title = g.name,
                     selected = groupId == g.id,
                     onSelect = { groupId = g.id; persist() },
+                    // [T-model-group-avatar] Same avatar as every other group
+                    // presentation point.
+                    leading = {
+                        com.openminis.app.ui.components.ModelGroupAvatar(
+                            group = g,
+                            size = 28.dp,
+                        )
+                    },
                     showDivider = i < groups.lastIndex,
                 )
             }

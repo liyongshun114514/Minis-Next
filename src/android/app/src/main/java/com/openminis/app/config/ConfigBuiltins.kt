@@ -1361,8 +1361,7 @@ internal object ConfigBuiltins {
     private fun registerSoul(r: ConfigRegistry, context: Context) {
         // [K-global-prompt-only] No application-side length cap and no
         // schema maxLength: the global body is stored and sent as written.
-        // The writer only rejects prompt-injection patterns (safety), never
-        // a long but legitimate personality prompt.
+        // Settings and minis-config preserve the same SOUL body verbatim.
 
         // Re-read SOUL.md every call so concurrent writes from Settings
         // UI don't race with minis-config writes. Parse falls back to
@@ -1375,7 +1374,9 @@ internal object ConfigBuiltins {
                 )
 
         fun saveCurrent(file: com.openminis.app.agent.SoulFile) {
-            com.openminis.app.agent.SoulStore.save(context, file)
+            com.openminis.app.agent.SoulProfiles.save(
+                context, com.openminis.app.agent.SoulProfiles.DEFAULT_ID, file,
+            )
         }
 
         r.register(
@@ -1554,10 +1555,9 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.body",
                 displayName = "Global system prompt",
-                description = "The global system prompt (personality / voice instructions) sent through the model's native system channel. There is no application-side length limit: the body is stored and sent as written. The writer rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
-                // No schema maxLength: there is no application-side length
-                // limit at all. Only the injection-pattern rejection runs in
-                // the writer below.
+                description = "The default SOUL prompt sent through the model's native system channel for chats using the default profile. The body is stored as written, without an application-side length limit. Other SOUL profiles are managed in Settings → SOUL.",
+                // No schema maxLength or phrase-based filtering: the default
+                // SOUL has the same write contract as the profile editor.
                 valueSchema = ConfigSchema.Str(),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,
@@ -1568,13 +1568,6 @@ internal object ConfigBuiltins {
                 writer = { v ->
                     val raw = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
-                    if (com.openminis.app.agent.SystemPromptBuilder
-                            .containsInjectionPattern(raw)
-                    ) {
-                        throw ConfigError.InvalidValue(
-                            "Body contains a prompt-injection pattern (\"ignore/disregard/forget … previous/prior instructions\"). SOUL.md is for personality, not instructions to the model."
-                        )
-                    }
                     val cur = loadCurrent()
                     saveCurrent(cur.copy(body = raw))
                 },

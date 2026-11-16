@@ -39,8 +39,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
-        versionCode = 57
-        versionName = "1.6.6"
+        versionCode = 58
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

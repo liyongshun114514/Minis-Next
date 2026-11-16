@@ -7,12 +7,12 @@
 -->
 <resources>
     <!-- Settings row subtitle: this entry covers the global system prompt only. -->
-    <string name="prompt_catalog_settings_subtitle">Identity, global templates and workspace instructions</string>
+    <string name="prompt_catalog_settings_subtitle">SOUL profiles and shared prompt templates</string>
 
     <!-- Hub -->
-    <string name="prompt_catalog_intro">This page lists the global system prompts only: identity, the main system prompt, workspace instructions, memory, skills, scheduled tasks and MCP. Per-tool descriptions, voice/vision/title/compaction scenarios and runtime reminders belong to the features that send them and are not edited here. Open one to read or edit its full text; an edit applies the next time the prompt is assembled.</string>
-    <string name="prompt_catalog_row_identity">Name, avatar and global SOUL</string>
-    <string name="prompt_catalog_row_identity_subtitle">Chat identity and the global system prompt body</string>
+    <string name="prompt_catalog_intro">Manage SOUL profiles for chat identity and instructions. Shared templates for the main prompt, memory, skills, scheduled tasks and MCP remain below. Changes apply when a new request is assembled.</string>
+    <string name="prompt_catalog_row_identity">SOUL library</string>
+    <string name="prompt_catalog_row_identity_subtitle">Create and edit names, avatars and prompts; choose a SOUL in each chat</string>
     <string name="prompt_catalog_search_hint">Search prompts</string>
     <string name="prompt_catalog_search_clear">Clear search</string>
     <string name="prompt_catalog_badge_edited">Edited</string>

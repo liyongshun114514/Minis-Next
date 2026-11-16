@@ -20,8 +20,11 @@ class SoulSettingsPageContractTest {
     @Test
     fun `the page edits exactly the original global properties`() {
         assertTrue(src.contains("soul_field_name"))
-        assertTrue(src.contains("SoulStore.load(context)"))
-        assertTrue(src.contains("SoulStore.save(context, currentFile)"))
+        // [T-multi-soul] Reads and writes go through the profile store; the
+        // legacy default is still loaded/saved through SoulStore by that
+        // store, not directly from this screen.
+        assertTrue(src.contains("SoulProfiles.load(context, targetId)"))
+        assertTrue(src.contains("SoulProfiles.save(context, editingId, snapshot)"))
         assertTrue(src.contains("SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)"))
         assertTrue(src.contains("DocumentEditorField("))
         assertTrue(src.contains("name = name.ifBlank { SoulMetadata.DEFAULT.name }"))
@@ -29,6 +32,36 @@ class SoulSettingsPageContractTest {
         assertTrue(src.contains("preservedEmoji = parsed.metadata.emoji"))
         assertTrue(src.contains("style = parsed.metadata.style"))
         assertTrue(src.contains("lang = parsed.metadata.lang"))
+    }
+
+    /**
+     * [T-multi-soul] The page is a library: it can create, edit, delete and
+     * pick the SOUL for one chat. Those four verbs are what the feature is,
+     * so they are pinned at the source level here; the behaviour itself is
+     * covered by `SoulProfilesStorageTest`.
+     */
+    @Test
+    fun `the page can create edit delete and select a profile`() {
+        assertTrue(src.contains("SoulProfiles.create("))
+        assertTrue(src.contains("SoulProfiles.delete(context, profile.id)"))
+        assertTrue(src.contains("SoulProfiles.select(context, session, id)"))
+        assertTrue("the default profile cannot be deleted", src.contains("profile.id != SoulProfiles.DEFAULT_ID"))
+        // One edited profile at a time, reloaded when the id changes.
+        assertTrue(src.contains("var editingId by remember"))
+        assertTrue(src.contains("LaunchedEffect(editingId, reloadKey)"))
+        // Unsaved edits are still guarded before switching profile or leaving.
+        assertTrue(src.contains("PendingSoulAction.SwitchProfile"))
+    }
+
+    @Test
+    fun `no new shared string resource is required by the page`() {
+        // The new copy lives in this file's private SoulUiText object; the
+        // screen only reads keys that already existed.
+        for (line in src.lines().filter { it.contains("stringResource(R.string.") }) {
+            assertFalse("new resource key: $line", line.contains("R.string.chat_menu_soul"))
+            assertFalse("new resource key: $line", line.contains("R.string.soul_profile"))
+        }
+        assertTrue(src.contains("private object SoulUiText"))
     }
 
     @Test

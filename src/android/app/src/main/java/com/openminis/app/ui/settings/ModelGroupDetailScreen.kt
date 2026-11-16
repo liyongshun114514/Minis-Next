@@ -62,6 +62,10 @@ import androidx.compose.ui.graphics.Color
 import com.openminis.app.data.model.FallbackStrategy
 import com.openminis.app.data.model.RoutingStrategy
 import com.openminis.app.data.model.ThinkingLevel
+import com.openminis.app.groups.ModelGroupAvatarResolver
+import com.openminis.app.groups.ModelGroupAvatarSource
+import com.openminis.app.groups.ModelGroupAvatarSpec
+import com.openminis.app.groups.ModelGroupAvatarValue
 import com.openminis.app.provider.effectiveMaxThinkingLevel
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.R
@@ -71,7 +75,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.components.ModelGroupAvatar
 import com.openminis.app.ui.components.SectionTextField
+import com.openminis.app.ui.components.rememberModelIconCatalog
 import kotlin.math.roundToInt
 
 /**
@@ -123,6 +129,20 @@ fun ModelGroupDetailScreen(
     // Local copy of member IDs for live reorder
     var memberIds by remember(group.memberEntryIds) { mutableStateOf(group.memberEntryIds.toList()) }
     var entryToRemove by remember { mutableStateOf<String?>(null) }
+    // [T-model-group-avatar] Icon chooser + the resolved avatar the row and
+    // top bar show. Resolved from (name, stored) so an automatic match
+    // follows a rename and a manual choice stays put.
+    var showIconPicker by remember { mutableStateOf(false) }
+    val iconCatalog = rememberModelIconCatalog()
+    val resolvedIcon = remember(group.name, group.avatar, iconCatalog) {
+        ModelGroupAvatarResolver.resolve(group.name, group.avatar, iconCatalog)
+    }
+    val manualIcon = remember(group.avatar) { ModelGroupAvatarValue.parse(group.avatar) }
+    val iconTitleRes = when {
+        manualIcon is ModelGroupAvatarValue.Manual.Image -> R.string.group_avatar_kind_custom_image
+        resolvedIcon.source == ModelGroupAvatarSource.MANUAL -> R.string.group_avatar_kind_brand
+        else -> R.string.group_avatar_kind_automatic
+    }
     // [T-quota-group-member-pill] Provider whose quota sheet is open.
     var quotaSheetInstanceId by remember { mutableStateOf<String?>(null) }
 
@@ -145,7 +165,13 @@ fun ModelGroupDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(group.name, fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ModelGroupAvatar(group = group, size = 26.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(group.name, fontWeight = FontWeight.SemiBold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.model_group_detail_back))
@@ -164,6 +190,51 @@ fun ModelGroupDetailScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            // ── Icon section ──────────────────────────────────────────
+            // [T-model-group-avatar] The one manual entry point. "Change"
+            // opens the picker; Automatic (clearing the override) is the
+            // picker's first row, so there is no separate Reset button to
+            // drift from it.
+            item {
+                SettingsSection(
+                    header = stringResource(R.string.group_avatar_section_header),
+                    footer = stringResource(R.string.group_avatar_section_footer),
+                ) {
+                    SettingsCardBlock {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ModelGroupAvatar(group = group, size = 44.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(iconTitleRes),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = when (val spec = resolvedIcon.spec) {
+                                        is ModelGroupAvatarSpec.Builtin ->
+                                            if (resolvedIcon.source == ModelGroupAvatarSource.AUTO) {
+                                                stringResource(R.string.group_avatar_detail_auto, spec.entry.name)
+                                            } else {
+                                                stringResource(R.string.group_avatar_detail_uses, spec.entry.name)
+                                            }
+                                        is ModelGroupAvatarSpec.Image ->
+                                            stringResource(R.string.group_avatar_detail_image)
+                                        ModelGroupAvatarSpec.Fallback ->
+                                            stringResource(R.string.group_avatar_detail_fallback)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            MinisTextButton(onClick = { showIconPicker = true }) {
+                                Text(stringResource(R.string.group_avatar_change))
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Name section ──────────────────────────────────────────
             item {
                 SettingsSection(
@@ -625,6 +696,22 @@ fun ModelGroupDetailScreen(
                 Spacer(Modifier.height(20.dp))
             }
         }
+    }
+
+    // [T-model-group-avatar] Manual override. The picker reports null for
+    // "Automatic", which CLEARS the stored value so the icon follows renames
+    // again; every other value is written verbatim through updateGroup.
+    if (showIconPicker) {
+        ModelGroupAvatarPickerSheet(
+            group = group,
+            onSelect = { value ->
+                // Re-read at write time: the group may have been renamed (the
+                // name field commits on focus loss) while the sheet was open.
+                val latest = providerRepository.group(group.id) ?: group
+                providerRepository.updateGroup(latest.copy(avatar = value))
+            },
+            onDismiss = { showIconPicker = false },
+        )
     }
 
     quotaSheetInstanceId?.let { id ->

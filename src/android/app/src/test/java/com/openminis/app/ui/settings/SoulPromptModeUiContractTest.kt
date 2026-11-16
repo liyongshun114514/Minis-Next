@@ -45,7 +45,10 @@ class SoulPromptModeUiContractTest {
     @Test
     fun `the page still owns the global draft independently`() {
         assertTrue(screen.contains("var body by remember"))
-        assertTrue(screen.contains("SoulStore.save(context, currentFile)"))
+        // [T-multi-soul] The draft is still local to the screen while it is
+        // edited; it now persists through the profile store for whichever
+        // profile the editor holds.
+        assertTrue(screen.contains("SoulProfiles.save(context, editingId, snapshot)"))
         assertTrue(screen.contains("baseline"))
     }
 }

@@ -21,6 +21,7 @@ import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.model.RoutingStrategy
 import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.data.repository.ProviderRepository
+import com.openminis.app.groups.ModelGroupAvatarValue
 
 /**
  * Exposes ModelGroup fields under `groups.<id>.…`. Mirrors iOS
@@ -45,6 +46,7 @@ class GroupsCollection(
         if (group(forId) == null) return emptyList()
         return listOf(
             nameField(forId),
+            avatarField(forId),
             strategyField(forId),
             fallbackStrategyField(forId),
             defaultThinkingLevelField(forId),
@@ -88,6 +90,15 @@ class GroupsCollection(
         val contextLimit = (obj["context_limit_tokens"] as? ConfigValue.Int)?.value
             ?.takeIf { it > 0 }
 
+        // [T-model-group-avatar] Manual icon override. Absent/null/empty =
+        // automatic. Anything else must be one of the two storable forms;
+        // a typo is rejected rather than silently stored as "automatic".
+        val avatar = when (val raw = obj["avatar"]) {
+            null, is ConfigValue.Null -> null
+            is ConfigValue.Str -> validAvatarOrThrow(raw.value)
+            else -> throw ConfigError.InvalidValue("`avatar` must be a string")
+        }
+
         val g = ModelGroup(
             name = name,
             memberEntryIds = members,
@@ -95,6 +106,7 @@ class GroupsCollection(
             fallbackStrategy = fallback,
             defaultThinkingLevel = defaultThinking,
             contextLimitTokens = contextLimit,
+            avatar = avatar,
         )
         repo.addGroup(g)
         return g.id
@@ -170,6 +182,55 @@ class GroupsCollection(
                 mutate(id) { it.name = s }
             },
         )
+
+    /**
+     * [T-model-group-avatar] Manual icon override.
+     *
+     * The EMPTY string (not null) is the wire form of "automatic": ConfigValue
+     * has no per-field null, and every other optional string in this
+     * collection uses empty for "unset". Automatic is not persisted at all —
+     * it is re-derived from the current name on every render, which is what
+     * makes a rename re-match the icon while a stored manual value survives.
+     */
+    private fun avatarField(id: String): ConfigField =
+        ClosureField(
+            path = "groups.$id.avatar",
+            displayName = "Icon",
+            description = "Empty = match the icon from the group name automatically; " +
+                "`builtin:<catalog id>` = a bundled brand icon; " +
+                "`data:image/png;base64,…` = a custom picture.",
+            valueSchema = ConfigSchema.Str(maxLength = ModelGroupAvatarValue.MAX_STORED_CHARS),
+            risk = ConfigRisk.NORMAL,
+            revertable = true,
+            readable = ConfigReadable(ConfigValueFormatter.Text()),
+            reader = {
+                val g = group(id) ?: return@ClosureField ConfigValue.Null
+                ConfigValue.Str(g.avatar.orEmpty())
+            },
+            writer = { v ->
+                val s = (v as? ConfigValue.Str)?.value ?: throw ConfigError.TypeMismatch("string")
+                val value = validAvatarOrThrow(s)
+                mutate(id) { it.avatar = value }
+            },
+        )
+
+    /**
+     * Normalize a stored avatar string, or reject it. Shared by the field
+     * writer and `add()` so a value accepted through `groups.add` is the same
+     * value the field would accept.
+     */
+    private fun validAvatarOrThrow(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        return when (val manual = ModelGroupAvatarValue.parse(trimmed)) {
+            is ModelGroupAvatarValue.Manual.Builtin ->
+                ModelGroupAvatarValue.BUILTIN_PREFIX + manual.id
+            is ModelGroupAvatarValue.Manual.Image -> manual.dataUri
+            null -> throw ConfigError.InvalidValue(
+                "`avatar` must be empty, `builtin:<id>`, or a PNG data URI",
+            )
+        }
+    }
 
     private fun strategyField(id: String): ConfigField =
         ClosureField(

@@ -162,6 +162,7 @@ jobs:
           python3 scripts/test_chroot_file_identity.py
           python3 -m unittest discover -s scripts/tests -p test_removed_native_ui.py -v
           python3 -m unittest discover -s scripts/tests -p test_prompt_catalog.py -v
+          python3 -m unittest discover -s scripts/tests -p test_model_icon_assets.py -v
           python3 scripts/check-prompt-catalog.py
       - name: Build APK
         id: build-apk
@@ -190,7 +191,7 @@ jobs:
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
             --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' --tests '*ChrootFileToolsTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
-            --tests '*WorkspaceSystemPromptTest' --tests '*WorkspaceSystemChannelTest' \
+            --tests '*SoulProfiles*' --tests '*GroupAvatar*' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
             --tests '*SystemChannelPlacementTest' --tests '*SoulIcon*' --tests '*SoulAvatar*' \
@@ -217,7 +218,7 @@ jobs:
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \
             --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
-            --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
+            --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' --tests '*PromptCatalogScopeTest' \
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest'

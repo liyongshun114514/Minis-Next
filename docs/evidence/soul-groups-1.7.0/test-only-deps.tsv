@@ -1,0 +1,8 @@
+# declared testImplementation/testRuntimeOnly jars
+# resolved from the Gradle module cache (no network)
+PRESENT	/var/cache/minis/gradle/caches/modules-2/files-2.1/org.xerial/sqlite-jdbc/3.41.2.2/ddeb8d3a3004f412ed19b4c98b3aec11d9452ab5/sqlite-jdbc-3.41.2.2.jar	12851127
+ABSENT	org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0
+ABSENT	com.squareup.okhttp3:mockwebserver:4.12.0
+ABSENT	org.json:json:20231013
+ABSENT	androidx.compose:compose-bom:2025.09.00
+ABSENT	androidx.compose.ui:ui-test-junit4

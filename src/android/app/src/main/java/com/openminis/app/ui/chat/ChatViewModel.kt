@@ -6217,6 +6217,158 @@ class ChatViewModel(
     val currentSessionId: String
         get() = activeSessionId
 
+    // ── [T-multi-soul] Per-chat SOUL selection ──────────────────────────────
+
+    /** Every SOUL profile, default first. Collected by the chat picker. */
+    val soulProfiles: kotlinx.coroutines.flow.StateFlow<List<com.openminis.app.agent.SoulProfiles.SoulProfile>> =
+        com.openminis.app.agent.SoulProfiles.profiles
+
+    /** Durable `sessionId -> profileId` map; the picker reads the active row. */
+    val soulSelections: kotlinx.coroutines.flow.StateFlow<Map<String, String>> =
+        com.openminis.app.agent.SoulProfiles.selections
+
+    /**
+     * Re-read profiles/selections, including files edited outside the app.
+     * Disk work is dispatched here rather than at every call site, because
+     * this is also reachable from a menu tap on the main thread.
+     */
+    fun refreshSoulProfiles() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { com.openminis.app.agent.SoulProfiles.refresh(context) }
+        }
+    }
+
+    /**
+     * Publish the SOUL this chat uses so the header, typing indicator and
+     * notification show its name and icon. Called when the chat opens and
+     * after the draft is promoted to a real session, so no surface keeps a
+     * stale identity from the previous chat.
+     */
+    fun syncActiveSoul() {
+        runCatching { com.openminis.app.agent.SoulProfiles.setActiveSession(context, activeSessionId) }
+    }
+
+    /** [syncActiveSoul] off the main thread; used on the session-load path. */
+    private fun syncActiveSoulAsync() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { syncActiveSoul() }
+    }
+
+    /**
+     * [T-multi-soul] The last SOUL the user picked for a chat, published the
+     * instant they tap and BEFORE the durable write starts.
+     *
+     * Two races this closes, both real:
+     *  - "pick a SOUL, hit send": the turn reads the persona on another
+     *    thread, so a selection that only exists as a queued IO write would
+     *    lose to the send and the first reply would answer as the old SOUL;
+     *  - "tap A, then B": two independent IO coroutines have no ordering
+     *    guarantee, so the slower first write could overwrite the second.
+     *
+     * [selectSoul] therefore records the choice synchronously and runs every
+     * write through ONE serial job chain ([soulWriteJob]); readers
+     * ([selectedSoulForTurn], [ensureSession], the picker) prefer this value
+     * while it belongs to their session, so "what is shown" and "what is sent"
+     * cannot diverge from the last tap.
+     */
+    data class SoulChoice(val sessionId: String, val profileId: String)
+
+    private val _soulChoice = kotlinx.coroutines.flow.MutableStateFlow<SoulChoice?>(null)
+
+    /** The last tap, for surfaces that must not wait for the disk write. */
+    val soulChoice: kotlinx.coroutines.flow.StateFlow<SoulChoice?> = _soulChoice.asStateFlow()
+
+    /**
+     * Serialises SOUL selection writes. A new job joins the previous one
+     * before writing, so the durable mapping always ends on the LAST tap
+     * instead of on whichever coroutine happened to finish last.
+     */
+    @Volatile
+    private var soulWriteJob: kotlinx.coroutines.Job? = null
+    private val soulChoiceLock = Any()
+
+    /**
+     * Persist [profileId] as this chat's SOUL.
+     *
+     * Three rules, all deliberate:
+     *  - the choice is stored per session, so it never changes another chat;
+     *  - the write is off the main thread and a failure is surfaced through
+     *    [error] (the chat's existing snackbar) instead of being swallowed —
+     *    a silent failure would leave the user believing the chat switched;
+     *  - only a chat that is currently the ACTIVE one republishes the global
+     *    identity. A background ViewModel finishing a write must not repaint
+     *    the header of the chat on screen; it updates [soulSelections] and
+     *    stops there.
+     *
+     * The prompt itself is read at turn start, so this applies to the next
+     * message and never rewrites history.
+     */
+    fun selectSoul(profileId: String) = synchronized(soulChoiceLock) {
+        val sid = activeSessionId
+        if (sid.isBlank()) return@synchronized
+        // Published before any suspension point: the very next turn already
+        // reads this value, whether or not the write has landed.
+        val choice = SoulChoice(sid, profileId)
+        _soulChoice.value = choice
+        val previous = soulWriteJob
+        soulWriteJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            previous?.join()
+            val result = runCatching {
+                com.openminis.app.agent.SoulProfiles.select(context, sid, profileId)
+            }
+            val failure = result.exceptionOrNull()
+            if (failure != null) {
+                // Do not strand an unsaved choice: a request after a failed
+                // write must use the durable selection (and the header must
+                // agree with it) instead of a profile the store never stored.
+                // compareAndSet, not a plain clear: a NEWER tap recorded while
+                // this write was in flight must survive it.
+                _soulChoice.compareAndSet(choice, null)
+                AppLogger.warning(TAG, "[Soul] select failed sid=${sid.take(8)}: ${failure.message}")
+                _error.value = soulErrorText(failure)
+                return@launch
+            }
+            // The mapping is durable now, so the override has no work left;
+            // drop it if it is still THIS choice (again: never a newer tap).
+            _soulChoice.compareAndSet(choice, null)
+            // No setActiveSession here: the active ChatScreen owns that claim.
+            runCatching { com.openminis.app.agent.SoulProfiles.refreshActiveIfCurrent(context, sid) }
+        }
+    }
+
+    /**
+     * User-visible text for a failed SOUL write. Inlined rather than added to
+     * `strings.xml` so this change does not touch shared resources; the main
+     * integration can promote it to a resource without changing behaviour.
+     */
+    private fun soulErrorText(cause: Throwable?): String {
+        val zh = java.util.Locale.getDefault().language.lowercase().startsWith("zh")
+        val head = if (zh) "无法保存本对话的 SOUL：" else "Could not save this chat's SOUL: "
+        return head + (cause?.message ?: "")
+    }
+
+    /**
+     * [T-multi-soul] The SOUL this turn answers as.
+     *
+     * Same source as [selectSoul] writes: the profile selected for this chat,
+     * or the just-picked draft choice that has not landed on disk yet. Read
+     * once per turn and frozen, like every other prompt input.
+     */
+    private fun selectedSoulForTurn(): com.openminis.app.agent.SoulFile? {
+        // The last tap wins, durably stored or not: the profile FILE is
+        // already written by the editor, and the turn only needs to know
+        // WHICH profile the user chose. Without this an in-flight write could
+        // let the first reply answer as the previous SOUL.
+        val pending = _soulChoice.value
+        if (pending != null && pending.sessionId == activeSessionId) {
+            runCatching { com.openminis.app.agent.SoulProfiles.load(context, pending.profileId) }
+                .getOrNull()
+                ?.let { return it }
+        }
+        return runCatching {
+            com.openminis.app.agent.SoulProfiles.selected(context, activeSessionId)
+        }.getOrNull()
+    }
+
     /** T-chat-title-pill-edit: load the persisted [ChatSessionEntity] for the
      *  current session so the shared edit-title sheet (reused from the session
      *  list) can be opened from the in-chat title pill. Returns null for
@@ -6279,7 +6431,33 @@ class ChatViewModel(
             modelId = modelId,
             memoryEnabled = _memoryEnabled.value,
         )
-        realSessionId = session.id
+        // Promotion and selection taps enter the SAME FIFO. Once realSessionId
+        // is visible, a newer tap must queue after this migration, never race
+        // an old draft write or be overwritten by its completion.
+        val migration = synchronized(soulChoiceLock) {
+            val draftKey = sessionId
+            val previous = soulWriteJob
+            val draftChoice = _soulChoice.value?.takeIf { it.sessionId == draftKey }
+            val migratedChoice = draftChoice?.copy(sessionId = session.id)
+            if (draftChoice != null) _soulChoice.compareAndSet(draftChoice, migratedChoice)
+            realSessionId = session.id
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                previous?.join()
+                val result = runCatching {
+                    val draftSoul = com.openminis.app.agent.SoulProfiles.selectedId(context, draftKey)
+                    com.openminis.app.agent.SoulProfiles.select(context, session.id, draftSoul)
+                    com.openminis.app.agent.SoulProfiles.clearSelection(context, draftKey)
+                }
+                if (migratedChoice != null) _soulChoice.compareAndSet(migratedChoice, null)
+                result.exceptionOrNull()?.let { failure ->
+                    AppLogger.warning(TAG, "[Soul] draft carry-over failed: ${failure.message}")
+                    _error.value = soulErrorText(failure)
+                }
+                com.openminis.app.agent.SoulProfiles
+                    .transferActiveSession(context, draftKey, session.id)
+            }.also { soulWriteJob = it }
+        }
+        migration.join()
         followStoredTitle(session.id)
         // [T-android-opencode-session-header] Hand the just-minted real id to
         // the provider built while this chat was still a draft. Without it the
@@ -6484,6 +6662,11 @@ class ChatViewModel(
             val session = chatRepository.getSession(sessionId) ?: return@launch
             _sessionTitle.value = SessionTitleRules.display(session.title, UNTITLED_SESSION_TITLE)
             _sessionCategory.value = session.category
+            // [T-multi-soul] Publish this chat's SOUL before anything can
+            // render for it or a resumed run can post a notification: the
+            // header, the typing indicator and the capsule all read the
+            // published identity, and it must describe THIS chat.
+            syncActiveSoulAsync()
             followStoredTitle(sessionId)
             _memoryEnabled.value = session.memoryEnabled != 0
             // T239: hydrate persisted thinking-mode override. null = unset
@@ -7541,20 +7724,10 @@ class ChatViewModel(
      * is the pre-existing behaviour. The prompt text itself is never logged.
      */
     private fun applyApplicationSystemPromptGlobal(provider: LLMProvider) {
-        val workspace = runCatching {
-            com.openminis.app.agent.workspace.WorkspaceInstructionStore
-                .mandatoryBlock(context, activeSessionId)
-        }.getOrNull()
-        val soul = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
-        // [K-agents-supreme] With exclusive mode on, the workspace block is the
-        // whole application prompt and SOUL.md is not sent.
-        val prompt = com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
-            workspaceBlock = workspace,
-            soul = soul,
-            exclusiveRequested = runCatching {
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
-            }.getOrDefault(false),
-        )
+        // [T-multi-soul] Same source as the turn snapshot: the SOUL selected
+        // for this chat, and nothing else.
+        val soul = runCatching { SystemPromptBuilder.applicationPrompt(selectedSoulForTurn()) }.getOrNull()
+        val prompt = soul
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
@@ -11242,7 +11415,15 @@ class ChatViewModel(
         // [T-android-switch-model-next-request] The prompt this loop sends. A
         // var only for the mid-turn switch: the Claude Code OAuth prefix is
         // the one provider-specific part of it.
-        var loopSystemPrompt = systemPrompt
+        val soulFileForTurn = if (helperConfig == null) selectedSoulForTurn() else null
+        val runtimePromptForTurn = buildSystemPrompt(soulFileForTurn)
+        val oauthPrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
+        // A queued run may start after the user switched SOUL. Build identity
+        // from the same snapshot as the application body, including after a
+        // concurrency-slot wait, while preserving the provider OAuth prefix.
+        var loopSystemPrompt = if (systemPrompt?.startsWith(oauthPrefix) == true &&
+            runtimePromptForTurn?.startsWith(oauthPrefix) != true
+        ) oauthPrefix + "\n\n" + runtimePromptForTurn.orEmpty() else runtimePromptForTurn
         // [T-soul-prompt-supreme] Settings → System Prompt rides in its own
         // provider field, AHEAD of loopSystemPrompt in each provider's native
         // system channel (see LLMProvider.applicationSystemPrompt).
@@ -11257,33 +11438,14 @@ class ChatViewModel(
         //  - the body is placed exactly once, in `applicationSystemPrompt`,
         //    never concatenated into `loopSystemPrompt` (no duplicate text).
         // A sub agent gets null: it has its own identity text and no Settings
-        // page. Read AGENTS before SOUL, matching their application priority
-        // and their order in every provider's native system channel.
-        val workspaceBlockForTurn = if (helperConfig == null) {
-            runCatching {
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore
-                    .mandatoryBlock(context, activeSessionId)
-            }.onFailure {
-                AppLogger.warning(TAG_STREAM, ("Workspace instructions could not be loaded: " + (it.javaClass.simpleName).toString()))
-            }.getOrNull()
-        } else {
-            null
-        }
-        val soulFileForTurn = if (helperConfig == null) {
-            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
-        } else {
-            null
-        }
+        // page.
+        // [T-multi-soul] The SOUL selected for THIS chat is the whole
+        // application prompt. Earlier builds could prefix a workspace
+        // AGENTS.md block or let it replace SOUL entirely; that split is gone,
+        // so a turn reads exactly one persona file and nothing else competes
+        // with it inside the system channel.
         val applicationPromptForTurn = if (helperConfig == null) {
-            // [K-agents-supreme] Exclusive mode sends the workspace block alone;
-            // SOUL.md stays on disk but never reaches the request.
-            com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
-                workspaceBlock = workspaceBlockForTurn,
-                soul = runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull(),
-                exclusiveRequested = runCatching {
-                    com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
-                }.getOrDefault(false),
-            )
+            runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull()
         } else {
             null
         }
@@ -16525,7 +16687,11 @@ class ChatViewModel(
             chatRepository.appendMessage(sid, role, partsJson).id
         }
 
-    private fun buildSystemPrompt(): String? {
+    private fun buildSystemPrompt(): String? = buildSystemPrompt(
+        if (helperConfig == null) selectedSoulForTurn() else null,
+    )
+
+    private fun buildSystemPrompt(soulFileForIdentity: com.openminis.app.agent.SoulFile?): String? {
         // Cache-friendly layout: keep `base` byte-stable by stripping out anything
         // that varies per request, then append a "Runtime context" suffix at the
         // very end with all the dynamic bits (date, timezone, locale, configured
@@ -16572,23 +16738,13 @@ class ChatViewModel(
         // A sub agent keeps its own identity block; the top-level agent's is
         // now identity sentence + style + edit hint only (the application
         // prompt travels in the provider field described above).
-        // [K-agents-supreme] Exclusive workspace mode owns the prompt: the
-        // generated "You are <name>, a capable AI assistant ..." paragraph and
-        // SOUL's personality/style sheet are dropped so nothing in the system
-        // channel competes with AGENTS.md. Without an instruction file the flag
-        // is inert and this stays byte-identical to the previous build.
-        val agentsExclusive = helperConfig == null && runCatching {
-            com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context) &&
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore.hasInstructions(context)
-        }.getOrDefault(false)
-        val identitySection = if (agentsExclusive) {
-            ""
-        } else {
-            helperConfig?.let {
-                com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
-            }
-                ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
-        }
+        // [T-multi-soul] The identity sentence names the SOUL selected for
+        // this chat, not always the legacy default file. There is no exclusive
+        // workspace mode any more: the selected SOUL is the whole application
+        // prompt, so nothing else needs to suppress the identity paragraph.
+        val identitySection = helperConfig?.let {
+            com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
+        } ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(soulFileForIdentity)
         // [T-memory-toggle-gates-injection-and-tools-android] Mirror the iOS
         // gate: when memory is disabled for this session, replace the
         // "memory_write / memory_get" tool bullets and the "Memory system:"

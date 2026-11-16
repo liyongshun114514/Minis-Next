@@ -31,7 +31,6 @@ object PromptCatalogScope {
     val GLOBAL_GROUPS: List<String> = listOf(
         "身份与全局",
         "主系统提示词",
-        "工作区指令",
         "隐私提示",
         "记忆",
         "技能",

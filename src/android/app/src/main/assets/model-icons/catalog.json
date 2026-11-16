@@ -1,0 +1,461 @@
+[
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "aliases": [
+      "gpt",
+      "chatgpt",
+      "gpt-3",
+      "gpt-4",
+      "gpt-4o",
+      "gpt-5",
+      "o1",
+      "o3",
+      "dall-e",
+      "dalle"
+    ],
+    "file": "openai.png"
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "aliases": [
+      "anthropic-ai",
+      "anthropicai"
+    ],
+    "file": "anthropic.png"
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "aliases": [
+      "claude-ai",
+      "claude-3",
+      "claude-3.5",
+      "claude-4",
+      "sonnet",
+      "opus",
+      "haiku"
+    ],
+    "file": "claude.png"
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "aliases": [
+      "deepseek-ai",
+      "deepseek-chat",
+      "deepseek-reasoner",
+      "deepseek-v3",
+      "deepseek-r1",
+      "deepseek-coder",
+      "深度求索"
+    ],
+    "file": "deepseek.png"
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini",
+    "aliases": [
+      "google-gemini",
+      "gemini-pro",
+      "gemini-2.5",
+      "bard"
+    ],
+    "file": "gemini.png"
+  },
+  {
+    "id": "google",
+    "name": "Google",
+    "aliases": [
+      "google-ai",
+      "google-ai-studio",
+      "ai-studio",
+      "palm",
+      "gemma",
+      "谷歌"
+    ],
+    "file": "google.png"
+  },
+  {
+    "id": "qwen",
+    "name": "Qwen",
+    "aliases": [
+      "tongyi",
+      "tongyi-qianwen",
+      "qianwen",
+      "qwen-max",
+      "qwen-plus",
+      "qwen-turbo",
+      "qwen2.5",
+      "qwen3",
+      "dashscope",
+      "alibaba",
+      "alibaba-cn",
+      "通义千问",
+      "通义",
+      "千问",
+      "阿里云",
+      "阿里通义"
+    ],
+    "file": "qwen.png"
+  },
+  {
+    "id": "moonshot",
+    "name": "Moonshot AI",
+    "aliases": [
+      "moonshot-ai",
+      "moonshotai",
+      "moonshotai-cn",
+      "月之暗面"
+    ],
+    "file": "moonshot.png"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "aliases": [
+      "kimi-k2",
+      "moonshot-kimi",
+      "kimi-code-plan"
+    ],
+    "file": "kimi.png"
+  },
+  {
+    "id": "zhipu",
+    "name": "Zhipu AI",
+    "aliases": [
+      "zhipu-ai",
+      "zhipuai",
+      "zhipuai-coding-plan",
+      "bigmodel",
+      "glm",
+      "glm-4",
+      "glm-4.5",
+      "chatglm",
+      "chat-glm",
+      "智谱",
+      "智谱清言",
+      "智谱AI"
+    ],
+    "file": "zhipu.png"
+  },
+  {
+    "id": "zai",
+    "name": "Z.AI",
+    "aliases": [
+      "z-ai",
+      "z.ai",
+      "zai-coding-plan"
+    ],
+    "file": "zai.png"
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "aliases": [
+      "minimax-ai",
+      "minimax-cn",
+      "minimax-coding-plan",
+      "hailuo",
+      "abab",
+      "海螺",
+      "稀宇"
+    ],
+    "file": "minimax.png"
+  },
+  {
+    "id": "doubao",
+    "name": "Doubao",
+    "aliases": [
+      "doubao-pro",
+      "doubao-lite",
+      "seed",
+      "volcengine-doubao",
+      "豆包"
+    ],
+    "file": "doubao.png"
+  },
+  {
+    "id": "meta",
+    "name": "Meta",
+    "aliases": [
+      "meta-ai",
+      "metaai",
+      "llama",
+      "llama3",
+      "llama-3",
+      "llama-4"
+    ],
+    "file": "meta.png"
+  },
+  {
+    "id": "mistral",
+    "name": "Mistral AI",
+    "aliases": [
+      "mistral-ai",
+      "mistralai",
+      "mixtral",
+      "codestral",
+      "magistral"
+    ],
+    "file": "mistral.png"
+  },
+  {
+    "id": "grok",
+    "name": "Grok",
+    "aliases": [
+      "grok-2",
+      "grok-3",
+      "grok-4"
+    ],
+    "file": "grok.png"
+  },
+  {
+    "id": "xai",
+    "name": "xAI",
+    "aliases": [
+      "x-ai",
+      "x.ai"
+    ],
+    "file": "xai.png"
+  },
+  {
+    "id": "cohere",
+    "name": "Cohere",
+    "aliases": [
+      "command",
+      "command-r",
+      "command-a"
+    ],
+    "file": "cohere.png"
+  },
+  {
+    "id": "perplexity",
+    "name": "Perplexity",
+    "aliases": [
+      "pplx",
+      "sonar"
+    ],
+    "file": "perplexity.png"
+  },
+  {
+    "id": "huggingface",
+    "name": "Hugging Face",
+    "aliases": [
+      "hf",
+      "hugging-face"
+    ],
+    "file": "huggingface.png"
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "aliases": [
+      "ollama-ai",
+      "ollama-cloud"
+    ],
+    "file": "ollama.png"
+  },
+  {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "aliases": [
+      "open-router"
+    ],
+    "file": "openrouter.png"
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "aliases": [
+      "gh",
+      "github-com"
+    ],
+    "file": "github.png"
+  },
+  {
+    "id": "copilot",
+    "name": "GitHub Copilot",
+    "aliases": [
+      "github-copilot",
+      "copilot-chat"
+    ],
+    "file": "copilot.png"
+  },
+  {
+    "id": "groq",
+    "name": "Groq",
+    "aliases": [
+      "groq-ai"
+    ],
+    "file": "groq.png"
+  },
+  {
+    "id": "cerebras",
+    "name": "Cerebras",
+    "aliases": [
+      "cerebras-ai"
+    ],
+    "file": "cerebras.png"
+  },
+  {
+    "id": "together",
+    "name": "Together AI",
+    "aliases": [
+      "togetherai",
+      "together-ai"
+    ],
+    "file": "together.png"
+  },
+  {
+    "id": "fireworks",
+    "name": "Fireworks AI",
+    "aliases": [
+      "fireworksai",
+      "fireworks-ai"
+    ],
+    "file": "fireworks.png"
+  },
+  {
+    "id": "deepinfra",
+    "name": "DeepInfra",
+    "aliases": [
+      "deep-infra"
+    ],
+    "file": "deepinfra.png"
+  },
+  {
+    "id": "nvidia",
+    "name": "NVIDIA",
+    "aliases": [
+      "nim",
+      "nvidia-nim",
+      "英伟达"
+    ],
+    "file": "nvidia.png"
+  },
+  {
+    "id": "bedrock",
+    "name": "AWS Bedrock",
+    "aliases": [
+      "aws-bedrock",
+      "amazon-bedrock"
+    ],
+    "file": "bedrock.png"
+  },
+  {
+    "id": "azure",
+    "name": "Azure OpenAI",
+    "aliases": [
+      "azure-openai",
+      "azure-ai",
+      "azure-cognitive-services",
+      "微软"
+    ],
+    "file": "azure.png"
+  },
+  {
+    "id": "vertexai",
+    "name": "Vertex AI",
+    "aliases": [
+      "vertex",
+      "vertex-ai",
+      "google-vertex"
+    ],
+    "file": "vertexai.png"
+  },
+  {
+    "id": "openwebui",
+    "name": "Open WebUI",
+    "aliases": [
+      "open-webui"
+    ],
+    "file": "openwebui.png"
+  },
+  {
+    "id": "lmstudio",
+    "name": "LM Studio",
+    "aliases": [
+      "lm-studio"
+    ],
+    "file": "lmstudio.png"
+  },
+  {
+    "id": "vllm",
+    "name": "vLLM",
+    "aliases": [
+      "vllm-ai"
+    ],
+    "file": "vllm.png"
+  },
+  {
+    "id": "siliconcloud",
+    "name": "SiliconCloud",
+    "aliases": [
+      "silicon-cloud",
+      "siliconflow",
+      "siliconflow-cn",
+      "硅基流动"
+    ],
+    "file": "siliconcloud.png"
+  },
+  {
+    "id": "volcengine",
+    "name": "Volcengine",
+    "aliases": [
+      "volcano-engine",
+      "huoshan",
+      "火山引擎",
+      "火山方舟"
+    ],
+    "file": "volcengine.png"
+  },
+  {
+    "id": "baidu",
+    "name": "Baidu",
+    "aliases": [
+      "ernie",
+      "wenxin",
+      "baidu-ai",
+      "百度",
+      "文心",
+      "文心一言"
+    ],
+    "file": "baidu.png"
+  },
+  {
+    "id": "tencent",
+    "name": "Tencent",
+    "aliases": [
+      "hunyuan",
+      "tencent-cloud",
+      "腾讯",
+      "混元",
+      "腾讯混元"
+    ],
+    "file": "tencent.png"
+  },
+  {
+    "id": "huawei",
+    "name": "Huawei",
+    "aliases": [
+      "huawei-cloud",
+      "ascend",
+      "华为",
+      "盘古"
+    ],
+    "file": "huawei.png"
+  },
+  {
+    "id": "xiaomi",
+    "name": "Xiaomi MiMo",
+    "aliases": [
+      "xiaomi-mimo",
+      "mimo",
+      "xiaomi-token-plan",
+      "小米"
+    ],
+    "file": "xiaomi.png"
+  }
+]

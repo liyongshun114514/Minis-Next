@@ -109,15 +109,6 @@ fun SettingsScreen(
     // Agent Runtime section; default no-op for callers that haven't wired
     // the route yet.
     onSoulClick: () -> Unit = {},
-    /**
-     * [T-workspace-instructions] Settings › Workspace Instructions.
-     *
-     * [K-unified-prompt-workspace] No longer rendered as its own row — the
-     * entry moved inside the System Prompt hub, which links to the same
-     * screen. The hook is kept so existing callers (and the route wiring)
-     * keep compiling; the route itself is still registered.
-     */
-    onWorkspaceInstructionsClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
     onUsageClick: () -> Unit = {},
     /**
@@ -253,12 +244,8 @@ fun SettingsScreen(
                     onClick = onSkillsClick,
                 )
                 // [T-soul-md] Between Skills and Memory, as on iOS.
-                // [K-unified-prompt-workspace] This row is now the ONE prompt
-                // entry: Routes.SOUL opens the hub, which links to identity /
-                // global SOUL, workspace instructions and every built-in
-                // prompt. The separate Workspace Instructions row below it was
-                // removed rather than duplicated; its screen and route are
-                // unchanged, so old deep links still land on the editor.
+                // Routes.SOUL opens the SOUL library and shared prompt
+                // templates. The independent workspace editor is removed.
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
                     iconColor = Color(0xFFFF9500),

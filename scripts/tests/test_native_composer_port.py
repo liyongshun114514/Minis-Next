@@ -356,14 +356,14 @@ def main() -> int:
         ok(token in soul, f"native injection pattern changed/missing: {token}")
     ok("fun containsInjectionPattern(s: String): Boolean" in soul,
        "native injection detector signature changed")
-    ok("private fun scrubInjections(s: String): String" in soul,
-       "native injection scrubber signature changed")
+    ok("scrubInjections(trimmed)" not in soul,
+       "user-authored SOUL lines are still being dropped before sending")
+    ok("val personality = trimmed" in soul,
+       "SOUL render no longer preserves the configured prompt body")
 
-    # The injection machinery itself is pinned by the token checks above; the
-    # old "byte-identical to HEAD" comparison was removed because this branch
-    # now legitimately edits SoulStore (unlimited default, supreme preamble),
-    # which shifted every later offset and made the fixed-width window compare
-    # two different regions of two different files.
+    # SOUL is now an editable application prompt, not only a tone field.
+    # The detector stays available for compatibility, but the user's trusted
+    # profile body must not be rewritten by a phrase-based scrubber.
 
     # --- Provenance / licence -------------------------------------------
     up_license = ROOT.parent.parent / "workspace/tmp/openminis-port/MinisAllInOne/LICENSE"

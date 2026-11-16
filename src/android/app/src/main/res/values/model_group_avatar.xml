@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [T-model-group-avatar] Strings owned by the model-group avatar feature.
+  Kept in a feature-local file (not the global strings.xml) so the avatar
+  work can land without touching the shared string catalog.
+-->
+<resources>
+    <string name="group_avatar_section_header">Icon</string>
+    <string name="group_avatar_section_footer">Automatic matches a brand icon from the group name. A manual choice is kept when you rename the group; Automatic follows the new name.</string>
+    <string name="group_avatar_change">Change</string>
+    <string name="group_avatar_kind_brand">Brand icon</string>
+    <string name="group_avatar_kind_automatic">Automatic</string>
+    <string name="group_avatar_kind_custom_image">Custom picture</string>
+    <string name="group_avatar_detail_uses">Uses %1$s</string>
+    <string name="group_avatar_detail_auto">Matches %1$s from the group name</string>
+    <string name="group_avatar_detail_image">A picture you chose</string>
+    <string name="group_avatar_detail_fallback">No brand match — generic icon</string>
+
+    <string name="group_avatar_sheet_title">Group icon</string>
+    <string name="group_avatar_search_hint">Search icons</string>
+    <string name="group_avatar_automatic">Automatic</string>
+    <string name="group_avatar_matches">Matches %1$s</string>
+    <string name="group_avatar_no_match">No brand match — generic icon</string>
+    <string name="group_avatar_choose_picture">Choose a picture…</string>
+    <string name="group_avatar_preparing">Preparing picture…</string>
+    <string name="group_avatar_import_failed">That image could not be read.</string>
+    <string name="group_avatar_tap_to_replace">Tap to replace</string>
+    <string name="group_avatar_from_photo_library">From your photo library</string>
+    <string name="group_avatar_brand_icons">Brand icons</string>
+    <string name="group_avatar_catalog_missing">No icon catalog is bundled in this build.</string>
+    <string name="group_avatar_search_empty">No icon matches that search.</string>
+</resources>

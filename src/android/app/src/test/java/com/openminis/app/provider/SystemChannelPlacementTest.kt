@@ -124,7 +124,11 @@ class SystemChannelPlacementTest {
         val requestLoop = chatVm.indexOf("while (!collectDone)")
         val inject = chatVm.indexOf("applicationPromptForTurn", requestLoop)
         assertTrue("frozen prompt reapplied in request loop", requestLoop >= 0 && inject > requestLoop)
-        assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(context)"))
+        // [T-multi-soul] The prompt source is the SOUL selected for the chat;
+        // the legacy context-only overload (always the default profile) is no
+        // longer reachable from the runtime.
+        assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(selectedSoulForTurn())"))
+        assertFalse(chatVm.contains("SystemPromptBuilder.applicationPrompt(context)"))
     }
 
     @Test fun `the prompt text is never logged`() {

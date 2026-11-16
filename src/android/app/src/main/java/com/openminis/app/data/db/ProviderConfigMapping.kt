@@ -157,6 +157,7 @@ fun ProviderConfig.toSnapshot(
                 translatedMembers,
             ),
             sortOrder = idx,
+            avatar = g.avatar,
         )
     }
 
@@ -287,6 +288,7 @@ fun ProviderConfigSnapshot.toProviderConfig(jsonForBlobs: Json): ProviderConfig 
             defaultThinkingLevel = row.defaultThinkingLevel?.let { ThinkingLevel.decoded(it) },
             contextLimitTokens = row.contextLimitTokens,
             lastContextLimitTokens = row.lastContextLimitTokens,
+            avatar = row.avatar,
         )
     }.toMutableList()
 

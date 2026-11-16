@@ -185,8 +185,8 @@ object Routes {
      * [T-soul-md] System Prompt entry.
      *
      * [K-unified-prompt-workspace] The setting is now a hub: this route opens
-     * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (identity +
-     * global body), [WORKSPACE_INSTRUCTIONS] and every built-in prompt in
+     * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (the SOUL
+     * library and its prompt body) and every built-in prompt in
      * [SOUL_BUILTIN_EDITOR]. The path string is unchanged so existing
      * deep links keep working.
      */
@@ -197,11 +197,6 @@ object Routes {
     const val SOUL_BUILTIN_EDITOR = "soul_builtin/{promptId}"
     fun soulBuiltinEditor(promptId: String) =
         "soul_builtin/" + android.net.Uri.encode(promptId)
-    /** [T-workspace-instructions] AGENTS.md / CLAUDE.md editor. */
-    const val WORKSPACE_INSTRUCTIONS = "workspace_instructions"
-    const val WORKSPACE_INSTRUCTION_EDIT = "workspace_instruction_edit/{path}"
-    fun workspaceInstructionEdit(path: String) =
-        "workspace_instruction_edit/" + android.net.Uri.encode(path)
     const val MEMORY_FILE_EDIT = "memory_file/{fileName}/{isGlobal}"
     const val PERMISSIONS = "permissions"
     /**
@@ -683,7 +678,6 @@ fun AppNavigation(
                 onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
                 onMcpClick = { navController.safeNavigate(Routes.MCP) },
                 onSoulClick = { navController.safeNavigate(Routes.SOUL) },
-                onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
                 onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
                 onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
                 onAutoCompactClick = { navController.safeNavigate(Routes.AUTO_COMPACT) },
@@ -1451,15 +1445,14 @@ fun AppNavigation(
             }
         }
 
-        // [K-unified-prompt-workspace] System Prompt hub: identity / global
-        // SOUL, workspace instructions, and the built-in prompt catalog.
+        // [K-unified-prompt-workspace] System Prompt hub: the SOUL library and
+        // the built-in prompt catalog. [T-multi-soul] AGENTS.md is no longer a
+        // separate prompt source — its content is imported once into a SOUL
+        // profile and edited there.
         composable(Routes.SOUL) {
             com.openminis.app.ui.settings.PromptSettingsScreen(
                 onBack = { navController.safePopBackStack() },
                 onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
-                onWorkspaceInstructionsClick = {
-                    navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS)
-                },
                 onEditBuiltin = { promptId ->
                     navController.safeNavigate(Routes.soulBuiltinEditor(promptId))
                 },
@@ -1481,24 +1474,6 @@ fun AppNavigation(
             val promptId = backStackEntry.arguments?.getString("promptId") ?: return@composable
             com.openminis.app.ui.settings.BuiltinPromptEditorScreen(
                 promptId = promptId,
-                onBack = { navController.safePopBackStack() },
-            )
-        }
-
-        // [T-workspace-instructions] AGENTS.md / CLAUDE.md chain.
-        composable(Routes.WORKSPACE_INSTRUCTIONS) {
-            com.openminis.app.ui.settings.WorkspaceInstructionsScreen(
-                onBack = { navController.safePopBackStack() },
-                onEdit = { path -> navController.safeNavigate(Routes.workspaceInstructionEdit(path)) },
-            )
-        }
-        composable(
-            route = Routes.WORKSPACE_INSTRUCTION_EDIT,
-            arguments = listOf(navArgument("path") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val path = backStackEntry.arguments?.getString("path") ?: return@composable
-            com.openminis.app.ui.settings.WorkspaceInstructionEditorScreen(
-                linuxPath = path,
                 onBack = { navController.safePopBackStack() },
             )
         }

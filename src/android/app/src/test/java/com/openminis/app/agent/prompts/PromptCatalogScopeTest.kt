@@ -41,9 +41,9 @@ class PromptCatalogScopeTest {
     )
 
     @Test
-    fun `the global group list is the documented eight`() {
+    fun `the global group list contains SOUL and shared templates`() {
         assertEquals(
-            listOf("身份与全局", "主系统提示词", "工作区指令", "隐私提示", "记忆", "技能", "计划任务", "MCP"),
+            listOf("身份与全局", "主系统提示词", "隐私提示", "记忆", "技能", "计划任务", "MCP"),
             PromptCatalogScope.GLOBAL_GROUPS,
         )
     }
@@ -58,7 +58,7 @@ class PromptCatalogScopeTest {
     fun `the hub lists only the global entries`() {
         val all = rows()
         val global = all.filter { PromptCatalogScope.isGlobal(it) }
-        assertEquals(28, global.size)
+        assertEquals(27, global.size)
         assertTrue("the catalog stays complete", all.size > global.size)
         assertEquals(global.size, global.map { it.getString("id") }.toSet().size)
         assertTrue(global.all { it.getString("defaultTemplate").isNotBlank() })

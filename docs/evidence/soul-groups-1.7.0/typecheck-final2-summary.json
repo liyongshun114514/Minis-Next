@@ -1,0 +1,50 @@
+{
+ "generated_at": "20261116T201748",
+ "kind": "offline full-source TYPE CHECK (NOT an APK build)",
+ "repo": "/var/minis/shared/Minis-Next",
+ "out": "/var/minis/workspace/tmp/minis-resume-20261116/verify",
+ "run_dir": "/var/minis/workspace/tmp/minis-resume-20261116/verify/typecheck/final2",
+ "label": "final2",
+ "main_src": "/var/minis/shared/Minis-Next/src/android/app/src/main",
+ "git_head": "ec2caea76d",
+ "dirty_paths_under_src_android": 56,
+ "kotlin_sources": 820,
+ "java_sources": 4,
+ "kotlin_lines": 308223,
+ "java_lines": 960,
+ "resource_files": 610,
+ "deps_artifacts": 112,
+ "deps_classpath_jars": 112,
+ "deps_aar_extracted": 89,
+ "gomobile_api": "stub",
+ "android_jar": "/opt/android-sdk/platforms/android-36/android.jar",
+ "kotlin_compiler": "/var/cache/minis/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler-embeddable/2.1.0/988bf980588bbbcfa1ba19c1ffd7aa869b335a31/kotlin-compiler-embeddable-2.1.0.jar",
+ "compose_plugin": "/var/cache/minis/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compose-compiler-plugin-embeddable/2.1.0/2db69adb9c3ffe970b95e9ba54b92e858a071444/kotlin-compose-compiler-plugin-embeddable-2.1.0.jar",
+ "serialization_plugin": "/var/cache/minis/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-serialization-compiler-plugin-embeddable/2.1.0/912a610ea149e660f12a211ed99e49273db89162/kotlin-serialization-compiler-plugin-embeddable-2.1.0.jar",
+ "stubs": {
+  "R_fields": 3243,
+  "R_types": 10,
+  "R_source_only_names": 11,
+  "BuildConfig_fields": 14,
+  "paths": [
+   "/var/minis/workspace/tmp/minis-resume-20261116/verify/typecheck/final2/work/stubs/com/openminis/app/R.java",
+   "/var/minis/workspace/tmp/minis-resume-20261116/verify/typecheck/final2/work/stubs/com/openminis/app/BuildConfig.java"
+  ]
+ },
+ "exit_codes": {
+  "javac_pass1": 0,
+  "kotlinc": 0,
+  "javac_pass2": 0
+ },
+ "class_files": 8240,
+ "error_counts": {
+  "kotlinc": 0,
+  "javac_pass1": 0,
+  "javac_pass2": 0
+ },
+ "result": "PASS",
+ "warnings": [
+  "rclone.aar / rclone-api.jar absent -> gomobile stub (compile-only)",
+  "declared compile coordinates not matched exactly in cache: androidx.activity:activity-compose:1.9.3, androidx.compose.material3.adaptive:adaptive-layout:1.2.0, androidx.compose.material3.adaptive:adaptive-navigation:1.2.0, androidx.compose.material3.adaptive:adaptive:1.2.0, androidx.datastore:datastore-preferences:1.1.1, androidx.lifecycle:lifecycle-process:2.8.7, androidx.lifecycle:lifecycle-runtime-ktx:2.8.7, androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7, androidx.room:room-testing:2.6.1, androidx.test.ext:junit:1.2.1, androidx.test:rules:1.6.1, androidx.test:runner:1.6.2, junit:junit:4.13.2, org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0, org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3, sh.calvin.reorderable:reorderable:2.4.0"
+ ]
+}

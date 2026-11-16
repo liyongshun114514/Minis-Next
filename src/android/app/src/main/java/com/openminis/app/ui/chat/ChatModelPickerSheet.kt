@@ -695,11 +695,13 @@ internal fun ModelPickerSheet(
                                     // when scrolling — and the two mean very
                                     // different things (a group can fail over
                                     // or load-balance; a model cannot).
-                                    Icon(
-                                        Icons.Default.Layers,
-                                        contentDescription = null,
-                                        tint = Color(0xFF007AFF),
-                                        modifier = Modifier.size(18.dp),
+                                    // [T-model-group-avatar] The group's own
+                                    // avatar (manual / name match / fallback)
+                                    // replaces the static layers glyph so the
+                                    // picker, settings and session list agree.
+                                    com.openminis.app.ui.components.ModelGroupAvatar(
+                                        group = group,
+                                        size = 22.dp,
                                     )
                                     Spacer(Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {

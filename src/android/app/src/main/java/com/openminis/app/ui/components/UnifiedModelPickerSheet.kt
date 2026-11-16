@@ -352,12 +352,9 @@ fun UnifiedModelPickerSheet(
                                     modifier = Modifier.size(22.dp),
                                 )
                                 Spacer(Modifier.width(10.dp))
-                                Icon(
-                                    Icons.Default.Layers,
-                                    contentDescription = null,
-                                    tint = Color(0xFF007AFF),
-                                    modifier = Modifier.size(18.dp),
-                                )
+                                // [T-model-group-avatar] The group's own avatar, matching
+                                // every other group presentation point.
+                                ModelGroupAvatar(group = boundGroup, size = 22.dp)
                                 Spacer(Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {

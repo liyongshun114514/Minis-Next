@@ -34,7 +34,6 @@ import android.widget.TextView
 import com.openminis.app.MinisApp
 import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulMetadata
-import com.openminis.app.agent.SoulStore
 import com.openminis.app.ui.chat.friendlyToolTitleFor
 import com.openminis.app.ui.chat.toolAccentColorInt
 import com.openminis.app.ui.chat.toolIconResFor
@@ -398,7 +397,8 @@ class ToolOverlayController(private val context: Context) {
                 }
                 updateContent(
                     toolName, statusText, isRunning, outcome, replyExcerpt, toolTitle,
-                    isToolRunning, isThinking, sessionTitle, taskIndex, taskTotal, waiting,
+                    isToolRunning, isThinking, sessionTitle, targetSessionId,
+                    taskIndex, taskTotal, waiting,
                 )
             } catch (e: Throwable) {
                 Log.w(TAG, "show failed: ${e.message}", e)
@@ -895,6 +895,13 @@ class ToolOverlayController(private val context: Context) {
         // [T-android-overlay-multitask] Threaded through from show() so row 1
         // can name the task and number it. Both travel together — see show().
         sessionTitle: String?,
+        // [T-multi-soul] The chat this capsule describes. Identity (name and
+        // icon) is resolved from ITS SOUL, not from the open chat's, so a
+        // background run keeps showing the persona it is actually answering
+        // as. Threaded through with the rest of the snapshot for the same
+        // reason as sessionTitle: a later show() must not change what an
+        // earlier render resolves.
+        sessionId: String?,
         taskIndex: Int,
         taskTotal: Int,
         waiting: Waiting? = null,
@@ -956,7 +963,11 @@ class ToolOverlayController(private val context: Context) {
             // its name instead of collapsing to a bare "执行完成" that says
             // nothing about WHICH task finished — unreadable once more than
             // one is on screen.
-            val identityName = SoulStore.cachedMetadata.value.name
+            // [T-multi-soul] The name of the chat's OWN SOUL — see
+            // applySoulIdentityIcon for why this is not a global read.
+            val identityName = com.openminis.app.agent.SoulProfiles
+                .metadata(context, sessionId)
+                .name
                 .ifBlank { SoulMetadata.DEFAULT.name }
             val labelText: String? =
                 sessionTitle?.takeIf { it.isNotBlank() } ?: completionWord ?: identityName
@@ -1030,7 +1041,7 @@ class ToolOverlayController(private val context: Context) {
         // [T-android-overlay-dynamic-logo] The leading circle follows the tool
         // that is running RIGHT NOW, and reverts to the Minis mark otherwise —
         // which now includes the streaming stretch, not just completion.
-        applyLogoFor(if (isToolRunning) rowToolName else null)
+        applyLogoFor(if (isToolRunning) rowToolName else null, sessionId)
 
         val rowTitle: String? = when {
             isWaiting -> waiting!!.statusText
@@ -1256,7 +1267,7 @@ class ToolOverlayController(private val context: Context) {
      * The rotating ring is unaffected — it is a sibling in the FrameLayout and
      * keeps spinning around whatever this view shows.
      */
-    private fun applyLogoFor(toolName: String?) {
+    private fun applyLogoFor(toolName: String?, sessionId: String? = null) {
         val iv = logoView ?: return
         lastLogoToolName = toolName
         logoAppliedNight = isNightNow()
@@ -1264,7 +1275,7 @@ class ToolOverlayController(private val context: Context) {
             iv.setPadding(0, 0, 0, 0)
             iv.scaleType = ImageView.ScaleType.CENTER_CROP
             iv.clearColorFilter()
-            applySoulIdentityIcon(iv)
+            applySoulIdentityIcon(iv, sessionId)
             return
         }
         // [T-android-overlay-icon-plate] Inset so the drawn art stays clear of
@@ -1319,8 +1330,11 @@ class ToolOverlayController(private val context: Context) {
      * time. A Soul icon simply takes the place the launcher icon already held,
      * so avatar and launcher mark share one shape.
      */
-    private fun applySoulIdentityIcon(iv: ImageView) {
-        val icon = SoulStore.cachedMetadata.value.icon
+    private fun applySoulIdentityIcon(iv: ImageView, sessionId: String?) {
+        // [T-multi-soul] Resolve the SOUL of the chat this capsule belongs to.
+        // A null session (completion observed before any id was published)
+        // falls back to the default profile, which is what it showed before.
+        val icon = com.openminis.app.agent.SoulProfiles.metadata(context, sessionId).icon
         if (icon.isBlank()) {
             // [T-android-overlay-icon-plate] The launcher mark is an opaque
             // bitmap that fills the circle edge to edge, so a plate behind it
@@ -1591,7 +1605,7 @@ class ToolOverlayController(private val context: Context) {
             val v = view ?: return@post
             // [T-overlay-logo-night-refresh] Night mode flipped: reload the
             // logo so the launcher mark shows its day / night variant now.
-            if (isNightNow() != logoAppliedNight) applyLogoFor(lastLogoToolName)
+            if (isNightNow() != logoAppliedNight) applyLogoFor(lastLogoToolName, pendingSessionId)
             val params = layoutParams ?: return@post
             val dm = context.resources.displayMetrics
             val width = fixedCapsuleWidthPx()

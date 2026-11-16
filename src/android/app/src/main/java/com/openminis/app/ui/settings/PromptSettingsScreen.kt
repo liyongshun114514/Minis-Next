@@ -45,11 +45,8 @@ import kotlinx.coroutines.withContext
  *
  * One page owns every prompt the app sends:
  *
- *  - identity + the global SOUL body (the existing SoulSettingsScreen, one
- *    level down at [onIdentityClick]);
- *  - workspace instructions (the existing WorkspaceInstructionsScreen, still
- *    reachable directly through Routes.WORKSPACE_INSTRUCTIONS for old deep
- *    links);
+ *  - the SOUL library and the selected profile's prompt body (the existing
+ *    SoulSettingsScreen, one level down at [onIdentityClick]);
  *  - the GLOBAL built-in prompts from the catalog asset
  *    ([PromptCatalogScope]), grouped by the catalog's own `group` field and
  *    shown as title + source. Per-tool schema text, scenario prompts and
@@ -70,7 +67,6 @@ import kotlinx.coroutines.withContext
 fun PromptSettingsScreen(
     onBack: () -> Unit,
     onIdentityClick: () -> Unit,
-    onWorkspaceInstructionsClick: () -> Unit,
     onEditBuiltin: (String) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
@@ -158,14 +154,8 @@ fun PromptSettingsScreen(
                 iconColor = Color(0xFFFF9500),
                 onClick = onIdentityClick,
             )
-            SettingsRow(
-                title = stringResource(R.string.settings_workspace_instructions),
-                subtitle = stringResource(R.string.settings_workspace_instructions_subtitle),
-                icon = Icons.Outlined.Description,
-                iconColor = Color(0xFF34C759),
-                onClick = onWorkspaceInstructionsClick,
-                showDivider = false,
-            )
+            // [T-multi-soul] No separate AGENTS.md row: the prompt is written
+            // per SOUL in the editor above.
         }
 
         // Search sits above the catalog so the list below can stay long without
