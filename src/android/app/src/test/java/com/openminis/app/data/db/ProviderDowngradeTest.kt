@@ -9,10 +9,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.sql.DriverManager
 
-/** Exercises the real migration SQL, then Room's open/validation/DAO path. */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = android.app.Application::class, manifest = Config.NONE)
-class ProviderDowngradeTest {
+/** JDBC uses the regular test classloader, without Robolectric's driver isolation. */
+class ProviderDowngradeSqlTest {
     @Test fun `v6 downgrade preserves all v5 group fields and unrelated tables`() {
         DriverManager.getConnection("jdbc:sqlite::memory:").use { c ->
             c.createStatement().use { s ->
@@ -53,6 +51,12 @@ class ProviderDowngradeTest {
         }
     }
 
+}
+
+/** Real Room open/validation/DAO path needs the Android runtime supplied by Robolectric. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = android.app.Application::class, manifest = Config.NONE)
+class ProviderDowngradeTest {
     @Test fun `Room reopens a v6 database and validates restored v5 schema`() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val name = "provider-downgrade-test.db"
