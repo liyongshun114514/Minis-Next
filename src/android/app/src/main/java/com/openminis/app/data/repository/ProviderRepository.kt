@@ -437,10 +437,11 @@ class ProviderRepository(private val context: Context) {
                 null
             }
             if (parsed != null) {
+                var importedToRoom = false
                 val mirrored = try {
-                    persistToDbAndMirror(parsed)
+                    persistToDbAndMirror(parsed).also { importedToRoom = true }
                 } catch (e: Exception) {
-                    android.util.Log.w("ProviderRepo", "[ProviderStore] JSON→DB import failed: ${e.message}")
+                    android.util.Log.w("ProviderRepo", "[ProviderStore] JSON→DB import failed; using JSON in memory only: ${e.message}")
                     parsed
                 }
                 // Migrate the per-user lastUsedEntryId SharedPreferences key
@@ -465,11 +466,13 @@ class ProviderRepository(private val context: Context) {
                         )
                     }
                 }
-                android.util.Log.i(
-                    "ProviderRepo",
-                    "[ProviderStore] migrated/synced ${mirrored.instances.size} instances " +
-                        "${mirrored.modelEntries.size} entries from JSON → Room",
-                )
+                if (importedToRoom) {
+                    android.util.Log.i(
+                        "ProviderRepo",
+                        "[ProviderStore] migrated/synced ${mirrored.instances.size} instances " +
+                            "${mirrored.modelEntries.size} entries from JSON → Room",
+                    )
+                }
                 return mirrored
             }
         }

@@ -122,6 +122,47 @@ abstract class ProviderDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Builds 58/59 added only the group avatar column in provider.db v6.
+         * The restored v5 model needs an explicit downgrade; otherwise Room
+         * retries fail on every load/save and the repository falls back to JSON.
+         * Rebuild only this small table, preserving every v5 field and its row
+         * order. Providers, model entries, secrets, meta and rules stay untouched.
+         * No destructive-database fallback is permitted.
+         */
+        val MIGRATION_6_5_SQL = listOf(
+            """
+            CREATE TABLE provider_model_groups_v5 (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                fallback_strategy TEXT NOT NULL,
+                default_thinking_level TEXT,
+                context_limit_tokens INTEGER,
+                last_context_limit_tokens INTEGER,
+                member_entry_ids_json TEXT NOT NULL,
+                sort_order INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO provider_model_groups_v5 (
+                id, name, strategy, fallback_strategy, default_thinking_level,
+                context_limit_tokens, last_context_limit_tokens,
+                member_entry_ids_json, sort_order
+            ) SELECT id, name, strategy, fallback_strategy, default_thinking_level,
+                context_limit_tokens, last_context_limit_tokens,
+                member_entry_ids_json, sort_order FROM provider_model_groups
+            """.trimIndent(),
+            "DROP TABLE provider_model_groups",
+            "ALTER TABLE provider_model_groups_v5 RENAME TO provider_model_groups",
+        )
+
+        val MIGRATION_6_5 = object : Migration(6, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_6_5_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
         fun getInstance(context: Context): ProviderDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -129,7 +170,7 @@ abstract class ProviderDatabase : RoomDatabase() {
                     ProviderDatabase::class.java,
                     "provider.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_6_5)
                     .build()
                     .also { INSTANCE = it }
             }
