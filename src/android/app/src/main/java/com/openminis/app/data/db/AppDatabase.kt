@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WebAppShortcutEntity::class,
         FolderEntity::class,
     ],
-    version = 15,
+    version = 14,
     // [T-android-downgrade-compat] Kept ON so MigrationTestHelper and CI can
     // validate every migration (and its downgrade counterpart) against the
     // committed schema json. Without it the upgrade/downgrade chain has no
@@ -376,70 +376,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        /**
-         * [T-chat-group-identity] Freeze who produced each assistant turn.
-         *
-         * ONE nullable TEXT column, `messages.group_identity`, holding the
-         * compact JSON written by
-         * [com.openminis.app.groups.ChatGroupIdentityCodec]. Nullable on
-         * purpose: rows written before this build read NULL, which the UI
-         * resolves through the row's own `model_id` / `model_display_name`
-         * attribution — never through the current picker. New ungrouped turns
-         * store an explicit `kind:"model"` stamp so "written before the
-         * feature" and "explicitly not in a group" stay distinguishable.
-         *
-         * No default, no backfill: `ADD COLUMN` is an O(1) metadata change, and
-         * guessing a group for an old row would relabel history — the exact
-         * bug this feature removes. (A unique-ownership backfill is available
-         * at runtime via `ChatGroupIdentityResolver.legacyBackfill`, which
-         * refuses ambiguous models.)
-         */
-        val MIGRATION_14_15 = object : Migration(14, 15) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Idempotent on purpose. [MIGRATION_15_14] leaves the column in
-                // place, so a user who downgrades and upgrades again runs this
-                // path against a table that ALREADY has `group_identity` — a
-                // bare `ALTER TABLE … ADD COLUMN` would then fail with
-                // "duplicate column name" and the app would not open.
-                // SQLite has no `ADD COLUMN IF NOT EXISTS`, so the column list
-                // is read first (O(columns), once per upgrade).
-                if (GroupIdentityColumn.needsAdd(db.columnNames(GroupIdentityColumn.TABLE))) {
-                    db.execSQL(GroupIdentityColumn.ADD_SQL)
-                }
-            }
-        }
-
-        /**
-         * [T-chat-group-identity][T-android-downgrade-compat] Downgrade 15 → 14.
-         *
-         * No-op, same contract as [MIGRATION_12_11]: the column stays in place,
-         * the older build binds by column NAME and ignores columns its entity
-         * does not declare, and dropping it would delete the identity captured
-         * by this build (a downgrade looks lossless, an upgrade back would then
-         * leave every reply unlabelled).
-         */
-        val MIGRATION_15_14 = object : Migration(15, 14) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Intentionally empty — see above.
-            }
-        }
-
-        /**
-         * [T-chat-group-identity] Current column names of [table].
-         *
-         * PRAGMA cannot be parameterised; [table] is always a compile-time
-         * constant of this file, never user input.
-         */
-        private fun SupportSQLiteDatabase.columnNames(table: String): List<String> {
-            val names = ArrayList<String>()
-            query("PRAGMA table_info(`" + table + "`)").use { cursor ->
-                val nameIndex = cursor.getColumnIndex("name")
-                if (nameIndex < 0) return emptyList()
-                while (cursor.moveToNext()) names.add(cursor.getString(nameIndex))
-            }
-            return names
-        }
-
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -454,7 +390,7 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
                         MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
                         MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_12, MIGRATION_12_11,
-                        MIGRATION_13_14, MIGRATION_14_13, MIGRATION_14_15, MIGRATION_15_14,
+                        MIGRATION_13_14, MIGRATION_14_13,
                     )
                     .build()
                     .also { INSTANCE = it }

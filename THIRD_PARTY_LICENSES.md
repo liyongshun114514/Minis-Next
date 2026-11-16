@@ -60,7 +60,6 @@ Test-only dependencies: JUnit 4.13.2 (**EPL-1.0**), MockWebServer 4.12.0 (**Apac
 
 | Asset | Location | License |
 |---|---|---|
-| Model brand icons — [LobeHub Icons](https://github.com/lobehub/lobe-icons) 6.15.2 | Android `assets/model-icons/`: 42 offline PNGs; source and generation details in `docs/model-icons.md` | **MIT** (Copyright (c) 2023 LobeHub), full text bundled as `LICENSE-lobehub-icons.txt`. Brand trademarks remain with their owners. |
 | KaTeX | iOS `src/ios/Resources/KaTeX/`, Android `app/src/main/assets/katex/` | **MIT** |
 | jieba dictionaries | iOS bundle / Android `assets/jieba/` | **MIT** (cppjieba distribution) |
 | [models.dev](https://github.com/sst/models.dev) catalogue snapshot | iOS bundle / Android `assets/models-dev-api.json` (offline copy of `https://models.dev/api.json`, refreshed at run time) | **MIT** |

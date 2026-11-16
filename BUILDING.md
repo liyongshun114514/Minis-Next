@@ -168,7 +168,6 @@ xcodebuild -project src/ios/Minis.xcodeproj -scheme Minis \
 |---|---|
 | JDK | **17** (`sourceCompatibility`/`targetCompatibility` are 17) |
 | Android SDK | **compileSdk 36**, targetSdk 35, **minSdk 26** |
-| Android Build Tools | **35.0.0**, explicitly pinned in `app/build.gradle.kts` and installed by Actions |
 | Android NDK | **r28+** — set `$ANDROID_NDK_HOME`, or install via Android Studio |
 | CMake | 3.22.1 (install through the SDK Manager) |
 | Go + gomobile | Go **1.25+**, then `go install golang.org/x/mobile/cmd/gomobile@latest && gomobile init` — for rclone |
@@ -239,50 +238,10 @@ required to produce one locally.
 
 ### Tests
 
-From `src/android`:
-
 ```sh
-./gradlew :app:testGithubDebugUnitTest --tests '*SoulProfiles*'  # selected JVM tests
-./gradlew :app:connectedAndroidTest                          # needs a device/emulator
+./gradlew :app:testDebugUnitTest        # JVM unit tests
+./gradlew :app:connectedAndroidTest     # instrumented; needs a device/emulator
 ```
-
-`--tests` filters test execution, not Android project configuration or task
-prerequisites. A selected Gradle unit test can still require Build Tools,
-resources, generated classes and production dependencies such as `rclone.aar`.
-The project pins **Build Tools 35.0.0** to match CI. AGP 8.7.3 otherwise defaults
-to **34.0.0**; installed 35/36 packages, `ANDROID_BUILD_TOOLS`, PATH and
-`android.aapt2FromMavenOverride` do not change that default. Do not repeatedly
-install 34.0.0 or make a fake 34.0.0 SDK directory to unblock a selected test.
-If 34.0.0 is requested, check the checkout, module and explicit version first.
-
-On the Minis Ubuntu ARM64 development host, source `/opt/toolchains/env.sh`
-and check the existing `/opt/android-sdk` and `/var/cache/minis/gradle` before
-installing or downloading anything. SDK `35.0.0` is currently a compatibility
-wrapper around official x86_64 36.0.0 tools through qemu; it is not a native
-ARM64 SDK distribution. CI installs the official 35.0.0 package. Do not rewrite
-shared SDK metadata or upgrade AGP to make a local check pass.
-
-Choose checks by what changed:
-
-- Python/source contracts: run the relevant `scripts/tests/` checks directly.
-- Pure Kotlin logic: compile the relevant production code and JUnit tests with
-  real cached dependencies; avoid rebuilding the entire Android app solely to
-  test a small independent function.
-- Full-source offline type checks: `scripts/verification/typecheck_sources.py`.
-- SOUL/group-avatar regression suite: `scripts/verification/check_soul_groups_tests.py`.
-  This suite compiles all production sources once; it is not a cheap single-class
-  runner. `--reuse-main` requires a matching source snapshot; never use
-  `--allow-stale-reuse` for acceptance.
-- Android resources, generated code, packaging or native bitmap behavior: use
-  Gradle/Actions. Report missing dependencies or unsupported host runtimes
-  explicitly; source type checks are not APK builds.
-
-The offline JUnit runner uses AGP's mockable Android runtime for ordinary tests
-and real SQLite JDBC for migration tests. Robolectric NATIVE graphics does not
-support this Linux/aarch64 host; keep its tests marked ENV-GAP and execute them
-on x86_64 Actions. Do not substitute application methods or count ENV-GAP as a
-pass. Put temporary compiler outputs under an isolated `workspace/tmp/` directory
-and remove them after preserving necessary evidence.
 
 ---
 

@@ -73,7 +73,6 @@ import com.openminis.app.data.model.RoutingStrategy
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.ModelGroupAvatar
 import com.openminis.app.ui.components.MinisTextButton
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
@@ -487,8 +486,7 @@ private fun GroupDropdown(
     onSelect: (String?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedGroup = groups.find { it.id == selectedId }
-    val selectedName = selectedGroup?.name ?: stringResource(R.string.model_groups_none)
+    val selectedName = groups.find { it.id == selectedId }?.name ?: stringResource(R.string.model_groups_none)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -500,11 +498,6 @@ private fun GroupDropdown(
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
-            leadingIcon = if (selectedGroup != null) {
-                { ModelGroupAvatar(group = selectedGroup, size = 22.dp) }
-            } else {
-                null
-            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier
                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -521,7 +514,6 @@ private fun GroupDropdown(
             groups.forEach { group ->
                 DropdownMenuItem(
                     text = { Text(group.name) },
-                    leadingIcon = { ModelGroupAvatar(group = group, size = 22.dp) },
                     onClick = {
                         onSelect(group.id)
                         expanded = false
@@ -624,7 +616,6 @@ private fun LazyListScope.agentLoopModelsSectionItems(
                             subtitle = subtitle,
                             badge = stringResource(R.string.agent_loop_section_group_badge),
                             onRemove = { providerRepository.removeAgentLoopGroup(group.id) },
-                            leading = { ModelGroupAvatar(group = group, size = 26.dp) },
                             dragHandleModifier = Modifier.then(
                                 with(this@ReorderableItem) {
                                     Modifier.draggableHandle()
@@ -728,8 +719,6 @@ private fun AgentLoopRow(
     badge: String?,
     onRemove: () -> Unit,
     dragHandleModifier: Modifier = Modifier,
-    /** [T-model-group-avatar] Optional leading glyph (pinned groups). */
-    leading: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -752,10 +741,6 @@ private fun AgentLoopRow(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp),
             )
-        }
-        if (leading != null) {
-            leading()
-            Spacer(modifier = Modifier.width(4.dp))
         }
         Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -988,11 +973,6 @@ private fun GroupRow(
             }
             Spacer(modifier = Modifier.width(4.dp))
         }
-        // [T-model-group-avatar] One avatar renderer for every group: manual
-        // override, else an automatic match on the current name, else the
-        // unified fallback.
-        ModelGroupAvatar(group = group, size = 30.dp)
-        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

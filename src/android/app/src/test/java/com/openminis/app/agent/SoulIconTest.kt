@@ -114,10 +114,27 @@ class SoulIconTest {
         val names = SoulIcon.Rejection.entries.map { it.name }
         assertFalse("opaque images must be accepted", names.contains("OPAQUE"))
         assertTrue(names.contains("UNREADABLE"))
-        assertTrue(names.contains("TOO_LARGE"))
     }
 
-    /** Rounded, not circular — a circle eats the corners at 18dp. */
+    /**
+     * [T-soul-avatar-import-no-size-cap] The size verdict is GONE, not merely
+     * unreachable: with no `TOO_LARGE` constant there is no UI branch that
+     * could show a "picture too large" message again. If someone reintroduces
+     * it, this fails and the failure has to argue with the brief.
+     */
+    @Test
+    fun `there is no size rejection`() {
+        val names = SoulIcon.Rejection.entries.map { it.name }
+        assertFalse("a picture must never be refused for its size", names.contains("TOO_LARGE"))
+        assertEquals(SoulIcon.Rejection.entries.size, 1)
+    }
+
+    /**
+     * Legacy constant only: the renderer is a CIRCLE now
+     * (ui/components/SoulAvatar.kt), so nothing may draw with this radius.
+     * The value is pinned because it still ships in the source and a silent
+     * edit would be a silent behaviour change once the last call site goes.
+     */
     @Test
     fun `corner radius matches the ios app-icon proportion`() {
         assertEquals(0.22f, SoulIcon.CORNER_RADIUS_FRACTION, 0.0001f)

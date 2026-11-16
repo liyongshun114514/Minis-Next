@@ -260,7 +260,7 @@
     <string name="soul_lang_auto">Auto</string>
     <string name="soul_lang_zh">中文</string>
     <string name="soul_lang_en">Inglés</string>
-    <string name="soul_body_placeholder">Describe cómo debe sonar, pensar y comportarse Minis Agent…</string>
+    <string name="soul_body_placeholder">Describe cómo debe sonar, pensar y comportarse Minis Next Agent…</string>
     <string name="soul_length_indicator">%1$d caracteres</string>
     <string name="soul_count_zero">0 caracteres</string>
     <string name="soul_count_chars">%1$d / %2$d caracteres</string>

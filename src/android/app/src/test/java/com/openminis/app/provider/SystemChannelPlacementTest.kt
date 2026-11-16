@@ -86,16 +86,10 @@ class SystemChannelPlacementTest {
         val idx = anthropic.indexOf("val parts = listOfNotNull(appPrompt, userPrompt?.takeIf { it.isNotEmpty() })")
         assertTrue("application prompt is element 0 of the joined text", idx > 0)
         assertTrue(anthropic.contains("put(\"text\", parts.joinToString(\"\\n\\n\"))"))
-        // [T-claude-oauth-send-fix] The API-key path must not depend on OAuth
-        // configuration: the OAuth identity block is only produced inside the
-        // `if (isOAuth)` branch, which starts before `claudeCodePrefix` is read.
         val fn = anthropic.indexOf("internal fun resolveSystemPrompt(")
         val oauthBranch = anthropic.indexOf("if (isOAuth) {", fn)
         val oauthConfig = anthropic.indexOf("val claudeCodePrefix =", fn)
-        assertTrue(
-            "API-key system blocks must not depend on OAuth configuration",
-            oauthBranch in fn until oauthConfig,
-        )
+        assertTrue("API-key system blocks must not depend on OAuth configuration", oauthBranch in fn until oauthConfig)
     }
 
     // ── Gemini: start of systemInstruction ──────────────────────────────────
@@ -114,23 +108,22 @@ class SystemChannelPlacementTest {
         // Applied to the loop's starting provider and to both mid-turn switch
         // points, so a fallback / switch cannot strand the prompt.
         assertTrue(chatVm.contains("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)"))
-        fun normalize(src: String) = src.replace(Regex("\\s+"), "").replace(",)", ")")
-        val compact = normalize(chatVm)
-        // The body/rules are frozen per run, but group/model selection is
-        // resolved for EACH target provider (the d1110b8 scoped contract).
-        for (target in listOf("chosen", "next")) {
-            assertTrue("scoped rules applied to $target", compact.contains(
-                "applyApplicationSystemPrompt($target,applicationPromptForSelection(" +
-                    "soulFileForTurn,promptRulesForTurn,currentIdentity?.entryId))",
-            ))
+        for (provider in listOf("chosen", "next")) {
+            assertTrue("switch/fallback reuses the frozen global prompt for $provider", Regex(
+                "applyApplicationSystemPrompt\\(\\s*$provider,\\s*applicationPromptForTurn,",
+            ).containsMatchIn(chatVm))
         }
+        // Text is snapshotted ONCE per turn and reused by retries, fallbacks
+        // and mid-turn switches. Helpers keep isolation (null).
         assertTrue(chatVm.contains("val soulFileForTurn = if (helperConfig == null)"))
-        assertTrue(chatVm.contains("val promptRulesForTurn = if (helperConfig == null)"))
-        val selectorStart = chatVm.indexOf("private fun applicationPromptForSelection(")
-        assertTrue(selectorStart >= 0)
-        val selector = chatVm.substring(selectorStart, chatVm.indexOf("\n    }\n", selectorStart))
-        assertTrue(selector.contains("if (helperConfig != null) return null"))
-        assertTrue(normalize(selector).contains("SystemPromptBuilder.applicationPrompt(soul,rules,selection)"))
+        assertTrue(chatVm.contains("val applicationPromptForTurn = if (helperConfig == null)"))
+        assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(soulFileForTurn)"))
+        // No mode, no rule list, no per-entry prompt resolution.
+        assertFalse(chatVm.contains("SoulPromptRuleStore"))
+        assertFalse(chatVm.contains("applicationPromptForSelection"))
+        val requestLoop = chatVm.indexOf("while (!collectDone)")
+        val inject = chatVm.indexOf("applicationPromptForTurn", requestLoop)
+        assertTrue("frozen prompt reapplied in request loop", requestLoop >= 0 && inject > requestLoop)
         assertTrue(chatVm.contains("SystemPromptBuilder.applicationPrompt(context)"))
     }
 
@@ -152,7 +145,11 @@ class SystemChannelPlacementTest {
             assertFalse("$name still yields to later messages",
                 src.contains("defer to the user's latest") || src.contains("may be overridden"))
         }
-        assertTrue(soul.contains("不得覆盖"))
-        assertEquals(1, Regex("SUPREME_PREAMBLE: String =").findAll(soul).count())
+        assertTrue(soul.contains("不覆盖模型服务端规则"))
+        assertFalse(soul.contains("outranks every instruction"))
+        // The editable template is resolved by a getter, not a cached value.
+        // Keep the single-definition contract and require the catalog wiring.
+        assertEquals(1, Regex("val SUPREME_PREAMBLE: String\\s+get\\(\\) =").findAll(soul).count())
+        assertTrue(soul.contains("PromptOverrides.render(\"agent.soulstore.0464e2bcbbe2\""))
     }
 }

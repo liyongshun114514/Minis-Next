@@ -1912,15 +1912,7 @@ private fun DualFabRow(
                 topGroups.forEach { group ->
                     DropdownMenuItem(
                         text = { Text(group.name) },
-                        leadingIcon = {
-                            // [T-model-group-avatar] Same avatar as the group
-                            // settings list, so the new-chat shortcut and the
-                            // settings row identify a group identically.
-                            com.openminis.app.ui.components.ModelGroupAvatar(
-                                group = group,
-                                size = 22.dp,
-                            )
-                        },
+                        leadingIcon = { Icon(Icons.Outlined.Forum, contentDescription = null) },
                         onClick = {
                             showGroupMenu = false
                             onNewChatWithGroup(group.id)

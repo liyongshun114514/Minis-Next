@@ -272,29 +272,6 @@ data class ModelGroup(
     // restores the previous value instead of snapping back to 128K. Default
     // null lets old JSON deserialize cleanly (kotlinx.serialization).
     var lastContextLimitTokens: Int? = null,
-    /**
-     * [T-model-group-avatar] The user's MANUAL icon override, or null for
-     * "automatic".
-     *
-     * Automatic is not stored: the icon is derived from the CURRENT [name] by
-     * `ModelGroupAvatarResolver` against the bundled model-icon catalog, so a
-     * rename re-matches on the next render and a manual choice is untouched by
-     * it. Two stored forms, both self-contained (no absolute paths, nothing a
-     * backup cannot carry):
-     *
-     *  - `builtin:<catalog id>` — one of the catalog's brand icons.
-     *  - `data:image/png;base64,…` — a user-picked picture, re-encoded to a
-     *    bounded PNG by `ModelGroupAvatarImage` (the same inline convention
-     *    SOUL icons use).
-     *
-     * null/blank = automatic. An unrecognized value is treated as automatic
-     * rather than as an error, so a value written by a newer build (or an icon
-     * id a catalog update dropped) cannot break the list.
-     *
-     * Appended last and defaulted, so every pre-existing config, DB row and
-     * backup decodes unchanged.
-     */
-    var avatar: String? = null,
 )
 
 @Serializable

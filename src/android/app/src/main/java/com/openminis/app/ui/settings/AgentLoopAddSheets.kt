@@ -45,7 +45,6 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.modelEntryPickerItems
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisTextButton
-import com.openminis.app.ui.components.ModelGroupAvatar
 
 /**
  * T185 — full-screen picker for adding model entries to the agent-loop
@@ -295,8 +294,6 @@ fun AddAgentLoopGroupsScreen(
                                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                                     modifier = Modifier.size(20.dp),
                                 )
-                                Spacer(Modifier.width(10.dp))
-                                ModelGroupAvatar(group = group, size = 26.dp)
                                 Spacer(Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(

@@ -7,13 +7,8 @@ import com.openminis.app.data.db.FolderEntity
 import com.openminis.app.data.db.MessageEntity
 import com.openminis.app.data.db.MessageHeadRow
 import com.openminis.app.data.model.ModelAttributionSnapshot
-import com.openminis.app.groups.ChatGroupIdentity
-import com.openminis.app.groups.ChatGroupIdentityCodec
-import com.openminis.app.groups.ChatGroupIdentityResolver
-import com.openminis.app.groups.ChatGroupOwnership
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.UUID
 
@@ -373,44 +368,6 @@ class ChatRepository(internal val dao: ChatDao) {
         dao.observeMessages(sessionId)
 
     /**
-     * [T-chat-group-identity] Per-row frozen identity, keyed by message id.
-     *
-     * Rows that carry neither a group stamp nor a model snapshot are omitted:
-     * absence is the UI's signal that nothing is known about that row (a
-     * pre-attribution legacy message), which renders as the plain product
-     * identity — never as the group the picker points at now.
-     */
-    fun observeMessageGroupIdentities(sessionId: String): Flow<Map<String, ChatGroupIdentity>> =
-        dao.observeMessageIdentities(sessionId).map { rows ->
-            val out = LinkedHashMap<String, ChatGroupIdentity>(rows.size)
-            for (row in rows) {
-                val ownership = ChatGroupIdentityCodec.decode(row.groupIdentity)
-                val hasModel = !row.modelId.isNullOrBlank() ||
-                    !row.modelDisplayName.isNullOrBlank()
-                if (ownership == null && !hasModel) continue
-                out[row.id] = ChatGroupIdentityResolver.persisted(
-                    ownership = ownership,
-                    modelId = row.modelId,
-                    modelDisplayName = row.modelDisplayName,
-                    providerType = row.providerType,
-                    providerInstanceId = row.providerInstanceId,
-                )
-            }
-            out
-        }
-
-    /**
-     * [T-chat-group-identity] Freeze identity onto an already-written row.
-     *
-     * For rows inserted outside [appendMessage] and for the one-shot legacy
-     * backfill ([ChatGroupIdentityResolver.legacyBackfill], which refuses
-     * ambiguous ownership). Passing null clears the stamp.
-     */
-    suspend fun stampGroupOwnership(messageId: String, ownership: ChatGroupOwnership?) {
-        dao.updateGroupIdentity(messageId, ChatGroupIdentityCodec.encode(ownership))
-    }
-
-    /**
      * Load all messages for a session in bounded pages instead of a
      * single SELECT * batch. The legacy `dao.loadMessages` path issued
      * one query whose Cursor result, once materialised, easily exceeded
@@ -611,21 +568,6 @@ class ChatRepository(internal val dao: ChatDao) {
         tokenUsage: String? = null,
         reasoningContent: String? = null,
         modelSnapshot: ModelAttributionSnapshot? = null,
-        /**
-         * [T-chat-group-identity] WHO produced this turn, frozen here.
-         *
-         * Supplied by the caller from the request context — never resolved in
-         * this method. The selected group is per-send state; reading it at
-         * persist time (the end of a long tool loop) could already be a
-         * different group than the one that served the request, which is the
-         * class of bug the snapshot exists to prevent.
-         *
-         * Ungrouped assistant turns must pass [ChatGroupOwnership.MODEL] (an
-         * explicit "no group" stamp), not null: null is reserved for rows
-         * written before this feature, so the UI can tell "explicitly
-         * ungrouped" from "unknown, fall back to the row's own model".
-         */
-        groupOwnership: ChatGroupOwnership? = null,
     ): MessageEntity {
         val sortOrder = dao.nextSortOrder(sessionId)
         val now = System.currentTimeMillis()
@@ -653,7 +595,6 @@ class ChatRepository(internal val dao: ChatDao) {
             modelDisplayName = modelSnapshot?.displayName,
             providerType = modelSnapshot?.providerTypeRaw,
             providerInstanceId = modelSnapshot?.providerInstanceId,
-            groupIdentity = ChatGroupIdentityCodec.encode(groupOwnership),
         )
         dao.insertMessage(message)
         // [T-android-preview-flicker-toolresult] Only overwrite the preview

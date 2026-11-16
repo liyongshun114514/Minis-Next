@@ -37,7 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
-import com.openminis.app.groups.ChatGroupIdentity
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
@@ -200,17 +199,18 @@ internal fun TypingIndicator(
     retryAttempt: Int = 0,
     retryMax: Int = 0,
     onRetryBadgeClick: (() -> Unit)? = null,
-    /**
-     * [T-chat-group-identity] Identity of the turn being awaited: the frozen
-     * snapshot of the in-flight reply when the ViewModel has one, else the
-     * group/model the composer currently points at. Rendered as avatar + name
-     * so "… is thinking" names the same speaker the reply's header will.
-     */
-    identity: ChatGroupIdentity = ChatGroupIdentity.NONE,
 ) {
     // [T-android-decorative-anim-perf] Shared 30 fps tick instead of a private
     // 90 fps infinite transition; the layer-lambda read below was already right.
     val tick = rememberDecorativeTick()
+    // Live Soul name → "<custom name> is thinking…" when the user renamed
+    // the assistant in Soul settings. SoulStore.cachedMetadata is a StateFlow
+    // that's updated on save (SoulSettingsScreen) and at app start
+    // (MinisApp.onCreate via refreshCache); collectAsState makes Compose
+    // recompose the indicator immediately when it changes.
+    val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
+    val soulName = soulMeta.name.trim().ifEmpty { "Minis Next" }
+
     Row(
         modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
         verticalAlignment = Alignment.Bottom,
@@ -220,17 +220,8 @@ internal fun TypingIndicator(
                 RetryBadge(attempt = retryAttempt, maxAttempts = retryMax, onClick = onRetryBadgeClick)
             }
         }
-        // [T-chat-group-identity] The speaker's own avatar, 14dp and aligned to
-        // the text baseline block — same renderer as the reply header, so the
-        // "thinking" line and the answer that follows it are visibly the same
-        // group/model.
-        ChatGroupIdentityAvatar(
-            identity = identity,
-            size = 14.dp,
-            modifier = Modifier.padding(end = 6.dp, bottom = 2.dp),
-        )
         Text(
-            text = stringResource(R.string.chat_typing_indicator, identity.displayName),
+            text = stringResource(R.string.chat_typing_indicator, soulName),
             fontSize = 15.sp,
             color = ChatColors.tertiaryText,
         )

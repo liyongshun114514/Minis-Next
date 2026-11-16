@@ -40,80 +40,26 @@ class ClaudeOAuthManager(context: Context, instanceId: String) : OAuthManager(co
         private const val TAG = "ClaudeOAuth"
 
         /**
-         * The identity line every Claude Code OAuth request must open its
-         * system prompt with. Anthropic's OAuth gate matches on this text, so
-         * a request without it is rejected even when the bearer token is
-         * valid.
-         *
-         * This is PROMPT TEXT, not a credential: it is not a key, token or
-         * secret, it authenticates nothing on its own, and it is already
-         * public in Claude Code's own traffic and in other open-source
-         * clients that use the same endpoint (see BUILDING.md). It is built in
-         * so a public build — one without `provider-customization.properties`
-         * — can actually sign in with Claude OAuth instead of failing on the
-         * first send.
-         */
-        const val DEFAULT_ANTHROPIC_OAUTH_IDENTIFIER_PROMPT: String =
-            "You are Claude Code, Anthropic's official CLI for Claude."
-
-        /**
-         * Resolve the identity line: the build-time value when one is set,
-         * otherwise [DEFAULT_ANTHROPIC_OAUTH_IDENTIFIER_PROMPT].
-         *
-         * Never empty, never throws. It used to throw when the build-time
-         * value was empty, but the property is read by callers that merely
-         * want to know whether a prefix is already present — and some of them
-         * read it before checking whether the request is OAuth at all. An
-         * unconfigured public build therefore failed ordinary sends (API-key
-         * sends included, which never use the identity block) with
-         * "ANTHROPIC_OAUTH_IDENTIFIER_PROMPT is not configured".
-         *
-         * A build can still override the wording through
-         * `app/provider-customization.properties`; a blank or whitespace-only
-         * override means "use the built-in line".
-         */
-        internal fun resolveOAuthIdentifierPrompt(configured: String?): String {
-            val value = configured?.trim().orEmpty()
-            return value.ifEmpty { DEFAULT_ANTHROPIC_OAUTH_IDENTIFIER_PROMPT }
-        }
-
-        /**
          * System prompt prefix required by Anthropic for Claude Code OAuth
-         * credentials. Always non-empty; safe to read on every path.
+         * credentials.
+         *
+         * The value is not hardcoded: it is supplied at build time via the
+         * `ANTHROPIC_OAUTH_IDENTIFIER_PROMPT` BuildConfig field, populated from
+         * `app/provider-customization.properties`. That file is tracked in the private
+         * repo (filled in) but excluded from the public mirror, which ships
+         * only `provider-customization.properties.example` with an empty value. Reading
+         * it without a configured value throws — by design — the first time an
+         * OAuth (Claude Code) request needs the prompt.
          */
         val ANTHROPIC_OAUTH_IDENTIFIER_PROMPT: String
-            get() = resolveOAuthIdentifierPrompt(BuildConfig.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT)
-
-        /**
-         * Remove leading copies of the OAuth identity line from [text].
-         *
-         * Callers (ChatViewModel) prepend the identity to the system prompt
-         * string before handing it to a provider, and the provider emits it as
-         * its own leading block again, because Anthropic's gate only looks at
-         * the first block. Stripping here — tolerating surrounding whitespace
-         * and repeated copies — is what keeps one identity block on the wire
-         * when a path prepends more than once, and keeps the two sides
-         * agreeing on the exact text (a build-time value with trailing
-         * whitespace must not defeat the comparison).
-         *
-         * Text that does not begin with the identity is returned unchanged.
-         */
-        fun stripOAuthIdentifierPrompt(
-            text: String,
-            prefix: String = ANTHROPIC_OAUTH_IDENTIFIER_PROMPT,
-        ): String {
-            if (prefix.isEmpty()) return text
-            var rest = text
-            var stripped = false
-            while (true) {
-                var start = 0
-                while (start < rest.length && rest[start].isWhitespace()) start++
-                if (!rest.startsWith(prefix, start)) break
-                rest = rest.substring(start + prefix.length)
-                stripped = true
+            get() = BuildConfig.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT.ifEmpty {
+                throw IllegalStateException(
+                    "ANTHROPIC_OAUTH_IDENTIFIER_PROMPT is not configured. Copy "
+                        + "app/provider-customization.properties.example to "
+                        + "app/provider-customization.properties and set "
+                        + "ANTHROPIC_OAUTH_IDENTIFIER_PROMPT before using Claude Code OAuth."
+                )
             }
-            return if (stripped) rest.trimStart() else text
-        }
 
         /**
          * How long before expiry we proactively refresh. Mirrors iOS

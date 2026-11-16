@@ -137,7 +137,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
-import com.openminis.app.groups.ChatGroupIdentity
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.components.MinisAlertDialog
@@ -281,15 +280,20 @@ import com.openminis.app.ui.components.decorativePhase
 import androidx.compose.ui.draw.drawWithCache
 
 @Composable
-internal fun AssistantHeader(identity: ChatGroupIdentity = ChatGroupIdentity.NONE) {
-    // [T-chat-group-identity] Identity header = the group that served THIS turn
-    // (frozen name + avatar), or — for a turn sent on a bare model — the real
-    // model/provider. It is passed in from the message's own persisted
-    // snapshot, so switching model or group later cannot relabel old replies.
+internal fun AssistantHeader() {
+    // [T-soul-md] Identity header = icon + SOUL.md-driven `name`.
     //
-    // Rendered through the same ModelGroupAvatar every other group surface
-    // uses: it keeps custom-picture transparency (no backdrop is painted) and
-    // falls back to the one shared glyph when nothing identifies the speaker.
+    // [T-android-soul-custom-icon] The icon is now the user-settable
+    // `SoulMetadata.icon` (emoji or transparent PNG), falling back to the
+    // canonical sparkle gradient when unset — so a user who never touches it
+    // sees exactly the previous rendering.
+    //
+    // Deliberately the SAME composable the settings card uses. On iOS these
+    // two surfaces were written separately and the chat one silently failed
+    // to pick up image icons; sharing the renderer makes that class of
+    // divergence impossible rather than merely unlikely.
+    val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
+    val displayName = soulMeta.name.ifBlank { com.openminis.app.agent.SoulMetadata.DEFAULT.name }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -299,12 +303,21 @@ internal fun AssistantHeader(identity: ChatGroupIdentity = ChatGroupIdentity.NON
             // inside the turn is unaffected (that's this row's bottom=2).
             .padding(top = 10.dp, bottom = 2.dp),
     ) {
-        // 18.dp, matching the previous shape exactly: the row height feeds a
-        // measured-height estimate in the message list.
-        ChatGroupIdentityAvatar(identity = identity, size = 18.dp)
+        val sparkleGradient = Brush.linearGradient(
+            colors = listOf(SparkleColor1, SparkleColor2),
+        )
+        // 18.dp, matching the previous Icon exactly: the row height feeds a
+        // measured-height estimate in the message list, so the icon stays
+        // square and same-sized whichever branch renders.
+        com.openminis.app.ui.components.SoulAvatarGlyph(
+            icon = soulMeta.icon,
+            sizeDp = 18.dp,
+            emojiSp = 15.sp,
+            sparkleTint = sparkleGradient,
+        )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = identity.displayName,
+            text = displayName,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -442,8 +455,6 @@ private fun formatTokenCount(count: Int): String {
 internal fun AssistantMessageView(
     message: ChatMessage,
     onRetry: (() -> Unit)? = null,
-    // [T-chat-group-identity] Frozen identity of THIS turn (see AssistantHeader).
-    identity: ChatGroupIdentity = ChatGroupIdentity.NONE,
     // [T-android-usage-capsule-style] Whether this message's usage capsule is
     // currently revealed. Owned by the ViewModel so the flat renderer — which
     // emits the capsule as a separate list item — can share the same state.
@@ -454,7 +465,7 @@ internal fun AssistantMessageView(
             .fillMaxWidth()
             .padding(vertical = 2.dp),
     ) {
-        AssistantHeader(identity)
+        AssistantHeader()
 
         // Render blocks in original order — text, thinking, and tool calls interleaved
         // exactly as they arrived in the stream (each assistant turn may contain multiple

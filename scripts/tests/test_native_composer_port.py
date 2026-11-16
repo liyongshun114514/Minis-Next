@@ -324,44 +324,26 @@ def main() -> int:
     ok(not (ROOT / "src/android/app/src/main/assets/title.dex").exists(),
        "title.dex was copied into the app")
 
-    # --- Soul: one global body plus optional scoped rules ---------------
-    # Rolled back to the scoped-rules contract (d1110b8): the SOUL.md body is
-    # the single global application prompt, and optional per-group / per-model
-    # rules are resolved for the live selection. The multi-profile SOUL library
-    # and the per-chat picker that replaced this contract are gone.
-    ok("fun isOverLimit(body: String): SoulBodyLimitCheck" in soul
-       and "SoulBodyLimitMode.UNLIMITED" in soul,
-       "the SOUL body-length policy entry point is missing")
-    ok("internal fun applicationPrompt(" in soul
-       and "rules: List<SoulPromptRule>" in soul
-       and "selection: SoulPromptSelection" in soul,
-       "the scoped application prompt entry point is missing")
-    ok("SoulPromptRuleResolver.matching(rules, selection)" in soul
-       and "CUSTOM_RULES_HEADER" in soul,
-       "scoped rules are stored but not resolved into the prompt")
-    ok("SoulPromptMode" not in soul
-       and "SoulProfiles" not in soul
-       and "SoulPicker" not in soul,
-       "a retired prompt mode / multi-profile path is still reachable")
-    ok("applicationPrompt(file, emptyList(), SoulPromptSelection())" in soul,
-       "the global-only overload no longer resolves without rules")
-
-    rules_src = text(ROOT / "src/android/app/src/main/java/com/openminis/app/agent/SoulPromptRules.kt")
-    ok("object SoulPromptRuleStore" in rules_src
-       and "fun cachedOrLoad(context: Context)" in rules_src
-       and "SoulPromptRuleResolver" in rules_src,
-       "the scoped rule store/resolver is missing")
-    screen = text(SOUL_SCREEN)
-    ok("SoulPromptRuleEditorDialog(" in screen
-       and "SoulPromptRuleTarget.MODEL" in screen,
-       "the SOUL page no longer edits scoped rules")
-    ok("SoulProfiles" not in screen and "SoulPicker" not in screen,
-       "the SOUL page still edits per-chat profiles")
-    ok(SOUL_UI.is_file() and "SoulBodyLimitControls(" in text(SOUL_UI),
-       "the body-length policy UI helper is missing")
-    ok(not (ROOT / "src/android/app/src/main/java/com/openminis/app/agent/SoulProfiles.kt").exists()
-       and not (ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/SoulPickerDialog.kt").exists(),
-       "the retired multi-profile SOUL library still exists")
+    # --- Soul: global-only prompt, no length gate -----------------------
+    # The product now has ONE application prompt (the SOUL.md body) and no
+    # application-side length policy at all: not NATIVE, not CUSTOM, not a
+    # stored mode left on disk. These checks pin the absence of the gate and
+    # of the retired per-model path; the positive behaviour (a very long body
+    # is sent whole) is covered by SoulBodyLimitPolicyTest.
+    ok("SoulBodyLimitMode" not in soul
+       and "SoulBodyLimitPolicy" not in soul
+       and "SoulBodyLimitCheck" not in soul
+       and "isOverLimit" not in soul,
+       "a body-length gate is still present in SoulStore")
+    ok("CUSTOM_RULES_HEADER" not in soul
+       and "SoulPromptMode" not in soul
+       and "SoulPromptRule" not in soul,
+       "the retired GLOBAL/CUSTOM prompt path is still reachable")
+    ok("internal fun applicationPrompt(file: SoulFile?): String? = globalBlock(file)" in soul,
+       "the global application prompt entry point is missing")
+    ok("over the configured length limit" not in soul
+       and "falling back to identity-only" not in soul,
+       "a truncation/omission branch survived in the prompt builder")
 
     # --- Soul safety boundary: prompt text must stay native --------------
     ok("Ubuntu 24.04" in soul and "PRoot or Chroot" in soul,
@@ -374,15 +356,14 @@ def main() -> int:
         ok(token in soul, f"native injection pattern changed/missing: {token}")
     ok("fun containsInjectionPattern(s: String): Boolean" in soul,
        "native injection detector signature changed")
-    ok("scrubInjections(trimmed)" in soul,
-       "user-authored SOUL lines are no longer scrubbed at prompt-build time")
-    ok("val personality = scrubInjections(trimmed)" in soul,
-       "SOUL render no longer preserves the (scrubbed) configured prompt body")
+    ok("private fun scrubInjections(s: String): String" in soul,
+       "native injection scrubber signature changed")
 
-    # The scrubber stays at prompt-build time for BOTH the global body and the
-    # scoped rules: a rule line cannot smuggle an override into the system
-    # channel, and the body itself still reaches the model as written apart
-    # from those injection lines.
+    # The injection machinery itself is pinned by the token checks above; the
+    # old "byte-identical to HEAD" comparison was removed because this branch
+    # now legitimately edits SoulStore (unlimited default, supreme preamble),
+    # which shifted every later offset and made the fixed-width window compare
+    # two different regions of two different files.
 
     # --- Provenance / licence -------------------------------------------
     up_license = ROOT.parent.parent / "workspace/tmp/openminis-port/MinisAllInOne/LICENSE"

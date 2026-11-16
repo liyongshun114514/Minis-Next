@@ -22,11 +22,4 @@ data class ProviderModelGroupEntity(
     @ColumnInfo(name = "last_context_limit_tokens") val lastContextLimitTokens: Int? = null,
     @ColumnInfo(name = "member_entry_ids_json") val memberEntryIdsJson: String,
     @ColumnInfo(name = "sort_order") val sortOrder: Int = 0,
-    /**
-     * [T-model-group-avatar] Manual icon override (`builtin:<id>` or a PNG
-     * data URI); NULL = automatic match from the group name. Nullable
-     * additive column (MIGRATION_5_6), so every pre-existing row reads as
-     * automatic.
-     */
-    @ColumnInfo(name = "avatar") val avatar: String? = null,
 )

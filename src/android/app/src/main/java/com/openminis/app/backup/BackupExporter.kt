@@ -782,12 +782,6 @@ class BackupExporter(
             m.modelDisplayName?.let { put("modelDisplayName", JsonPrimitive(it)) }
             m.providerType?.let { put("providerType", JsonPrimitive(it)) }
             m.providerInstanceId?.let { put("providerInstanceId", JsonPrimitive(it)) }
-            // [T-chat-group-identity] The frozen speaker of this turn (group id
-            // / name / avatar, or an explicit ungrouped stamp), verbatim. Emitted
-            // only when present, so a package from a build without the feature
-            // keeps its previous shape and an older importer sees nothing new.
-            // camelCase for the same cross-platform reason as the fields above.
-            m.groupIdentity?.let { put("groupIdentity", JsonPrimitive(it)) }
         }
 
         internal fun markerRecord(c: CompactMarkerEntity): JsonElement = buildJsonObject {

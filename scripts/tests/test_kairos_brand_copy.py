@@ -4,9 +4,7 @@ Guards the split that the fork must keep:
 
   1. every user-visible string says "Minis Next", never the upstream product name
      — the ONLY allowed "Minis" is the upstream skill gallery ("Minis Skills",
-     github.com/OpenMinis/MinisSkills), identifiers, and the SOUL/personality
-     keys pinned verbatim to their pre-rename (d1110b8) copy in
-     LEGACY_SOUL_COPY;
+     github.com/OpenMinis/MinisSkills) and identifiers;
   2. internal compatibility tokens are NOT renamed: `minis://`, `minis-*` CLIs,
      `/var/minis` paths, `.minisbak` backups, `com.openminis` namespace;
   3. the original project stays attributed (OpenMinis URLs untouched);
@@ -34,26 +32,6 @@ COMPAT_IN_STRINGS = [
     "/var/minis",
     ".minisbak",
 ]
-
-# [1.7.1-personality-settings] SOUL rollback exemption.
-#
-# The personality page was restored byte-for-byte from d1110b8 (the 108th
-# commit), before this fork renamed the product to "Minis Next". Its copy
-# therefore still says "Minis", and rewriting it would be a SECOND content
-# change on top of the rollback. Only `soul_*` / `settings_soul*` keys may use
-# the historical name, and only at the exact values pinned here: a wildcard
-# exemption would let any new prompt string drift too. Everything else keeps
-# the global "Minis Next" rule.
-LEGACY_SOUL_COPY = {
-    ("values-es", "soul_body_placeholder"): "Describe cómo debe sonar, pensar y comportarse Minis Agent…",
-}
-
-# Prefixes that may appear in LEGACY_SOUL_COPY. Nothing else is exempt.
-LEGACY_SOUL_PREFIXES = ("soul_", "settings_soul")
-
-
-def is_legacy_soul_key(name: str) -> bool:
-    return name.startswith(LEGACY_SOUL_PREFIXES)
 
 
 def string_values(path: Path) -> dict:
@@ -87,40 +65,12 @@ class KairosCopyTest(unittest.TestCase):
         # Every values*/*.xml: strings.xml plus the per-feature string files
         # (strings_network.xml, strings_file_browser_delete.xml, ...).
         for path in sorted(RES.glob("values*/*.xml")):
-            locale = path.parent.name
             for name, value in string_values(path).items():
                 self.assertNotIn("Kairos", value, f"Old brand in {path}:{name}")
-                if (locale, name) in LEGACY_SOUL_COPY and is_legacy_soul_key(name):
-                    # Pinned exactly by test_legacy_soul_copy_is_pinned_exactly.
-                    continue
                 cleaned = value.replace(UPSTREAM, "").replace("OpenMinis", "").replace("Minis Next", "")
                 self.assertNotIn(
                     "Minis", cleaned,
                     f"{path.parent.name}/{path.name}:{name} still says Minis: {value!r}",
-                )
-
-    def test_legacy_soul_copy_is_pinned_exactly(self):
-        # The exemption above is exact, not a regex: each historical SOUL
-        # string must still read what it read at d1110b8. A silent rewrite to
-        # "Minis Next" (or a stray edit) fails here instead of passing as
-        # "already exempt".
-        for (locale, name), expected in LEGACY_SOUL_COPY.items():
-            self.assertTrue(is_legacy_soul_key(name), f"{locale}:{name} is not a SOUL key")
-            path = RES / locale / "strings.xml"
-            self.assertTrue(path.is_file(), path)
-            self.assertEqual(expected, string_values(path).get(name), f"{locale}:{name}")
-
-        # No OTHER soul_/settings_soul* string may smuggle the historical name
-        # in: the global rule still applies outside the pinned table.
-        for path in sorted(RES.glob("values*/*.xml")):
-            locale = path.parent.name
-            for name, value in string_values(path).items():
-                if not is_legacy_soul_key(name) or (locale, name) in LEGACY_SOUL_COPY:
-                    continue
-                cleaned = value.replace(UPSTREAM, "").replace("OpenMinis", "").replace("Minis Next", "")
-                self.assertNotIn(
-                    "Minis", cleaned,
-                    f"{locale}/{path.name}:{name} is not pinned but still says Minis: {value!r}",
                 )
 
     def test_compat_tokens_are_not_rebranded(self):

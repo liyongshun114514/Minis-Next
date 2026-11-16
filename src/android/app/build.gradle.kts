@@ -20,16 +20,7 @@ val appCustomization = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 fun customizationValue(key: String): String =
-    (appCustomization.getProperty(key) ?: "")
-        // Escape for a Java string literal in the generated BuildConfig. The
-        // identity line is prose: a custom value may legitimately contain a
-        // backslash, quote, tab or a line break, and an unescaped one breaks
-        // the generated source rather than the feature that uses it.
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
+    (appCustomization.getProperty(key) ?: "").replace("\"", "\\\"")
 
 android {
     namespace = "com.openminis.app"
@@ -40,9 +31,6 @@ android {
     // Android 16 behavior changes; the Live Updates path is runtime-gated on
     // Build.VERSION.SDK_INT >= 36 (see DynamicIslandSupport / AgentForegroundService).
     compileSdk = 36
-    // Keep local Android tests and CI on the same SDK package. AGP 8.7.3
-    // otherwise defaults to 34.0.0, even with newer build-tools installed.
-    buildToolsVersion = "35.0.0"
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
@@ -51,8 +39,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
-        versionCode = 59
-        versionName = "1.7.1"
+        versionCode = 60
+        versionName = "1.7.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -64,10 +52,7 @@ android {
         buildConfigField("boolean", "DEV_TOOLS", "false")
 
         // System prompt prefix required by Anthropic for Claude Code OAuth
-        // credentials. Empty in the public mirror — the app then falls back to
-        // its built-in identity line (ClaudeOAuthManager), so OAuth sends work
-        // in a build without provider-customization.properties. A non-empty
-        // value here overrides that default.
+        // credentials. Empty in the public mirror (see provider-customization.properties).
         buildConfigField(
             "String",
             "ANTHROPIC_OAUTH_IDENTIFIER_PROMPT",

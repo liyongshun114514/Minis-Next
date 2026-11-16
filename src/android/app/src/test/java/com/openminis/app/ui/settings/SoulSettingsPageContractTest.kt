@@ -5,134 +5,104 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
- * [T-android-soul-system-prompt-only] Contract for the reduced Soul page.
- *
- * The page is the system-prompt setting and nothing else: an editable avatar,
- * a name, and one prompt field. This replaces the former
- * `SoulLangButtonWrapTest`, which asserted the language row that has been
- * removed.
+ * [K-global-prompt-only] Contract for Settings → System Prompt: avatar, name,
+ * one global body, Save. Nothing else is configurable, and nothing on the page
+ * can block or truncate the body.
  */
 class SoulSettingsPageContractTest {
 
     private val src = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
+    private val avatar = ProductionSources.read("ui/components/SoulAvatar.kt")
 
     @Test
-    fun `the page edits exactly the avatar, the name and the prompt`() {
-        // One multiline editor, labelled as the system prompt.
-        assertEquals("one prompt editor", 1, Regex("""DocumentEditorField\(""").findAll(src).count())
-        assertTrue(src.contains("R.string.soul_section_personality"))
-        assertTrue("name field", src.contains("R.string.soul_field_name"))
-        // The avatar still opens the emoji / image picker menu.
-        assertTrue(src.contains("showIconMenu = true"))
-        assertTrue(src.contains("imagePicker.safeLaunchPicker("))
-        // Save still goes through the SOUL.md store.
+    fun `the page edits exactly the original global properties`() {
+        assertTrue(src.contains("soul_field_name"))
+        assertTrue(src.contains("SoulStore.load(context)"))
         assertTrue(src.contains("SoulStore.save(context, currentFile)"))
+        assertTrue(src.contains("SoulMDParser.parse(SoulStore.DEFAULT_CONTENT)"))
+        assertTrue(src.contains("DocumentEditorField("))
+        assertTrue(src.contains("name = name.ifBlank { SoulMetadata.DEFAULT.name }"))
+        // style/lang/emoji round-trip without a field of their own.
+        assertTrue(src.contains("preservedEmoji = parsed.metadata.emoji"))
+        assertTrue(src.contains("style = parsed.metadata.style"))
+        assertTrue(src.contains("lang = parsed.metadata.lang"))
     }
 
     @Test
-    fun `the removed controls stay removed`() {
-        for (gone in listOf(
-            "LangPicker",
-            "LANG_BUTTON_SIDE_PADDING",
-            "SoulBodyLimitControls",
-            "R.string.soul_field_style",
-            "R.string.soul_field_lang",
-            "R.string.soul_lang_",
-            "R.string.soul_restore_default",
+    fun `no mode, rule, or length control is reachable from the page`() {
+        for (token in listOf(
+            "SoulPromptMode", "SoulPromptModeSwitch", "SoulPromptRule", "SoulPromptRuleStore",
+            "SoulCustomRulesSection", "SoulPromptRuleEditor", "SoulBodyLimit", "isOverLimit",
+            "limitSettings", "bodyLimitCheck", "SoulLimitUi", "SegmentedButton",
+            "kairos_prompt_mode_", "soul_over_limit", "soul_counter",
         )) {
-            assertFalse("$gone must not come back", src.contains(gone))
+            assertFalse("$token must not appear on the page", src.contains(token))
         }
     }
 
     @Test
-    fun `metadata the page does not show is still written back`() {
-        // style / lang / emoji are preserved verbatim so a save from this page
-        // cannot reset values set by an older build or another device.
-        assertTrue("emoji preserved", src.contains("preservedEmoji"))
-        assertTrue("style round-trips", src.contains("style = style,"))
-        assertTrue("lang round-trips", src.contains("lang = lang.ifBlank"))
+    fun `the mode and rule UI helpers are deleted, not hidden`() {
+        val root = ProductionSources.mainRoot() ?: error("production source root not found")
+        for (name in listOf(
+            "ui/settings/SoulPromptRuleUi.kt",
+            "ui/settings/SoulPromptRuleEditor.kt",
+            "ui/settings/SoulPromptRulesSection.kt",
+            "ui/settings/SoulLimitUi.kt",
+        )) {
+            assertFalse("$name must be gone", File(root, name).exists())
+        }
     }
 
     @Test
-    fun `the length gate still guards save`() {
-        // [T-soul-unlimited-default] The gate stays wired to the same
-        // classifier SoulStore.save() enforces — it is simply Ok by default
-        // now (mode UNLIMITED), so it never blocks a save.
-        assertTrue(src.contains("SoulStore.isOverLimit(body, limitSettings)"))
-        assertTrue(src.contains("!bodyLimitCheck.isOverLimit"))
+    fun `load readiness and save error state remain declared before use`() {
+        val loadDeclaration = "var loaded by remember { mutableStateOf(false) }"
+        val errorDeclaration = "var saveError by remember { mutableStateOf<String?>(null) }"
+        assertTrue("load state must exist", src.contains(loadDeclaration))
+        assertTrue("save errors must have remembered state", src.contains(errorDeclaration))
+        assertTrue(src.indexOf(loadDeclaration) < src.indexOf("loaded = true"))
+        assertTrue(src.indexOf(errorDeclaration) < src.indexOf("saveError = t.message"))
+        assertTrue("failed writes must leave the draft on screen", src.contains("saveError = t.message ?: \"save failed\""))
     }
 
     @Test
-    fun `the over-limit banner cannot fire under the default policy`() {
-        // It is gated on the MODE as well as the result: only CUSTOM (which this
-        // page cannot reach) can report OverLimit*.
-        assertTrue(src.contains("!limitSettings.mode.isUnlimited"))
-        assertFalse("no unconditional red banner", src.contains("val overLimit = bodyLimitCheck\n                if (overLimit is"))
+    fun `save is gated only by dirty and in-flight state`() {
+        assertTrue(src.contains("enabled = loaded && isDirty && !saving,"))
+        assertFalse("no length gate on Save", src.contains("!bodyLimitCheck.isOverLimit"))
+        assertTrue(src.contains("val isDirty = loaded && baseline != null && currentFile != baseline"))
+        assertTrue(src.contains("if (!saving)"))
     }
 
     @Test
-    fun `the avatar fills its frame instead of letterboxing`() {
-        // [T-soul-avatar-fill] Default ContentScale.Fit left blank bands on the
-        // two short sides of a non-square image.
-        assertTrue("avatar image must Crop", src.contains("contentScale = ContentScale.Crop"))
-        assertTrue(src.contains("RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)"))
+    fun `the body is saved whole with no counter or rejection banner`() {
+        assertTrue(src.contains("onValueChange = { body = it }"))
+        assertFalse(src.contains("SoulStore.isOverLimit"))
+        assertFalse(src.contains("soul_over_limit_chinese"))
+        assertFalse(src.contains("soul_over_limit_english"))
+        assertFalse(src.contains("body.length"))
     }
 
     @Test
-    fun `the square crop hint is gone from the menu`() {
-        assertFalse("hint line removed", src.contains("R.string.soul_icon_image_hint"))
-        assertTrue("the menu item still has a title", src.contains("R.string.soul_icon_choose_image"))
-    }
-
-    // ── [T-soul-scoped-prompt] Global / Custom pages ─────────────────────
-
-    @Test
-    fun `the prompt area has global and custom tabs`() {
-        assertTrue(src.contains("soul_tab_global"))
-        assertTrue(src.contains("soul_tab_custom"))
-        assertTrue(src.contains("TabRow(selectedTabIndex = promptTab)"))
-        // Global keeps the original SOUL.md editor and its Save path.
-        assertTrue(src.contains("if (promptTab == 0)"))
-        assertEquals("one global prompt editor", 1, Regex("""DocumentEditorField\(""").findAll(src).count())
+    fun `the avatar uses the one circular renderer and the sampled importer`() {
+        assertTrue(src.contains("SoulAvatarGlyph("))
+        assertTrue(avatar.contains("fun SoulAvatarGlyph("))
+        assertTrue(avatar.contains("ContentScale.Crop"))
+        assertTrue(avatar.contains("CircleShape"))
+        assertTrue("popup image import samples while decoding", src.contains("SoulIcon.importFrom"))
+        assertFalse("no full-resolution decode", src.contains("BitmapFactory.decodeStream"))
+        assertFalse("no TOO_LARGE wording remains", src.contains("iconTooLargeMsg"))
+        assertFalse(src.contains("soul_icon_error_too_large"))
+        // The glyph fills its frame: 44dp in a 44dp circular button.
+        assertTrue(src.contains("SoulIconGlyph(icon = icon, sizeDp = 44.dp, emojiSp = 26.sp)"))
     }
 
     @Test
-    fun `custom rules can be enabled targeted edited added and deleted`() {
-        assertTrue(src.contains("SoulPromptRuleStore.load(context)"))
-        assertTrue(src.contains("SoulPromptRuleStore.save(context, next)"))
-        assertTrue(src.contains("SettingsSwitch("))
-        assertTrue(src.contains("persistRules("))
-        assertTrue(src.contains("SoulPromptRuleEditorDialog("))
-        assertTrue(src.contains("SoulPromptRuleTarget.GROUP"))
-        assertTrue(src.contains("SoulPromptRuleTarget.MODEL"))
-        assertTrue(src.contains("rules.filterNot { it.id == pending.id }"))
-        assertTrue(src.contains("soul_custom_rules_add"))
-    }
-
-    @Test
-    fun `a deleted target is shown as missing and never silently global`() {
-        assertTrue(src.contains("soul_custom_rule_target_missing"))
-        assertTrue(src.contains("soul_custom_rules_intro"))
-        // The rule editor offers exactly Group and Model — no "all" scope.
-        val editor = ProductionSources.read("ui/settings/SoulPromptRuleEditor.kt")
-        assertTrue(editor.contains("SoulPromptRuleTarget.GROUP"))
-        assertTrue(editor.contains("SoulPromptRuleTarget.MODEL"))
-        assertFalse("no global target option", editor.contains("SoulPromptRuleTarget.GLOBAL"))
-        assertFalse(editor.contains("AllModels"))
-    }
-
-    @Test
-    fun `the runtime resolves rules per request and snapshots them per turn`() {
-        // Grep guard for the wiring that cannot be constructed in a JVM test:
-        // turn-level snapshot + per-request selection. If ChatViewModel drops
-        // either half, this fails instead of the UI silently doing nothing.
-        val vm = ProductionSources.read("ui/chat/ChatViewModel.kt")
-        assertTrue(vm.contains("SoulPromptRuleStore.cachedOrLoad(context)"))
-        assertTrue(vm.contains("applicationPromptForSelection("))
-        assertTrue(vm.contains("THE per-request application point"))
-        assertTrue(vm.contains("entry?.baseModel?.id"))
-        assertTrue(vm.contains("SystemPromptBuilder.applicationPrompt("))
+    fun `unsaved edits still get the discard guard and save errors are shown`() {
+        assertTrue(src.contains("BackHandler(enabled = isDirty)"))
+        assertTrue(src.contains("soul_discard_confirm_title"))
+        assertTrue(src.contains("saveError?.let"))
+        assertTrue(src.contains("soul_save_error_title"))
     }
 }

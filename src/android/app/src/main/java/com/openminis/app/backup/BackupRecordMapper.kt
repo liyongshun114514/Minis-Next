@@ -138,12 +138,6 @@ internal object BackupRecordMapper {
             modelDisplayName = m.str("modelDisplayName"),
             providerType = m.str("providerType"),
             providerInstanceId = m.str("providerInstanceId"),
-            // [T-chat-group-identity] Absent in packages written before this
-            // feature (or by a build without it): null then, which the chat
-            // renders with the row's own model identity — never with the group
-            // the picker happens to point at. Every other field of the record
-            // is preserved exactly as before.
-            groupIdentity = m.str("groupIdentity"),
         )
     }
 

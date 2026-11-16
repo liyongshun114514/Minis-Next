@@ -61,25 +61,4 @@ data class MessageEntity(
     @ColumnInfo(name = "provider_type") val providerType: String? = null,
     /** Diagnostics / disambiguation only — the UI never resolves through it. */
     @ColumnInfo(name = "provider_instance_id") val providerInstanceId: String? = null,
-    // [T-chat-group-identity] WHICH SPEAKER produced this assistant turn, frozen
-    // at generation time — a model group (id + name + avatar) or, for a turn
-    // sent on a directly picked model, an explicit "ungrouped" stamp.
-    //
-    // Why a persisted snapshot: a group is a per-send routing choice, exactly
-    // like the model in the four columns above. Chat labelled every reply with
-    // ONE mutable identity (the per-chat SOUL), so picking another model or
-    // group relabelled the entire history. The identity now travels with the
-    // row.
-    //
-    // Shape: one small JSON string written by
-    // [com.openminis.app.groups.ChatGroupIdentityCodec]
-    // (`{"v":1,"kind":"group","id":…,"name":…,"avatar":…}`). Model display
-    // name / provider stay in the columns above — they already exist and
-    // duplicating them would create two sources of truth that can disagree.
-    //
-    // NULL is meaningful and deliberate: it is a row written before this
-    // feature, which the UI renders with its own model identity — NEVER with
-    // the group the picker happens to point at now. New ungrouped turns write
-    // an explicit `kind:"model"` stamp so the two cases stay distinguishable.
-    @ColumnInfo(name = "group_identity") val groupIdentity: String? = null,
 )

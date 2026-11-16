@@ -162,7 +162,6 @@ jobs:
           python3 scripts/test_chroot_file_identity.py
           python3 -m unittest discover -s scripts/tests -p test_removed_native_ui.py -v
           python3 -m unittest discover -s scripts/tests -p test_prompt_catalog.py -v
-          python3 -m unittest discover -s scripts/tests -p test_model_icon_assets.py -v
           python3 scripts/check-prompt-catalog.py
       - name: Build APK
         id: build-apk
@@ -191,11 +190,10 @@ jobs:
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
             --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' --tests '*ChrootFileToolsTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
-            --tests '*GroupAvatar*' \
+            --tests '*WorkspaceSystemPromptTest' --tests '*WorkspaceSystemChannelTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
             --tests '*SystemChannelPlacementTest' --tests '*SoulIcon*' --tests '*SoulAvatar*' \
-            --tests '*ClaudeOAuthIdentifierPromptTest' --tests '*AnthropicOAuthIdentityPromptTest' --tests '*ChatGroupIdentity*' \
             --tests '*GuestGroupNames*' \
             --tests '*SoulBodyLimitPolicyTest' --tests '*HandlerStubRoutingTest' \
             --tests '*ChrootCliTest' --tests '*ChrootCliTriStateTest' \
@@ -212,21 +210,21 @@ jobs:
             --tests '*CustomBalance*' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
-            --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' \
+            --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ChatToolCallAccumulatorTest' --tests '*ToolPreflightTest' \
             --tests '*PartialJsonStringTest' --tests '*ToolStreamLifecycleTest' \
             --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \
             --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
-            --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' \
+            --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions
-          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("sandbox.SessionIsolationTest","sandbox.ChrootSharedFilesTest","tools.FileToolWriteFailureTest","tools.ChrootFileToolsTest","sandbox.RootfsDirectoryMigrationTest","sandbox.RootfsDirectoryMigrationIntegrationTest","agent.SoulPromptRulesTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","ui.chat.ComposerSurfaceGeometryTest","data.CustomBalancePersistenceTest","quota.CustomBalanceQuotaTest","data.repository.ModelListReconcileTest","ui.settings.ProviderDetailHiddenModelsTest","provider.ModelListRefreshTest","provider.EmptyKeyRefreshTest","provider.CodexModelsApiTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
+          python3 -c 'from pathlib import Path; import xml.etree.ElementTree as E; d=Path("app/build/test-results/kairos-regressions"); names=("sandbox.SessionIsolationTest","sandbox.ChrootSharedFilesTest","tools.FileToolWriteFailureTest","tools.ChrootFileToolsTest","sandbox.RootfsDirectoryMigrationTest","sandbox.RootfsDirectoryMigrationIntegrationTest","agent.SoulIconImportRoboTest","ui.components.SoulAvatarContractTest","sandbox.GuestGroupNamesTest","agent.SoulBodyLimitPolicyTest","agent.SystemPromptInjectionWiringTest","ui.chat.ComposerSurfaceGeometryTest","data.CustomBalancePersistenceTest","quota.CustomBalanceQuotaTest","data.repository.ModelListReconcileTest","ui.settings.ProviderDetailHiddenModelsTest","provider.ModelListRefreshTest","provider.EmptyKeyRefreshTest","provider.CodexModelsApiTest"); reports=[E.parse(d/("TEST-com.openminis.app."+n+".xml")).getroot() for n in names]; assert all(int(r.get("tests",0))>0 and all(int(r.get(k,0))==0 for k in ("skipped","failures","errors")) for r in reports), "Missing or skipped MinisNext acceptance tests"; print("PASS real bitmap/global-prompt/guest-group regressions: zero skipped")'
           ./gradlew "${GRADLE_ARGS[@]}" :app:"$TASK"
       - name: Show unit-test failures
         # A failing JVM test is compiled and reported by Gradle, but the run

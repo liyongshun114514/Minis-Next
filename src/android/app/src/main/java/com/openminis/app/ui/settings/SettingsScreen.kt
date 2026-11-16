@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Feedback
@@ -108,6 +109,15 @@ fun SettingsScreen(
     // Agent Runtime section; default no-op for callers that haven't wired
     // the route yet.
     onSoulClick: () -> Unit = {},
+    /**
+     * [T-workspace-instructions] Settings › Workspace Instructions.
+     *
+     * [K-unified-prompt-workspace] No longer rendered as its own row — the
+     * entry moved inside the System Prompt hub, which links to the same
+     * screen. The hook is kept so existing callers (and the route wiring)
+     * keep compiling; the route itself is still registered.
+     */
+    onWorkspaceInstructionsClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
     onUsageClick: () -> Unit = {},
     /**
@@ -243,11 +253,17 @@ fun SettingsScreen(
                     onClick = onSkillsClick,
                 )
                 // [T-soul-md] Between Skills and Memory, as on iOS.
+                // [K-unified-prompt-workspace] This row is now the ONE prompt
+                // entry: Routes.SOUL opens the hub, which links to identity /
+                // global SOUL, workspace instructions and every built-in
+                // prompt. The separate Workspace Instructions row below it was
+                // removed rather than duplicated; its screen and route are
+                // unchanged, so old deep links still land on the editor.
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
                     iconColor = Color(0xFFFF9500),
                     title = stringResource(R.string.settings_soul),
-                    subtitle = stringResource(R.string.settings_soul_subtitle),
+                    subtitle = stringResource(R.string.prompt_catalog_settings_subtitle),
                     onClick = onSoulClick,
                 )
                 SettingsItem(

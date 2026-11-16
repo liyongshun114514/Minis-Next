@@ -36,7 +36,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProviderConfigMetaEntity::class,
         ProviderThinkingRuleEntity::class,
     ],
-    version = 6,
+    version = 5,
     exportSchema = false,
 )
 abstract class ProviderDatabase : RoomDatabase() {
@@ -122,23 +122,6 @@ abstract class ProviderDatabase : RoomDatabase() {
             }
         }
 
-        /** The single statement of [MIGRATION_5_6]; kept visible to the JVM test that proves the row-preserving ALTER. */
-        const val MIGRATION_5_6_SQL = "ALTER TABLE provider_model_groups ADD COLUMN avatar TEXT"
-
-        /**
-         * [T-model-group-avatar] Add the per-group manual icon override.
-         * Pure additive nullable TEXT ALTER: every existing group keeps its
-         * row and reads back avatar = NULL, which is exactly "match the icon
-         * from the group name automatically". No table rewrite, no group
-         * deleted; the JSON mirror still carries every existing field for
-         * downgrade.
-         */
-        val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(MIGRATION_5_6_SQL)
-            }
-        }
-
         fun getInstance(context: Context): ProviderDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -146,7 +129,7 @@ abstract class ProviderDatabase : RoomDatabase() {
                     ProviderDatabase::class.java,
                     "provider.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }
