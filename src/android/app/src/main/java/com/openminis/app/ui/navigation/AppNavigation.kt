@@ -181,22 +181,8 @@ object Routes {
     const val AGENT_TOOLS = "agent_tools"
     /** [T-mcp-integration-android] MCP Integrations management screen. */
     const val MCP = "mcp"
-    /**
-     * [T-soul-md] System Prompt entry.
-     *
-     * [K-unified-prompt-workspace] The setting is now a hub: this route opens
-     * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (the SOUL
-     * library and its prompt body) and every built-in prompt in
-     * [SOUL_BUILTIN_EDITOR]. The path string is unchanged so existing
-     * deep links keep working.
-     */
+    /** [T-soul-md] SOUL.md editor. */
     const val SOUL = "soul"
-    /** [K-unified-prompt-workspace] Identity + global SOUL body (former SOUL page). */
-    const val SOUL_PERSONALITY = "soul_personality"
-    /** [K-unified-prompt-workspace] Full-text editor for one catalog prompt. */
-    const val SOUL_BUILTIN_EDITOR = "soul_builtin/{promptId}"
-    fun soulBuiltinEditor(promptId: String) =
-        "soul_builtin/" + android.net.Uri.encode(promptId)
     const val MEMORY_FILE_EDIT = "memory_file/{fileName}/{isGlobal}"
     const val PERMISSIONS = "permissions"
     /**
@@ -1445,35 +1431,9 @@ fun AppNavigation(
             }
         }
 
-        // [K-unified-prompt-workspace] System Prompt hub: the SOUL library and
-        // the built-in prompt catalog. [T-multi-soul] AGENTS.md is no longer a
-        // separate prompt source — its content is imported once into a SOUL
-        // profile and edited there.
+        // [T-soul-md] SOUL.md editor.
         composable(Routes.SOUL) {
-            com.openminis.app.ui.settings.PromptSettingsScreen(
-                onBack = { navController.safePopBackStack() },
-                onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
-                onEditBuiltin = { promptId ->
-                    navController.safeNavigate(Routes.soulBuiltinEditor(promptId))
-                },
-            )
-        }
-
-        // [K-unified-prompt-workspace] The former SOUL page, one level down.
-        composable(Routes.SOUL_PERSONALITY) {
             com.openminis.app.ui.settings.SoulSettingsScreen(
-                onBack = { navController.safePopBackStack() },
-            )
-        }
-
-        // [K-unified-prompt-workspace] Full-text editor for one built-in prompt.
-        composable(
-            route = Routes.SOUL_BUILTIN_EDITOR,
-            arguments = listOf(navArgument("promptId") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val promptId = backStackEntry.arguments?.getString("promptId") ?: return@composable
-            com.openminis.app.ui.settings.BuiltinPromptEditorScreen(
-                promptId = promptId,
                 onBack = { navController.safePopBackStack() },
             )
         }

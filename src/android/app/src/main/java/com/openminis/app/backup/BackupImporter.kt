@@ -701,7 +701,6 @@ class BackupImporter(
         // serving the pre-restore snapshot after SOUL_PROMPT_RULES.json changed.
         com.openminis.app.agent.SoulPromptRuleStore.invalidate()
         com.openminis.app.agent.prompts.PromptOverrides.initialize(context)
-        com.openminis.app.agent.SoulProfiles.refresh(context)
         return report
     }
 

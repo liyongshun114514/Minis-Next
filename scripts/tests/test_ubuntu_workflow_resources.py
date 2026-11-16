@@ -24,7 +24,12 @@ class WorkflowResourceTests(unittest.TestCase):
         self.assertNotIn('gh release create', self.text)
         self.assertNotIn('softprops/action-gh-release', self.text)
         self.assertIn('contents: read', self.text)
-        self.assertIn('agent.SoulIconImportRoboTest', self.build)
+        # The required-report list must name a test that still exists in this
+        # rollback (the SOUL icon import Robolectric test was removed with the
+        # import-plan feature); the acceptance gate is now the scoped-rules
+        # suite, which runs on the plain JVM.
+        self.assertIn('agent.SoulPromptRulesTest', self.build)
+        self.assertNotIn('agent.SoulIconImportRoboTest', self.build)
         self.assertIn('zero skipped', self.build)
         self.assertIn('for k in ("skipped","failures","errors")', self.build)
 

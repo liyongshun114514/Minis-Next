@@ -70,6 +70,24 @@ data class MessageHeadRow(
 /** [T-android-chat-title-follows-store] What a chat's top bar shows of its session row. */
 data class SessionTitleRow(val title: String?, val category: String?)
 
+/**
+ * [T-chat-group-identity] The identity projection for one message row.
+ *
+ * Deliberately NOT `SELECT *`: the chat screen already loads the full session
+ * through the ViewModel (`parts_json` included, which for old sessions can hold
+ * megabytes of tool output). Labelling each header only needs six short
+ * columns, so the UI reads its own cheap projection and never re-reads message
+ * bodies just to find out who spoke.
+ */
+data class MessageIdentityRow(
+    val id: String,
+    @ColumnInfo(name = "model_id") val modelId: String?,
+    @ColumnInfo(name = "model_display_name") val modelDisplayName: String?,
+    @ColumnInfo(name = "provider_type") val providerType: String?,
+    @ColumnInfo(name = "provider_instance_id") val providerInstanceId: String?,
+    @ColumnInfo(name = "group_identity") val groupIdentity: String?,
+)
+
 @Dao
 interface ChatDao {
     // Sessions
@@ -299,6 +317,32 @@ interface ChatDao {
 
     @Query("SELECT * FROM messages WHERE session_id = :sessionId ORDER BY sort_order ASC")
     fun observeMessages(sessionId: String): Flow<List<MessageEntity>>
+
+    /**
+     * [T-chat-group-identity] Who spoke, per row — the lightweight projection
+     * behind every assistant header / avatar / share header.
+     *
+     * Emits on any write to the session's messages (Room invalidation), so a
+     * freshly persisted turn picks up its frozen identity without a reload.
+     * The identity itself is the row's immutable snapshot; nothing here reads
+     * the CURRENT model picker.
+     */
+    @Query(
+        "SELECT id, model_id, model_display_name, provider_type, provider_instance_id, " +
+            "group_identity FROM messages WHERE session_id = :sessionId ORDER BY sort_order ASC",
+    )
+    fun observeMessageIdentities(sessionId: String): Flow<List<MessageIdentityRow>>
+
+    /**
+     * [T-chat-group-identity] Stamp (or re-stamp) one row's frozen identity.
+     *
+     * Used for rows written through a path that does not go through
+     * [com.openminis.app.data.repository.ChatRepository.appendMessage], and by
+     * the one-shot legacy backfill — which only ever writes an ownership the
+     * resolver proved unique for that model.
+     */
+    @Query("UPDATE messages SET group_identity = :snapshot WHERE id = :messageId")
+    suspend fun updateGroupIdentity(messageId: String, snapshot: String?)
 
     /** [T-multi-select-share] When the earliest of these rows was written (the share export header's date). */
     @Query("SELECT MIN(created_at) FROM messages WHERE id IN (:ids)")

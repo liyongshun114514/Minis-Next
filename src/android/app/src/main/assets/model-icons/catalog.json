@@ -14,7 +14,8 @@
       "dall-e",
       "dalle"
     ],
-    "file": "openai.png"
+    "file": "openai.png",
+    "mono": true
   },
   {
     "id": "anthropic",
@@ -23,7 +24,8 @@
       "anthropic-ai",
       "anthropicai"
     ],
-    "file": "anthropic.png"
+    "file": "anthropic.png",
+    "mono": true
   },
   {
     "id": "claude",
@@ -109,7 +111,8 @@
       "moonshotai-cn",
       "月之暗面"
     ],
-    "file": "moonshot.png"
+    "file": "moonshot.png",
+    "mono": true
   },
   {
     "id": "kimi",
@@ -119,7 +122,8 @@
       "moonshot-kimi",
       "kimi-code-plan"
     ],
-    "file": "kimi.png"
+    "file": "kimi.png",
+    "mono": true
   },
   {
     "id": "zhipu",
@@ -148,7 +152,8 @@
       "z.ai",
       "zai-coding-plan"
     ],
-    "file": "zai.png"
+    "file": "zai.png",
+    "mono": true
   },
   {
     "id": "minimax",
@@ -162,7 +167,8 @@
       "海螺",
       "稀宇"
     ],
-    "file": "minimax.png"
+    "file": "minimax.png",
+    "mono": true
   },
   {
     "id": "doubao",
@@ -187,7 +193,8 @@
       "llama-3",
       "llama-4"
     ],
-    "file": "meta.png"
+    "file": "meta.png",
+    "mono": true
   },
   {
     "id": "mistral",
@@ -209,7 +216,8 @@
       "grok-3",
       "grok-4"
     ],
-    "file": "grok.png"
+    "file": "grok.png",
+    "mono": true
   },
   {
     "id": "xai",
@@ -218,7 +226,8 @@
       "x-ai",
       "x.ai"
     ],
-    "file": "xai.png"
+    "file": "xai.png",
+    "mono": true
   },
   {
     "id": "cohere",
@@ -255,7 +264,8 @@
       "ollama-ai",
       "ollama-cloud"
     ],
-    "file": "ollama.png"
+    "file": "ollama.png",
+    "mono": true
   },
   {
     "id": "openrouter",
@@ -272,7 +282,8 @@
       "gh",
       "github-com"
     ],
-    "file": "github.png"
+    "file": "github.png",
+    "mono": true
   },
   {
     "id": "copilot",
@@ -281,7 +292,8 @@
       "github-copilot",
       "copilot-chat"
     ],
-    "file": "copilot.png"
+    "file": "copilot.png",
+    "mono": true
   },
   {
     "id": "groq",
@@ -289,7 +301,8 @@
     "aliases": [
       "groq-ai"
     ],
-    "file": "groq.png"
+    "file": "groq.png",
+    "mono": true
   },
   {
     "id": "cerebras",
@@ -342,7 +355,8 @@
       "aws-bedrock",
       "amazon-bedrock"
     ],
-    "file": "bedrock.png"
+    "file": "bedrock.png",
+    "mono": true
   },
   {
     "id": "azure",
@@ -353,7 +367,8 @@
       "azure-cognitive-services",
       "微软"
     ],
-    "file": "azure.png"
+    "file": "azure.png",
+    "mono": true
   },
   {
     "id": "vertexai",
@@ -371,7 +386,8 @@
     "aliases": [
       "open-webui"
     ],
-    "file": "openwebui.png"
+    "file": "openwebui.png",
+    "mono": true
   },
   {
     "id": "lmstudio",
@@ -379,7 +395,8 @@
     "aliases": [
       "lm-studio"
     ],
-    "file": "lmstudio.png"
+    "file": "lmstudio.png",
+    "mono": true
   },
   {
     "id": "vllm",
@@ -456,6 +473,7 @@
       "xiaomi-token-plan",
       "小米"
     ],
-    "file": "xiaomi.png"
+    "file": "xiaomi.png",
+    "mono": true
   }
 ]

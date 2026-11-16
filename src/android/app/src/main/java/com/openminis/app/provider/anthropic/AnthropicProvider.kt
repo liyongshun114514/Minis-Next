@@ -392,17 +392,18 @@ class AnthropicProvider(
     ): JSONArray? {
         val appPrompt = applicationPrompt?.takeIf { it.isNotBlank() }
         if (isOAuth) {
-            // API-key requests do not use an OAuth identity. Loading its
-            // optional build-time configuration there would fail before the
-            // workspace / SOUL system block could be serialized.
+            // API-key requests do not use an OAuth identity, so they never read
+            // this value (the property is non-empty by construction anyway;
+            // see ClaudeOAuthManager.resolveOAuthIdentifierPrompt).
             val claudeCodePrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
-            // Strip the prefix if the caller already prepended it; the tail is the real user prompt.
-            val tail = when {
-                userPrompt == null -> ""
-                userPrompt.startsWith(claudeCodePrefix) ->
-                    userPrompt.removePrefix(claudeCodePrefix).trimStart('\n')
-                else -> userPrompt
-            }
+            // Strip the identity line if a caller already prepended it; the
+            // tail is the real user prompt. The helper tolerates surrounding
+            // whitespace and repeated copies, so the two prepend/strip sites
+            // (here and ChatViewModel) cannot drift into sending the identity
+            // twice — only the leading block satisfies Anthropic's gate, the
+            // duplicate would just cost tokens.
+            val tail = com.openminis.app.auth.ClaudeOAuthManager
+                .stripOAuthIdentifierPrompt(userPrompt.orEmpty(), claudeCodePrefix)
             val arr = JSONArray()
             // Block 1: Claude Code base prompt — NO cache_control (iOS parity).
             arr.put(JSONObject().apply {

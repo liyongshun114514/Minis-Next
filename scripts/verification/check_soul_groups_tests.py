@@ -91,36 +91,40 @@ TEST_PKG = "com.openminis.app"
 # Contract tests for this task. A missing one is reported, never skipped
 # silently: a rename must show up as a gap in the report.
 PINNED_TESTS = [
-    "com.openminis.app.agent.prompts.PromptCatalogScopeTest",
-    "com.openminis.app.ui.settings.UnifiedPromptSettingsTest",
+    # [1.7.1-personality-settings] Rollback to the scoped-rules contract
+    # (d1110b8): one global SOUL body + optional per-group/per-model rules.
+    # The per-chat SOUL profile library, the prompt hub/editor and the
+    # catalog-scope allowlist were deleted with their tests; a missing class
+    # here is reported as a gap rather than silently skipped.
     "com.openminis.app.agent.SystemPromptInjectionWiringTest",
     "com.openminis.app.agent.ApplicationSystemPromptTest",
     "com.openminis.app.provider.SystemChannelPlacementTest",
+    "com.openminis.app.auth.ClaudeOAuthIdentifierPromptTest",
+    "com.openminis.app.provider.anthropic.AnthropicOAuthIdentityPromptTest",
     "com.openminis.app.agent.SoulBodyLimitPolicyTest",
     "com.openminis.app.agent.SoulPromptRulesTest",
     "com.openminis.app.agent.SoulIconTest",
     "com.openminis.app.agent.SoulIconAspectRatioTest",
     "com.openminis.app.agent.SoulIconConfigEdgeTest",
-    "com.openminis.app.agent.SoulIconImportPlanTest",
     "com.openminis.app.agent.SoulIconSidecarTest",
-    "com.openminis.app.agent.SoulIconImportRoboTest",
     "com.openminis.app.ui.settings.SoulSettingsPageContractTest",
-    "com.openminis.app.ui.settings.SoulPromptModeUiContractTest",
+    "com.openminis.app.ui.components.SoulAvatarContractTest",
     "com.openminis.app.ui.sessions.GroupMemberTileTest",
 ]
 
 # Files matched in addition to PINNED_TESTS so newly added tests (group avatar
-# migration/backup, SOUL profiles) are picked up without editing this script.
+# migration/backup, chat-group identity, Claude OAuth prompts) are picked up
+# without editing this script. Deleted-feature patterns (SoulProfiles,
+# UnifiedPromptSettings, PromptCatalogScope, KairosPromptMode) are deliberately
+# absent: they would resurrect a filter for a file that no longer exists.
 DEFAULT_PATTERNS = (
     r".*/Soul[A-Za-z0-9_]*Test\.kt$",
-    r".*/[A-Za-z0-9_]*SoulProfiles[A-Za-z0-9_]*Test\.kt$",
     r".*/SystemPromptInjectionWiringTest\.kt$",
     r".*/ApplicationSystemPromptTest\.kt$",
-    r".*/UnifiedPromptSettingsTest\.kt$",
-    r".*/PromptCatalogScopeTest\.kt$",
-    r".*/KairosPromptModeTest\.kt$",
+    r".*/[A-Za-z0-9_]*OAuth[A-Za-z0-9_]*PromptTest\.kt$",
     r".*/GroupMemberTileTest\.kt$",
     r".*/GroupRunningRingTest\.kt$",
+    r".*/ChatGroupIdentity[A-Za-z0-9_]*Test\.kt$",
     r".*/[A-Za-z0-9_]*GroupAvatar[A-Za-z0-9_]*Test\.kt$",
     r".*/[A-Za-z0-9_]*Avatar[A-Za-z0-9_]*Test\.kt$",
     r".*/[A-Za-z0-9_]*GroupTile[A-Za-z0-9_]*Test\.kt$",

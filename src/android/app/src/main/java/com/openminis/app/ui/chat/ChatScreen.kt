@@ -111,7 +111,6 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -659,6 +658,48 @@ fun ChatScreen(
     val memoryToolRecords by viewModel.memoryToolRecords.collectAsState()
     val selectedGroupName by viewModel.selectedGroupName.collectAsState()
     val providerName by viewModel.providerName.collectAsState()
+    // [T-chat-group-identity] WHO the chat is speaking as right now: the
+    // selected model group (frozen name + avatar from the group config), or —
+    // when the user picked a bare model entry — the real model/provider.
+    //
+    // This value is for the surfaces that describe the NEXT turn (empty chat,
+    // composer placeholder, typing row, in-flight reply). It is never applied
+    // to a message that carries its own persisted identity, which is what
+    // stops a model/group switch from relabelling history.
+    val currentGroup = remember(selectedGroupId, availableGroups) {
+        availableGroups.firstOrNull { it.id == selectedGroupId }
+    }
+    val currentIdentity = remember(currentGroup, modelName, providerName) {
+        com.openminis.app.groups.ChatGroupIdentityResolver.current(
+            group = currentGroup,
+            modelName = modelName,
+            providerName = providerName,
+        )
+    }
+    // Persisted identities for rows already on disk (the projection query), and
+    // the in-memory ones a ChatMessage may already carry — see
+    // ChatGroupIdentityIndex for the lookup policy.
+    val persistedIdentities by rememberChatGroupIdentityRows(sessionId, chatRepository)
+    val messageIdentities = remember(messages) {
+        val out = HashMap<String, com.openminis.app.groups.ChatGroupIdentity>(messages.size)
+        for (m in messages) m.groupIdentity?.let { out[m.id] = it }
+        out
+    }
+    val identityIndex = remember(persistedIdentities, messageIdentities, currentIdentity) {
+        com.openminis.app.groups.ChatGroupIdentityIndex(
+            byMessageId = persistedIdentities + messageIdentities,
+            current = currentIdentity,
+            loaded = true,
+        )
+    }
+    // Only the reply that is STREAMING right now may borrow the live picker:
+    // its row is not persisted yet, so it has no frozen identity of its own.
+    val streamingTailId = if (isStreaming) {
+        messages.lastOrNull { it.role == "assistant" }?.id
+    } else null
+    val liveIdentity = remember(streamingTailId, messageIdentities, currentIdentity) {
+        streamingTailId?.let { id -> messageIdentities[id] } ?: currentIdentity
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // [T-android-voice-panel] Shared 3-stage RECORD_AUDIO permission flow
@@ -1028,20 +1069,6 @@ fun ChatScreen(
     // backing state without needing fragile scope wiring.
     var showMoveSheet by remember { mutableStateOf(false) }
     var showClearChatDialog by remember { mutableStateOf(false) }
-    // [T-multi-soul] Chat-local SOUL picker from the "…" menu.
-    var showSoulPicker by remember { mutableStateOf(false) }
-    // Publish the SOUL this chat uses before the header renders, and re-read
-    // the profile list so an edit made in Settings is visible here. Disk work
-    // runs off the main thread; the published StateFlow refreshes the UI.
-    // A draft chat's route argument stays the placeholder key after the first
-    // send, so the draft→real move is published by ChatViewModel.ensureSession
-    // instead of by this effect.
-    LaunchedEffect(sessionId) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            viewModel.syncActiveSoul()
-            viewModel.refreshSoulProfiles()
-        }
-    }
     // [T-android-delete-from-here] Id of the message a pending "Delete From
     // Here" would cut at, or null when no confirmation is open. Holding the
     // id (rather than a boolean plus a separate field) keeps the dialog and
@@ -3056,24 +3083,19 @@ fun ChatScreen(
                                 .padding(horizontal = 32.dp, vertical = 2.dp),
                         ) {
                             // Nav title: current session title when one
-                            // exists and the toggle is on, else fall back to
-                            // the Soul name (matches the input placeholder
-                            // "Message <SoulName>"), then to app_name
-                            // ("Minis") as the terminal fallback.
+                            // exists and the toggle is on, else the identity
+                            // this chat is speaking as — the selected model
+                            // group's name, or the picked model's name. Same
+                            // source as the composer placeholder below, so an
+                            // untitled draft reads as one speaker everywhere.
                             // Tap opens the same SessionEditSheet used from
                             // the session list — drafts return null from
                             // loadSessionEntity so the sheet stays closed.
-                            // SoulStore.cachedMetadata is the same source the
-                            // input placeholder uses (see ~line 3581), so
-                            // soul renames in Soul Settings reflect here live.
-                            val topBarSoul by com.openminis.app.agent.SoulStore
-                                .cachedMetadata.collectAsState()
                             val displayTitle = when {
                                 showChatTitlePill
                                     && sessionTitle.isNotBlank()
                                     && sessionTitle != "New Chat" -> sessionTitle
-                                topBarSoul.name.isNotBlank() -> topBarSoul.name
-                                else -> stringResource(R.string.app_name)
+                                else -> currentIdentity.displayName
                             }
                             // [T-native-composer-title] The ported Composer UI
                             // gives the session title TWO centred lines (the
@@ -3245,22 +3267,6 @@ fun ChatScreen(
                                 },
                                 leadingIcon = {
                                     MenuItemIcon(Icons.Default.Search)
-                                },
-                            )
-                            // [T-multi-soul] Which SOUL this conversation uses.
-                            // The choice is stored per session id, so it never
-                            // changes another chat; the prompt is re-read at
-                            // the next turn. Label is the product name and is
-                            // deliberately not translated.
-                            DropdownMenuItem(
-                                text = { Text("SOUL") },
-                                onClick = {
-                                    showChatMenu = false
-                                    viewModel.refreshSoulProfiles()
-                                    showSoulPicker = true
-                                },
-                                leadingIcon = {
-                                    MenuItemIcon(Icons.Outlined.AutoAwesome)
                                 },
                             )
                             MinisMenuDivider()
@@ -4836,7 +4842,16 @@ fun ChatScreen(
                                 },
                             )
                             } // close UserBubble SideEffect + UserMessageBubble block
-                            is FlatChatItem.AssistantHeader -> AssistantHeader()
+                            is FlatChatItem.AssistantHeader -> AssistantHeader(
+                                // [T-chat-group-identity] This row's OWN frozen
+                                // identity. Only the reply that is streaming
+                                // right now (no persisted row yet) may borrow
+                                // the picker.
+                                identity = identityIndex.identityFor(
+                                    item.messageId,
+                                    isLiveTurn = item.messageId == streamingTailId,
+                                ),
+                            )
                             is FlatChatItem.AssistantText -> BoundsTrackedBlock(
                                 messageId = item.messageId,
                                 slotKey = "text:${item.block.id}",
@@ -5081,6 +5096,9 @@ fun ChatScreen(
                                     retryAttempt = retryAttempt,
                                     retryMax = viewModel.autoRetryMax,
                                     onRetryBadgeClick = { retrySheetSnapshot = viewModel.retryLog.value },
+                                    // [T-chat-group-identity] Same speaker as
+                                    // the header that will replace this row.
+                                    identity = liveIdentity,
                                 )
                             }
                             // [T-android-usage-capsule-time] Same composable the
@@ -7161,12 +7179,10 @@ fun ChatScreen(
                                         // a single hint because users read the
                                         // smaller hint row as a separate UI
                                         // element rather than placeholder text.
-                                        // SoulStore.cachedMetadata stays the
-                                        // source for the Soul-customized name
-                                        // so renames in Soul Settings reflect
-                                        // here live.
-                                        val soulName by com.openminis.app.agent.SoulStore
-                                            .cachedMetadata.collectAsState()
+                                        // [T-chat-group-identity] "Message
+                                        // <group/model>": the name comes from
+                                        // the current group identity, the same
+                                        // value the header and typing row use.
                                         // [T-android-composer-placeholder-rotation]
                                         // Crossfade between hints. Reduce-motion
                                         // (animator scale 0) skips the fade and
@@ -7211,7 +7227,7 @@ fun ChatScreen(
                                                 Text(
                                                     composerPlaceholderText(
                                                         ComposerPlaceholderPool.textIndex(key),
-                                                        soulName.name,
+                                                        currentIdentity.displayName,
                                                     ),
                                                     color = MaterialTheme.colorScheme.onSurface
                                                         .copy(alpha = 0.25f),
@@ -8068,28 +8084,6 @@ fun ChatScreen(
                     onNeutral = {
                         viewModel.compactAndSendPending(alsoEnableAutoCompact = true)
                     },
-                )
-            }
-
-            // [T-multi-soul] SOUL picker. Selection is per conversation and
-            // takes effect on the next message; it never rewrites history.
-            if (showSoulPicker) {
-                val soulProfiles by viewModel.soulProfiles.collectAsState()
-                val soulSelections by viewModel.soulSelections.collectAsState()
-                // The last tap is authoritative before the durable write
-                // lands, so the tick never trails the user's finger.
-                val soulChoice by viewModel.soulChoice.collectAsState()
-                val pickerSession = viewModel.currentSessionId
-                SoulPickerDialog(
-                    profiles = soulProfiles,
-                    selectedId = soulChoice?.takeIf { it.sessionId == pickerSession }?.profileId
-                        ?: soulSelections[pickerSession]
-                        ?: com.openminis.app.agent.SoulProfiles.DEFAULT_ID,
-                    onSelect = { id ->
-                        viewModel.selectSoul(id)
-                        showSoulPicker = false
-                    },
-                    onDismiss = { showSoulPicker = false },
                 )
             }
 

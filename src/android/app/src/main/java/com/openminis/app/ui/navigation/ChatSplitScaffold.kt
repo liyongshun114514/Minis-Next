@@ -813,50 +813,34 @@ private fun NoConversationSelected(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // [T-android-empty-state-soul-identity] The Soul's own icon and
-            // name, not a generic speech bubble — this pane is the first thing
-            // a cold start shows, and it should introduce the assistant the
-            // user configured rather than the product.
-            //
-            // Renders through the SAME SoulAvatarGlyph the chat header and
-            // the settings card use, so an emoji / custom image /
-            // unset-sparkle all behave identically here (that shared-renderer
-            // rule is what keeps image icons from silently failing on one
-            // surface). [T-soul-avatar-circle] It is a CIRCLE filled with
-            // ContentScale.Crop, not a rounded rectangle.
-            val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
-            // Never scale a custom image ABOVE its stored resolution: icons are
-            // saved at up to SoulIcon.STORED_PIXELS square and deliberately not
-            // upscaled on save, so a 48px source blown up to a 64dp box would
-            // look soft. Cap the box at the bitmap's real size (in dp) and let
-            // a smaller icon simply render smaller and sharp. Emoji and the
-            // sparkle have no such limit — they are vectors/text.
-            val density = LocalDensity.current
-            val iconBitmap = remember(soulMeta.icon) {
-                com.openminis.app.agent.SoulIcon.decode(soulMeta.icon)
+            // [T-chat-group-identity] The empty pane introduces the identity a
+            // new chat will speak as: the default model group (its name and
+            // avatar), or the plain product identity when no group is
+            // configured. Replaces the per-chat SOUL mark, which no longer
+            // describes chat attribution.
+            val providerRepo = com.openminis.app.ui.quota.rememberProviderRepository()
+            var providerConfig by remember {
+                mutableStateOf(providerRepo?.config?.value)
             }
-            val iconSize = remember(iconBitmap, density) {
-                if (iconBitmap == null) EMPTY_STATE_ICON_SIZE
-                else with(density) {
-                    minOf(EMPTY_STATE_ICON_SIZE, iconBitmap.width.toDp())
-                }
+            LaunchedEffect(providerRepo) {
+                providerRepo?.config?.collect { providerConfig = it }
             }
-            com.openminis.app.ui.components.SoulAvatarGlyph(
-                icon = soulMeta.icon,
-                sizeDp = iconSize,
-                emojiSp = with(density) { EMPTY_STATE_ICON_SIZE.toSp() * 0.82f },
-                sparkleTint = Brush.linearGradient(
-                    colors = listOf(
-                        com.openminis.app.ui.chat.SparkleColor1,
-                        com.openminis.app.ui.chat.SparkleColor2,
-                    ),
-                ),
+            val emptyIdentity = remember(providerConfig) {
+                val cfg = providerConfig
+                com.openminis.app.groups.ChatGroupIdentityResolver.current(
+                    group = cfg?.modelGroups?.firstOrNull {
+                        it.id == cfg.defaultPrimaryGroupId
+                    },
+                    modelName = null,
+                )
+            }
+            com.openminis.app.ui.chat.ChatGroupIdentityAvatar(
+                identity = emptyIdentity,
+                size = EMPTY_STATE_ICON_SIZE,
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = soulMeta.name.ifBlank {
-                    com.openminis.app.agent.SoulMetadata.DEFAULT.name
-                },
+                text = emptyIdentity.displayName,
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
             )

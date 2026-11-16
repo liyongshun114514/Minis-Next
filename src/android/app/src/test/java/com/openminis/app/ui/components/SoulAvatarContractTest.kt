@@ -56,20 +56,20 @@ class SoulAvatarContractTest {
         assertTrue(src.contains("remember(icon) { SoulIcon.decode(icon) }"))
     }
 
+    /**
+     * The settings card is NOT part of this contract any more: the SOUL page
+     * was rolled back to its historical (d1110b8) form, which draws its own
+     * 22%-rounded glyph. Pinning that here would contradict
+     * `SoulSettingsPageContractTest`, which is the page's own contract, so the
+     * settings-side assertion is intentionally absent and the circle renderer
+     * is asserted only where it is actually used (chat header / rows).
+     */
     @Test
-    fun `the settings card delegates to this renderer`() {
-        // The call site lives in SoulSettingsScreen.kt (owned by the prompt
-        // work); this pins that it no longer draws its own rounded rectangle.
+    fun `the settings page is not forced through this renderer`() {
         val settings = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
-        val glyph = settings.substringAfter("internal fun SoulIconGlyph(")
-            .substringBefore("@Composable\nprivate fun SoulIconMenu(")
         assertTrue(
-            "SoulIconGlyph must delegate to SoulAvatarGlyph",
-            glyph.contains("SoulAvatarGlyph("),
-        )
-        assertFalse(
-            "SoulIconGlyph must not draw its own rounded rectangle",
-            glyph.contains("RoundedCornerShape"),
+            "the settings glyph is the historical rounded shape",
+            settings.contains("RoundedCornerShape(sizeDp * SoulIcon.CORNER_RADIUS_FRACTION)"),
         )
     }
 }

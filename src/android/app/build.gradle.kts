@@ -20,7 +20,16 @@ val appCustomization = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 fun customizationValue(key: String): String =
-    (appCustomization.getProperty(key) ?: "").replace("\"", "\\\"")
+    (appCustomization.getProperty(key) ?: "")
+        // Escape for a Java string literal in the generated BuildConfig. The
+        // identity line is prose: a custom value may legitimately contain a
+        // backslash, quote, tab or a line break, and an unescaped one breaks
+        // the generated source rather than the feature that uses it.
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
 
 android {
     namespace = "com.openminis.app"
@@ -42,8 +51,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
-        versionCode = 58
-        versionName = "1.7.0"
+        versionCode = 59
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -55,7 +64,10 @@ android {
         buildConfigField("boolean", "DEV_TOOLS", "false")
 
         // System prompt prefix required by Anthropic for Claude Code OAuth
-        // credentials. Empty in the public mirror (see provider-customization.properties).
+        // credentials. Empty in the public mirror — the app then falls back to
+        // its built-in identity line (ClaudeOAuthManager), so OAuth sends work
+        // in a build without provider-customization.properties. A non-empty
+        // value here overrides that default.
         buildConfigField(
             "String",
             "ANTHROPIC_OAUTH_IDENTIFIER_PROMPT",

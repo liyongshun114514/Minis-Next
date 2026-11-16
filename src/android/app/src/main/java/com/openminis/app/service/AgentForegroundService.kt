@@ -257,10 +257,6 @@ class AgentForegroundService : Service() {
         acquireWakeLock()
         startOverlayObserver()
         startAskingObserver()
-        // [T-multi-soul] The notification's GENERATING/THINKING title is the
-        // SOUL name of the running chat. A rename, re-icon or per-chat switch
-        // must repaint it without waiting for an unrelated tracker event.
-        startSoulRevisionObserver()
         Log.d(TAG, "Service created")
     }
 
@@ -513,20 +509,6 @@ class AgentForegroundService : Service() {
      * ASKING phase - and the chip promotion that depends on the phase - is
      * right without waiting for the tracker's next start command.
      */
-    /**
-     * [T-multi-soul] Repaint the ongoing notification when the SOUL library or
-     * a per-chat selection changes. Uses [SoulProfiles.revision] rather than
-     * the identity itself: the notification resolves its own name from the
-     * RUNNING session, so any change is enough to warrant a rebuild.
-     */
-    private fun startSoulRevisionObserver() {
-        overlayScope.launch {
-            com.openminis.app.agent.SoulProfiles.revision
-                .drop(1)
-                .collect { refreshOngoingNotification() }
-        }
-    }
-
     private fun startAskingObserver() {
         overlayScope.launch {
             com.openminis.app.agent.userask.UserAskCenter.asks
@@ -582,22 +564,13 @@ class AgentForegroundService : Service() {
                 // flipping it must appear/hide the overlay live (mutual
                 // exclusion) without an app restart.
                 backgroundRepo.dynamicIslandEnabled,
-                // [T-multi-soul] The capsule must show the identity of the chat that is
-                // actually RUNNING, which can differ from the open one. This
-                // derived flow re-resolves on any profile edit or per-chat
-                // switch, so an identity change still counts as a state change
-                // and repaints the capsule. The controller reads the same
-                // resolution at render time; this value is the trigger (and is
-                // carried in OverlayState so distinctUntilChanged keeps it).
-                combine(
-                    com.openminis.app.agent.SoulProfiles.selections,
-                    com.openminis.app.agent.SoulProfiles.profiles,
-                    SessionActivityTracker.currentSessionId,
-                ) { selections, profiles, sid ->
-                    com.openminis.app.agent.SoulProfiles
-                        .metadataFrom(selections, profiles, sid)
-                        .let { it.name to it.icon }
-                },
+                // [T-android-overlay-soul-identity] Editing the Soul name or
+                // icon must repaint the capsule without an app restart. The
+                // controller reads SoulStore.cachedMetadata.value directly when
+                // it renders, so this flow is here purely to make an edit COUNT
+                // as a state change and push a refresh — its value is not read
+                // out of the array below.
+                SoulStore.cachedMetadata,
                 // [T-android-live-update-content] Thinking vs generating for
                 // the capsule's streaming row.
                 SessionActivityTracker.isThinking,
@@ -623,7 +596,7 @@ class AgentForegroundService : Service() {
                     lastToolStatus = values[12] as String?,
                     hasActiveStream = activeSessions.isNotEmpty(),
                     dynamicIslandEnabled = values[14] as Boolean,
-                    soulIdentity = @Suppress("UNCHECKED_CAST") (values[15] as Pair<String, String>),
+                    soulIdentity = (values[15] as SoulMetadata).let { it.name to it.icon },
                     isThinking = values[16] as Boolean,
                     scheduledWait = values[17] as com.openminis.app.scheduled.ScheduledWait?,
                 )
@@ -1360,10 +1333,7 @@ class AgentForegroundService : Service() {
             hasScheduledHold = SessionActivityTracker.scheduledSessions.value.isNotEmpty(),
         )
         val smallIcon = notificationSmallIconFor(phase, toolName, waitHasClock = scheduledWait?.nextRunMs != null)
-        val soulName = com.openminis.app.agent.SoulProfiles
-            .metadata(this, SessionActivityTracker.currentSessionId.value)
-            .name
-            .ifBlank { SoulMetadata.DEFAULT.name }
+        val soulName = SoulStore.cachedMetadata.value.name.ifBlank { SoulMetadata.DEFAULT.name }
         val titleText = when (phase) {
             AgentPhase.COMPLETED -> getString(R.string.bg_service_notification_title_completed)
             AgentPhase.TOOL -> toolRowTitle(toolName!!, toolTitle)

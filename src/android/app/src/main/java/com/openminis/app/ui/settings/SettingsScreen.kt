@@ -33,7 +33,6 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.Dashboard
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Feedback
@@ -244,13 +243,11 @@ fun SettingsScreen(
                     onClick = onSkillsClick,
                 )
                 // [T-soul-md] Between Skills and Memory, as on iOS.
-                // Routes.SOUL opens the SOUL library and shared prompt
-                // templates. The independent workspace editor is removed.
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
                     iconColor = Color(0xFFFF9500),
                     title = stringResource(R.string.settings_soul),
-                    subtitle = stringResource(R.string.prompt_catalog_settings_subtitle),
+                    subtitle = stringResource(R.string.settings_soul_subtitle),
                     onClick = onSoulClick,
                 )
                 SettingsItem(

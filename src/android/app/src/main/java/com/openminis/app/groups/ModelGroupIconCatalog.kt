@@ -19,6 +19,13 @@ import java.util.Locale
  *
  * `file` is relative to the `model-icons/` asset directory. Defaults make a
  * hand-edited entry missing `name`/`aliases` still usable.
+ *
+ * [mono] is `true` when the bundled PNG is a single-colour (near-black) mark:
+ * upstream's `Mono` rendering, or a colour mark whose shipped rendering is a
+ * solid dark glyph. The renderer draws every icon on a TRANSPARENT tile, so a
+ * dark mark would disappear on a dark theme; mono entries are therefore tinted
+ * with the theme's content colour instead of getting a backdrop. An entry
+ * without the key is colour and is drawn untinted.
  */
 @Serializable
 data class ModelIconCatalogEntry(
@@ -26,6 +33,7 @@ data class ModelIconCatalogEntry(
     val name: String = "",
     val aliases: List<String> = emptyList(),
     val file: String = "",
+    val mono: Boolean = false,
 )
 
 /**
@@ -101,6 +109,7 @@ class ModelIconCatalog internal constructor(
                         .filter { it.isNotEmpty() }
                         .distinct(),
                     file = file,
+                    mono = raw.mono,
                 )
             }
             return if (out.isEmpty()) EMPTY else ModelIconCatalog(out)

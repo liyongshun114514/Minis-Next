@@ -46,6 +46,12 @@ import com.openminis.app.R
 import com.openminis.app.data.repository.ChatRepository
 import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.data.repository.ProviderRepository
+// [T-chat-group-identity] Frozen per-turn group/model identity. See
+// FrozenTurnIdentity below: the picker is per-send state, the identity is not.
+import com.openminis.app.groups.ChatGroupIdentity
+import com.openminis.app.groups.ChatGroupIdentityKind
+import com.openminis.app.groups.ChatGroupIdentityResolver
+import com.openminis.app.groups.ChatGroupOwnership
 import com.openminis.app.provider.DsmlLeak
 import com.openminis.app.provider.ImageBudget
 import com.openminis.app.provider.LLMProvider
@@ -2486,6 +2492,230 @@ class ChatViewModel(
             providerTypeRaw = instance?.providerType?.name ?: "",
             providerInstanceId = entry?.providerInstanceId,
         )
+    }
+
+    /**
+     * [T-chat-group-identity] One assistant BUBBLE's speaker, frozen when the
+     * bubble is created — i.e. before its first request streams.
+     *
+     * The three fields are deliberately separate:
+     *  - [ownership] is what the DB row stores (`messages.group_identity`);
+     *  - [modelSnapshot] is the model half, persisted into the existing
+     *    attribution columns (`model_id` / `model_display_name` / provider), so
+     *    usage grouping keeps real model ids and is NEVER overwritten with a
+     *    group label;
+     *  - [identity] is the in-memory shape the chat renderer reads.
+     */
+    private data class FrozenTurnIdentity(
+        val ownership: ChatGroupOwnership,
+        val modelSnapshot: com.openminis.app.data.model.ModelAttributionSnapshot?,
+        val identity: ChatGroupIdentity,
+    )
+
+    /**
+     * [T-chat-group-identity] Frozen identity per assistant UI bubble id.
+     *
+     * The selected group and model are LIVE picker state. A user can switch
+     * them while a long agent loop is still running, so a persist at the END of
+     * that loop (after tools, after several requests) would label the finished
+     * reply with a group it never ran on — the exact relabelling this feature
+     * removes. The identity is therefore captured once, when the bubble is
+     * created, and read back at every persist; the picker is never consulted
+     * again for a bubble that already exists.
+     *
+     * Concurrent because a cancelled turn's trailing persist runs on another
+     * coroutine while the loop may already be writing a fresh bubble.
+     */
+    private val turnIdentityByBubble =
+        java.util.concurrent.ConcurrentHashMap<String, FrozenTurnIdentity>()
+
+    private val bubbleIdSeq = java.util.concurrent.atomic.AtomicInteger()
+
+    /**
+     * [T-chat-group-identity] Freeze an ownership + model snapshot pair.
+     * A null group is an explicit "ungrouped" stamp, not "unknown".
+     */
+    private fun freezeTurnIdentity(
+        group: ModelGroup?,
+        modelSnapshot: com.openminis.app.data.model.ModelAttributionSnapshot?,
+    ): FrozenTurnIdentity {
+        val ownership = ChatGroupIdentityResolver.ownership(group)
+        return FrozenTurnIdentity(
+            ownership = ownership,
+            modelSnapshot = modelSnapshot,
+            identity = ChatGroupIdentityResolver.persisted(
+                ownership = ownership,
+                modelId = modelSnapshot?.modelId,
+                modelDisplayName = modelSnapshot?.displayName,
+                providerType = modelSnapshot?.providerTypeRaw,
+                providerInstanceId = modelSnapshot?.providerInstanceId,
+            ),
+        )
+    }
+
+    /**
+     * [T-chat-group-identity] Freeze from the picker + live request context.
+     *
+     * Only legal when a NEW bubble starts: that is the one moment the selected
+     * group legitimately describes the work about to happen.
+     */
+    private fun freezeTurnIdentityFromPicker(): FrozenTurnIdentity {
+        val group = _selectedGroupId.value?.let { gid ->
+            providerRepository.config.value.modelGroups.firstOrNull { it.id == gid }
+        }
+        return freezeTurnIdentity(group, currentModelSnapshot())
+    }
+
+    private fun registerBubbleIdentity(uiAssistantId: String, frozen: FrozenTurnIdentity) {
+        turnIdentityByBubble[uiAssistantId] = frozen
+    }
+
+    private fun bubbleIdentity(uiAssistantId: String?): FrozenTurnIdentity? =
+        uiAssistantId?.let { turnIdentityByBubble[it] }
+
+    /**
+     * [T-chat-group-identity] Do two identities describe the SAME speaker?
+     *
+     * For a grouped turn the visible speaker is the FROZEN group (id + name +
+     * avatar). A group fallback (`ModelGroupRouter`) legitimately answers with
+     * another member while the user's chosen group stays the speaker, so the
+     * bubble must NOT be split or relabelled for that. The avatar is part of
+     * the key because it is rendered from the identity: merging two rows with
+     * different avatars would silently give the older turn the newer picture.
+     *
+     * For an ungrouped turn the model IS the speaker, so the whole model
+     * snapshot counts — id, display name, provider type and provider instance.
+     * Comparing only the id would fold the same model served by two DIFFERENT
+     * providers (a real configuration: one model id under two endpoints) into
+     * one bubble and relabel it.
+     *
+     * [NONE] means "nothing is known" (a row written before this feature). It
+     * matches ONLY another [NONE]: merging an unknown row into a known group
+     * would attribute old content to a group it may never have used.
+     */
+    private fun sameSpeaker(a: ChatGroupIdentity?, b: ChatGroupIdentity?): Boolean {
+        if (a == null || b == null) return false
+        if (a.kind == ChatGroupIdentityKind.NONE || b.kind == ChatGroupIdentityKind.NONE) {
+            return a.kind == b.kind
+        }
+        if (a.kind != b.kind) return false
+        return if (a.kind == ChatGroupIdentityKind.GROUP) {
+            a.groupId == b.groupId &&
+                a.groupName == b.groupName &&
+                a.groupAvatar == b.groupAvatar
+        } else {
+            a.modelId == b.modelId &&
+                a.modelDisplayName == b.modelDisplayName &&
+                a.providerType == b.providerType &&
+                a.providerInstanceId == b.providerInstanceId
+        }
+    }
+
+    /** [T-chat-group-identity] The ownership half of an already-built identity. */
+    private fun ownershipOf(identity: ChatGroupIdentity?): ChatGroupOwnership? = identity?.let {
+        ChatGroupOwnership(
+            kind = it.kind,
+            groupId = it.groupId,
+            groupName = it.groupName,
+            groupAvatar = it.groupAvatar,
+        )
+    }
+
+    /** [T-chat-group-identity] Re-stamp an already-shown bubble (Main thread). */
+    private fun patchMessageIdentityLocked(uiAssistantId: String, identity: ChatGroupIdentity) {
+        val cur = _messages.value
+        val target = cur.firstOrNull { it.id == uiAssistantId } ?: return
+        if (target.groupIdentity == identity) return
+        _messages.value = cur.map { if (it.id == uiAssistantId) it.copy(groupIdentity = identity) else it }
+    }
+
+    /**
+     * [T-chat-group-identity] Re-freeze a bubble's MODEL half after an
+     * automatic group fallback adopted another member.
+     *
+     * Ownership is left byte-identical — the group is still the speaker, so a
+     * fallback can never relabel the bubble — but the attribution columns
+     * should name the member that will actually serve the remaining turns
+     * instead of the one that just failed. Built from the CANDIDATE (provider +
+     * entry id), not from the class-level binding: the fallback may
+     * deliberately stay turn-local ([adoptLoopFallbackBinding] returns false
+     * when the user picked another model mid-run), so the class binding is not
+     * a reliable description of "who will answer next".
+     */
+    private fun refreshBubbleModelSnapshot(uiAssistantId: String, candidate: FallbackCandidate) {
+        val frozen = turnIdentityByBubble[uiAssistantId] ?: return
+        val entry = providerRepository.config.value.modelEntries.firstOrNull { it.id == candidate.entryId }
+        val instance = entry?.let { providerRepository.instance(it.providerInstanceId) }
+        val snapshot = com.openminis.app.data.model.ModelAttributionSnapshot(
+            modelId = candidate.provider.model.id,
+            displayName = candidate.provider.model.displayName,
+            providerTypeRaw = instance?.providerType?.name ?: "",
+            providerInstanceId = entry?.providerInstanceId,
+        )
+        turnIdentityByBubble[uiAssistantId] = FrozenTurnIdentity(
+            ownership = frozen.ownership,
+            modelSnapshot = snapshot,
+            identity = ChatGroupIdentityResolver.persisted(
+                ownership = frozen.ownership,
+                modelId = snapshot.modelId,
+                modelDisplayName = snapshot.displayName,
+                providerType = snapshot.providerTypeRaw,
+                providerInstanceId = snapshot.providerInstanceId,
+            ),
+        )
+    }
+
+    /**
+     * [T-chat-group-identity] Move the loop onto a bubble with a NEW frozen
+     * identity WITHOUT relabelling what was already generated.
+     *
+     * Called at a request boundary after a deliberate model/group switch. If
+     * the bubble has produced nothing yet the identity simply moves with it;
+     * otherwise the finished bubble is sealed (flushed, no longer streaming)
+     * and a fresh placeholder below it carries the new identity, so the earlier
+     * text keeps the group/model that actually wrote it.
+     *
+     * @return the id the loop must keep writing into.
+     */
+    private suspend fun reidentifyBubbleBeforeRequest(
+        sealedId: String,
+        accumulatedText: String,
+        toolBlocks: List<AssistantBlock>,
+        frozen: FrozenTurnIdentity,
+        thinkingLevel: ThinkingLevel?,
+    ): String {
+        var target = sealedId
+        withContext(Dispatchers.Main) {
+            val sealed = _messages.value.firstOrNull { it.id == sealedId }
+            val producedAnything = accumulatedText.isNotEmpty() ||
+                toolBlocks.isNotEmpty() ||
+                (sealed != null && (sealed.content.isNotEmpty() || sealed.toolBlocks.isNotEmpty()))
+            if (!producedAnything) {
+                patchMessageIdentityLocked(sealedId, frozen.identity)
+            } else {
+                updateAssistantMessage(
+                    sealedId, accumulatedText, false, toolBlocks,
+                    isAwaitingModelResponse = false,
+                )
+                clearStreamFlushState(sealedId)
+                if (_streamingById.value.containsKey(sealedId)) {
+                    _streamingById.value = _streamingById.value - sealedId
+                }
+                val freshId = "assistant_${System.currentTimeMillis()}_${bubbleIdSeq.incrementAndGet()}"
+                _messages.value = _messages.value + ChatMessage(
+                    id = freshId,
+                    role = "assistant",
+                    content = "",
+                    isStreaming = true,
+                    isAwaitingModelResponse = true,
+                    thinkingLevel = thinkingLevel,
+                    groupIdentity = frozen.identity,
+                )
+                target = freshId
+            }
+        }
+        registerBubbleIdentity(target, frozen)
+        return target
     }
 
     /** Structured agent history for the agent loop (contentParts-based). */
@@ -5426,7 +5656,7 @@ class ChatViewModel(
         return ProviderFactory.create(
             instance, credential, entry.model, context,
             sessionId = activeSessionId, overrides = entry.overrides,
-        ).also { seedApplicationSystemPrompt(it) }
+        ).also { applyApplicationSystemPromptGlobal(it) }
     }
 
     private suspend fun generateCompactSummary(conversationText: String, provider: LLMProvider): String {
@@ -6217,158 +6447,6 @@ class ChatViewModel(
     val currentSessionId: String
         get() = activeSessionId
 
-    // ── [T-multi-soul] Per-chat SOUL selection ──────────────────────────────
-
-    /** Every SOUL profile, default first. Collected by the chat picker. */
-    val soulProfiles: kotlinx.coroutines.flow.StateFlow<List<com.openminis.app.agent.SoulProfiles.SoulProfile>> =
-        com.openminis.app.agent.SoulProfiles.profiles
-
-    /** Durable `sessionId -> profileId` map; the picker reads the active row. */
-    val soulSelections: kotlinx.coroutines.flow.StateFlow<Map<String, String>> =
-        com.openminis.app.agent.SoulProfiles.selections
-
-    /**
-     * Re-read profiles/selections, including files edited outside the app.
-     * Disk work is dispatched here rather than at every call site, because
-     * this is also reachable from a menu tap on the main thread.
-     */
-    fun refreshSoulProfiles() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { com.openminis.app.agent.SoulProfiles.refresh(context) }
-        }
-    }
-
-    /**
-     * Publish the SOUL this chat uses so the header, typing indicator and
-     * notification show its name and icon. Called when the chat opens and
-     * after the draft is promoted to a real session, so no surface keeps a
-     * stale identity from the previous chat.
-     */
-    fun syncActiveSoul() {
-        runCatching { com.openminis.app.agent.SoulProfiles.setActiveSession(context, activeSessionId) }
-    }
-
-    /** [syncActiveSoul] off the main thread; used on the session-load path. */
-    private fun syncActiveSoulAsync() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { syncActiveSoul() }
-    }
-
-    /**
-     * [T-multi-soul] The last SOUL the user picked for a chat, published the
-     * instant they tap and BEFORE the durable write starts.
-     *
-     * Two races this closes, both real:
-     *  - "pick a SOUL, hit send": the turn reads the persona on another
-     *    thread, so a selection that only exists as a queued IO write would
-     *    lose to the send and the first reply would answer as the old SOUL;
-     *  - "tap A, then B": two independent IO coroutines have no ordering
-     *    guarantee, so the slower first write could overwrite the second.
-     *
-     * [selectSoul] therefore records the choice synchronously and runs every
-     * write through ONE serial job chain ([soulWriteJob]); readers
-     * ([selectedSoulForTurn], [ensureSession], the picker) prefer this value
-     * while it belongs to their session, so "what is shown" and "what is sent"
-     * cannot diverge from the last tap.
-     */
-    data class SoulChoice(val sessionId: String, val profileId: String)
-
-    private val _soulChoice = kotlinx.coroutines.flow.MutableStateFlow<SoulChoice?>(null)
-
-    /** The last tap, for surfaces that must not wait for the disk write. */
-    val soulChoice: kotlinx.coroutines.flow.StateFlow<SoulChoice?> = _soulChoice.asStateFlow()
-
-    /**
-     * Serialises SOUL selection writes. A new job joins the previous one
-     * before writing, so the durable mapping always ends on the LAST tap
-     * instead of on whichever coroutine happened to finish last.
-     */
-    @Volatile
-    private var soulWriteJob: kotlinx.coroutines.Job? = null
-    private val soulChoiceLock = Any()
-
-    /**
-     * Persist [profileId] as this chat's SOUL.
-     *
-     * Three rules, all deliberate:
-     *  - the choice is stored per session, so it never changes another chat;
-     *  - the write is off the main thread and a failure is surfaced through
-     *    [error] (the chat's existing snackbar) instead of being swallowed —
-     *    a silent failure would leave the user believing the chat switched;
-     *  - only a chat that is currently the ACTIVE one republishes the global
-     *    identity. A background ViewModel finishing a write must not repaint
-     *    the header of the chat on screen; it updates [soulSelections] and
-     *    stops there.
-     *
-     * The prompt itself is read at turn start, so this applies to the next
-     * message and never rewrites history.
-     */
-    fun selectSoul(profileId: String) = synchronized(soulChoiceLock) {
-        val sid = activeSessionId
-        if (sid.isBlank()) return@synchronized
-        // Published before any suspension point: the very next turn already
-        // reads this value, whether or not the write has landed.
-        val choice = SoulChoice(sid, profileId)
-        _soulChoice.value = choice
-        val previous = soulWriteJob
-        soulWriteJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            previous?.join()
-            val result = runCatching {
-                com.openminis.app.agent.SoulProfiles.select(context, sid, profileId)
-            }
-            val failure = result.exceptionOrNull()
-            if (failure != null) {
-                // Do not strand an unsaved choice: a request after a failed
-                // write must use the durable selection (and the header must
-                // agree with it) instead of a profile the store never stored.
-                // compareAndSet, not a plain clear: a NEWER tap recorded while
-                // this write was in flight must survive it.
-                _soulChoice.compareAndSet(choice, null)
-                AppLogger.warning(TAG, "[Soul] select failed sid=${sid.take(8)}: ${failure.message}")
-                _error.value = soulErrorText(failure)
-                return@launch
-            }
-            // The mapping is durable now, so the override has no work left;
-            // drop it if it is still THIS choice (again: never a newer tap).
-            _soulChoice.compareAndSet(choice, null)
-            // No setActiveSession here: the active ChatScreen owns that claim.
-            runCatching { com.openminis.app.agent.SoulProfiles.refreshActiveIfCurrent(context, sid) }
-        }
-    }
-
-    /**
-     * User-visible text for a failed SOUL write. Inlined rather than added to
-     * `strings.xml` so this change does not touch shared resources; the main
-     * integration can promote it to a resource without changing behaviour.
-     */
-    private fun soulErrorText(cause: Throwable?): String {
-        val zh = java.util.Locale.getDefault().language.lowercase().startsWith("zh")
-        val head = if (zh) "无法保存本对话的 SOUL：" else "Could not save this chat's SOUL: "
-        return head + (cause?.message ?: "")
-    }
-
-    /**
-     * [T-multi-soul] The SOUL this turn answers as.
-     *
-     * Same source as [selectSoul] writes: the profile selected for this chat,
-     * or the just-picked draft choice that has not landed on disk yet. Read
-     * once per turn and frozen, like every other prompt input.
-     */
-    private fun selectedSoulForTurn(): com.openminis.app.agent.SoulFile? {
-        // The last tap wins, durably stored or not: the profile FILE is
-        // already written by the editor, and the turn only needs to know
-        // WHICH profile the user chose. Without this an in-flight write could
-        // let the first reply answer as the previous SOUL.
-        val pending = _soulChoice.value
-        if (pending != null && pending.sessionId == activeSessionId) {
-            runCatching { com.openminis.app.agent.SoulProfiles.load(context, pending.profileId) }
-                .getOrNull()
-                ?.let { return it }
-        }
-        return runCatching {
-            com.openminis.app.agent.SoulProfiles.selected(context, activeSessionId)
-        }.getOrNull()
-    }
-
     /** T-chat-title-pill-edit: load the persisted [ChatSessionEntity] for the
      *  current session so the shared edit-title sheet (reused from the session
      *  list) can be opened from the in-chat title pill. Returns null for
@@ -6431,33 +6509,7 @@ class ChatViewModel(
             modelId = modelId,
             memoryEnabled = _memoryEnabled.value,
         )
-        // Promotion and selection taps enter the SAME FIFO. Once realSessionId
-        // is visible, a newer tap must queue after this migration, never race
-        // an old draft write or be overwritten by its completion.
-        val migration = synchronized(soulChoiceLock) {
-            val draftKey = sessionId
-            val previous = soulWriteJob
-            val draftChoice = _soulChoice.value?.takeIf { it.sessionId == draftKey }
-            val migratedChoice = draftChoice?.copy(sessionId = session.id)
-            if (draftChoice != null) _soulChoice.compareAndSet(draftChoice, migratedChoice)
-            realSessionId = session.id
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                previous?.join()
-                val result = runCatching {
-                    val draftSoul = com.openminis.app.agent.SoulProfiles.selectedId(context, draftKey)
-                    com.openminis.app.agent.SoulProfiles.select(context, session.id, draftSoul)
-                    com.openminis.app.agent.SoulProfiles.clearSelection(context, draftKey)
-                }
-                if (migratedChoice != null) _soulChoice.compareAndSet(migratedChoice, null)
-                result.exceptionOrNull()?.let { failure ->
-                    AppLogger.warning(TAG, "[Soul] draft carry-over failed: ${failure.message}")
-                    _error.value = soulErrorText(failure)
-                }
-                com.openminis.app.agent.SoulProfiles
-                    .transferActiveSession(context, draftKey, session.id)
-            }.also { soulWriteJob = it }
-        }
-        migration.join()
+        realSessionId = session.id
         followStoredTitle(session.id)
         // [T-android-opencode-session-header] Hand the just-minted real id to
         // the provider built while this chat was still a draft. Without it the
@@ -6662,11 +6714,6 @@ class ChatViewModel(
             val session = chatRepository.getSession(sessionId) ?: return@launch
             _sessionTitle.value = SessionTitleRules.display(session.title, UNTITLED_SESSION_TITLE)
             _sessionCategory.value = session.category
-            // [T-multi-soul] Publish this chat's SOUL before anything can
-            // render for it or a resumed run can post a notification: the
-            // header, the typing indicator and the capsule all read the
-            // published identity, and it must describe THIS chat.
-            syncActiveSoulAsync()
             followStoredTitle(sessionId)
             _memoryEnabled.value = session.memoryEnabled != 0
             // T239: hydrate persisted thinking-mode override. null = unset
@@ -7022,6 +7069,26 @@ class ChatViewModel(
                     }
                 }
                 applyCompactMarkerGraying(ordered, marker, loaded.messages, historyDbIds)
+            }
+            // [T-chat-group-identity] Drop frozen identities of bubbles this
+            // transcript no longer contains (opening another session / a
+            // reloaded one). Each entry holds a group avatar — a custom picture
+            // is an inline PNG data URI up to 64 KB — so a long-lived VM must
+            // not keep every bubble it ever wrote.
+            //
+            // A bubble that is STILL streaming keeps its entry: its async
+            // persist (turn end, Stop's trailing write, error carrier) must
+            // stamp the identity the row was generated under, not re-read the
+            // picker or write "unknown".
+            run {
+                val keepIds = ordered.mapTo(java.util.HashSet<String>()) { it.id }
+                for (live in _messages.value) {
+                    if (live.isStreaming) keepIds.add(live.id)
+                }
+                for (id in turnIdentityByBubble.keys.toList()) {
+                    if (id !in keepIds && _streamingById.value.containsKey(id)) keepIds.add(id)
+                }
+                turnIdentityByBubble.keys.retainAll(keepIds)
             }
             // [T-ctx-reopen-compacted-glow] A v1 marker whose boundary row is
             // gone is healed inside applyCompactMarkerGraying, and only the
@@ -7715,19 +7782,12 @@ class ChatViewModel(
      * the identity sentence, and the Anthropic OAuth path rebuilds that string
      * wholesale — either would silently demote it.
      *
-     * [K-global-prompt-only] Used to seed a provider built OUTSIDE the turn
-     * snapshot (a fallback candidate). There is no mode and no per-model text:
-     * the global SOUL.md body is the only application prompt in this build.
-     *
      * Failures are swallowed: a provider that is not one of the three
      * implementations simply keeps its default (no application prompt), which
      * is the pre-existing behaviour. The prompt text itself is never logged.
      */
     private fun applyApplicationSystemPromptGlobal(provider: LLMProvider) {
-        // [T-multi-soul] Same source as the turn snapshot: the SOUL selected
-        // for this chat, and nothing else.
-        val soul = runCatching { SystemPromptBuilder.applicationPrompt(selectedSoulForTurn()) }.getOrNull()
-        val prompt = soul
+        val prompt = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
@@ -7749,14 +7809,44 @@ class ChatViewModel(
     }
 
     /**
-     * [K-global-prompt-only] Seed a provider built outside the turn snapshot
-     * (a fallback candidate) with the global SOUL.md body.
+     * [T-soul-scoped-prompt] Resolve the application prompt for the selection
+     * that is active RIGHT NOW.
+     *
+     * `entryId` is the provider identity the caller is about to use (the
+     * loop's `currentIdentity.entryId`, which follows fallbacks and mid-turn
+     * switches). Null falls back to [_activeEntryId]. The entry is looked up
+     * again rather than trusting a cached model name: [ModelEntry] carries
+     * both `providerInstanceId` and `baseModel.id`, which is the only pair
+     * that makes a model rule provider-specific. A rule recorded for the same
+     * model name under a different provider therefore does not match.
+     *
+     * A deleted/unknown entry resolves to null model scope, and a stale/
+     * deleted group id simply fails exact equality — neither can degrade into
+     * "apply globally". A helper returns null unconditionally.
      */
-    private fun seedApplicationSystemPrompt(provider: LLMProvider) {
-        // [K-global-prompt-only] Every provider built outside the turn
-        // snapshot carries the same global body; there is no per-model text to
-        // resolve and no mode to consult.
-        applyApplicationSystemPromptGlobal(provider)
+    private fun applicationPromptForSelection(
+        soul: com.openminis.app.agent.SoulFile?,
+        rules: List<com.openminis.app.agent.SoulPromptRule>,
+        entryId: String?,
+    ): String? {
+        if (helperConfig != null) return null
+        if (soul == null && rules.isEmpty()) return null
+        val effectiveEntryId = entryId ?: _activeEntryId.value
+        val entry = effectiveEntryId?.let { id ->
+            providerRepository.config.value.modelEntries.firstOrNull { it.id == id }
+        }
+        val selection = com.openminis.app.agent.SoulPromptSelection(
+            groupId = _selectedGroupId.value,
+            providerInstanceId = entry?.providerInstanceId,
+            modelId = entry?.baseModel?.id,
+        )
+        return runCatching {
+            com.openminis.app.agent.SystemPromptBuilder.applicationPrompt(
+                soul,
+                rules,
+                selection,
+            )
+        }.getOrNull()
     }
 
     private fun isBoundToAbandonedModel(): Boolean =
@@ -8092,14 +8182,12 @@ class ChatViewModel(
             val p = try {
                 ProviderFactory.create(instance, apiKey, entry.model, context, sessionId = activeSessionId, overrides = entry.overrides)
             } catch (_: Exception) { continue }
-            // [T-soul-prompt-supreme] [K-global-prompt-only] A fallback provider
-            // is a different instance with its own empty
-            // `applicationSystemPrompt` field; seeding it here means the prompt
-            // cannot be missing on the first request after a fallback. The
-            // global body it receives is replaced by the turn's frozen
-            // `applicationPromptForTurn` before every request, so a Settings
-            // save mid-turn still cannot change what this turn sends.
-            seedApplicationSystemPrompt(p)
+            // [T-soul-prompt-supreme] A fallback provider is a different
+            // instance with its own empty `applicationSystemPrompt` field; it
+            // only becomes current after a switch, but seeding it here means
+            // the prompt cannot be missing on the very first request after a
+            // fallback (the loop re-applies it on adoption as well).
+            applyApplicationSystemPromptGlobal(p)
             result.add(FallbackCandidate(provider = p, entryId = entry.id))
         }
         return result
@@ -10307,6 +10395,28 @@ class ChatViewModel(
                 viewModelScope.launch(Dispatchers.IO) {
                     try {
                         val write = chatRepository.persistTurnError(sid, safeError)
+                        // [T-chat-group-identity] A CARRIER row is inserted by
+                        // the repository itself (not through appendMessage), so
+                        // it would otherwise carry no frozen identity and render
+                        // as an anonymous "Minis Next" bubble after a reload.
+                        // Stamp the bubble's frozen group onto it — never the
+                        // picker, which may already be on a group the failed
+                        // request never used. (`Stamped` rows already have their
+                        // identity from appendMessage; left untouched.)
+                        if (write is ChatRepository.TurnErrorWrite.Carrier) {
+                            val ownership = bubbleIdentity(msg.id)?.ownership
+                                ?: ownershipOf(msg.groupIdentity)
+                            if (ownership != null) {
+                                try {
+                                    chatRepository.dao.updateGroupIdentity(
+                                        write.messageId,
+                                        com.openminis.app.groups.ChatGroupIdentityCodec.encode(ownership),
+                                    )
+                                } catch (e: Exception) {
+                                    Log.w(TAG, ("group identity stamp failed: " + (e.message).toString()))
+                                }
+                            }
+                        }
                         AppLogger.info(TAG, ("[ErrorPersist] sid=" + (sid.take(8)).toString() + " " + (write).toString()))
                     } catch (e: Exception) { Log.w(TAG, ("persist error_info failed: " + (e.message).toString())) }
                 }
@@ -11415,40 +11525,35 @@ class ChatViewModel(
         // [T-android-switch-model-next-request] The prompt this loop sends. A
         // var only for the mid-turn switch: the Claude Code OAuth prefix is
         // the one provider-specific part of it.
-        val soulFileForTurn = if (helperConfig == null) selectedSoulForTurn() else null
-        val runtimePromptForTurn = buildSystemPrompt(soulFileForTurn)
-        val oauthPrefix = com.openminis.app.auth.ClaudeOAuthManager.ANTHROPIC_OAUTH_IDENTIFIER_PROMPT
-        // A queued run may start after the user switched SOUL. Build identity
-        // from the same snapshot as the application body, including after a
-        // concurrency-slot wait, while preserving the provider OAuth prefix.
-        var loopSystemPrompt = if (systemPrompt?.startsWith(oauthPrefix) == true &&
-            runtimePromptForTurn?.startsWith(oauthPrefix) != true
-        ) oauthPrefix + "\n\n" + runtimePromptForTurn.orEmpty() else runtimePromptForTurn
+        var loopSystemPrompt = systemPrompt
         // [T-soul-prompt-supreme] Settings → System Prompt rides in its own
         // provider field, AHEAD of loopSystemPrompt in each provider's native
         // system channel (see LLMProvider.applicationSystemPrompt).
         //
-        // [K-global-prompt-only] The global SOUL.md file is read ONCE per turn
-        // and frozen here. The rendered block is derived from that same
-        // snapshot, so:
-        //  - a Settings save mid-turn cannot change what this turn sends;
-        //  - every retry, fallback and mid-turn model switch re-applies this
-        //    exact string (providers are separate objects with their own
-        //    empty field) instead of re-reading the file;
-        //  - the body is placed exactly once, in `applicationSystemPrompt`,
-        //    never concatenated into `loopSystemPrompt` (no duplicate text).
-        // A sub agent gets null: it has its own identity text and no Settings
-        // page.
-        // [T-multi-soul] The SOUL selected for THIS chat is the whole
-        // application prompt. Earlier builds could prefix a workspace
-        // AGENTS.md block or let it replace SOUL entirely; that split is gone,
-        // so a turn reads exactly one persona file and nothing else competes
-        // with it inside the system channel.
-        val applicationPromptForTurn = if (helperConfig == null) {
-            runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull()
+        // [T-soul-scoped-prompt] Two different lifetimes here, on purpose:
+        //  - the GLOBAL body + the rule list are snapshotted once per turn
+        //    (SoulStore.load / SoulPromptRuleStore.cachedOrLoad), so a
+        //    Settings save mid-turn cannot make one turn's requests disagree;
+        //  - the SELECTION (group id + active entry) is read at every request,
+        //    so switching the group or model takes effect on the next request,
+        //    not only on the next turn. A sub agent gets null at every step:
+        //    it has its own identity text and no Settings page.
+        val soulFileForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
         } else {
             null
         }
+        val promptRulesForTurn = if (helperConfig == null) {
+            runCatching { com.openminis.app.agent.SoulPromptRuleStore.cachedOrLoad(context) }
+                .getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+        val applicationPromptForTurn = applicationPromptForSelection(
+            soulFileForTurn,
+            promptRulesForTurn,
+            _activeEntryId.value,
+        )
         applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)
         // A flag left over from a turn that ended before it could be applied
         // is stale once this turn starts on the class-level provider; a switch
@@ -11522,11 +11627,24 @@ class ChatViewModel(
         // turns the user explicitly asked not to surface, even when a
         // forced-reasoning model still streams reasoning_content.
         val turnThinkingLevel = _thinkingLevel.value
+        // [T-chat-group-identity] Freeze this bubble's speaker NOW, before the
+        // placeholder exists and long before any request completes.
+        //
+        // Everything the turn later writes — the placeholder, every
+        // `persistAssistantTurn` row, the error carrier — reads this snapshot
+        // instead of the picker. That is what makes a mid-stream group/model
+        // switch (applied at the NEXT request boundary, see the
+        // `pendingModelSwitch` block below) unable to relabel a reply that was
+        // already generated by the previous selection.
+        turnIdentityByBubble.keys.retainAll(_messages.value.mapTo(java.util.HashSet<String>()) { it.id })
+        var bubbleFrozen = freezeTurnIdentityFromPicker()
+        registerBubbleIdentity(assistantId, bubbleFrozen)
         withContext(Dispatchers.Main) {
             _messages.value = _messages.value + ChatMessage(
                 id = assistantId, role = "assistant", content = "", isStreaming = true,
                 isAwaitingModelResponse = true,
                 thinkingLevel = turnThinkingLevel,
+                groupIdentity = bubbleFrozen.identity,
             )
         }
 
@@ -11641,12 +11759,53 @@ class ChatViewModel(
                     // prompt would vanish for the rest of the turn.
                     applyApplicationSystemPrompt(
                         chosen,
-                        applicationPromptForTurn,
+                        applicationPromptForSelection(
+                            soulFileForTurn,
+                            promptRulesForTurn,
+                            currentIdentity?.entryId,
+                        ),
                     )
                     AppLogger.info(
                         TAG_STREAM,
                         ("[SwitchModel] applied at next request: " + (from).toString() + " → " + (chosen.model.displayName).toString() + " turn=" + (turn + 1).toString()),
                     )
+                }
+                // [T-chat-group-identity] The user deliberately changed the
+                // model and/or group FOR THE NEXT REQUEST. Freeze that identity
+                // now, before the request goes out.
+                //
+                // The switch must not travel backwards: whatever this bubble
+                // already streamed was produced by the previous selection, so
+                // when the speaker actually changed the bubble is sealed and a
+                // fresh one carries the new identity (reidentifyBubbleBeforeRequest).
+                // A change INSIDE the same group (another member, same group
+                // chosen) keeps ONE bubble and its group label — that is the
+                // "group fallback within the same group must retain group" rule
+                // — and only refreshes the model half of the attribution.
+                if (switched != null) {
+                    val pickedIdentity = freezeTurnIdentityFromPicker()
+                    if (!sameSpeaker(bubbleFrozen.identity, pickedIdentity.identity)) {
+                        val sealedBubbleId = assistantId
+                        assistantId = reidentifyBubbleBeforeRequest(
+                            sealedId = sealedBubbleId,
+                            accumulatedText = accumulatedText,
+                            toolBlocks = allToolBlocks.toList(),
+                            frozen = pickedIdentity,
+                            thinkingLevel = turnThinkingLevel,
+                        )
+                        liveTurn.markAssistant(turnGen, assistantId)
+                        accumulatedText = ""
+                        allToolBlocks.clear()
+                        allToolInputs.clear()
+                        toolInputChunkRings.clear()
+                        AppLogger.info(
+                            TAG_STREAM,
+                            "[GroupIdentity] split at switch turn=$turn sealed=${sealedBubbleId.take(20)} " +
+                                "fresh=${assistantId.take(20)} speaker=${pickedIdentity.identity.displayName}",
+                        )
+                    }
+                    bubbleFrozen = pickedIdentity
+                    registerBubbleIdentity(assistantId, pickedIdentity)
                 }
             }
             // [T-user-ask-deferred-live-batch] Deferred results delivered
@@ -11884,6 +12043,7 @@ class ChatViewModel(
                             isStreaming = true,
                             isAwaitingModelResponse = true,
                             thinkingLevel = turnThinkingLevel,
+                            groupIdentity = bubbleFrozen.identity,
                         )
                     }
                     clearStreamFlushState(sealedId)
@@ -11895,6 +12055,9 @@ class ChatViewModel(
                     // the new turn's blocks.
                     assistantId = freshAssistantId
                     liveTurn.markAssistant(turnGen, assistantId)
+                    // [T-chat-group-identity] Same run, same speaker: the bubble
+                    // below the divider inherits the frozen identity.
+                    registerBubbleIdentity(assistantId, bubbleFrozen)
                     accumulatedText = ""
                     allToolBlocks.clear()
                     allToolInputs.clear()
@@ -12110,7 +12273,11 @@ class ChatViewModel(
                 if (helperConfig == null) {
                     applyApplicationSystemPrompt(
                         currentProvider,
-                        applicationPromptForTurn,
+                        applicationPromptForSelection(
+                            soulFileForTurn,
+                            promptRulesForTurn,
+                            currentIdentity?.entryId,
+                        ),
                     )
                 }
                 // [ISS-036, T-provider-live-check] Before every request: is the
@@ -13081,6 +13248,12 @@ class ChatViewModel(
                         Log.i(TAG, ("🔀 " + (reason).toString() + " on " + (currentProvider.model.displayName).toString() + ", switching to " + (next.model.displayName).toString() + " (realModelChange=" + (isRealModelChange).toString() + ")"))
                         currentProvider = next
                         currentIdentity = providerIdentity(nextCandidate.entryId)
+                        // [T-chat-group-identity] Group fallback INSIDE the
+                        // chosen group: the group label stays (ownership is
+                        // untouched), but the attribution columns should name
+                        // the member that will actually serve the rest of this
+                        // bubble.
+                        refreshBubbleModelSnapshot(assistantId, nextCandidate)
                         // [T-fallback-5xx-status] Fresh same-model budget for the
                         // member we just switched to. The counter is per-turn, so
                         // without this reset every member after the first got
@@ -13591,10 +13764,14 @@ class ChatViewModel(
                         )
                         currentProvider = next
                         currentIdentity = providerIdentity(emptyNext.entryId)
+                        // [T-chat-group-identity] Same rule as the error-path
+                        // fallback above: group ownership is unchanged, only the
+                        // model attribution moves to the member that answered.
+                        refreshBubbleModelSnapshot(assistantId, emptyNext)
                         loopSystemPrompt = systemPromptFor(next, loopSystemPrompt)
                         applyApplicationSystemPrompt(
                             next,
-                            applicationPromptForTurn,
+                            applicationPromptForSelection(soulFileForTurn, promptRulesForTurn, currentIdentity?.entryId),
                         )  // [T-soul-prompt-supreme]
                         triedEntryIds.add(emptyNext.entryId)
                         remainingFallbacks.removeAll { it.entryId == emptyNext.entryId || it.entryId in emptyStreakEntryIds }
@@ -14412,6 +14589,15 @@ class ChatViewModel(
                     // span [0..size).
                     assistantId = handled.newAssistantId
                     liveTurn.markAssistant(turnGen, assistantId)
+                    // [T-chat-group-identity] A queued prompt splits the reply
+                    // into a fresh bubble (the user message sits between them),
+                    // but it is still the SAME run: the new bubble inherits this
+                    // run's frozen identity rather than re-reading the picker,
+                    // which may already show a group the user picked mid-stream.
+                    registerBubbleIdentity(assistantId, bubbleFrozen)
+                    withContext(Dispatchers.Main) {
+                        patchMessageIdentityLocked(assistantId, bubbleFrozen.identity)
+                    }
                     scriptedTurnFor(handled.prefill)?.let { pendingScriptedTurn = it }
                     accumulatedText = ""
                     allToolBlocks.clear()
@@ -16576,12 +16762,22 @@ class ChatViewModel(
         val tokenJson = usage?.let {
             """{"inputTokens":${it.inputTokens},"outputTokens":${it.outputTokens},"cacheCreationTokens":${it.cacheCreationInputTokens ?: 0},"cacheReadTokens":${it.cacheReadInputTokens ?: 0},"latestContextTokens":${it.latestContextTokens},"streamMs":$streamMs${com.openminis.app.usage.StoredUsageJson.extraFields(it)}${calibrationJsonFields()}}"""
         }
+        // [T-chat-group-identity] Read the bubble's FROZEN identity, never the
+        // picker: this runs at the end of a turn, which for a tool loop can be
+        // long after the user switched group/model. `currentModelSnapshot()` is
+        // only the fallback for a caller with no bubble (e.g. a resume path).
+        val frozenIdentity = bubbleIdentity(uiAssistantId)
         val entity = chatRepository.appendMessage(
             realSessionId.ifEmpty { sessionId }, "assistant", partsJson, tokenJson,
             reasoningContent = reasoningContent,
             // [T-token-attribution-snapshot] From the live request context, not
-            // the session row — see currentModelSnapshot().
-            modelSnapshot = currentModelSnapshot(),
+            // the session row — see currentModelSnapshot(). Prefer the frozen
+            // model snapshot so an in-flight switch cannot rename this row.
+            modelSnapshot = frozenIdentity?.modelSnapshot ?: currentModelSnapshot(),
+            // [T-chat-group-identity] The group half, frozen at bubble creation.
+            // Kept a SEPARATE column: the model columns above stay real model
+            // ids (usage grouping) and are never replaced by a group label.
+            groupOwnership = frozenIdentity?.ownership,
         )
 
         // [T-android-usage-capsule-live] Stamp the usage capsule's data onto
@@ -16640,6 +16836,9 @@ class ChatViewModel(
         toolCallInputs: Map<String, String> = emptyMap()
         ,
         reasoningContent: String? = null,
+        // [T-chat-group-identity] Same freeze contract as persistAssistantTurn:
+        // the bubble id keys the identity this row must carry.
+        uiAssistantId: String? = null,
     ) {
         if (text.isEmpty() && (toolBlocks == null || toolBlocks.isEmpty())) return
 
@@ -16673,7 +16872,10 @@ class ChatViewModel(
         chatRepository.appendMessage(
             realSessionId.ifEmpty { sessionId }, "assistant", partsJson, tokenJson,
             reasoningContent = reasoningContent,
-            modelSnapshot = currentModelSnapshot(),
+            // [T-chat-group-identity] Frozen bubble identity, same contract as
+            // persistAssistantTurn — the group stamp never comes from the picker.
+            modelSnapshot = bubbleIdentity(uiAssistantId)?.modelSnapshot ?: currentModelSnapshot(),
+            groupOwnership = bubbleIdentity(uiAssistantId)?.ownership,
         )
     }
 
@@ -16687,11 +16889,7 @@ class ChatViewModel(
             chatRepository.appendMessage(sid, role, partsJson).id
         }
 
-    private fun buildSystemPrompt(): String? = buildSystemPrompt(
-        if (helperConfig == null) selectedSoulForTurn() else null,
-    )
-
-    private fun buildSystemPrompt(soulFileForIdentity: com.openminis.app.agent.SoulFile?): String? {
+    private fun buildSystemPrompt(): String? {
         // Cache-friendly layout: keep `base` byte-stable by stripping out anything
         // that varies per request, then append a "Runtime context" suffix at the
         // very end with all the dynamic bits (date, timezone, locale, configured
@@ -16738,13 +16936,10 @@ class ChatViewModel(
         // A sub agent keeps its own identity block; the top-level agent's is
         // now identity sentence + style + edit hint only (the application
         // prompt travels in the provider field described above).
-        // [T-multi-soul] The identity sentence names the SOUL selected for
-        // this chat, not always the legacy default file. There is no exclusive
-        // workspace mode any more: the selected SOUL is the whole application
-        // prompt, so nothing else needs to suppress the identity paragraph.
         val identitySection = helperConfig?.let {
             com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
-        } ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(soulFileForIdentity)
+        }
+            ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
         // [T-memory-toggle-gates-injection-and-tools-android] Mirror the iOS
         // gate: when memory is disabled for this session, replace the
         // "memory_write / memory_get" tool bullets and the "Memory system:"
@@ -18273,7 +18468,16 @@ class ChatViewModel(
             )
             cleanupPersistJob = viewModelScope.launch(Dispatchers.IO) {
                 val partsJson = buildAssistantPartsJson(parts)
-                chatRepository.appendMessage(activeSessionId, "assistant", partsJson)
+                // [T-chat-group-identity] The interrupted bubble keeps the
+                // identity it was created with: this runs AFTER the loop
+                // stopped, so re-reading the picker here could label a partial
+                // reply with a group the user just switched to.
+                val frozen = bubbleIdentity(last.id)
+                chatRepository.appendMessage(
+                    activeSessionId, "assistant", partsJson,
+                    modelSnapshot = frozen?.modelSnapshot ?: currentModelSnapshot(),
+                    groupOwnership = frozen?.ownership ?: ownershipOf(last.groupIdentity),
+                )
             }
             // [T-android-group-pause-badge-restamp] A LIVE interruption just
             // happened: this is a real entry into the paused state, so the
@@ -18454,6 +18658,10 @@ class ChatViewModel(
     }
 
     override fun onCleared() {
+        // [T-chat-group-identity] Nothing can persist through this VM any more,
+        // so the frozen bubble identities are pure leak from here on (each may
+        // carry a custom group avatar data URI).
+        turnIdentityByBubble.clear()
         // [T-sub-agents-queue] Nothing can re-enter a queued delegation once
         // this view model is gone; leaving the starter installed would let the
         // registry call into a cleared VM.
@@ -18798,6 +19006,23 @@ class ChatViewModel(
                 // a non-null "" would render an empty banner. Defends against any
                 // legacy/other-writer "" row.
                 error = entity.errorInfo?.takeIf { it.isNotBlank() },
+                // [T-chat-group-identity] WHO produced this row, rebuilt from
+                // the row's OWN snapshot: the frozen group stamp plus this
+                // row's model attribution columns. A row written before the
+                // feature (no `group_identity`) resolves to its model identity,
+                // never to the current picker — that fallback is what used to
+                // relabel a whole history on a model/group switch.
+                groupIdentity = if (entity.role == "assistant") {
+                    ChatGroupIdentityResolver.persisted(
+                        ownership = com.openminis.app.groups.ChatGroupIdentityCodec.decode(
+                            entity.groupIdentity,
+                        ),
+                        modelId = entity.modelId,
+                        modelDisplayName = entity.modelDisplayName,
+                        providerType = entity.providerType,
+                        providerInstanceId = entity.providerInstanceId,
+                    )
+                } else null,
             )
         }.let { messages ->
             // Merge consecutive assistant messages into one:
@@ -18805,7 +19030,24 @@ class ChatViewModel(
             val merged = mutableListOf<ChatMessage>()
             for (msg in messages) {
                 val prev = merged.lastOrNull()
-                if (msg.role == "assistant" && prev?.role == "assistant") {
+                // [T-chat-group-identity] Merge ONLY rows that describe the same
+                // speaker. The agent loop persists one row per turn, and the UI
+                // folds them into one bubble — fine while the group is the same.
+                // But a turn the user re-dispatched under ANOTHER group (or
+                // another bare model/provider) must not be folded into the
+                // previous bubble, which would relabel that earlier content with
+                // a group it never ran on. Rows with NOTHING known ([NONE], or
+                // a synthetic row with no identity) only ever merge with their
+                // own kind — never with a known group, which would attribute
+                // pre-feature content to a choice the user may never have made.
+                val prevIdentity = prev?.groupIdentity
+                val msgIdentity = msg.groupIdentity
+                val sameFrozenSpeaker = if (prevIdentity == null || msgIdentity == null) {
+                    prevIdentity == null && msgIdentity == null
+                } else {
+                    sameSpeaker(prevIdentity, msgIdentity)
+                }
+                if (msg.role == "assistant" && prev?.role == "assistant" && sameFrozenSpeaker) {
                     // Merge: combine tool blocks, append text, keep the last id.
                     // Deduplicate by block.id — the agent loop may persist the same tool
                     // use in multiple consecutive turns (as it carries tool state across),
@@ -18845,6 +19087,10 @@ class ChatViewModel(
                         // larger than any single request carried.
                         tokenUsage = msg.tokenUsage ?: prev.tokenUsage,
                         completedAt = msg.completedAt ?: prev.completedAt,
+                        // [T-chat-group-identity] Kept from the latest row, like
+                        // `id`/`error`/usage above, so the folded bubble reports
+                        // one identity.
+                        groupIdentity = msg.groupIdentity ?: prev.groupIdentity,
                     )
                 } else {
                     merged.add(msg)

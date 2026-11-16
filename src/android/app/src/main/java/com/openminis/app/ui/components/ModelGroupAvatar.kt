@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -110,24 +111,29 @@ fun ModelGroupAvatarGlyph(
                 if (model == null) {
                     FallbackGlyph()
                 } else {
-                    // [T-model-group-avatar] Brand marks are drawn on a FIXED
-                    // light tile, not on the theme surface: several Lobe marks
-                    // are near-black on transparency and would disappear on a
-                    // dark theme. A light tile keeps every logo legible in both
-                    // themes without a ColorFilter, which would flatten the
-                    // multicolour marks into one tint.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(BRAND_TILE_COLOR),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        BrandImage(
+                    // [T-model-group-avatar] No backdrop of any kind: every
+                    // bundled PNG is transparent and already carries the
+                    // mark's own optical margin, so the page shows through.
+                    // (An earlier revision painted a fixed #F4F4F5 tile
+                    // behind every logo, which made transparent icons look
+                    // like they had a background.)
+                    //
+                    // A single-colour mark cannot rely on contrast: near-black
+                    // ink on a dark page is invisible. Those entries are
+                    // tinted with the theme's content colour instead of being
+                    // put back on a tile. Multicolour marks are never tinted —
+                    // a ColorFilter would flatten them into one hue.
+                    val tint = if (spec.entry.mono) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        Color.Unspecified
+                    }
+                    BrandImage(
                         model = model,
                         contentDescription = contentDescription,
                         memoryCacheKey = "model-group-icon:${spec.entry.id}",
+                        tint = tint,
                     )
-                    }
                 }
             }
             is ModelGroupAvatarSpec.Image -> {
@@ -152,7 +158,12 @@ fun ModelGroupAvatarGlyph(
 }
 
 @Composable
-private fun BrandImage(model: Any, contentDescription: String?, memoryCacheKey: String) {
+private fun BrandImage(
+    model: Any,
+    contentDescription: String?,
+    memoryCacheKey: String,
+    tint: Color = Color.Unspecified,
+) {
     val context = LocalContext.current
     // [T-model-group-avatar] An explicit key: Coil derives no memory-cache key
     // from a ByteArray, so without this a LazyColumn would re-decode the same
@@ -169,6 +180,9 @@ private fun BrandImage(model: Any, contentDescription: String?, memoryCacheKey: 
         model = request,
         contentDescription = contentDescription,
         contentScale = ContentScale.Fit,
+        // Tint is applied at draw time (alpha preserved), so it does not need
+        // to be part of the memory-cache key.
+        colorFilter = if (tint == Color.Unspecified) null else ColorFilter.tint(tint),
         modifier = Modifier.fillMaxSize(),
         loading = { FallbackGlyph() },
         error = { FallbackGlyph() },
@@ -184,13 +198,6 @@ private fun shortHash(value: String): String {
     }
     return hex.toString()
 }
-
-/**
- * [T-model-group-avatar] The brand tile behind every builtin logo. Fixed (not
- * theme-derived) on purpose: near-black marks must stay visible on a dark
- * theme, and this is also the light neutral Lobe's own marks are drawn on.
- */
-private val BRAND_TILE_COLOR = Color(0xFFF4F4F5)
 
 /**
  * [T-model-group-avatar] The ONE fallback for every group without a manual

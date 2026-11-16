@@ -300,13 +300,13 @@
     <string name="mcp_delete_title">Delete %1$s?</string>
     <string name="mcp_delete_message">This removes the server from servers.json. This cannot be undone.</string>
     <!-- T-soul-md — SOUL.md personality / identity settings -->
-    <string name="settings_soul">SOUL</string>
-    <string name="settings_soul_subtitle">SOUL profiles, identity and prompts</string>
-    <string name="soul_settings_title">SOUL</string>
+    <string name="settings_soul">System Prompt</string>
+    <string name="settings_soul_subtitle">System prompt and identity (SOUL.md)</string>
+    <string name="soul_settings_title">System Prompt</string>
     <string name="soul_section_preview">Preview</string>
     <string name="soul_section_identity">Identity</string>
-    <string name="soul_section_personality">SOUL prompt</string>
-    <string name="soul_personality_footer">Saved in the selected SOUL profile. Each chat uses its selected profile as its application system prompt.</string>
+    <string name="soul_section_personality">System Prompt</string>
+    <string name="soul_personality_footer">Saved as the Markdown body of SOUL.md. Prompt assembly, injection checks and provider context limits are unchanged.</string>
     <string name="soul_field_name">Name</string>
     <string name="soul_field_style">Style</string>
     <string name="soul_field_lang">Language</string>

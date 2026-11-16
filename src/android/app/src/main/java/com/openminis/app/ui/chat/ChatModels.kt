@@ -9,6 +9,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.openminis.app.groups.ChatGroupIdentity
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -199,6 +200,16 @@ data class ChatMessage(
     // only when usage is present.
     val tokenUsage: ChatTokenUsage? = null,
     val completedAt: Long? = null,
+    // [T-chat-group-identity] WHO produced this turn, frozen at send/generation
+    // time (group id + name + avatar, or the real model/provider for an
+    // ungrouped turn). The chat header, typing row, sidebar and export render
+    // THIS value, so switching model or group later cannot relabel history.
+    //
+    // Null means "not known for this object" (a legacy row rebuilt without a
+    // snapshot, or a synthetic row); surfaces then use the persisted
+    // `messages.group_identity` projection and, failing that, the plain
+    // product identity — never the current picker.
+    val groupIdentity: ChatGroupIdentity? = null,
 ) {
     /**
      * [T-bridge-message-ui-leak-android] True when this UI message is the

@@ -627,19 +627,6 @@ class MinisApp : Application(), ImageLoaderFactory {
         // synchronous metadata read-path (chat header / system prompt).
         com.openminis.app.agent.SoulStore.ensureExists(this)
         com.openminis.app.agent.SoulStore.refreshCache(this)
-        // [T-multi-soul] List every profile and run the one-shot AGENTS.md
-        // import. The active identity stays the legacy default until a session
-        // is restored (ChatViewModel.syncActiveSoul).
-        //
-        // Off the main thread on purpose: refresh() walks `souls/`, parses
-        // every profile and fsyncs nothing, but a user with many profiles (or
-        // a slow device) must not pay that cost before the first frame.
-        // Consumers either read the published flows (which fill in when this
-        // completes) or resolve identity on demand
-        // (SoulProfiles.metadata), so nothing depends on it having finished.
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            runCatching { com.openminis.app.agent.SoulProfiles.refresh(this@MinisApp) }
-        }
 
         // T-config: minis-config CLI surface — registry / audit log /
         // master-switch store. Initialized eagerly here so

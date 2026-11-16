@@ -96,6 +96,51 @@ class ModelGroupAvatarImageRoboTest {
     }
 
     @Test
+    fun `transparency survives the thumbnail ladder`() {
+        // A logo-style picture: opaque mark in the middle, fully transparent
+        // margin. The stored PNG must keep that margin transparent — an
+        // encoder that painted the bitmap onto an opaque canvas (or encoded
+        // RGB_565 / JPEG) would flatten it into a white square in every list.
+        val source = Bitmap.createBitmap(120, 120, Bitmap.Config.ARGB_8888)
+        for (y in 40 until 80) {
+            for (x in 40 until 80) {
+                source.setPixel(x, y, Color.RED)
+            }
+        }
+        val value = requireNotNull(ModelGroupAvatarImage.encode(source))
+        val bytes = requireNotNull(ModelGroupAvatarValue.pngBytes(value))
+        val decoded = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size))
+        assertEquals(0, Color.alpha(decoded.getPixel(0, 0)))
+        assertEquals(0, Color.alpha(decoded.getPixel(decoded.width - 1, decoded.height - 1)))
+        assertEquals(255, Color.alpha(decoded.getPixel(decoded.width / 2, decoded.height / 2)))
+        assertEquals(Color.RED, decoded.getPixel(decoded.width / 2, decoded.height / 2))
+    }
+
+    @Test
+    fun `a transparent PNG file keeps its alpha through import`() {
+        val context = RuntimeEnvironment.getApplication()
+        val file = File(context.cacheDir, "group-avatar-alpha-import-test.png")
+        val source = Bitmap.createBitmap(300, 300, Bitmap.Config.ARGB_8888)
+        for (y in 100 until 200) {
+            for (x in 100 until 200) {
+                source.setPixel(x, y, Color.BLUE)
+            }
+        }
+        file.outputStream().use { out ->
+            assertTrue(source.compress(Bitmap.CompressFormat.PNG, 100, out))
+        }
+        try {
+            val value = requireNotNull(ModelGroupAvatarImage.import(context, Uri.fromFile(file)))
+            val bytes = requireNotNull(ModelGroupAvatarValue.pngBytes(value))
+            val decoded = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size))
+            assertEquals(0, Color.alpha(decoded.getPixel(0, 0)))
+            assertEquals(255, Color.alpha(decoded.getPixel(decoded.width / 2, decoded.height / 2)))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun `an unreadable URI is refused rather than stored broken`() {
         val context = RuntimeEnvironment.getApplication()
         assertNull(

@@ -36,11 +36,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.openminis.app.agent.SoulIcon
-import com.openminis.app.agent.SoulStore
-import com.openminis.app.ui.chat.SparkleColor1
-import com.openminis.app.ui.chat.SparkleColor2
-import com.openminis.app.ui.components.SoulAvatarGlyph
+import com.openminis.app.groups.ChatGroupIdentity
+import com.openminis.app.ui.chat.ChatGroupIdentityAvatar
 import com.openminis.app.ui.theme.LocalChatPalette
 import java.text.DateFormat
 import java.util.Date
@@ -53,14 +50,31 @@ import java.util.Locale
  * centre line — and a hairline below. Shared by the long image and the PDF.
  */
 @Composable
-internal fun ChatExportHeaderView(title: String, subtitle: List<String>, widthDp: Float, pageColor: Color) {
+internal fun ChatExportHeaderView(
+    title: String,
+    subtitle: List<String>,
+    widthDp: Float,
+    pageColor: Color,
+    /**
+     * [T-chat-group-identity] Frozen identity of the exported turn (or of the
+     * chat the export describes). The header shows the SAME group/model the
+     * in-chat reply header shows, so a shared image cannot claim a different
+     * speaker than the chat it came from.
+     *
+     * Null renders the shared fallback glyph — deliberately NOT the per-chat
+     * SOUL identity: chat attribution is per message now, and a single global
+     * avatar in the header would reintroduce exactly the mislabelling this
+     * feature removes.
+     */
+    identity: ChatGroupIdentity? = null,
+) {
     val palette = LocalChatPalette.current
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.width(widthDp.dp).background(pageColor).padding(horizontal = 16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ExportAvatar()
+            ExportAvatar(identity)
             // Takes the width the brand leaves, so "model · date" wraps only when
             // it truly runs into the brand.
             Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
@@ -133,30 +147,18 @@ private fun SubtitleLine(parts: List<String>, color: Color) {
 }
 
 /**
- * The assistant's avatar as the chat header resolves it — the user's SOUL icon
- * (image or emoji), else the default gradient sparkle — drawn as a 28dp circle with a
- * hairline ring: an image fills it, a glyph sits centred on a light disc.
+ * [T-chat-group-identity] The export's avatar = the chat header's avatar.
+ *
+ * Same renderer (`ModelGroupAvatar`) as every in-chat identity surface, at the
+ * same 28dp, with no backdrop painted: a transparent custom picture stays
+ * transparent on the page instead of picking up a tile behind it.
  */
 @Composable
-private fun ExportAvatar() {
-    val palette = LocalChatPalette.current
-    val icon = SoulStore.cachedMetadata.value.icon
-    val isImage = remember(icon) { SoulIcon.decode(icon) != null }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(AVATAR)
-            .clip(CircleShape)
-            .background(palette.secondaryBg)
-            .border(0.5.dp, palette.separator, CircleShape),
-    ) {
-        SoulAvatarGlyph(
-            icon = icon,
-            sizeDp = if (isImage) AVATAR else AVATAR * 0.55f,
-            emojiSp = 14.sp,
-            sparkleTint = Brush.linearGradient(listOf(SparkleColor1, SparkleColor2)),
-        )
-    }
+private fun ExportAvatar(identity: ChatGroupIdentity?) {
+    ChatGroupIdentityAvatar(
+        identity = identity ?: ChatGroupIdentity.NONE,
+        size = AVATAR,
+    )
 }
 
 private val AVATAR = 28.dp
