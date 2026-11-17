@@ -44,7 +44,7 @@ internal class CtxRun(val scenario: CtxScenario, val session: CtxSession, val li
  *  - CONFIRM: no agreed expectation yet (catalog: "待与用户确认预期"); reported only;
  *  - HOLDS: expected and true today.
  */
-internal class CtxDesired(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
+class CtxDesired internal constructor(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
     enum class Kind { GAP, JVM, CONFIRM, HOLDS }
 }
 
@@ -151,7 +151,7 @@ object CtxScenarios {
         s.toolResults(*calls.map { it to s.readImage(file, path) }.toTypedArray())
     }
 
-    val all: List<CtxScenario> by lazy { listOf(
+    internal val all: List<CtxScenario> by lazy { listOf(
         CtxScenario(
             "C01", "plain text question and answer",
             catalogCurrent = "text only, same on both platforms (to test)", catalogDesired = "same",

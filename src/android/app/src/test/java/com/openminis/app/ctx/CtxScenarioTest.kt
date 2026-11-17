@@ -71,9 +71,9 @@ class CtxScenarioTest(private val id: String) {
         }
     }
 
-    data class DesiredResult(val text: String, val kind: CtxDesired.Kind, val ref: String?, val status: String)
+    internal data class DesiredResult(val text: String, val kind: CtxDesired.Kind, val ref: String?, val status: String)
 
-    data class Result(val id: String, val rows: List<List<String>>, val desired: List<DesiredResult>, val facts: Map<String, Any?>)
+    internal data class Result(val id: String, val rows: List<List<String>>, val desired: List<DesiredResult>, val facts: Map<String, Any?>)
 
     @Test fun scenario() {
         val sc = CtxScenarios.all.single { it.id == id }
