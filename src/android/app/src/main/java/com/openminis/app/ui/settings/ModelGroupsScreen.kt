@@ -671,7 +671,6 @@ private fun LazyListScope.agentLoopModelsSectionItems(
             MinisOutlinedButton(
                 onClick = onAddModelsTap,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Icon(
@@ -685,7 +684,6 @@ private fun LazyListScope.agentLoopModelsSectionItems(
             MinisOutlinedButton(
                 onClick = onAddGroupsTap,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Icon(

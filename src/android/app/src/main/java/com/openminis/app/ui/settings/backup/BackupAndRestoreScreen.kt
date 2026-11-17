@@ -543,12 +543,12 @@ private fun BackupTab(
             // guarded against is answered in words, not by a dead button.
             enabled = running || (selected.isNotEmpty() && passphraseValid),
             colors = if (running) {
-                androidx.compose.material3.ButtonDefaults.buttonColors(
+                com.openminis.app.ui.components.MinisButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
                 )
             } else {
-                androidx.compose.material3.ButtonDefaults.buttonColors()
+                com.openminis.app.ui.components.MinisButtonDefaults.buttonColors()
             },
             modifier = Modifier.fillMaxWidth(),
         ) {

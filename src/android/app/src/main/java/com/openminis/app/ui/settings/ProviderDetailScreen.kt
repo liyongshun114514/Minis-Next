@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.ButtonDefaults
+import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1238,7 +1238,6 @@ private fun ApiKeyCredentialBlock(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) {
                 Text(stringResource(R.string.common_cancel))
             }
@@ -1351,7 +1350,6 @@ private fun ManualBearerTokenSection(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) {
                 Text(stringResource(R.string.common_cancel))
             }

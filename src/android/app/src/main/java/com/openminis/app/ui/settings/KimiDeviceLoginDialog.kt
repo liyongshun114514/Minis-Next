@@ -16,12 +16,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,107 +76,107 @@ fun KimiDeviceLoginDialog(
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    OverlayDialog(
+        show = true,
         onDismissRequest = onCancel,
-        title = { Text(title) },
-        text = {
-            Column {
+        title = title,
+    ) {
+    Column {
+        Text(
+            instructions,
+            style = MiuixTheme.textStyles.body1,
+        )
+        riskNotice?.let {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                it,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.error,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        // The user code — monospace, tap to copy.
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MiuixTheme.colorScheme.surfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    clipboard.setText(AnnotatedString(userCode))
+                    copied = true
+                },
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+            ) {
                 Text(
-                    instructions,
-                    style = MaterialTheme.typography.bodyMedium,
+                    userCode,
+                    style = MiuixTheme.textStyles.headline2.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                    ),
                 )
-                riskNotice?.let {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                // The user code — monospace, tap to copy.
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboard.setText(AnnotatedString(userCode))
-                            copied = true
-                        },
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                    ) {
-                        Text(
-                            userCode,
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                            ),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Icon(
-                            if (copied) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
-                            contentDescription = stringResource(R.string.kimi_login_copy_code),
-                            tint = if (copied) {
-                                androidx.compose.ui.graphics.Color(0xFF34C759)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            // In-app browser, consistent with Claude/Codex/xAI.
-                            val customTabsIntent = CustomTabsIntent.Builder()
-                                .setShowTitle(true)
-                                .build()
-                            customTabsIntent.launchUrl(context, verificationUrl.toUri())
-                        }
-                        .padding(vertical = 8.dp),
-                ) {
-                    Icon(
-                        Icons.Default.OpenInBrowser,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.kimi_login_open_verification),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.kimi_login_waiting),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    if (copied) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.kimi_login_copy_code),
+                    tint = if (copied) {
+                        androidx.compose.ui.graphics.Color(0xFF34C759)
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceContainerVariant
+                    },
+                    modifier = Modifier.size(18.dp),
+                )
             }
-        },
-        confirmButton = {},
-        dismissButton = {
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    // In-app browser, consistent with Claude/Codex/xAI.
+                    val customTabsIntent = CustomTabsIntent.Builder()
+                        .setShowTitle(true)
+                        .build()
+                    customTabsIntent.launchUrl(context, verificationUrl.toUri())
+                }
+                .padding(vertical = 8.dp),
+        ) {
+            Icon(
+                Icons.Default.OpenInBrowser,
+                contentDescription = null,
+                tint = MiuixTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.kimi_login_open_verification),
+                color = MiuixTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 2.dp,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.kimi_login_waiting),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             MinisTextButton(onClick = onCancel) {
                 Text(stringResource(R.string.common_cancel))
             }
-        },
-    )
+        }
+    }
+    }
 }
