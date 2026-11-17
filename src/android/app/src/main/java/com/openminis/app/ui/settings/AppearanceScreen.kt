@@ -49,10 +49,10 @@ import androidx.compose.material.icons.outlined.ScreenLockPortrait
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -338,7 +338,7 @@ fun AppearanceScreen(
                         onThemeChanged(idx)
                     },
                     leading = {
-                        androidx.compose.material3.Icon(
+                        Icon(
                             row.icon,
                             contentDescription = null,
                             tint = row.tint,
@@ -373,7 +373,7 @@ fun AppearanceScreen(
                         prefs.edit().putInt(KEY_LAUNCH_SESSION, idx).apply()
                     },
                     leading = {
-                        androidx.compose.material3.Icon(
+                        Icon(
                             row.icon,
                             contentDescription = null,
                             tint = row.tint,
@@ -407,13 +407,13 @@ fun AppearanceScreen(
                     },
                     leading = {
                         if (idx == 0) {
-                            androidx.compose.material3.Icon(
+                            Icon(
                                 Icons.AutoMirrored.Outlined.KeyboardReturn,
                                 contentDescription = null,
                                 tint = tilePurple,
                             )
                         } else {
-                            androidx.compose.material3.Icon(
+                            Icon(
                                 Icons.AutoMirrored.Outlined.Send,
                                 contentDescription = null,
                                 tint = tileGreen,
@@ -646,7 +646,7 @@ fun AppearanceScreen(
                             .putInt(KEY_FONT_APP_BASE, 0)
                             .apply()
                     }) {
-                        Text(stringResource(R.string.appearance_font_reset), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.appearance_font_reset), color = MiuixTheme.colorScheme.error)
                     }
                 }
             }
@@ -759,9 +759,9 @@ fun AppearanceScreen(
                                 .border(
                                     width = if (isSelected) 2.dp else 0.5.dp,
                                     color = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
+                                        MiuixTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.outlineVariant
+                                        MiuixTheme.colorScheme.dividerLine
                                     },
                                     shape = RoundedCornerShape(18.dp),
                                 ),
@@ -788,7 +788,7 @@ fun AppearanceScreen(
                                     Icon(
                                         Icons.Filled.CheckCircle,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = MiuixTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp),
                                     )
                                 }
@@ -796,12 +796,12 @@ fun AppearanceScreen(
                         }
                         Text(
                             stringResource(option.titleRes),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MiuixTheme.textStyles.body2,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
+                                MiuixTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurface
+                                MiuixTheme.colorScheme.onSurface
                             },
                         )
                     }
@@ -869,15 +869,15 @@ private fun FontScaleSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(label, style = MiuixTheme.textStyles.body2)
             Text(
                 currentLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary,
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("A", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("A", fontSize = 12.sp, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             Slider(
                 value = sliderPos,
                 onValueChange = { sliderPos = it },
@@ -892,11 +892,11 @@ private fun FontScaleSliderRow(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
-            Text("A", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("A", fontSize = 20.sp, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
     }
     if (showDivider) {
-        val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        val dividerColor = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)
         androidx.compose.foundation.layout.Box(
             modifier = Modifier
                 .fillMaxWidth()

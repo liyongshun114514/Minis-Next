@@ -52,14 +52,13 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -81,7 +80,6 @@ import com.openminis.app.R
 import com.openminis.app.ui.components.openExternalUrl
 import com.openminis.app.i18n.uppercaseForDisplay
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -147,8 +145,8 @@ fun SettingsScreen(
     var showFeedbackSheet by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.settings_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -157,8 +155,10 @@ fun SettingsScreen(
                         )
                     }
                 },
+                color = MiuixTheme.colorScheme.background,
             )
         },
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -435,48 +435,49 @@ fun SettingsScreen(
         }
     }
 
-    if (showFeedbackSheet) {
-        ModalBottomSheet(onDismissRequest = { showFeedbackSheet = false }) {
-            Column(modifier = Modifier.padding(bottom = 24.dp)) {
-                FeedbackSheetItem(
-                    icon = Icons.Outlined.BugReport,
-                    title = stringResource(R.string.kairos_issue_submit_title),
-                    subtitle = stringResource(R.string.kairos_repo_subtitle),
-                    onClick = {
-                        showFeedbackSheet = false
-                        openExternalUrl(context, buildBugReportUrl())
-                    },
-                )
-                FeedbackSheetItem(
-                    icon = Icons.AutoMirrored.Outlined.Send,
-                    title = stringResource(R.string.kairos_telegram_title),
-                    subtitle = stringResource(R.string.kairos_telegram_subtitle),
-                    onClick = {
-                        showFeedbackSheet = false
-                        openExternalUrl(context, KairosBrandLinks.TELEGRAM_URL)
-                    },
-                )
-                FeedbackSheetItem(
-                    icon = Icons.Outlined.Email,
-                    title = stringResource(R.string.kairos_email_title),
-                    subtitle = stringResource(R.string.kairos_email_value),
-                    onClick = {
-                        showFeedbackSheet = false
-                        openExternalUrl(context, buildFeedbackMailto())
-                    },
-                )
-                // [Minis Next brand] Upstream stays one tap away from the feedback
-                // sheet so the fork never looks like an original project.
-                FeedbackSheetItem(
-                    icon = Icons.Outlined.Code,
-                    title = stringResource(R.string.kairos_feedback_upstream_title),
-                    subtitle = stringResource(R.string.kairos_feedback_upstream_subtitle),
-                    onClick = {
-                        showFeedbackSheet = false
-                        openExternalUrl(context, KairosBrandLinks.UPSTREAM_REPOSITORY_URL)
-                    },
-                )
-            }
+    OverlayBottomSheet(
+        show = showFeedbackSheet,
+        onDismissRequest = { showFeedbackSheet = false },
+    ) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            FeedbackSheetItem(
+                icon = Icons.Outlined.BugReport,
+                title = stringResource(R.string.kairos_issue_submit_title),
+                subtitle = stringResource(R.string.kairos_repo_subtitle),
+                onClick = {
+                    showFeedbackSheet = false
+                    openExternalUrl(context, buildBugReportUrl())
+                },
+            )
+            FeedbackSheetItem(
+                icon = Icons.AutoMirrored.Outlined.Send,
+                title = stringResource(R.string.kairos_telegram_title),
+                subtitle = stringResource(R.string.kairos_telegram_subtitle),
+                onClick = {
+                    showFeedbackSheet = false
+                    openExternalUrl(context, KairosBrandLinks.TELEGRAM_URL)
+                },
+            )
+            FeedbackSheetItem(
+                icon = Icons.Outlined.Email,
+                title = stringResource(R.string.kairos_email_title),
+                subtitle = stringResource(R.string.kairos_email_value),
+                onClick = {
+                    showFeedbackSheet = false
+                    openExternalUrl(context, buildFeedbackMailto())
+                },
+            )
+            // [Minis Next brand] Upstream stays one tap away from the feedback
+            // sheet so the fork never looks like an original project.
+            FeedbackSheetItem(
+                icon = Icons.Outlined.Code,
+                title = stringResource(R.string.kairos_feedback_upstream_title),
+                subtitle = stringResource(R.string.kairos_feedback_upstream_subtitle),
+                onClick = {
+                    showFeedbackSheet = false
+                    openExternalUrl(context, KairosBrandLinks.UPSTREAM_REPOSITORY_URL)
+                },
+            )
         }
     }
 }
@@ -498,21 +499,21 @@ private fun FeedbackSheetItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.main,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -634,8 +635,8 @@ private fun SettingsSection(
         // Section header
         Text(
             text = title.uppercaseForDisplay(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             fontWeight = FontWeight.Medium,
             letterSpacing = 0.5.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -647,7 +648,7 @@ private fun SettingsSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(color = MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(color = MiuixTheme.colorScheme.surfaceContainer),
         ) {
             content()
         }
@@ -656,8 +657,8 @@ private fun SettingsSection(
         if (footer != null) {
             Text(
                 text = footer,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 lineHeight = 16.sp,
             )
@@ -715,14 +716,14 @@ private fun SettingsItem(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.main,
+                    color = MiuixTheme.colorScheme.onSurface,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -736,7 +737,7 @@ private fun SettingsItem(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -748,7 +749,7 @@ private fun SettingsItem(
                     .fillMaxWidth()
                     .padding(start = 58.dp, end = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
