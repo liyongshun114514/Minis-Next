@@ -23,15 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,7 +52,6 @@ import com.openminis.app.ui.components.DialogTextField
  * GLOBAL.md cannot be deleted.
  * Mirrors iOS MemoryManagementView.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryManagementScreen(
     memoryRepository: MemoryRepository,
@@ -107,12 +103,12 @@ fun MemoryManagementScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(stringResource(R.string.memory_empty_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.memory_empty_title), style = MiuixTheme.textStyles.subtitle)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.memory_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         } else {
@@ -129,7 +125,7 @@ fun MemoryManagementScreen(
                     if (index < files.size - 1) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 16.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
                         )
                     }
                 }
@@ -138,29 +134,29 @@ fun MemoryManagementScreen(
         }
     }
 
-    // Delete confirmation
-    if (deleteFileName != null) {
-        AlertDialog(
-            onDismissRequest = { deleteFileName = null },
-            title = { Text(stringResource(R.string.memory_delete_confirm_title, deleteFileName ?: "")) },
-            text = { Text(stringResource(R.string.memory_delete_confirm_text)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    deleteFileName?.let {
-                        memoryRepository.deleteFile(it)
-                        files = memoryRepository.listAllFiles()
-                    }
-                    deleteFileName = null
-                }) {
-                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
+    OverlayDialog(
+        title = stringResource(R.string.memory_delete_confirm_title, deleteFileName ?: ""),
+        summary = stringResource(R.string.memory_delete_confirm_text),
+        show = deleteFileName != null,
+        onDismissRequest = { deleteFileName = null },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { deleteFileName = null }) {
+                Text(stringResource(R.string.common_cancel))
+            }
+            MinisTextButton(onClick = {
+                deleteFileName?.let {
+                    memoryRepository.deleteFile(it)
+                    files = memoryRepository.listAllFiles()
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { deleteFileName = null }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+                deleteFileName = null
+            }) {
+                Text(stringResource(R.string.common_delete), color = MiuixTheme.colorScheme.error)
+            }
+        }
     }
 }
 
@@ -208,7 +204,7 @@ private fun MemoryFileRow(
                 ) {
                     Text(
                         file.name,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MiuixTheme.textStyles.main,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -216,8 +212,8 @@ private fun MemoryFileRow(
                     if (file.fileSize.isNotBlank()) {
                         Text(
                             file.fileSize,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                             maxLines = 1,
                             softWrap = false,
                         )
@@ -226,8 +222,8 @@ private fun MemoryFileRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     file.modifiedDate,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     softWrap = false,
                 )
@@ -237,8 +233,8 @@ private fun MemoryFileRow(
                     file.preview,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = MiuixTheme.textStyles.body2,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
@@ -255,7 +251,7 @@ private fun MemoryFileRow(
                 Icon(
                     Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.common_delete),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                    tint = MiuixTheme.colorScheme.error.copy(alpha = 0.8f),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -263,7 +259,7 @@ private fun MemoryFileRow(
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
         )
     }
@@ -282,7 +278,6 @@ private fun MemoryFileRow(
  * visible removes the dependency entirely; saveFile is idempotent so a
  * no-op Save on unchanged content is harmless.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryFileEditScreen(
     fileName: String,
@@ -305,41 +300,33 @@ fun MemoryFileEditScreen(
         content = memoryRepository.readFile(fileName)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(fileName) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
-                    }
-                },
-                actions = {
-                    // [T-global-memory-save-always-visible] Always render Save —
-                    // no hasChanges gate (see KDoc above).
-                    MinisTextButton(onClick = {
-                        try {
-                            memoryRepository.saveFile(fileName, content)
-                            saveError = null
-                            android.widget.Toast.makeText(
-                                context,
-                                savedToastText,
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
-                        } catch (e: Exception) {
-                            saveError = e.message
-                        }
-                    }) {
-                        Text("Save")
-                    }
-                },
-            )
+    SettingsScaffold(
+        title = fileName,
+        onBack = onBack,
+        scrollable = false,
+        actions = {
+            // [T-global-memory-save-always-visible] Always render Save —
+            // no hasChanges gate (see KDoc above).
+            MinisTextButton(onClick = {
+                try {
+                    memoryRepository.saveFile(fileName, content)
+                    saveError = null
+                    android.widget.Toast.makeText(
+                        context,
+                        savedToastText,
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                } catch (e: Exception) {
+                    saveError = e.message
+                }
+            }) {
+                Text("Save")
+            }
         },
-    ) { padding ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -351,7 +338,7 @@ fun MemoryFileEditScreen(
                 onValueChange = {
                     content = it
                 },
-                textStyle = MaterialTheme.typography.bodySmall.copy(
+                textStyle = MiuixTheme.textStyles.body2.copy(
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 ),
                 placeholder = stringResource(R.string.memory_editor_placeholder),
@@ -363,8 +350,8 @@ fun MemoryFileEditScreen(
             if (isGlobal) {
                 Text(
                     stringResource(R.string.memory_global_footer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
@@ -372,8 +359,8 @@ fun MemoryFileEditScreen(
             if (saveError != null) {
                 Text(
                     saveError!!,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }

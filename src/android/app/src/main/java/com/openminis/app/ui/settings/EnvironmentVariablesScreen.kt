@@ -22,15 +22,13 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,7 +53,6 @@ import com.openminis.app.deeplink.DeepLinkCoordinator
  * in each row's trailing slot. Add affordance lives in the top-bar
  * `actions` slot (T75-part1 already moved it off the FAB).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EnvironmentVariablesScreen(
     envVarRepository: EnvVarRepository,
@@ -136,13 +133,13 @@ fun EnvironmentVariablesScreen(
                 ) {
                     Text(
                         stringResource(R.string.env_var_empty_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.subtitle,
+                        color = MiuixTheme.colorScheme.onSurface,
                     )
                     Text(
                         stringResource(R.string.env_var_empty_action),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             } else {
@@ -168,8 +165,8 @@ fun EnvironmentVariablesScreen(
                     SettingsRow(
                         title = entry.key,
                         subtitle = subtitleText,
-                        titleColor = if (entry.enabled) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                        titleColor = if (entry.enabled) MiuixTheme.colorScheme.onSurface
+                        else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                         showChevron = false,
                         showDivider = index < entries.size - 1,
                         onClick = { editEntryId = entry.id },
@@ -215,7 +212,7 @@ fun EnvironmentVariablesScreen(
                                         Icons.Default.Delete,
                                         contentDescription = stringResource(R.string.common_delete),
                                         modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.error,
+                                        tint = MiuixTheme.colorScheme.error,
                                     )
                                 }
                             }
@@ -229,51 +226,63 @@ fun EnvironmentVariablesScreen(
     }
 
     // Add/Edit sheet
-    if (showAddSheet || editEntryId != null) {
-        val editing = editEntryId?.let { id -> entries.find { it.id == id } }
-        EnvVarFormSheet(
-            editEntry = editing,
-            prefillKey = prefill?.key.orEmpty(),
-            prefillValue = prefill?.value.orEmpty(),
-            prefillNote = prefill?.note.orEmpty(),
-            highlightEnabled = highlightEnabled,
-            envVarRepository = envVarRepository,
-            onDismiss = {
-                showAddSheet = false
-                editEntryId = null
-                prefill = null
-                highlightEnabled = false
-            },
-        )
+    val formActive = showAddSheet || editEntryId != null
+    val editing = editEntryId?.let { id -> entries.find { it.id == id } }
+    OverlayBottomSheet(
+        show = formActive,
+        title = if (editing != null) stringResource(R.string.env_var_form_edit_title) else stringResource(R.string.env_var_form_add_title),
+        onDismissRequest = {
+            showAddSheet = false
+            editEntryId = null
+            prefill = null
+            highlightEnabled = false
+        },
+    ) {
+        if (formActive) {
+            EnvVarFormSheetContent(
+                editEntry = editing,
+                prefillKey = prefill?.key.orEmpty(),
+                prefillValue = prefill?.value.orEmpty(),
+                prefillNote = prefill?.note.orEmpty(),
+                highlightEnabled = highlightEnabled,
+                envVarRepository = envVarRepository,
+                onDismiss = {
+                    showAddSheet = false
+                    editEntryId = null
+                    prefill = null
+                    highlightEnabled = false
+                },
+            )
+        }
     }
 
     // Delete confirmation
-    if (deleteEntryId != null) {
-        val entry = entries.find { it.id == deleteEntryId }
-        AlertDialog(
-            onDismissRequest = { deleteEntryId = null },
-            title = { Text("Delete ${entry?.key ?: "variable"}?") },
-            text = { Text(stringResource(R.string.env_var_delete_confirm_text)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    deleteEntryId?.let { envVarRepository.delete(it) }
-                    deleteEntryId = null
-                }) {
-                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { deleteEntryId = null }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+    val deleteEntry = deleteEntryId?.let { id -> entries.find { it.id == id } }
+    OverlayDialog(
+        title = "Delete ${deleteEntry?.key ?: "variable"}?",
+        summary = stringResource(R.string.env_var_delete_confirm_text),
+        show = deleteEntryId != null,
+        onDismissRequest = { deleteEntryId = null },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { deleteEntryId = null }) {
+                Text(stringResource(R.string.common_cancel))
+            }
+            MinisTextButton(onClick = {
+                deleteEntryId?.let { envVarRepository.delete(it) }
+                deleteEntryId = null
+            }) {
+                Text(stringResource(R.string.common_delete), color = MiuixTheme.colorScheme.error)
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EnvVarFormSheet(
+private fun EnvVarFormSheetContent(
     editEntry: EnvVarRepository.EnvVarEntry?,
     envVarRepository: EnvVarRepository,
     onDismiss: () -> Unit,
@@ -282,23 +291,20 @@ private fun EnvVarFormSheet(
     prefillNote: String = "",
     highlightEnabled: Boolean = false,
 ) {
-    // Fully expanded: half-expanded, the Enabled switch and Save sat below the
-    // screen edge on a 6" phone.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var keyText by remember { mutableStateOf(editEntry?.key ?: prefillKey) }
+    var keyText by remember(editEntry?.id, prefillKey) { mutableStateOf(editEntry?.key ?: prefillKey) }
     // A deep link that opened an existing variable with a value / note fills
     // those in; an empty one leaves what is stored.
-    var valueText by remember {
+    var valueText by remember(editEntry?.id, prefillValue) {
         mutableStateOf(
             prefillValue.takeIf { editEntry != null && it.isNotEmpty() }
                 ?: editEntry?.let { envVarRepository.getValue(it.key) }
                 ?: prefillValue
         )
     }
-    var noteText by remember {
+    var noteText by remember(editEntry?.id, prefillNote) {
         mutableStateOf(prefillNote.takeIf { editEntry != null && it.isNotEmpty() } ?: editEntry?.note ?: prefillNote)
     }
-    var enabled by remember { mutableStateOf(editEntry?.enabled ?: true) }
+    var enabled by remember(editEntry?.id) { mutableStateOf(editEntry?.enabled ?: true) }
 
     val isEditing = editEntry != null
     val normalizedKey = keyText.trim().uppercase()
@@ -312,26 +318,18 @@ private fun EnvVarFormSheet(
         else -> null
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = if (isEditing) stringResource(R.string.env_var_form_edit_title) else stringResource(R.string.env_var_form_add_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
 
             Text(
                 text = stringResource(R.string.env_var_field_name),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(6.dp))
             DialogTextField(
@@ -339,21 +337,21 @@ private fun EnvVarFormSheet(
                 onValueChange = { keyText = it.uppercase() },
                 singleLine = true,
                 isError = errorText != null,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             )
             if (errorText != null) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = errorText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.error,
                 )
             }
 
             Text(
                 text = stringResource(R.string.env_var_field_value),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(6.dp))
             DialogTextField(
@@ -361,7 +359,7 @@ private fun EnvVarFormSheet(
                 onValueChange = { valueText = it },
                 singleLine = false,
                 maxLines = 3,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             )
 
             // iOS parity: optional human-readable note explaining what the
@@ -369,8 +367,8 @@ private fun EnvVarFormSheet(
             // list row below the value.
             Text(
                 text = stringResource(R.string.env_var_field_note),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(6.dp))
             DialogTextField(
@@ -387,7 +385,7 @@ private fun EnvVarFormSheet(
                         .fillMaxWidth()
                         .then(
                             if (highlightEnabled && !enabled) Modifier.background(
-                                MaterialTheme.colorScheme.primaryContainer,
+                                MiuixTheme.colorScheme.primaryContainer,
                                 RoundedCornerShape(12.dp),
                             ) else Modifier
                         )
@@ -396,8 +394,8 @@ private fun EnvVarFormSheet(
                     if (highlightEnabled && !enabled) {
                         Text(
                             text = stringResource(R.string.env_var_disabled_highlight),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
@@ -407,15 +405,15 @@ private fun EnvVarFormSheet(
                     ) {
                         Text(
                             text = stringResource(R.string.env_var_enabled_toggle),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MiuixTheme.textStyles.main,
                             modifier = Modifier.weight(1f),
                         )
                         Switch(checked = enabled, onCheckedChange = { enabled = it })
                     }
                     Text(
                         text = stringResource(R.string.env_var_enabled_footer),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -446,5 +444,4 @@ private fun EnvVarFormSheet(
                 }
             }
         }
-    }
 }

@@ -19,11 +19,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,7 +40,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
 import com.openminis.app.config.ConfigRisk
 import com.openminis.app.config.confirm.ConfigConfirmationGate
@@ -84,90 +82,82 @@ private fun ConfigConfirmDialog(change: PendingConfigChange) {
     // rows are toggled.
     val summaryLines = if (workingItems.size > 1) configSummaryLines(workingItems, localize) else emptyList()
 
-    AlertDialog(
-        onDismissRequest = { /* force explicit Apply / Cancel */ },
-        properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-        ),
-        title = {
-            // [T-config-confirm-i18n] iOS ConfigConfirmSheet keys "Confirm %lld
-            // changes" / "Confirm change"; no plural variants there either.
-            Text(
-                if (workingItems.size > 1) {
-                    stringResource(R.string.config_confirm_title_many, workingItems.size)
-                } else {
-                    stringResource(R.string.config_confirm_title_one)
-                },
-            )
+    WindowDialog(
+        show = true,
+        title = if (workingItems.size > 1) {
+            stringResource(R.string.config_confirm_title_many, workingItems.size)
+        } else {
+            stringResource(R.string.config_confirm_title_one)
         },
-        text = {
-            Column {
-                if (!change.caption.isNullOrEmpty()) {
-                    Text(
-                        text = change.caption,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
+        onDismissRequest = null,
+    ) {
+        Column {
+            if (!change.caption.isNullOrEmpty()) {
+                Text(
+                    text = change.caption,
+                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(workingItems, key = { it.id }) { item ->
+                    ConfirmRow(
+                        item = item,
+                        localize = localize,
+                        onToggle = { newValue ->
+                            val idx = workingItems.indexOfFirst { it.id == item.id }
+                            if (idx >= 0) {
+                                workingItems[idx] = workingItems[idx].copy(isApproved = newValue)
+                            }
+                        },
                     )
                 }
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(workingItems, key = { it.id }) { item ->
-                        ConfirmRow(
-                            item = item,
-                            localize = localize,
-                            onToggle = { newValue ->
-                                val idx = workingItems.indexOfFirst { it.id == item.id }
-                                if (idx >= 0) {
-                                    workingItems[idx] = workingItems[idx].copy(isApproved = newValue)
-                                }
-                            },
-                        )
-                    }
-                    if (summaryLines.isNotEmpty()) {
-                        item(key = "readable-summary") {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.config_audit_summary_header),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                summaryLines.forEach { line ->
-                                    Row(verticalAlignment = Alignment.Top) {
-                                        Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(text = line, style = MaterialTheme.typography.bodyMedium)
-                                    }
+                if (summaryLines.isNotEmpty()) {
+                    item(key = "readable-summary") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.config_audit_summary_header),
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            summaryLines.forEach { line ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text("•", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(text = line, style = MiuixTheme.textStyles.body2)
                                 }
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            val applyText = stringResource(
-                if (approvedCount == 0) R.string.config_confirm_reject_all else R.string.config_confirm_apply,
-            )
-            MinisTextButton(
-                onClick = { ConfigConfirmationGate.userApprove(workingItems.toList()) },
-                enabled = workingItems.isNotEmpty(),
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
             ) {
-                Text(applyText)
+                MinisTextButton(onClick = { ConfigConfirmationGate.userReject() }) {
+                    Text(stringResource(R.string.config_confirm_cancel))
+                }
+                val applyText = stringResource(
+                    if (approvedCount == 0) R.string.config_confirm_reject_all else R.string.config_confirm_apply,
+                )
+                MinisTextButton(
+                    onClick = { ConfigConfirmationGate.userApprove(workingItems.toList()) },
+                    enabled = workingItems.isNotEmpty(),
+                ) {
+                    Text(applyText)
+                }
             }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = { ConfigConfirmationGate.userReject() }) {
-                Text(stringResource(R.string.config_confirm_cancel))
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -180,7 +170,7 @@ private fun ConfirmRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surfaceVariant,
+                MiuixTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(8.dp),
             )
             .padding(8.dp)
@@ -193,7 +183,7 @@ private fun ConfirmRow(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = item.displayName,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
             )
             Spacer(Modifier.weight(1f))
             SettingsSwitch(
@@ -203,22 +193,22 @@ private fun ConfirmRow(
         }
         Text(
             text = item.path,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Row(verticalAlignment = Alignment.Top) {
             if (item.oldDisplay.isNotEmpty()) {
                 Text(
                     text = item.oldDisplay,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 2,
                 )
                 Spacer(Modifier.width(6.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline,
+                    tint = MiuixTheme.colorScheme.outline,
                     modifier = Modifier.padding(top = 2.dp),
                 )
                 Spacer(Modifier.width(6.dp))
@@ -226,7 +216,7 @@ private fun ConfirmRow(
             if (item.newDisplay.isNotEmpty()) {
                 Text(
                     text = item.newDisplay,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                     color = riskColor(item.risk),
                     maxLines = 2,
                 )
@@ -242,21 +232,21 @@ private fun ConfirmRow(
                 Icon(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(top = 3.dp).height(14.dp).width(14.dp),
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = readable,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurface,
                 )
             }
         }
         when (item.risk) {
             ConfigRisk.DESTRUCTIVE -> RiskHint(
                 text = stringResource(R.string.config_confirm_risk_destructive),
-                color = MaterialTheme.colorScheme.error,
+                color = MiuixTheme.colorScheme.error,
                 icon = Icons.Filled.Warning,
             )
             // iOS: exclamationmark.circle for a sensitive change.
@@ -273,12 +263,12 @@ private fun ConfirmRow(
 @Composable
 private fun VerbBadge(verb: String) {
     val color = when (verb.lowercase()) {
-        "remove", "delete" -> MaterialTheme.colorScheme.error
+        "remove", "delete" -> MiuixTheme.colorScheme.error
         "add", "create" -> Color(0xFF388E3C)
-        "hide" -> MaterialTheme.colorScheme.outline
+        "hide" -> MiuixTheme.colorScheme.outline
         "show" -> Color(0xFF1976D2)
         "revert" -> Color(0xFF8E5CD9)
-        else -> MaterialTheme.colorScheme.primary
+        else -> MiuixTheme.colorScheme.primary
     }
     Box(
         modifier = Modifier
@@ -287,7 +277,7 @@ private fun VerbBadge(verb: String) {
     ) {
         Text(
             text = verb.uppercase(),
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = MiuixTheme.textStyles.body2.copy(
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
             ),
@@ -306,13 +296,13 @@ private fun RiskHint(text: String, color: Color, icon: ImageVector) {
             modifier = Modifier.height(14.dp),
         )
         Spacer(Modifier.width(4.dp))
-        Text(text = text, style = MaterialTheme.typography.bodySmall, color = color)
+        Text(text = text, style = MiuixTheme.textStyles.body2, color = color)
     }
 }
 
 @Composable
 private fun riskColor(risk: ConfigRisk): Color = when (risk) {
-    ConfigRisk.DESTRUCTIVE -> MaterialTheme.colorScheme.error
+    ConfigRisk.DESTRUCTIVE -> MiuixTheme.colorScheme.error
     ConfigRisk.SENSITIVE -> Color(0xFFE65100)
-    ConfigRisk.NORMAL -> MaterialTheme.colorScheme.onSurface
+    ConfigRisk.NORMAL -> MiuixTheme.colorScheme.onSurface
 }
