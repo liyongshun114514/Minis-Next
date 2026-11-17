@@ -44,7 +44,7 @@ internal class CtxRun(val scenario: CtxScenario, val session: CtxSession, val li
  *  - CONFIRM: no agreed expectation yet (catalog: "待与用户确认预期"); reported only;
  *  - HOLDS: expected and true today.
  */
-class CtxDesired internal constructor(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
+internal class CtxDesired(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
     enum class Kind { GAP, JVM, CONFIRM, HOLDS }
 }
 
