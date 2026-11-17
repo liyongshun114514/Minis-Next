@@ -11500,66 +11500,7 @@ class ChatViewModel(
             // block on purpose: when both land in the same turn the "write the
             // deliverable now" instruction must be the last thing read.
             if (helperConfig != null) {
-                val steers = synchronized(pendingSteerMessages) {
-                    val out = pendingSteerMessages.toList()
-                    pendingSteerMessages.clear()
-                    out
-                }
-                if (steers.isNotEmpty()) {
-                    val note = steers.joinToString("\n") {
-                        ("[Course correction from the delegating agent] " + (it).toString())
-                    }
-                    // [T-android-subagent-steer-visible] Persist the correction
-                    // as a real user message in the CHILD's own transcript,
-                    // instead of only folding it into agentHistory.
-                    //
-                    // A steer is the parent doing what a person does when they
-                    // interject mid-task, so it belongs in the conversation the
-                    // same way. Appended to agentHistory alone it reached the
-                    // model and nothing else: opening the sub agent showed it
-                    // changing direction with nothing to explain why, and a
-                    // relaunch — which rebuilds agentHistory from the DB — lost
-                    // the instruction outright. Observed on device: three
-                    // "补充黄牛行情" steers were delivered (status=queued, all
-                    // consumed) and left no trace in any child transcript.
-                    //
-                    // Written as its own message rather than merged into the
-                    // preceding one, so it keeps its own row, timestamp and cell.
-                    // [T-android-bubble-anchor] Persisted BEFORE the bubble is
-                    // made, so the bubble can carry the row's id like every
-                    // other user bubble; retry / delete / edit find rows by it.
-                    val steerRow = runCatching {
-                        chatRepository.appendMessage(
-                            activeSessionId, "user",
-                            """[{"type":"text","value":${escapeJson(note)}}]""",
-                        )
-                    }.onFailure {
-                        AppLogger.warning(TAG, ("[subagent_task] steer persist failed: " + (it.message).toString()))
-                    }.getOrNull()
-                    agentHistory.add(LLMMessage(role = LLMMessage.Role.USER, content = note, dbMessageId = steerRow?.id))
-                    val steerUi = ChatMessage(
-                        id = steerRow?.id ?: "steer_${System.currentTimeMillis()}",
-                        role = "user",
-                        content = note,
-                    )
-                    // Insert BEFORE the assistant bubble this turn streams into,
-                    // not at the end. runAgentLoop appends that bubble before the
-                    // loop starts, so `messages` already ends with it — appending
-                    // would put the correction visually AFTER the reply it was
-                    // meant to steer, reading as though it arrived too late to
-                    // matter. It belongs where a person's interjection would go:
-                    // above the turn that answers it.
-                    withContext(Dispatchers.Main) {
-                        val cur = _messages.value
-                        val at = cur.indexOfLast { it.id == assistantId }
-                        _messages.value = if (at >= 0) {
-                            cur.subList(0, at) + steerUi + cur.subList(at, cur.size)
-                        } else {
-                            cur + steerUi
-                        }
-                    }
-                    AppLogger.info(TAG, ("[subagent_task] steer delivered count=" + (steers.size).toString() + " turn=" + (turn + 1).toString() + "/" + (turnCap).toString()))
-                }
+                deliverPendingSteers(turn, turnCap, assistantId)
             }
 
             // Context window management: offload large tool outputs in older
@@ -13888,122 +13829,19 @@ class ChatViewModel(
                             cancellable = name != "shell_execute" && !isDelegation,
                             onInterrupted = { ToolExecutionResult(ForegroundToolInterrupts.INTERRUPTED_RESULT, false) },
                         ) { executeTool(name, argsStr, id, allToolBlocks, assistantId, accumulatedText) }
-                        val toolInterrupted = toolRun.interrupted && !isDelegation
-                        val result = if (toolInterrupted && toolRun.value.output != ForegroundToolInterrupts.INTERRUPTED_RESULT) {
-                            toolRun.value.copy(output = ForegroundToolInterrupts.withInterruptNote(toolRun.value.output), success = false)
-                        } else {
-                            toolRun.value
-                        }
-                        if (toolInterrupted) AppLogger.info(TAG_STREAM, "[stop-tool] turn=$turn $name ${id.take(16)} stopped by the user (tool only)")
-                        android.util.Log.d("ToolChain[VM]", "[turn=$turn] executeTool END name=$name success=${result.success} title=${result.toolTitle} outputLen=${result.output.length} output=${result.output.take(200)}")
-
-                        // Record post-execution. WARNING text is appended to the tool
-                        // result so the model sees it on its next turn. No block here —
-                        // CRITICAL only fires from check() and we already returned above.
-                        val errMsgForDetector = if (!result.success) result.output else null
-                        val postRecord = toolLoopDetector.record(
-                            toolName = name,
-                            params = paramsMap,
-                            result = if (result.success) result.output else null,
-                            errorMessage = errMsgForDetector,
-                            toolCallId = id,
+                        finalizeToolSlotResult(
+                            turn = turn,
+                            id = id,
+                            name = name,
+                            args = args,
+                            paramsMap = paramsMap,
+                            titledTools = titledTools,
+                            truncationRepairTag = truncationRepairTag,
+                            toolRun = toolRun,
+                            isDelegation = isDelegation,
+                            allToolBlocks = allToolBlocks,
+                            resultParts = resultParts,
                         )
-                        val outputWithLoopWarning = if (postRecord.level == Level.WARNING && postRecord.message != null) {
-                            AppLogger.debug("ChatViewModel",
-                                "appending loop-warning to tool result name=$name key=${postRecord.warningKey}")
-                            "${result.output}\n\n${postRecord.message}"
-                        } else {
-                            result.output
-                        }
-                        // [T-tool-title-reminder] Same channel as the loop warning:
-                        // the detector counts titled calls with no tool_title and
-                        // hands back the soft reminder on the 1st, 11th, 21st… of them.
-                        val outputForLLM = if (toolLoopDetector.recordToolTitle(args, name in titledTools) != null) {
-                            Log.i(TAG, "[ToolTitleReminder] $name came back without tool_title — soft reminder appended")
-                            ToolTitleReminder.appending(outputWithLoopWarning)
-                        } else {
-                            outputWithLoopWarning
-                        }
-
-                        val blockIdx = allToolBlocks.indexOfFirst { it.id == id }
-                        if (blockIdx >= 0) {
-                            val elapsed = System.currentTimeMillis() - allToolBlocks[blockIdx].startTimeMs
-                            // Keep live-streamed content if it has more data than the truncated result.
-                            // T263: takeLast(80) was applied uniformly, but it was sized for
-                            // shell_execute (long stdout streams where the tail is what
-                            // matters). For tools whose first line carries metadata —
-                            // file_read's `[path | N bytes | M lines | showing A-B of M]`
-                            // banner, file_write/file_edit confirmations, memory_* /
-                            // browser_use structured headers — clipping the head dropped
-                            // the banner entirely. iOS routes file_read through a
-                            // dedicated branch (AIChatViewModel.swift:5229) and avoids
-                            // this; mirror that intent by gating the trim to shell_execute.
-                            val existingContent = allToolBlocks[blockIdx].content
-                            val resultContent = if (name == "shell_execute") {
-                                result.output.lines().takeLast(80).joinToString("\n")
-                            } else {
-                                result.output
-                            }
-                            val finalContent = if (existingContent.length > resultContent.length) existingContent else resultContent
-                            // [T-truncated-args-visibility #119] A call built from
-                            // truncated args must not render as a clean success — that
-                            // silence is the reported bug. Show it with the same weight
-                            // as the blocked path. Mirrors iOS ConcurrentTools.
-                            val finalStatus = when {
-                                toolInterrupted -> ToolBlockStatus.CANCELLED
-                                // [T-p2-background-helper] A background delegation returned
-                                // `status: running`: the block stays RUNNING so the tool bar
-                                // treats it as active; the completion hook flips it later.
-                                name == com.openminis.app.agent.jobs.HelperRunner.TOOL_NAME &&
-                                    com.openminis.app.agent.jobs.HelperRunner.isRunningPayload(result.output) -> ToolBlockStatus.RUNNING
-                                result.success && truncationRepairTag != null -> ToolBlockStatus.FAILED
-                                result.success -> ToolBlockStatus.SUCCESS
-                                result.timedOut -> ToolBlockStatus.TIMEOUT
-                                else -> ToolBlockStatus.FAILED
-                            }
-                            // T-bg-overlay phase 1: tool finished — drop the
-                            // notification's indeterminate progress bar so the
-                            // user can tell streaming has paused (LLM step) vs
-                            // a tool is in flight.
-                            // [T-overlay-glyph-typed-outcome] Pass the typed
-                            // outcome so the bg overlay glyph reflects the real
-                            // SUCCESS / TIMEOUT / FAILED result instead of
-                            // text-sniffing the stale "Running: foo" status.
-                            val toolOutcome = when (finalStatus) {
-                                ToolBlockStatus.SUCCESS -> com.openminis.app.service.ToolOutcome.Success
-                                ToolBlockStatus.TIMEOUT -> com.openminis.app.service.ToolOutcome.Timeout
-                                ToolBlockStatus.FAILED -> com.openminis.app.service.ToolOutcome.Error
-                                ToolBlockStatus.CANCELLED -> com.openminis.app.service.ToolOutcome.Cancelled
-                                else -> com.openminis.app.service.ToolOutcome.Unknown
-                            }
-                            SessionActivityTracker.clearToolRunning(toolOutcome)
-                            android.util.Log.d("ToolChain[VM]", "[turn=$turn] block[$blockIdx] status→$finalStatus title=${result.toolTitle} contentLen=${finalContent.length}")
-                            allToolBlocks[blockIdx] = allToolBlocks[blockIdx].copy(
-                                toolStatus = finalStatus,
-                                content = finalContent,
-                                toolTitle = result.toolTitle.ifEmpty { allToolBlocks[blockIdx].toolTitle },
-                                durationMs = elapsed,
-                                browserURL = result.pageURL ?: allToolBlocks[blockIdx].browserURL,
-                                imageFilePath = result.imageFilePath ?: allToolBlocks[blockIdx].imageFilePath,
-                            )
-                        }
-
-                        // [T-truncated-args-visibility #119] Tell the MODEL its own
-                        // arguments were altered. Writes never reach here (refused
-                        // above); this covers the tools we still run repaired, where the
-                        // model would otherwise assume the args it emitted were the args
-                        // that ran. Mirrors iOS ConcurrentTools.
-                        val outputForLLMWithNote = if (truncationRepairTag != null) {
-                            outputForLLM + "\n\n<system-reminder>The argument stream for this call was " +
-                                "truncated in transit and auto-closed by the client (repair strategy: " +
-                                "$truncationRepairTag) before execution. The arguments actually used may be " +
-                                "incomplete — verify the result and re-issue the call with complete " +
-                                "arguments if anything is missing.</system-reminder>"
-                        } else {
-                            outputForLLM
-                        }
-
-                        resultParts.add(ToolResultWrap.part(id, name, outputForLLMWithNote, result))
                             } finally {
                                 SessionActivityTracker.toolFinished()
                             }
@@ -14243,6 +14081,46 @@ class ChatViewModel(
         } else {
             AppLogger.info(TAG_STREAM, "runAgentLoop EXIT (loop body ended naturally)")
         }
+    }
+
+    private suspend fun deliverPendingSteers(
+        turn: Int,
+        turnCap: Int,
+        assistantId: String,
+    ) {
+        val steers = synchronized(pendingSteerMessages) {
+            val out = pendingSteerMessages.toList()
+            pendingSteerMessages.clear()
+            out
+        }
+        if (steers.isEmpty()) return
+        val note = steers.joinToString("\n") {
+            ("[Course correction from the delegating agent] " + (it).toString())
+        }
+        val steerRow = runCatching {
+            chatRepository.appendMessage(
+                activeSessionId, "user",
+                """[{"type":"text","value":${escapeJson(note)}}]""",
+            )
+        }.onFailure {
+            AppLogger.warning(TAG, ("[subagent_task] steer persist failed: " + (it.message).toString()))
+        }.getOrNull()
+        agentHistory.add(LLMMessage(role = LLMMessage.Role.USER, content = note, dbMessageId = steerRow?.id))
+        val steerUi = ChatMessage(
+            id = steerRow?.id ?: "steer_${System.currentTimeMillis()}",
+            role = "user",
+            content = note,
+        )
+        withContext(Dispatchers.Main) {
+            val cur = _messages.value
+            val at = cur.indexOfLast { it.id == assistantId }
+            _messages.value = if (at >= 0) {
+                cur.subList(0, at) + steerUi + cur.subList(at, cur.size)
+            } else {
+                cur + steerUi
+            }
+        }
+        AppLogger.info(TAG, ("[subagent_task] steer delivered count=" + (steers.size).toString() + " turn=" + (turn + 1).toString() + "/" + (turnCap).toString()))
     }
 
     private fun logSendContextShape() {

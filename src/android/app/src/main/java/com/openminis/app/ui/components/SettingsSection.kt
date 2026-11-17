@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.openminis.app.i18n.uppercaseForDisplay
@@ -35,14 +35,13 @@ fun SettingsSection(
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Text(
             text = title.uppercaseForDisplay(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
         )
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
+            color = MiuixTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(content = content)
@@ -61,6 +60,6 @@ fun SettingsRowDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
         modifier = modifier.padding(horizontal = 16.dp),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.65f),
     )
 }

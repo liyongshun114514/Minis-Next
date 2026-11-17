@@ -9,10 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,30 +63,29 @@ fun MinisAlertDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            color = MiuixTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.headline1,
+                    color = MiuixTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
                 )
                 if (text != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 24.dp),
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 val confirmColor = if (isDestructive) {
-                    MaterialTheme.colorScheme.error
+                    MiuixTheme.colorScheme.error
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    MiuixTheme.colorScheme.primary
                 }
                 if (neutralText != null && onNeutral != null) {
                     // Stacked layout. Order runs least-committal first
