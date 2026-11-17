@@ -21,9 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material.icons.filled.Check
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.BatteryFull
@@ -31,14 +30,13 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,8 +140,8 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.bg_section_header)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.bg_section_header),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -263,30 +261,20 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
                 pluralStringResource(R.plurals.settings_scheduled_countdown_minutes, 15, 15),
                 stringResource(R.string.settings_scheduled_countdown_always),
             )
-            var countdownMenu by remember { mutableStateOf(false) }
-            Box {
-                BgRow(
-                    icon = Icons.Outlined.Timer,
-                    iconColor = Color(0xFFFF9500),
-                    title = stringResource(R.string.settings_scheduled_countdown),
-                    subtitle = countdownLabels.getOrNull(scheduledCountdownLead),
-                    onClick = { countdownMenu = true },
-                )
-                DropdownMenu(expanded = countdownMenu, onDismissRequest = { countdownMenu = false }) {
-                    countdownLabels.forEachIndexed { i, label ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            trailingIcon = {
-                                if (i == scheduledCountdownLead) Icon(Icons.Default.Check, contentDescription = null)
-                            },
-                            onClick = {
-                                countdownMenu = false
-                                backgroundRepo.setScheduledCountdownLead(i)
-                            },
-                        )
-                    }
-                }
-            }
+            OverlaySpinnerPreference(
+                title = stringResource(R.string.settings_scheduled_countdown),
+                items = countdownLabels.map { DropdownItem(text = it) },
+                selectedIndex = scheduledCountdownLead.coerceIn(countdownLabels.indices),
+                onSelectedIndexChange = { backgroundRepo.setScheduledCountdownLead(it) },
+                startAction = {
+                    Icon(
+                        imageVector = Icons.Outlined.Timer,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9500),
+                        modifier = Modifier.padding(end = 14.dp),
+                    )
+                },
+            )
             BgFooter(stringResource(R.string.settings_scheduled_countdown_footer))
 
             Spacer(Modifier.size(16.dp))
@@ -341,7 +329,7 @@ private fun BgSectionTitle(text: String) {
     Text(
         text = text.uppercaseForDisplay(),
         fontSize = 12.sp,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp),
     )
 }
@@ -351,7 +339,7 @@ private fun BgFooter(text: String) {
     Text(
         text = text,
         fontSize = 12.sp,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp),
     )
 }
@@ -373,7 +361,7 @@ private fun BgToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -397,7 +385,7 @@ private fun BgToggleRow(
             text = title,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = rowAlpha),
+            color = MiuixTheme.colorScheme.onSurface.copy(alpha = rowAlpha),
             modifier = Modifier.weight(1f),
         )
         SettingsSwitch(
@@ -421,7 +409,7 @@ private fun BgRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -446,13 +434,13 @@ private fun BgRow(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
