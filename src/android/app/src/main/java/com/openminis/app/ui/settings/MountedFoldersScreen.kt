@@ -30,22 +30,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderShared
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Text
-import com.openminis.app.ui.components.MinisTextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +69,7 @@ import com.openminis.app.R
 import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.data.SafMountHelper
 import com.openminis.app.ui.components.DialogTextField
+import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import kotlinx.coroutines.launch
 import com.openminis.app.i18n.uppercaseForDisplay
@@ -84,7 +82,6 @@ import com.openminis.app.i18n.uppercaseForDisplay
  * Each entry shows an R/W / Locked / Read-only badge, the linux mount path,
  * and the resolved host path. Tap → MountDetailScreen. Swipe → remove.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MountedFoldersScreen(
     store: MountedFoldersStore,
@@ -160,8 +157,8 @@ fun MountedFoldersScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_mount_external_folders)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.settings_mount_external_folders),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -195,8 +192,10 @@ fun MountedFoldersScreen(
                         Icon(Icons.Filled.Add, contentDescription = null)
                     }
                 },
+                color = MiuixTheme.colorScheme.background,
             )
         },
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -264,13 +263,13 @@ fun MountedFoldersScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.errorContainer)
+                                        .background(MiuixTheme.colorScheme.errorContainer)
                                         .padding(horizontal = 16.dp),
                                     contentAlignment = Alignment.CenterEnd,
                                 ) {
                                     Text(
                                         text = stringResource(R.string.delete),
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        color = MiuixTheme.colorScheme.onErrorContainer,
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                 }
@@ -278,7 +277,7 @@ fun MountedFoldersScreen(
                             enableDismissFromStartToEnd = false,
                         ) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                color = MiuixTheme.colorScheme.surfaceContainer,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -291,7 +290,7 @@ fun MountedFoldersScreen(
                             Text(
                                 text = stringResource(R.string.mount_folders_limit_reached),
                                 color = Color(0xFFFF9500),
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MiuixTheme.textStyles.body2,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                             )
                         }
@@ -302,33 +301,42 @@ fun MountedFoldersScreen(
     }
 
     val pickedUri = pendingPickedUri
-    if (pickedUri != null) {
-        AddMountSheet(
-            sourceUri = pickedUri,
-            initialName = pendingDefaultName,
-            onDismiss = { pendingPickedUri = null },
-            onConfirm = { name, allowWrite ->
-                scope.launch {
-                    val added = store.add(pickedUri, name, allowWrite)
-                    if (added == null) {
-                        addError = context.getString(R.string.mount_add_failed)
+    OverlayBottomSheet(
+        show = pickedUri != null,
+        title = stringResource(R.string.mount_add_dialog_title),
+        onDismissRequest = { pendingPickedUri = null },
+    ) {
+        if (pickedUri != null) {
+            AddMountSheetContent(
+                sourceUri = pickedUri,
+                initialName = pendingDefaultName,
+                onDismiss = { pendingPickedUri = null },
+                onConfirm = { name, allowWrite ->
+                    scope.launch {
+                        val added = store.add(pickedUri, name, allowWrite)
+                        if (added == null) {
+                            addError = context.getString(R.string.mount_add_failed)
+                        }
+                        pendingPickedUri = null
                     }
-                    pendingPickedUri = null
-                }
-            },
-        )
+                },
+            )
+        }
     }
 
-    addError?.let { msg ->
-        AlertDialog(
-            onDismissRequest = { addError = null },
-            confirmButton = {
-                MinisTextButton(onClick = { addError = null }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            text = { Text(msg) },
-        )
+    OverlayDialog(
+        summary = addError,
+        show = addError != null,
+        onDismissRequest = { addError = null },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { addError = null }) {
+                Text(stringResource(android.R.string.ok))
+            }
+        }
     }
 
     // [T-android-mount-picker-landing] GH#93: the system picker used to open at
@@ -342,37 +350,38 @@ fun MountedFoldersScreen(
     // cannot add a back button to it — what we CAN do is (a) explain the
     // restriction in our own words before the user leaves our UI, and
     // (b) land them somewhere selectable (see initialPickerUri()).
-    if (showPickerIntro) {
-        AlertDialog(
-            onDismissRequest = { showPickerIntro = false },
-            title = { Text(stringResource(R.string.mount_picker_intro_title)) },
-            text = { Text(stringResource(R.string.mount_picker_intro_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showPickerIntro = false
-                    // [T-android-mount-picker-anf] OpenDocumentTree fires
-                    // ACTION_OPEN_DOCUMENT_TREE, and some OEM ROMs ship without a
-                    // resolvable DocumentsUI (field crash: OnePlus 8T / ColorOS,
-                    // ActivityNotFoundException straight out of
-                    // startActivityForResult). safeLaunchPicker catches it and
-                    // tells the user instead of dying; it deliberately does NOT
-                    // pre-check with resolveActivity (see its doc).
-                    pickerLauncher.safeLaunchPicker(
-                        initialPickerUri(),
-                        context,
-                        "MountedFolders",
-                        R.string.mount_picker_unavailable,
-                    )
-                }) {
-                    Text(stringResource(R.string.mount_picker_intro_continue))
-                }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showPickerIntro = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+    OverlayDialog(
+        title = stringResource(R.string.mount_picker_intro_title),
+        summary = stringResource(R.string.mount_picker_intro_message),
+        show = showPickerIntro,
+        onDismissRequest = { showPickerIntro = false },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { showPickerIntro = false }) {
+                Text(stringResource(R.string.cancel))
+            }
+            MinisTextButton(onClick = {
+                showPickerIntro = false
+                // [T-android-mount-picker-anf] OpenDocumentTree fires
+                // ACTION_OPEN_DOCUMENT_TREE, and some OEM ROMs ship without a
+                // resolvable DocumentsUI (field crash: OnePlus 8T / ColorOS,
+                // ActivityNotFoundException straight out of
+                // startActivityForResult). safeLaunchPicker catches it and
+                // tells the user instead of dying; it deliberately does NOT
+                // pre-check with resolveActivity (see its doc).
+                pickerLauncher.safeLaunchPicker(
+                    initialPickerUri(),
+                    context,
+                    "MountedFolders",
+                    R.string.mount_picker_unavailable,
+                )
+            }) {
+                Text(stringResource(R.string.mount_picker_intro_continue))
+            }
+        }
     }
 }
 
@@ -406,7 +415,7 @@ private fun initialPickerUri(): Uri? = runCatching {
 @Composable
 private fun InfoBanner() {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MiuixTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -414,8 +423,8 @@ private fun InfoBanner() {
     ) {
         Text(
             text = stringResource(R.string.mount_folders_info_banner),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.padding(14.dp),
         )
     }
@@ -424,7 +433,7 @@ private fun InfoBanner() {
 @Composable
 private fun AllFilesAccessBanner(onClick: () -> Unit) {
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
+        color = MiuixTheme.colorScheme.errorContainer,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
@@ -435,15 +444,15 @@ private fun AllFilesAccessBanner(onClick: () -> Unit) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = stringResource(R.string.mount_all_files_access_required),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = MiuixTheme.colorScheme.onErrorContainer,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.mount_all_files_access_required_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onErrorContainer,
             )
         }
     }
@@ -485,19 +494,19 @@ private fun EmptyState() {
         Icon(
             imageVector = Icons.Outlined.FolderShared,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.size(48.dp),
         )
         Spacer(Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.mount_folders_empty_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MiuixTheme.textStyles.subtitle,
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = stringResource(R.string.mount_folders_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -512,15 +521,15 @@ private fun ListHeader(count: Int, atCapacity: Boolean) {
     ) {
         Text(
             text = stringResource(R.string.mount_folders_title).uppercaseForDisplay(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.weight(1f))
         Text(
             text = "$count / ${MountedFoldersStore.MAX_MOUNTS}",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (atCapacity) Color(0xFFFF9500) else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = if (atCapacity) Color(0xFFFF9500) else MiuixTheme.colorScheme.onSurfaceContainerVariant,
             fontFamily = FontFamily.Monospace,
         )
     }
@@ -549,7 +558,7 @@ private fun MountRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = entry.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -560,9 +569,9 @@ private fun MountRow(
             }
             Text(
                 text = "/var/minis/mounts/${entry.name}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -572,8 +581,8 @@ private fun MountRow(
             val source = entry.sourceDisplayName.ifEmpty { stringResource(R.string.mount_path_unavailable) }
             Text(
                 text = "← $source",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.outline,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -600,58 +609,46 @@ private fun AccessBadge(entry: MountedFoldersStore.Entry) {
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddMountSheet(
+private fun AddMountSheetContent(
     sourceUri: Uri,
     initialName: String,
     onDismiss: () -> Unit,
     onConfirm: (name: String, allowWrite: Boolean) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var name by remember { mutableStateOf(initialName) }
     var allowWrite by remember { mutableStateOf(true) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.mount_add_dialog_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(16.dp))
 
             Text(
                 text = stringResource(R.string.mount_add_source_path),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = SafMountHelper.treeDisplayPath(sourceUri),
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 fontFamily = FontFamily.Monospace,
             )
 
             Spacer(Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.mount_add_name_label),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(6.dp))
             DialogTextField(
@@ -662,8 +659,8 @@ private fun AddMountSheet(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.mount_add_name_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -671,12 +668,12 @@ private fun AddMountSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.mount_add_allow_writes),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MiuixTheme.textStyles.main,
                     )
                     Text(
                         text = stringResource(R.string.mount_add_allow_writes_desc),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
                 Spacer(Modifier.width(12.dp))
@@ -701,7 +698,6 @@ private fun AddMountSheet(
             }
             Spacer(Modifier.height(20.dp))
         }
-    }
 }
 
 internal fun isValidMountName(raw: String): Boolean {

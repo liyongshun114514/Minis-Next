@@ -4,9 +4,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +28,6 @@ import com.openminis.app.ui.components.MinisButton
  * (T78). Single Identity section grouping the Model ID + Display Name
  * fields, with a footer caption explaining what the fields are for.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCustomModelScreen(
     instanceId: String,
@@ -61,7 +59,7 @@ fun AddCustomModelScreen(
                     onValueChange = { modelId = it },
                     placeholder = stringResource(R.string.add_custom_model_eg_id_placeholder),
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(Modifier.height(12.dp))
                 RowLabel(text = stringResource(R.string.add_custom_model_display_name_optional))

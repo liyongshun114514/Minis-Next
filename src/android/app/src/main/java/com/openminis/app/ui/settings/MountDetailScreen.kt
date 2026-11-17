@@ -20,16 +20,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderShared
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,7 +60,6 @@ import com.openminis.app.ui.components.MinisTextButton
  * Save is enabled only when there are pending changes AND the new
  * name is valid.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MountDetailScreen(
     store: MountedFoldersStore,
@@ -93,8 +90,8 @@ fun MountDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.mount_detail_title)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.mount_detail_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -114,8 +111,10 @@ fun MountDetailScreen(
                         Text(stringResource(R.string.save))
                     }
                 },
+                color = MiuixTheme.colorScheme.background,
             )
         },
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -130,8 +129,8 @@ fun MountDetailScreen(
             Spacer(Modifier.height(20.dp))
             Text(
                 text = stringResource(R.string.mount_add_name_label),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(6.dp))
             SectionTextField(
@@ -144,21 +143,21 @@ fun MountDetailScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.mount_detail_name_invalid),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.error,
                 )
             } else {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.mount_add_name_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
 
             Spacer(Modifier.height(20.dp))
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                color = MiuixTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -169,12 +168,12 @@ fun MountDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.mount_add_allow_writes),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MiuixTheme.textStyles.main,
                         )
                         Text(
                             text = stringResource(R.string.mount_add_allow_writes_desc),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                     Spacer(Modifier.width(12.dp))
@@ -198,7 +197,7 @@ fun MountDetailScreen(
             Spacer(Modifier.height(12.dp))
             ActionRow(
                 icon = Icons.Outlined.Folder,
-                tint = MaterialTheme.colorScheme.error,
+                tint = MiuixTheme.colorScheme.error,
                 label = stringResource(R.string.mount_unmount_confirm),
                 destructive = true,
                 onClick = { showUnmountConfirm = true },
@@ -208,38 +207,39 @@ fun MountDetailScreen(
         }
     }
 
-    if (showUnmountConfirm) {
-        AlertDialog(
-            onDismissRequest = { showUnmountConfirm = false },
-            title = { Text(stringResource(R.string.mount_unmount_title)) },
-            text = { Text(stringResource(R.string.mount_unmount_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showUnmountConfirm = false
-                    scope.launch {
-                        store.remove(entry.id)
-                        onBack()
-                    }
-                }) {
-                    Text(
-                        stringResource(R.string.mount_unmount_confirm),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+    OverlayDialog(
+        title = stringResource(R.string.mount_unmount_title),
+        summary = stringResource(R.string.mount_unmount_message),
+        show = showUnmountConfirm,
+        onDismissRequest = { showUnmountConfirm = false },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { showUnmountConfirm = false }) {
+                Text(stringResource(R.string.cancel))
+            }
+            MinisTextButton(onClick = {
+                showUnmountConfirm = false
+                scope.launch {
+                    store.remove(entry.id)
+                    onBack()
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showUnmountConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }) {
+                Text(
+                    stringResource(R.string.mount_unmount_confirm),
+                    color = MiuixTheme.colorScheme.error,
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun HeaderCard(entry: MountedFoldersStore.Entry) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MiuixTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -265,15 +265,15 @@ private fun HeaderCard(entry: MountedFoldersStore.Entry) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = entry.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.subtitle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "/var/minis/mounts/${entry.name}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body2,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -283,8 +283,8 @@ private fun HeaderCard(entry: MountedFoldersStore.Entry) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "← $source",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.outline,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -302,7 +302,7 @@ private fun ActionRow(
     onClick: () -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MiuixTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -316,7 +316,7 @@ private fun ActionRow(
             Icon(imageVector = icon, contentDescription = null, tint = tint)
             Text(
                 text = label,
-                color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                color = if (destructive) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
             )
         }

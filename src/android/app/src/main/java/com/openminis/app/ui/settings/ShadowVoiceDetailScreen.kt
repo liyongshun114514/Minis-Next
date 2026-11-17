@@ -13,10 +13,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,7 +95,7 @@ fun ShadowVoiceDetailScreen(
             ) {
                 Text(
                     text = stringResource(R.string.voice_service_show_in_voice_services),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     modifier = Modifier.weight(1f),
                 )
                 SettingsSwitch(
@@ -109,8 +108,8 @@ fun ShadowVoiceDetailScreen(
         }
         Text(
             text = stringResource(R.string.voice_service_shared_credential_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.padding(horizontal = 30.dp, vertical = 8.dp),
         )
         Spacer(Modifier.height(40.dp))
@@ -135,13 +134,13 @@ private fun InfoRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Spacer(Modifier.weight(1f))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MiuixTheme.textStyles.body2,
             maxLines = 1,
         )
     }
@@ -160,19 +159,19 @@ private fun VoiceModelRow(entry: ModelEntry, isInput: Boolean, onClick: () -> Un
             imageVector = if (isInput) Icons.Outlined.Mic else Icons.AutoMirrored.Outlined.VolumeUp,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Spacer(Modifier.width(12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = entry.model.displayName,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
                 fontWeight = FontWeight.Medium,
             )
             Text(
                 text = entry.baseModel.id,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                 maxLines = 1,
             )
         }
