@@ -18,8 +18,8 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -63,10 +63,10 @@ fun AboutScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .background(MiuixTheme.colorScheme.surfaceContainer)
                     .border(
                         width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = MiuixTheme.colorScheme.outline,
                         shape = CircleShape,
                     ),
                 contentAlignment = Alignment.Center,
@@ -81,7 +81,7 @@ fun AboutScreen(onBack: () -> Unit) {
             }
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
+                style = MiuixTheme.textStyles.headline1,
                 fontWeight = FontWeight.Bold,
             )
             Text(
@@ -90,8 +90,8 @@ fun AboutScreen(onBack: () -> Unit) {
                     BuildConfig.VERSION_NAME,
                     BuildConfig.VERSION_CODE.toString(),
                 ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             // [T-android-about-build-date] Selectable so it can be copied
             // into a bug report.
@@ -99,14 +99,14 @@ fun AboutScreen(onBack: () -> Unit) {
             SelectionContainer {
                 Text(
                     stringResource(R.string.about_built_format, buildDate),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                 )
             }
             Text(
                 stringResource(R.string.about_minis_tagline),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
@@ -114,8 +114,8 @@ fun AboutScreen(onBack: () -> Unit) {
             // follows in its own section below.
             Text(
                 stringResource(R.string.kairos_maintainer_line),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -184,8 +184,8 @@ fun AboutScreen(onBack: () -> Unit) {
         }
         Text(
             stringResource(R.string.kairos_upstream_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.8f),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
 
@@ -202,8 +202,8 @@ fun AboutScreen(onBack: () -> Unit) {
 private fun ExternalLinkIcon() {
     Text(
         "↗",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.body2,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
     )
 }
 

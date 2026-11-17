@@ -1,14 +1,22 @@
 package com.openminis.app.ui.settings
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.tools.AgentToolSwitch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 
 /**
  * [T-tools-granular-switches] Settings › Agent Runtime › Tools — port of iOS
@@ -83,32 +91,30 @@ fun AgentToolsSettingsScreen(onBack: () -> Unit) {
                 )
             }
         }
-        if (showWaitPicker) {
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { showWaitPicker = false },
-                title = { androidx.compose.material3.Text(stringResource(R.string.user_ask_setting_wait)) },
-                text = {
-                    androidx.compose.foundation.layout.Column {
-                        for (m in com.openminis.app.agent.userask.UserAskSettingsSpec.TIMEOUT_CHOICES) {
-                            SettingsChoiceRow(
-                                title = userAskWaitLabel(m),
-                                selected = m == userAskTimeout,
-                                onSelect = {
-                                    userAskTimeout = m
-                                    com.openminis.app.agent.userask.UserAskSettings.setTimeoutMinutes(context, m)
-                                    showWaitPicker = false
-                                },
-                                showDivider = false,
-                            )
-                        }
-                    }
-                },
-                confirmButton = {},
-                dismissButton = {
-                    androidx.compose.material3.TextButton(onClick = { showWaitPicker = false }) {
-                        androidx.compose.material3.Text(stringResource(R.string.user_ask_cancel))
-                    }
-                },
+        OverlayDialog(
+            title = stringResource(R.string.user_ask_setting_wait),
+            show = showWaitPicker,
+            onDismissRequest = { showWaitPicker = false },
+        ) {
+            Column {
+                for (m in com.openminis.app.agent.userask.UserAskSettingsSpec.TIMEOUT_CHOICES) {
+                    SettingsChoiceRow(
+                        title = userAskWaitLabel(m),
+                        selected = m == userAskTimeout,
+                        onSelect = {
+                            userAskTimeout = m
+                            com.openminis.app.agent.userask.UserAskSettings.setTimeoutMinutes(context, m)
+                            showWaitPicker = false
+                        },
+                        showDivider = false,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            TextButton(
+                text = stringResource(R.string.user_ask_cancel),
+                onClick = { showWaitPicker = false },
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         // [T-android-subagent-settings-parity] The agents switch is NOT here.

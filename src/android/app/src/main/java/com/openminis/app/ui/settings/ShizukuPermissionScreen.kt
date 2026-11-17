@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,7 +81,7 @@ fun ShizukuPermissionScreen(onBack: () -> Unit) {
                 trailing = {
                     Text(
                         text = stringResource(stateBadge(snap.state)),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MiuixTheme.textStyles.body2,
                         color = stateColor(snap.state),
                     )
                 },
@@ -227,10 +227,10 @@ private fun stateBadge(s: ShizukuManager.State): Int = when (s) {
 
 @Composable
 private fun stateColor(s: ShizukuManager.State): Color = when (s) {
-    ShizukuManager.State.READY -> MaterialTheme.colorScheme.primary
-    ShizukuManager.State.NEED_PERMISSION -> MaterialTheme.colorScheme.tertiary
-    ShizukuManager.State.NOT_RUNNING -> MaterialTheme.colorScheme.tertiary
-    ShizukuManager.State.NOT_INSTALLED -> MaterialTheme.colorScheme.error
+    ShizukuManager.State.READY -> MiuixTheme.colorScheme.primary
+    ShizukuManager.State.NEED_PERMISSION -> MiuixTheme.colorScheme.primaryVariant
+    ShizukuManager.State.NOT_RUNNING -> MiuixTheme.colorScheme.primaryVariant
+    ShizukuManager.State.NOT_INSTALLED -> MiuixTheme.colorScheme.error
 }
 
 /**
