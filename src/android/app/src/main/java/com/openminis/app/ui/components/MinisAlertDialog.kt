@@ -77,7 +77,7 @@ fun MinisAlertDialog(
                     Text(
                         text = text,
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariant,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(horizontal = 24.dp),
                     )
                 }
