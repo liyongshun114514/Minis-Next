@@ -71,7 +71,7 @@ class CtxScenarioTest(private val id: String) {
         }
     }
 
-    private data class DesiredResult(val text: String, val kind: CtxDesired.Kind, val ref: String?, val status: String)
+    internal data class DesiredResult(val text: String, val kind: CtxDesired.Kind, val ref: String?, val status: String)
 
     internal data class Result(val id: String, val rows: List<List<String>>, val desired: List<DesiredResult>, val facts: Map<String, Any?>)
 
