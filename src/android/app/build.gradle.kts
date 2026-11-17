@@ -196,6 +196,12 @@ android {
         noCompress += listOf("tar.gz", "proot-aarch64")
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
