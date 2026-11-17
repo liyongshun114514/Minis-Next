@@ -1,13 +1,18 @@
 package com.openminis.app.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -114,7 +119,7 @@ fun AutoCompactSettingsScreen(
                 Text(
                     stringResource(R.string.auto_compact_model_none),
                     modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body2,
                 )
             }
         }
@@ -144,9 +149,9 @@ fun AutoCompactSettingsScreen(
                 value = modelValue,
                 subtitle = modelWarning,
                 valueColor = if (modelWarning != null) {
-                    MaterialTheme.colorScheme.error
+                    MiuixTheme.colorScheme.error
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                 },
                 onClick = { pickerTarget = CompactPickerTarget.SUMMARY },
                 showDivider = selectedId != null,
@@ -162,91 +167,96 @@ fun AutoCompactSettingsScreen(
         }
     }
 
-    if (showThresholdDialog && thresholdDialogEntryId != null) {
-        val editingEntryId = thresholdDialogEntryId!!
-        val tooLargeMessage = stringResource(
-            R.string.auto_compact_threshold_error_too_large,
-            formatTokens(Int.MAX_VALUE),
-        )
-        val errorMessage = when (thresholdError) {
-            ThresholdError.NONE -> null
-            ThresholdError.NOT_POSITIVE -> stringResource(R.string.auto_compact_threshold_error_positive)
-            ThresholdError.TOO_LARGE -> tooLargeMessage
-        }
-        AlertDialog(
-            onDismissRequest = { showThresholdDialog = false },
-            title = { Text(stringResource(R.string.auto_compact_threshold_dialog_title)) },
-            text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = thresholdDraft,
-                        onValueChange = {
-                            thresholdDraft = it
-                            // Any edit clears the old complaint; the new text
-                            // is validated when Save is pressed, so the draft is
-                            // never discarded on an invalid keystroke.
+    val activeThresholdDialog = showThresholdDialog && thresholdDialogEntryId != null
+    val editingEntryId = thresholdDialogEntryId
+    val tooLargeMessage = stringResource(
+        R.string.auto_compact_threshold_error_too_large,
+        formatTokens(Int.MAX_VALUE),
+    )
+    val errorMessage = when (thresholdError) {
+        ThresholdError.NONE -> null
+        ThresholdError.NOT_POSITIVE -> stringResource(R.string.auto_compact_threshold_error_positive)
+        ThresholdError.TOO_LARGE -> tooLargeMessage
+    }
+    OverlayDialog(
+        title = stringResource(R.string.auto_compact_threshold_dialog_title),
+        show = activeThresholdDialog,
+        onDismissRequest = { showThresholdDialog = false },
+    ) {
+        if (editingEntryId != null) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                TextField(
+                    value = thresholdDraft,
+                    onValueChange = {
+                        thresholdDraft = it
+                        // Any edit clears the old complaint; the new text
+                        // is validated when Save is pressed, so the draft is
+                        // never discarded on an invalid keystroke.
+                        thresholdError = ThresholdError.NONE
+                    },
+                    label = stringResource(R.string.auto_compact_threshold_dialog_label),
+                    singleLine = true,
+                    colors = TextFieldDefaults.textFieldColors(
+                        labelColor = if (errorMessage != null) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSecondaryContainer,
+                        borderColor = if (errorMessage != null) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
+                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = errorMessage
+                        ?: stringResource(R.string.auto_compact_threshold_dialog_hint),
+                    style = MiuixTheme.textStyles.body2,
+                    color = if (errorMessage != null) {
+                        MiuixTheme.colorScheme.error
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceContainerVariant
+                    },
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                )
+                // Only offered when a number is actually set; when blank the
+                // field already IS the default, so a reset button would do
+                // nothing visible.
+                if (config.thresholdFor(editingEntryId) != null) {
+                    MinisTextButton(
+                        onClick = {
+                            thresholdDraft = ""
                             thresholdError = ThresholdError.NONE
+                            AutoCompactPrefs.setThresholdTokens(context, editingEntryId, null)
+                            showThresholdDialog = false
                         },
-                        label = { Text(stringResource(R.string.auto_compact_threshold_dialog_label)) },
-                        placeholder = { Text(stringResource(R.string.auto_compact_threshold_default)) },
-                        singleLine = true,
-                        isError = errorMessage != null,
-                        supportingText = {
-                            Text(
-                                text = errorMessage
-                                    ?: stringResource(R.string.auto_compact_threshold_dialog_hint),
-                                color = if (errorMessage != null) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    // Only offered when a number is actually set; when blank the
-                    // field already IS the default, so a reset button would do
-                    // nothing visible.
-                    if (config.thresholdFor(editingEntryId) != null) {
-                        MinisTextButton(
-                            onClick = {
-                                thresholdDraft = ""
-                                thresholdError = ThresholdError.NONE
-                                AutoCompactPrefs.setThresholdTokens(context, editingEntryId, null)
-                                showThresholdDialog = false
-                            },
-                            modifier = Modifier.padding(top = 4.dp),
-                        ) {
-                            Text(stringResource(R.string.auto_compact_threshold_use_default))
-                        }
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        Text(stringResource(R.string.auto_compact_threshold_use_default))
                     }
                 }
-            },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        // Validation is a pure function so the failure path is
-                        // testable: on invalid input the dialog stays open with
-                        // the draft intact, and nothing is persisted.
-                        when (val parsed = parseThresholdInput(thresholdDraft)) {
-                            is ThresholdParseResult.Valid -> {
-                                AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)
-                                showThresholdDialog = false
-                            }
-                            is ThresholdParseResult.Invalid -> thresholdError = parsed.error
-                        }
-                    },
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    Text(stringResource(R.string.common_save))
+                    MinisTextButton(onClick = { showThresholdDialog = false }) {
+                        Text(stringResource(R.string.common_cancel))
+                    }
+                    MinisTextButton(
+                        onClick = {
+                            // Validation is a pure function so the failure path is
+                            // testable: on invalid input the dialog stays open with
+                            // the draft intact, and nothing is persisted.
+                            when (val parsed = parseThresholdInput(thresholdDraft)) {
+                                is ThresholdParseResult.Valid -> {
+                                    AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)
+                                    showThresholdDialog = false
+                                }
+                                is ThresholdParseResult.Invalid -> thresholdError = parsed.error
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.common_save))
+                    }
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showThresholdDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     pickerTarget?.let { target ->

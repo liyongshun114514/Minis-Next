@@ -5,8 +5,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,14 +23,13 @@ import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.RestartAlt
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +58,6 @@ import kotlinx.coroutines.launch
  * settings page; we re-poll while the screen is visible so coming
  * back from system Settings refreshes the row automatically.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SystemPermissionsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -109,15 +110,17 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.system_permissions_title)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.system_permissions_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
+                color = MiuixTheme.colorScheme.background,
             )
         },
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -324,41 +327,42 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                 )
                 SettingsRow(
                     icon = Icons.Outlined.DeleteSweep,
-                    iconColor = MaterialTheme.colorScheme.error,
+                    iconColor = MiuixTheme.colorScheme.error,
                     title = stringResource(R.string.voice_correction_clear),
-                    titleColor = MaterialTheme.colorScheme.error,
+                    titleColor = MiuixTheme.colorScheme.error,
                     onClick = { showClearCorrectionConfirm = true },
                     showDivider = false,
                 )
             }
 
-            if (showClearCorrectionConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showClearCorrectionConfirm = false },
-                    title = { Text(stringResource(R.string.voice_correction_clear_title)) },
-                    confirmButton = {
-                        MinisTextButton(onClick = {
-                            showClearCorrectionConfirm = false
-                            com.openminis.app.speech.correction.VoiceCorrection
-                                .clearAllData(context)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.voice_correction_cleared),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }) {
-                            Text(
-                                stringResource(R.string.voice_correction_clear),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    },
-                    dismissButton = {
-                        MinisTextButton(onClick = { showClearCorrectionConfirm = false }) {
-                            Text(stringResource(R.string.voice_correction_consent_not_now))
-                        }
-                    },
-                )
+            OverlayDialog(
+                title = stringResource(R.string.voice_correction_clear_title),
+                show = showClearCorrectionConfirm,
+                onDismissRequest = { showClearCorrectionConfirm = false },
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    MinisTextButton(onClick = { showClearCorrectionConfirm = false }) {
+                        Text(stringResource(R.string.voice_correction_consent_not_now))
+                    }
+                    MinisTextButton(onClick = {
+                        showClearCorrectionConfirm = false
+                        com.openminis.app.speech.correction.VoiceCorrection
+                            .clearAllData(context)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.voice_correction_cleared),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }) {
+                        Text(
+                            stringResource(R.string.voice_correction_clear),
+                            color = MiuixTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         }
     }

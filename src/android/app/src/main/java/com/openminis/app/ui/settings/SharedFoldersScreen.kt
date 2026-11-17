@@ -18,14 +18,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Psychology
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +46,6 @@ import com.openminis.app.R
  * browse UI. Skills and Memory are agent-tool-maintained and intentionally
  * read-only here so the user doesn't desync them by hand.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharedFoldersScreen(
     onBack: () -> Unit,
@@ -55,15 +53,17 @@ fun SharedFoldersScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.shared_folders_title)) },
+            SmallTopAppBar(
+                title = stringResource(R.string.shared_folders_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
+                color = MiuixTheme.colorScheme.background,
             )
         },
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -77,7 +77,7 @@ fun SharedFoldersScreen(
             ) {
                 items(SharedFolderRegistry.entries, key = { it.id }) { folder ->
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        color = MiuixTheme.colorScheme.surfaceContainer,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -94,7 +94,7 @@ fun SharedFoldersScreen(
 @Composable
 private fun InfoBanner() {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MiuixTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -102,8 +102,8 @@ private fun InfoBanner() {
     ) {
         Text(
             text = stringResource(R.string.shared_folders_info_banner),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.padding(14.dp),
         )
     }
@@ -132,7 +132,7 @@ private fun SharedFolderRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(folder.nameRes),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -143,9 +143,9 @@ private fun SharedFolderRow(
             }
             Text(
                 text = folder.linuxPath,
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -167,7 +167,7 @@ private fun AccessBadge(writable: Boolean) {
     ) {
         Text(
             text = stringResource(textRes),
-            style = MaterialTheme.typography.labelSmall,
+            style = MiuixTheme.textStyles.body2,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
