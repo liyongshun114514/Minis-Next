@@ -165,7 +165,7 @@ object ConfigReadableStrings {
         "Video output" to R.string.cfgr_video_output,
         "Visibility" to R.string.cfgr_visibility,
         "Whole wait" to R.string.cfgr_whole_wait,
-        "XHigh" to R.string.cfgr_xhigh,
+        "X-High" to R.string.cfgr_xhigh,
         "added %@" to R.string.cfgr_added_x,
         "Confirm before stopping" to R.string.cfgr_confirm_before_stopping,
         "first is now %@" to R.string.cfgr_first_is_now_x,

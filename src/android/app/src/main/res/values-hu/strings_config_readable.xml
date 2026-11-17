@@ -148,7 +148,7 @@
     <string name="cfgr_video_input">Videóbemenet</string>
     <string name="cfgr_video_output">Videókimenet</string>
     <string name="cfgr_visibility">Láthatóság</string>
-    <string name="cfgr_xhigh">XHigh</string>
+    <string name="cfgr_xhigh">X-High</string>
     <string name="cfgr_added_x">hozzáadva: %1$s</string>
     <string name="cfgr_confirm_before_stopping">Megerősítés leállítás előtt</string>
     <string name="cfgr_first_is_now_x">az első most: %1$s</string>

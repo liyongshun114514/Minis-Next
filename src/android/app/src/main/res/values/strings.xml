@@ -1324,7 +1324,7 @@
     <string name="model_group_detail_thinking_low">Low</string>
     <string name="model_group_detail_thinking_medium">Medium</string>
     <string name="model_group_detail_thinking_high">High</string>
-    <string name="model_group_detail_thinking_xhigh">XHigh</string>
+    <string name="model_group_detail_thinking_xhigh">X-High</string>
     <string name="model_group_detail_thinking_max">Max</string>
     <string name="model_group_detail_thinking_ultra">Ultra</string>
     <string name="model_group_detail_limit_context_window">Limit Context Window</string>
@@ -1870,8 +1870,8 @@
     <string name="thinking_level_medium">Medium</string>
     <string name="thinking_level_high">High</string>
     <string name="thinking_level_max">Max</string>
-    <!-- [T-android-thinking-level-arch] XHigh sits between High and the new Max/Ultra tiers (GPT-5.6). -->
-    <string name="thinking_level_xhigh">XHigh</string>
+    <!-- [T-android-thinking-level-arch] X-High sits between High and the new Max/Ultra tiers (GPT-5.6). -->
+    <string name="thinking_level_xhigh">X-High</string>
     <string name="thinking_level_ultra">Ultra</string>
     <!-- [T-android-thinking-badge-navbar] Title of the thinking-level sheet opened from the navbar badge. -->
     <string name="thinking_level_sheet_title">Thinking Intensity</string>

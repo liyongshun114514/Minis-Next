@@ -148,7 +148,7 @@
     <string name="cfgr_video_input">Video-invoer</string>
     <string name="cfgr_video_output">Video-uitvoer</string>
     <string name="cfgr_visibility">Zichtbaarheid</string>
-    <string name="cfgr_xhigh">XHigh</string>
+    <string name="cfgr_xhigh">X-High</string>
     <string name="cfgr_added_x">%1$s toegevoegd</string>
     <string name="cfgr_confirm_before_stopping">Bevestigen voor stoppen</string>
     <string name="cfgr_first_is_now_x">eerste is nu %1$s</string>

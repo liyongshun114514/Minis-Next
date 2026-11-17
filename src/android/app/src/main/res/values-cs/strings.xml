@@ -1178,7 +1178,7 @@
     <string name="model_group_detail_thinking_low">Nízké</string>
     <string name="model_group_detail_thinking_medium">Střední</string>
     <string name="model_group_detail_thinking_high">Vysoké</string>
-    <string name="model_group_detail_thinking_xhigh">XHigh</string>
+    <string name="model_group_detail_thinking_xhigh">X-High</string>
     <string name="model_group_detail_thinking_max">Max.</string>
     <string name="model_group_detail_thinking_ultra">Ultra</string>
     <string name="model_group_detail_limit_context_window">Omezit kontextové okno</string>
@@ -1646,7 +1646,7 @@
     <string name="thinking_level_medium">Střední</string>
     <string name="thinking_level_high">Vysoké</string>
     <string name="thinking_level_max">Max.</string>
-    <string name="thinking_level_xhigh">XHigh</string>
+    <string name="thinking_level_xhigh">X-High</string>
     <string name="thinking_level_ultra">Ultra</string>
     <string name="thinking_level_sheet_title">Intenzita uvažování</string>
     <string name="model_picker_title">Vybrat model</string>

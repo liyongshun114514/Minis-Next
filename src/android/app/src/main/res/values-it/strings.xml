@@ -1174,7 +1174,7 @@
     <string name="model_group_detail_thinking_low">Basso</string>
     <string name="model_group_detail_thinking_medium">Medio</string>
     <string name="model_group_detail_thinking_high">Alto</string>
-    <string name="model_group_detail_thinking_xhigh">XHigh</string>
+    <string name="model_group_detail_thinking_xhigh">X-High</string>
     <string name="model_group_detail_thinking_max">Massimo</string>
     <string name="model_group_detail_thinking_ultra">Ultra</string>
     <string name="model_group_detail_limit_context_window">Limita finestra di contesto</string>
@@ -1641,7 +1641,7 @@
     <string name="thinking_level_medium">Medio</string>
     <string name="thinking_level_high">Alto</string>
     <string name="thinking_level_max">Massimo</string>
-    <string name="thinking_level_xhigh">XHigh</string>
+    <string name="thinking_level_xhigh">X-High</string>
     <string name="thinking_level_ultra">Ultra</string>
     <string name="thinking_level_sheet_title">Intensità del ragionamento</string>
     <string name="model_picker_title">Scegli modello</string>

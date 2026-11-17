@@ -154,7 +154,7 @@ internal fun ComposerMenuHeader(text: String) {
  *  - level chip 13sp bold, 64dp minimum width (0dp when compact), 10dp side
  *    padding, 15dp corner radius, 13% alpha of the blue→violet level colour;
  *  - compact mode prints the English tier name in the same sentence case as
- *    `ThinkingLevel.displayName` (`Off` / `Low` / `Medium` / `High` / `XHigh` /
+ *    `ThinkingLevel.displayName` (`Off` / `Low` / `Medium` / `High` / `X-High` /
  *    `Max` / `Ultra`) — the wording it maps to on the wire is lowercase, but the
  *    visible label is a label, not a wire token; the accessibility description
  *    stays localized;
@@ -298,11 +298,11 @@ internal fun ComposerModelThinkingBar(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    // Compact prints the English tier (`Medium`, `XHigh`, …)
+                    // Compact prints the English tier (`Medium`, `X-High`, …)
                     // straight from displayName: it names the reasoning-effort
                     // level the request carries and matches the effort slider
                     // ticks, which use the same sentence case. Lowercasing it
-                    // turned `XHigh` into `xhigh`, which reads as a typo. The
+                    // turned `X-High` into `x-high`, which reads awkwardly. The
                     // wider, non-compact toolbar keeps the localized name.
                     text = if (compact) level.displayName else levelLabel,
                     fontSize = 13.sp,
@@ -457,7 +457,7 @@ internal fun ComposerEffortSlider(
         }.getOrDefault(false)
     }
 
-    // English tier names in sentence case (Off / Low / Medium / High / XHigh /
+    // English tier names in sentence case (Off / Low / Medium / High / X-High /
     // Max / Ultra), the same labels the compact composer chip prints. The
     // request's wire token is the lowercased level id; the tick is a label.
     val labels = remember(levels) { levels.map { it.effortSliderLabel() } }
@@ -934,7 +934,7 @@ internal fun ComposerEffortSlider(
 }
 
 /**
- * Compact, always-English slider tick name (`Off`, `Low`, `XHigh`, …).
+ * Compact, always-English slider tick name (`Off`, `Low`, `X-High`, …).
  *
  * Sentence case, not lowercase: these ticks sit under the composer beside
  * every other sentence-case label in the app, and `xhigh` read as a typo of

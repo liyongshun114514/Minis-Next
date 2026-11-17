@@ -426,7 +426,7 @@ object ConfigReadableRenderer {
 object ReadableThinkingLabels {
     val levels: Map<String, String> = mapOf(
         "off" to "Off", "low" to "Low", "medium" to "Med", "high" to "High",
-        "xhigh" to "XHigh", "max" to "Max", "ultra" to "Ultra",
+        "xhigh" to "X-High", "max" to "Max", "ultra" to "Ultra",
     )
 
     /** "" = not set (sessions start with thinking off / the model default). */

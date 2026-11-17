@@ -45,6 +45,6 @@
     <string name="cfgr_ultra">Ultra</string>
     <string name="cfgr_video_input">Video ulaz</string>
     <string name="cfgr_video_output">Video izlaz</string>
-    <string name="cfgr_xhigh">XHigh</string>
+    <string name="cfgr_xhigh">X-High</string>
     <string name="cfgr_fold_consecutive_tool_calls">Sažmi uzastopne pozive alata</string>
 </resources>

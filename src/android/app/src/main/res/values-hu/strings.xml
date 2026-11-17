@@ -1170,7 +1170,7 @@
     <string name="model_group_detail_thinking_low">Alacsony</string>
     <string name="model_group_detail_thinking_medium">Közepes</string>
     <string name="model_group_detail_thinking_high">Magas</string>
-    <string name="model_group_detail_thinking_xhigh">XHigh</string>
+    <string name="model_group_detail_thinking_xhigh">X-High</string>
     <string name="model_group_detail_thinking_max">Max.</string>
     <string name="model_group_detail_thinking_ultra">Ultra</string>
     <string name="model_group_detail_limit_context_window">Kontextusablak korlátozása</string>
@@ -1636,7 +1636,7 @@
     <string name="thinking_level_medium">Közepes</string>
     <string name="thinking_level_high">Magas</string>
     <string name="thinking_level_max">Max.</string>
-    <string name="thinking_level_xhigh">XHigh</string>
+    <string name="thinking_level_xhigh">X-High</string>
     <string name="thinking_level_ultra">Ultra</string>
     <string name="thinking_level_sheet_title">Gondolkodás intenzitása</string>
     <string name="model_picker_title">Modell kiválasztása</string>

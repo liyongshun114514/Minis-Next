@@ -146,7 +146,7 @@ enum class ThinkingLevel {
             LOW -> "Low"
             MEDIUM -> "Medium"
             HIGH -> "High"
-            XHIGH -> "XHigh"   // was "Max"; the label now belongs to the new MAX case
+            XHIGH -> "X-High"   // was "Max"; the label now belongs to the new MAX case
             MAX -> "Max"
             ULTRA -> "Ultra"
         }
