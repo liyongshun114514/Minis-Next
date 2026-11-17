@@ -165,8 +165,13 @@ class NestedToolSchemaTest {
         // Structural equality: the JVM's org.json does not keep key order
         // (Android's does), so key order is covered by the golden test below,
         // which builds the old and new objects with the same put sequence.
+        fun canonical(value: Any?): Any? = when (value) {
+            is JSONObject -> value.keys().asSequence().sorted().associateWith { canonical(value.get(it)) }
+            is JSONArray -> (0 until value.length()).map { canonical(value.get(it)) }
+            else -> value
+        }
         fun same(expected: String, actual: JSONObject) =
-            assertTrue("$actual", JSONObject(expected).similar(actual))
+            assertEquals(canonical(JSONObject(expected)), canonical(actual))
         val flat = AgentToolParam("string", "Scroll direction", enumValues = listOf("up", "down"))
         same("""{"type":"string","description":"Scroll direction","enum":["up","down"]}""", flat.toJson())
         same("""{"type":"STRING","description":"Scroll direction","enum":["up","down"]}""", flat.toGeminiJson())

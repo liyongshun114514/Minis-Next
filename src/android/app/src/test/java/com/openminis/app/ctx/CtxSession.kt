@@ -301,7 +301,7 @@ class CtxSession(val name: String, val window: Int? = 200_000) : AutoCloseable {
 
     // ── request ─────────────────────────────────────────────────────────────
 
-    fun input(): RequestContextBuilder.Input = RequestContextBuilder.Input(
+    internal fun input(): RequestContextBuilder.Input = RequestContextBuilder.Input(
         history = history,
         compaction = summary?.let {
             RequestContextBuilder.Compaction(
@@ -319,7 +319,7 @@ class CtxSession(val name: String, val window: Int? = 200_000) : AutoCloseable {
         onRequestBudget = { budgetPlans += it },
     )
 
-    fun request(): RequestContextBuilder.RequestContext = RequestContextBuilder.build(input())
+    internal fun request(): RequestContextBuilder.RequestContext = RequestContextBuilder.build(input())
 
     override fun close() {
         root.deleteRecursively()

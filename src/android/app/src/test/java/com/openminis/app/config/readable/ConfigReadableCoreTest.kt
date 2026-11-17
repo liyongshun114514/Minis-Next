@@ -8,6 +8,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+private fun canonicalJson(value: Any?): Any? = when (value) {
+    is JSONObject -> value.keys().asSequence().sorted().associateWith { canonicalJson(value.get(it)) }
+    is org.json.JSONArray -> (0 until value.length()).map { canonicalJson(value.get(it)) }
+    else -> value
+}
+
 /**
  * [T-config-readable] Pure logic of the readable config descriptions: list
  * diff, placeholders, rendering with the bad-translation fallback, secret and
@@ -234,7 +240,7 @@ class ConfigReadableCoreTest {
         assertEquals("groups:G1", decoded.subject)
         assertEquals("Models: added A; order changed", decoded.displayText { null })
         // Re-encoding yields the same structure.
-        assertEquals(JSONObject(ios).similar(JSONObject(decoded.jsonString())), true)
+        assertEquals(canonicalJson(JSONObject(ios)), canonicalJson(JSONObject(decoded.jsonString())))
     }
 
     @Test

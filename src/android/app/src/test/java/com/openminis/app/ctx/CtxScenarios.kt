@@ -12,7 +12,7 @@ import org.json.JSONObject
  * parsed body. "live" is the request right after the turn; "restart" is the
  * same conversation after persist → clear memory → rebuild from storage.
  */
-class CtxPhase(
+internal class CtxPhase(
     val name: String,
     val ctx: RequestContextBuilder.RequestContext,
     val bodies: Map<CtxProvider, JSONObject>,
@@ -31,7 +31,7 @@ class CtxPhase(
     fun dims(p: CtxProvider): List<String> = images(p).map { "${it.w}x${it.h}" }
 }
 
-class CtxRun(val scenario: CtxScenario, val session: CtxSession, val live: CtxPhase, val restarted: CtxPhase?) {
+internal class CtxRun(val scenario: CtxScenario, val session: CtxSession, val live: CtxPhase, val restarted: CtxPhase?) {
     val phases: List<CtxPhase> get() = listOfNotNull(live, restarted)
     val facts = linkedMapOf<String, Any?>()
 }
@@ -44,11 +44,11 @@ class CtxRun(val scenario: CtxScenario, val session: CtxSession, val live: CtxPh
  *  - CONFIRM: no agreed expectation yet (catalog: "待与用户确认预期"); reported only;
  *  - HOLDS: expected and true today.
  */
-class CtxDesired(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
+internal class CtxDesired(val text: String, val kind: Kind, val ref: String? = null, val holds: (CtxRun) -> Boolean) {
     enum class Kind { GAP, JVM, CONFIRM, HOLDS }
 }
 
-class CtxScenario(
+internal class CtxScenario(
     val id: String,
     val title: String,
     /** The catalog's "预期（当前）" column, as written there (reference only; the assertions below are measured). */
