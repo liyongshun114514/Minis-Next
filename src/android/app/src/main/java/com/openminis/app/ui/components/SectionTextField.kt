@@ -1,25 +1,20 @@
 package com.openminis.app.ui.components
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
@@ -28,15 +23,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Text input for use inside a [SectionCard]. Wraps a BasicTextField in
- * OutlinedTextFieldDefaults.DecorationBox so we can override contentPadding
- * (the default OutlinedTextField overload doesn't expose it) — needed to
- * shrink the row to [SectionDesign.RowMinHeight] (~44dp) and align the
- * inner glyphs with sibling section content.
- *
- * Borders + container fills are transparent so the surrounding
- * [SectionCard] surface is the only visual boundary. Error state keeps a
- * red border as a recoverable affordance.
+ * Text input for use inside a [SectionCard], styled with Miuix TextField
+ * while retaining this app's string-based state and cursor-selection contract.
+ * Error state uses the Miuix error border and tint.
  *
  * Horizontal contentPadding is 0: every callsite places this field inside
  * a parent ([SettingsCardBlock] or a manually padded Column) that already
@@ -44,7 +33,6 @@ import androidx.compose.ui.unit.dp
  * double-indent the text glyphs relative to sibling section headers /
  * description text / radio rows — see T352.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SectionTextField(
     value: String,
@@ -60,7 +48,7 @@ fun SectionTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null,
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    textStyle: TextStyle = MiuixTheme.textStyles.main,
     fieldModifier: Modifier = Modifier,
     /**
      * Fill behind the field. The default matches settings cards — but inside
@@ -87,24 +75,12 @@ fun SectionTextField(
      */
     contentHorizontalPadding: Dp = 0.dp,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val colors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = Color.Transparent,
-        unfocusedBorderColor = Color.Transparent,
-        disabledBorderColor = Color.Transparent,
-        errorBorderColor = MaterialTheme.colorScheme.error,
-        focusedContainerColor = Color.Transparent,
-        unfocusedContainerColor = Color.Transparent,
-        disabledContainerColor = Color.Transparent,
+    val fieldColors = TextFieldDefaults.textFieldColors(
+        backgroundColor = containerColor ?: SectionDesign.cardColor(),
+        labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSecondaryContainer,
+        borderColor = if (isError) MiuixTheme.colorScheme.error else Color.Transparent,
     )
-    // Horizontal defaults to 0 so glyphs align with sibling section content
-    // (parent already adds the 16dp horizontal inset). See T352. Sheet/dialog
-    // callers override via [contentHorizontalPadding].
-    val contentPadding = PaddingValues(
-        horizontal = contentHorizontalPadding,
-        vertical = SectionDesign.RowVerticalPadding,
-    )
-    val mergedTextStyle = LocalTextStyle.current.merge(textStyle)
+    val mergedTextStyle = textStyle.copy(color = MiuixTheme.colorScheme.onSurface)
 
     // [T-android-model-id-input-no-hscroll]
     // The legacy `BasicTextField(value: String, ...)` overload reconstructs
@@ -134,58 +110,28 @@ fun SectionTextField(
         // overload's behavior on the same transition.
         fieldValue = TextFieldValue(value, TextRange(value.length))
     }
-    Surface(
-        color = containerColor ?: SectionDesign.cardColor(),
-        shape = SectionDesign.CardShape,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        BasicTextField(
-            value = fieldValue,
-            onValueChange = { newValue ->
-                fieldValue = newValue
-                if (newValue.text != value) onValueChange(newValue.text)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                // [T-android-settings-ui-md3] #3 standard MD3 single-line text
-                // field height (56dp) so input rows match the toggle/value rows.
-                .heightIn(min = SectionDesign.TextFieldMinHeight)
-                .then(fieldModifier),
+    TextField(
+        modifier = modifier.fillMaxWidth()
+            .heightIn(min = SectionDesign.TextFieldMinHeight)
+            .then(fieldModifier),
+        value = fieldValue,
+        onValueChange = { newValue ->
+            fieldValue = newValue
+            if (newValue.text != value) onValueChange(newValue.text)
+        },
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = mergedTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            textStyle = mergedTextStyle,
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            interactionSource = interactionSource,
             singleLine = singleLine,
             maxLines = maxLines,
-            decorationBox = { innerTextField ->
-                OutlinedTextFieldDefaults.DecorationBox(
-                    value = fieldValue.text,
-                    visualTransformation = visualTransformation,
-                    innerTextField = innerTextField,
-                    placeholder = placeholder?.let { { Text(it) } },
-                    label = null,
-                    trailingIcon = trailingIcon,
-                    singleLine = singleLine,
-                    enabled = enabled,
-                    isError = isError,
-                    interactionSource = interactionSource,
-                    colors = colors,
-                    contentPadding = contentPadding,
-                    container = {
-                        OutlinedTextFieldDefaults.ContainerBox(
-                            enabled = enabled,
-                            isError = isError,
-                            interactionSource = interactionSource,
-                            colors = colors,
-                            shape = SectionDesign.CardShape,
-                        )
-                    },
-                )
-            },
-        )
-    }
+            minLines = 1,
+            label = placeholder.orEmpty(),
+            useLabelAsPlaceholder = true,
+            insideMargin = DpSize(contentHorizontalPadding, SectionDesign.RowVerticalPadding),
+            trailingIcon = trailingIcon,
+        colors = fieldColors,
+    )
 }
