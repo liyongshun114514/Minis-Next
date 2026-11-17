@@ -24,14 +24,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.key
 import sh.calvin.reorderable.ReorderableColumn
 import com.openminis.app.data.model.ProviderInstance
@@ -61,7 +59,6 @@ import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderListScreen(
     providerRepository: ProviderRepository,
@@ -139,7 +136,7 @@ fun ProviderListScreen(
                     .padding(top = 20.dp)
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .background(MiuixTheme.colorScheme.surfaceContainer)
                     .padding(vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -148,17 +145,17 @@ fun ProviderListScreen(
                     imageVector = Icons.Outlined.VpnKey,
                     contentDescription = null,
                     modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                 )
                 Text(
                     text = stringResource(R.string.provider_list_no_providers_configured),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Text(
                     text = stringResource(R.string.provider_list_add_a_provider_to_get_started),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                 )
             }
         } else {
@@ -237,7 +234,7 @@ fun ProviderListScreen(
                             // N-1 lines between N rows.
                             Column {
                                 if (providerRowHasDividerAbove(index)) {
-                                    val divider = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    val divider = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -267,15 +264,15 @@ fun ProviderListScreen(
                                             SwipeRowAction(
                                                 label = stringResource(R.string.common_edit),
                                                 icon = Icons.Filled.Edit,
-                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                containerColor = MiuixTheme.colorScheme.secondaryContainer,
+                                                contentColor = MiuixTheme.colorScheme.onSecondaryContainer,
                                                 onClick = { onProviderClick(instance.id) },
                                             ),
                                             SwipeRowAction(
                                                 label = stringResource(R.string.common_delete),
                                                 icon = Icons.Filled.Delete,
-                                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                                containerColor = MiuixTheme.colorScheme.errorContainer,
+                                                contentColor = MiuixTheme.colorScheme.onErrorContainer,
                                                 onClick = { instanceToDelete = instance },
                                             ),
                                         ),
@@ -317,7 +314,7 @@ fun ProviderListScreen(
                         onClick = { onVoiceServiceClick(shadow.instanceId) },
                     )
                     if (index < shadows.size - 1) {
-                        val divider = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        val divider = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -332,49 +329,47 @@ fun ProviderListScreen(
         Spacer(Modifier.height(80.dp))
     }
 
-    if (showMenu) {
-        ModalBottomSheet(
-            onDismissRequest = { showMenu = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            Column(modifier = Modifier.padding(bottom = 32.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showMenu = false
-                            onAddProvider()
-                        }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.provider_list_add_provider), style = MaterialTheme.typography.bodyLarge)
-                }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showMenu = false
-                            importLauncher.safeLaunchPicker(
-                                arrayOf(
-                                    "application/json",
-                                    "application/zip",
-                                    "application/x-zip-compressed",
-                                ),
-                                context,
-                                "ProviderList",
-                            )
-                        }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.provider_list_import_provider), style = MaterialTheme.typography.bodyLarge)
-                }
+    OverlayBottomSheet(
+        show = showMenu,
+        onDismissRequest = { showMenu = false },
+    ) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showMenu = false
+                        onAddProvider()
+                    }
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(16.dp))
+                Text(stringResource(R.string.provider_list_add_provider), style = MiuixTheme.textStyles.main)
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showMenu = false
+                        importLauncher.safeLaunchPicker(
+                            arrayOf(
+                                "application/json",
+                                "application/zip",
+                                "application/x-zip-compressed",
+                            ),
+                            context,
+                            "ProviderList",
+                        )
+                    }
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(16.dp))
+                Text(stringResource(R.string.provider_list_import_provider), style = MiuixTheme.textStyles.main)
             }
         }
     }
@@ -426,9 +421,9 @@ private fun ProviderInstanceRow(
             modifier = Modifier
                 .size(8.dp)
                 .background(
-                    color = if (needsReauth) MaterialTheme.colorScheme.error
+                    color = if (needsReauth) MiuixTheme.colorScheme.error
                         else if (isActive) Color(0xFF34C759)
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.25f),
                     shape = CircleShape,
                 ),
         )
@@ -441,9 +436,9 @@ private fun ProviderInstanceRow(
         ) {
             Text(
                 text = instance.label,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -451,13 +446,13 @@ private fun ProviderInstanceRow(
             ) {
                 Text(
                     text = stringResource(R.string.provider_list_api_key),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Text(
                     text = "·",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                 )
                 Text(
                     // [T-empty-key-compat-endpoints] Keyless compatible endpoint:
@@ -466,17 +461,17 @@ private fun ProviderInstanceRow(
                         else if (!apiKey.isNullOrBlank()) maskKey(apiKey)
                         else if (instance.allowsEmptyAPIKey) stringResource(R.string.provider_no_key_required)
                         else stringResource(R.string.provider_no_api_key),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (needsReauth) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = if (needsReauth) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                 )
             }
             if (modelCount > 0) {
                 Text(
                     text = stringResource(R.string.provider_list_models_count, modelCount),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                 )
             }
         }
@@ -484,11 +479,11 @@ private fun ProviderInstanceRow(
         if (!instance.isEnabled) {
             Text(
                 text = stringResource(R.string.provider_list_disabled),
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1.copy(fontWeight = FontWeight.Medium),
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier
                     .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = MiuixTheme.colorScheme.surfaceContainerHigh,
                         shape = RoundedCornerShape(50),
                     )
                     .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -499,7 +494,7 @@ private fun ProviderInstanceRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
         )
     }
@@ -527,7 +522,7 @@ private fun ShadowVoiceRow(
             imageVector = Icons.Outlined.GraphicEq,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
         )
         Spacer(Modifier.width(12.dp))
         Column(
@@ -536,9 +531,9 @@ private fun ShadowVoiceRow(
         ) {
             Text(
                 text = shadow.displayName,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             val parts = buildList {
                 if (shadow.inputModels.isNotEmpty()) {
@@ -551,15 +546,15 @@ private fun ShadowVoiceRow(
             if (parts.isNotEmpty()) {
                 Text(
                     text = parts.joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
         )
     }

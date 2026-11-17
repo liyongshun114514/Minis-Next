@@ -3,25 +3,29 @@ package com.openminis.app.ui.settings
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SystemUpdate
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.material3.Badge
-import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Autorenew
@@ -46,8 +50,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.ClickableText
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.openminis.app.BuildConfig
@@ -210,40 +214,22 @@ fun CheckUpdateSection() {
         }
         if (showReleasesLink) {
             val linkLabel = stringResource(R.string.update_error_open_releases)
-            val annotated = buildAnnotatedString {
-                withStyle(
-                    SpanStyle(
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline,
-                    )
-                ) {
-                    append(linkLabel)
-                }
-                addStringAnnotation(
-                    tag = "URL",
-                    annotation = UpdateChecker.RELEASES_URL,
-                    start = 0,
-                    end = length,
-                )
-            }
-            ClickableText(
-                text = annotated,
-                style = MaterialTheme.typography.bodyMedium,
+            Text(
+                text = linkLabel,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                onClick = { offset ->
-                    annotated.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                        .firstOrNull()
-                        ?.let { ann ->
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(ann.item))
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
+                    .clickable {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.RELEASES_URL))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
                         }
-                },
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             )
         }
     }
@@ -263,23 +249,28 @@ fun CheckUpdateSection() {
             onDismiss = { showChannelPicker = false },
         )
     }
-    if (confirmBeta) {
-        AlertDialog(
-            onDismissRequest = { confirmBeta = false },
-            title = { Text(stringResource(R.string.update_channel_beta_warning_title)) },
-            text = { Text(stringResource(R.string.update_channel_beta_warning_body)) },
-            confirmButton = {
-                MinisButton(onClick = {
-                    confirmBeta = false
-                    // Clears the cache; the check below then runs at once.
-                    UpdateStateStore.setChannel(context, UpdatePolicy.Channel.BETA)
-                    UpdateAutoChecker.maybeCheck(context, "channel")
-                }) { Text(stringResource(R.string.update_channel_beta_confirm)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmBeta = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+    OverlayDialog(
+        title = stringResource(R.string.update_channel_beta_warning_title),
+        summary = stringResource(R.string.update_channel_beta_warning_body),
+        show = confirmBeta,
+        onDismissRequest = { confirmBeta = false },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            MinisTextButton(onClick = { confirmBeta = false }) {
+                Text(stringResource(R.string.cancel))
+            }
+            MinisButton(onClick = {
+                confirmBeta = false
+                // Clears the cache; the check below then runs at once.
+                UpdateStateStore.setChannel(context, UpdatePolicy.Channel.BETA)
+                UpdateAutoChecker.maybeCheck(context, "channel")
+            }) {
+                Text(stringResource(R.string.update_channel_beta_confirm))
+            }
+        }
     }
 
     update?.let { u ->
@@ -366,79 +357,62 @@ private fun UpdateDialog(
     onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    OverlayDialog(
+        title = stringResource(R.string.check_update_available_title),
+        summary = stringResource(
+            R.string.check_update_available_subtitle,
+            UpdatePolicy.displayVersion(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+            UpdatePolicy.displayVersion(update.versionName, update.versionCode),
+        ),
+        show = true,
         onDismissRequest = onDismiss,
-        title = {
-            Column {
-                Text(stringResource(R.string.check_update_available_title))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (update.changelog.isNotBlank()) {
                 Text(
-                    // [T-update-channels] "1.15 (build 29) → 1.16 (build 32)"
-                    stringResource(
-                        R.string.check_update_available_subtitle,
-                        UpdatePolicy.displayVersion(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
-                        UpdatePolicy.displayVersion(update.versionName, update.versionCode),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    stringResource(R.string.check_update_changelog_header).uppercaseForDisplay(),
+                    style = MiuixTheme.textStyles.footnote1,
+                    fontWeight = FontWeight.Medium,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                )
+                Text(
+                    text = update.changelog,
+                    style = MiuixTheme.textStyles.body2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
                 )
             }
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (update.changelog.isNotBlank()) {
-                    Text(
-                        stringResource(R.string.check_update_changelog_header).uppercaseForDisplay(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = update.changelog,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 4.dp),
-                    )
-                }
-                Text(
-                    stringResource(R.string.check_update_install_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Text(
+                stringResource(R.string.check_update_install_hint),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            )
+            if (downloadProgress != null) {
+                LinearProgressIndicator(
+                    progress = downloadProgress.coerceIn(0f, 1f),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                if (downloadProgress != null) {
-                    LinearProgressIndicator(
-                        progress = { downloadProgress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(R.string.check_update_downloading, (downloadProgress * 100).toInt()),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (downloadError != null) {
-                    Text(
-                        stringResource(R.string.check_update_download_failed, downloadError),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (needsInstallPerm) {
-                    Text(
-                        stringResource(R.string.check_update_install_perm_required),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+                Text(
+                    stringResource(R.string.check_update_downloading, (downloadProgress * 100).toInt()),
+                    style = MiuixTheme.textStyles.body2,
+                )
             }
-        },
-        // [T-dialog-buttons] All three actions in ONE row we lay out ourselves:
-        // M3's button area is a flow row that wrapped "Download & Install" onto
-        // its own line on a Pixel 4a (~276dp of buttons in ~274dp). Skip and
-        // Later on the left, the filled primary on the right; when a language
-        // is too long for one row it wraps with the primary last, bottom-right,
-        // never truncated (UpdateDialogButtonRow).
-        confirmButton = {
+            if (downloadError != null) {
+                Text(
+                    stringResource(R.string.check_update_download_failed, downloadError),
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                )
+            }
+            if (needsInstallPerm) {
+                Text(
+                    stringResource(R.string.check_update_install_perm_required),
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                )
+            }
             val compactText = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             UpdateDialogButtonRow(
                 skip = {
@@ -476,7 +450,7 @@ private fun UpdateDialog(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
+                                        size = 14.dp,
                                         strokeWidth = 1.5.dp,
                                     )
                                     Text(stringResource(R.string.check_update_downloading, (downloadProgress * 100).toInt()))
@@ -488,15 +462,19 @@ private fun UpdateDialog(
                     }
                 },
             )
-        },
-        dismissButton = null,
-    )
+        }
+    }
 }
 
 /** [T-update-channels] The small, numberless update badge every layer shows. */
 @Composable
 internal fun UpdateBadgeDot() {
-    Badge()
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .background(MiuixTheme.colorScheme.error),
+    )
 }
 
 @Composable
@@ -505,45 +483,48 @@ private fun ChannelPickerDialog(
     onPick: (UpdatePolicy.Channel) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    OverlayDialog(
+        title = stringResource(R.string.update_channel_title),
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.update_channel_title)) },
-        text = {
-            Column {
-                for (ch in UpdatePolicy.Channel.entries) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(ch) }
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = ch == current, onClick = { onPick(ch) })
-                        Column {
-                            Text(
-                                stringResource(
-                                    if (ch == UpdatePolicy.Channel.BETA) R.string.update_channel_beta else R.string.update_channel_stable,
-                                ),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            Text(
-                                stringResource(
-                                    if (ch == UpdatePolicy.Channel.BETA) R.string.update_channel_beta_desc
-                                    else R.string.update_channel_stable_desc,
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+    ) {
+        Column {
+            for (ch in UpdatePolicy.Channel.entries) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(ch) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = ch == current, onClick = { onPick(ch) })
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            stringResource(
+                                if (ch == UpdatePolicy.Channel.BETA) R.string.update_channel_beta else R.string.update_channel_stable,
+                            ),
+                            style = MiuixTheme.textStyles.main,
+                        )
+                        Text(
+                            stringResource(
+                                if (ch == UpdatePolicy.Channel.BETA) R.string.update_channel_beta_desc
+                                else R.string.update_channel_stable_desc,
+                            ),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            }
+        }
+    }
 }
 
 /**
