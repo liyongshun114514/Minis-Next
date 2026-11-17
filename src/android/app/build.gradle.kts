@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
@@ -30,12 +29,17 @@ android {
     // are available to compile against. targetSdk stays 35 to avoid pulling in
     // Android 16 behavior changes; the Live Updates path is runtime-gated on
     // Build.VERSION.SDK_INT >= 36 (see DynamicIslandSupport / AgentForegroundService).
-    compileSdk = 36
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
+    buildToolsVersion = "37.0.0"
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.openminis.app.next"
+        applicationId = "com.openminis.app.next.miuix"
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
@@ -183,10 +187,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -227,6 +227,12 @@ android {
         // a fixed detector (tracked at issuetracker.google.com/388538014).
         checkReleaseBuilds = false
         disable += "NonNullableMutableLiveData"
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -407,10 +413,16 @@ androidComponents {
 
 dependencies {
     // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Miuix UI (Compose Multiplatform Android artifacts)
+    // Note: miuix-blur requires minSdk 33 and is intentionally excluded while minSdk = 26.
+    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta01")
+    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta01")
+    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta01")
 
     // [T-android-tablet-split] Adaptive list-detail layout for tablets/large
     // windows. Version pinned explicitly rather than left to the BOM: the
@@ -450,9 +462,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -485,8 +497,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Markdown rendering (mikepenz multiplatform-markdown-renderer)
-    implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.33.0")
-    implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.33.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.46.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3-android:0.46.0")
 
     // Chrome Custom Tabs (in-app browser for OAuth)
     implementation("androidx.browser:browser:1.8.0")
@@ -536,7 +548,7 @@ dependencies {
     // against a real SQLite in JVM tests; the same driver Room's compiler already uses.
     testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     testImplementation("org.robolectric:robolectric:4.17")
-    testImplementation(platform("androidx.compose:compose-bom:2025.09.00"))
+    testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

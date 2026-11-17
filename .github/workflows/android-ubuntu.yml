@@ -9,7 +9,7 @@ on:
         options: [release, debug]
         default: release
   push:
-    branches: [minis-next]
+    branches: [minis-next, ui]
     paths: ["src/android/**", "src/shared/**", "deps/**", "scripts/**", ".github/workflows/android-ubuntu.yml"]
 
 permissions:
@@ -75,7 +75,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y make curl unzip xz-utils pkg-config libarchive-tools ripgrep gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
+          sdkmanager "platforms;android-37.2" "build-tools;37.0.0" "build-tools;35.0.0" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
       - name: Restore private MinisNext release identity
         shell: bash

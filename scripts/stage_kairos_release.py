@@ -9,7 +9,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = 'com.openminis.app.next'
+PACKAGE = 'com.openminis.app.next.miuix'
 CERT_SHA256 = 'f1464cfe2b280348ee1fa611733dc55818bdcdcae659dd4fcbf27421a5a1065f'
 
 def stage():

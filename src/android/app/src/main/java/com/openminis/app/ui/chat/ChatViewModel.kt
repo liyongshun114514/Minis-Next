@@ -11106,53 +11106,7 @@ class ChatViewModel(
         turnGen: Long,
     ) {
         AppLogger.info(TAG_STREAM, ("runAgentLoop ENTER provider=" + (provider.javaClass.simpleName).toString() + " historySize=" + (agentHistory.size).toString()))
-        // [T-android-mem-probe-trust] Send-path context shape. The existing
-        // `messages-shape` probe only runs on session LOAD, so the 2026-08-15
-        // log described the session as it was opened, never as it was sent —
-        // and the send is where the memory goes. `historySize` alone says
-        // nothing about payload: 17 messages carrying a 100 KB tool_result each
-        // is a very different request from 1500 short ones. Logged once per
-        // agent loop (not per turn) to stay cheap; the walk is O(parts) over
-        // already-resident strings.
-        runCatching {
-            var chars = 0L
-            var maxOne = 0
-            var toolResults = 0
-            var images = 0
-            var imageBytes = 0L
-            var audioChars = 0L
-            var biggestRole = ""
-            for (m in agentHistory) {
-                var perMsg = m.content.length
-                for (p in m.contentParts) {
-                    when (p) {
-                        is AgentContentPart.ToolResult -> {
-                            perMsg += p.content.length
-                            toolResults++
-                            // Inline image bytes never reach the char count, so
-                            // track them separately — an image-heavy request is
-                            // a different failure shape from a text-heavy one.
-                            p.imageData?.let { images++; imageBytes += it.size }
-                        }
-                        is AgentContentPart.Text -> perMsg += p.text.length
-                        is AgentContentPart.ImageData -> { images++; imageBytes += p.data.size }
-                        else -> {}
-                    }
-                }
-                for (a in m.audioParts) audioChars += a.base64Data.length
-                images += m.imageParts.size
-                chars += perMsg
-                if (perMsg > maxOne) { maxOne = perMsg; biggestRole = m.role.name }
-            }
-            AppLogger.info(
-                TAG_STREAM,
-                ("[CtxShape] historySize=" + (agentHistory.size).toString() + " totalChars=" + (chars).toString() + " ") +
-                    ("maxMsgChars=" + (maxOne).toString() + " maxMsgRole=" + (biggestRole).toString() + " toolResultParts=" + (toolResults).toString() + " ") +
-                    ("imageParts=" + (images).toString() + " imageBytes=" + (imageBytes).toString() + " audioB64Chars=" + (audioChars).toString() + " ") +
-                    ("approxTokens=" + (chars / 4).toString() + " ") +
-                    "${com.openminis.app.diagnostics.MemorySnapshot.capture().toLogString()}",
-            )
-        }
+        logSendContextShape()
         // [T-android-queued-message-interrupt-on-toolclose] `assistantId` is
         // normally a single message id for the whole agent loop (iOS-parity:
         // multiple tool/text turns folded into one bubble). It is reassigned
@@ -14289,6 +14243,140 @@ class ChatViewModel(
         } else {
             AppLogger.info(TAG_STREAM, "runAgentLoop EXIT (loop body ended naturally)")
         }
+    }
+
+    private fun logSendContextShape() {
+        runCatching {
+            var chars = 0L
+            var maxOne = 0
+            var toolResults = 0
+            var images = 0
+            var imageBytes = 0L
+            var audioChars = 0L
+            var biggestRole = ""
+            for (m in agentHistory) {
+                var perMsg = m.content.length
+                for (p in m.contentParts) {
+                    when (p) {
+                        is AgentContentPart.ToolResult -> {
+                            perMsg += p.content.length
+                            toolResults++
+                            p.imageData?.let { images++; imageBytes += it.size }
+                        }
+                        is AgentContentPart.Text -> perMsg += p.text.length
+                        is AgentContentPart.ImageData -> { images++; imageBytes += p.data.size }
+                        else -> {}
+                    }
+                }
+                for (a in m.audioParts) audioChars += a.base64Data.length
+                images += m.imageParts.size
+                chars += perMsg
+                if (perMsg > maxOne) { maxOne = perMsg; biggestRole = m.role.name }
+            }
+            AppLogger.info(
+                TAG_STREAM,
+                ("[CtxShape] historySize=" + (agentHistory.size).toString() + " totalChars=" + (chars).toString() + " ") +
+                    ("maxMsgChars=" + (maxOne).toString() + " maxMsgRole=" + (biggestRole).toString() + " toolResultParts=" + (toolResults).toString() + " ") +
+                    ("imageParts=" + (images).toString() + " imageBytes=" + (imageBytes).toString() + " audioB64Chars=" + (audioChars).toString() + " ") +
+                    ("approxTokens=" + (chars / 4).toString() + " ") +
+                    "${com.openminis.app.diagnostics.MemorySnapshot.capture().toLogString()}",
+            )
+        }
+    }
+
+    private fun finalizeToolSlotResult(
+        turn: Int,
+        id: String,
+        name: String,
+        args: JSONObject,
+        paramsMap: Map<String, Any?>,
+        titledTools: Set<String>,
+        truncationRepairTag: String?,
+        toolRun: ForegroundToolInterrupts.Outcome<ToolExecutionResult>,
+        isDelegation: Boolean,
+        allToolBlocks: MutableList<AssistantBlock>,
+        resultParts: MutableList<AgentContentPart>,
+    ) {
+        val toolInterrupted = toolRun.interrupted && !isDelegation
+        val result = if (toolInterrupted && toolRun.value.output != ForegroundToolInterrupts.INTERRUPTED_RESULT) {
+            toolRun.value.copy(output = ForegroundToolInterrupts.withInterruptNote(toolRun.value.output), success = false)
+        } else {
+            toolRun.value
+        }
+        if (toolInterrupted) AppLogger.info(TAG_STREAM, "[stop-tool] turn=$turn $name ${id.take(16)} stopped by the user (tool only)")
+        android.util.Log.d("ToolChain[VM]", "[turn=$turn] executeTool END name=$name success=${result.success} title=${result.toolTitle} outputLen=${result.output.length} output=${result.output.take(200)}")
+
+        val errMsgForDetector = if (!result.success) result.output else null
+        val postRecord = toolLoopDetector.record(
+            toolName = name,
+            params = paramsMap,
+            result = if (result.success) result.output else null,
+            errorMessage = errMsgForDetector,
+            toolCallId = id,
+        )
+        val outputWithLoopWarning = if (postRecord.level == Level.WARNING && postRecord.message != null) {
+            AppLogger.debug("ChatViewModel",
+                "appending loop-warning to tool result name=$name key=${postRecord.warningKey}")
+            "${result.output}\n\n${postRecord.message}"
+        } else {
+            result.output
+        }
+        val outputForLLM = if (toolLoopDetector.recordToolTitle(args, name in titledTools) != null) {
+            Log.i(TAG, "[ToolTitleReminder] $name came back without tool_title — soft reminder appended")
+            ToolTitleReminder.appending(outputWithLoopWarning)
+        } else {
+            outputWithLoopWarning
+        }
+
+        val blockIdx = allToolBlocks.indexOfFirst { it.id == id }
+        if (blockIdx >= 0) {
+            val elapsed = System.currentTimeMillis() - allToolBlocks[blockIdx].startTimeMs
+            val existingContent = allToolBlocks[blockIdx].content
+            val resultContent = if (name == "shell_execute") {
+                result.output.lines().takeLast(80).joinToString("\n")
+            } else {
+                result.output
+            }
+            val finalContent = if (existingContent.length > resultContent.length) existingContent else resultContent
+            val finalStatus = when {
+                toolInterrupted -> ToolBlockStatus.CANCELLED
+                name == com.openminis.app.agent.jobs.HelperRunner.TOOL_NAME &&
+                    com.openminis.app.agent.jobs.HelperRunner.isRunningPayload(result.output) -> ToolBlockStatus.RUNNING
+                result.success && truncationRepairTag != null -> ToolBlockStatus.FAILED
+                result.success -> ToolBlockStatus.SUCCESS
+                result.timedOut -> ToolBlockStatus.TIMEOUT
+                else -> ToolBlockStatus.FAILED
+            }
+            val toolOutcome = when (finalStatus) {
+                ToolBlockStatus.SUCCESS -> com.openminis.app.service.ToolOutcome.Success
+                ToolBlockStatus.TIMEOUT -> com.openminis.app.service.ToolOutcome.Timeout
+                ToolBlockStatus.FAILED -> com.openminis.app.service.ToolOutcome.Error
+                ToolBlockStatus.CANCELLED -> com.openminis.app.service.ToolOutcome.Cancelled
+                else -> com.openminis.app.service.ToolOutcome.Unknown
+            }
+            SessionActivityTracker.clearToolRunning(toolOutcome)
+            android.util.Log.d("ToolChain[VM]", "[turn=$turn] block[$blockIdx] status→$finalStatus title=${result.toolTitle} contentLen=${finalContent.length}")
+            allToolBlocks[blockIdx] = allToolBlocks[blockIdx].copy(
+                toolStatus = finalStatus,
+                content = finalContent,
+                toolTitle = result.toolTitle.ifEmpty { allToolBlocks[blockIdx].toolTitle },
+                durationMs = elapsed,
+                browserURL = result.pageURL ?: allToolBlocks[blockIdx].browserURL,
+                imageFilePath = result.imageFilePath ?: allToolBlocks[blockIdx].imageFilePath,
+            )
+        }
+
+        val outputForLLMWithNote = if (truncationRepairTag != null) {
+            outputForLLM + "\n\n<system-reminder>The argument stream for this call was " +
+                "truncated in transit and auto-closed by the client (repair strategy: " +
+                "$truncationRepairTag) before execution. The arguments actually used may be " +
+                "incomplete — verify the result and re-issue the call with complete " +
+                "arguments if anything is missing.</system-reminder>"
+        } else {
+            outputForLLM
+        }
+
+        resultParts.add(ToolResultWrap.part(id, name, outputForLLMWithNote, result))
     }
 
     /**

@@ -9,12 +9,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 // Accent: iOS blue, desaturated. [T-android-accent-blue-parity]
 //
@@ -156,13 +160,20 @@ fun MinisTheme(
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val typography = scaledTypography(fontScale)
     val chatPalette = if (darkTheme) DarkChatPalette else LightChatPalette
+    val miuixController = remember(darkTheme) {
+        ThemeController(
+            colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+        )
+    }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        shapes = MinisShapes,
-        typography = typography,
-    ) {
-        CompositionLocalProvider(LocalChatPalette provides chatPalette, content = content)
+    MiuixTheme(controller = miuixController) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = MinisShapes,
+            typography = typography,
+        ) {
+            CompositionLocalProvider(LocalChatPalette provides chatPalette, content = content)
+        }
     }
 }
 
@@ -174,15 +185,22 @@ fun MinisTheme(
  */
 @Composable
 fun MinisAppearance(darkTheme: Boolean, content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-        shapes = MaterialTheme.shapes,
-        typography = MaterialTheme.typography,
-    ) {
-        CompositionLocalProvider(
-            LocalChatPalette provides if (darkTheme) DarkChatPalette else LightChatPalette,
-            content = content,
+    val miuixController = remember(darkTheme) {
+        ThemeController(
+            colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
         )
+    }
+    MiuixTheme(controller = miuixController) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            shapes = MaterialTheme.shapes,
+            typography = MaterialTheme.typography,
+        ) {
+            CompositionLocalProvider(
+                LocalChatPalette provides if (darkTheme) DarkChatPalette else LightChatPalette,
+                content = content,
+            )
+        }
     }
 }
 
