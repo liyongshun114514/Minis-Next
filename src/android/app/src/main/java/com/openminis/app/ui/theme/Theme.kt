@@ -163,6 +163,7 @@ fun MinisTheme(
     val miuixController = remember(darkTheme) {
         ThemeController(
             colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+            keyColor = if (darkTheme) TealDarkPrimary else TealPrimary,
         )
     }
 
@@ -188,6 +189,7 @@ fun MinisAppearance(darkTheme: Boolean, content: @Composable () -> Unit) {
     val miuixController = remember(darkTheme) {
         ThemeController(
             colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+            keyColor = if (darkTheme) TealDarkPrimary else TealPrimary,
         )
     }
     MiuixTheme(controller = miuixController) {
