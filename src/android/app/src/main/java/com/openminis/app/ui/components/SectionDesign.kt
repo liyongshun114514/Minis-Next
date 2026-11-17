@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
@@ -86,7 +86,7 @@ object SectionDesign {
      *  `surfaceContainerLow` here gives us the card color iOS Settings expects. */
     @Composable
     @ReadOnlyComposable
-    fun cardColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
+    fun cardColor(): Color = MiuixTheme.colorScheme.surfaceContainer
 
     /** Section background (the gray behind the cards) — match iOS systemGroupedBackground.
      *  Pairs with [cardColor]: this token is the dimmer page-level surface
@@ -94,17 +94,17 @@ object SectionDesign {
      *  `surfaceContainerLow` stand out against it. */
     @Composable
     @ReadOnlyComposable
-    fun screenBackgroundColor(): Color = MaterialTheme.colorScheme.background
+    fun screenBackgroundColor(): Color = MiuixTheme.colorScheme.background
 
     /** Inner-card divider color — match iOS systemFill α 0.3. */
     @Composable
     @ReadOnlyComposable
-    fun dividerColor(): Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    fun dividerColor(): Color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f)
 
     /** Footer caption color (gray text below cards). */
     @Composable
     @ReadOnlyComposable
-    fun footerColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant
+    fun footerColor(): Color = MiuixTheme.colorScheme.onSurfaceContainerVariant
 }
 
 /**
@@ -119,9 +119,9 @@ fun SectionHeader(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MiuixTheme.textStyles.subtitle,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = MiuixTheme.colorScheme.onSurface,
         modifier = modifier.padding(
             start = SectionDesign.ScreenHorizontalPadding,
             end = SectionDesign.ScreenHorizontalPadding,
@@ -140,7 +140,7 @@ fun SectionFooter(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
+        style = MiuixTheme.textStyles.body2,
         color = SectionDesign.footerColor(),
         modifier = modifier.padding(
             start = SectionDesign.ScreenHorizontalPadding,
@@ -213,8 +213,8 @@ fun RowLabel(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.body2,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         modifier = modifier.padding(bottom = 6.dp),
     )
 }

@@ -87,7 +87,8 @@ fun SettingsScaffold(
     Scaffold(
         topBar = {
             if (centerTitle) {
-                SmallTopAppBar(
+                Box {
+                    SmallTopAppBar(
                     title = title,
                     navigationIcon = {
                         when {
@@ -99,7 +100,15 @@ fun SettingsScaffold(
                     },
                     actions = { actions?.invoke() },
                     color = MiuixTheme.colorScheme.background,
-                )
+                    )
+                    Text(
+                        text = title,
+                        modifier = Modifier.align(Alignment.Center),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             } else {
                 TopAppBar(
                     title = title,
