@@ -25,19 +25,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +58,6 @@ import com.openminis.app.i18n.uppercaseForDisplay
 
 // ─── Scaffold ──────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScaffold(
     title: String,
@@ -92,44 +86,40 @@ fun SettingsScaffold(
 ) {
     Scaffold(
         topBar = {
-            val titleSlot: @Composable () -> Unit = {
-                Text(
-                    title,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            val navigationSlot: @Composable () -> Unit = {
-                when {
-                    navigation != null -> navigation()
-                    onBack != null -> IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            }
             if (centerTitle) {
-                CenterAlignedTopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
+                SmallTopAppBar(
+                    title = title,
+                    navigationIcon = {
+                        when {
+                            navigation != null -> navigation()
+                            onBack != null -> IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    },
                     actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
+                    color = MiuixTheme.colorScheme.background,
                 )
             } else {
                 TopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
+                    title = title,
+                    navigationIcon = {
+                        when {
+                            navigation != null -> navigation()
+                            onBack != null -> IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    },
                     actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
+                    color = MiuixTheme.colorScheme.background,
                 )
             }
         },
         floatingActionButton = { floatingActionButton?.invoke() },
         bottomBar = { bottomBar?.invoke() },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
+        containerColor = MiuixTheme.colorScheme.background,
+        content = { padding ->
         // T183: imePadding() shrinks the scroll container by the IME's
         // height while the keyboard is up, giving Modifier.bringIntoView()
         // (used by `bringIntoViewOnFocus`) a meaningful "above the
@@ -144,7 +134,8 @@ fun SettingsScaffold(
             modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
             content = content,
         )
-    }
+        }
+    )
 }
 
 // ─── Switch ────────────────────────────────────────────────────────────────────
@@ -187,19 +178,15 @@ fun SettingsSwitch(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    colors: androidx.compose.material3.SwitchColors = SwitchDefaults.colors(),
+    colors: top.yukonga.miuix.kmp.basic.SwitchColors = top.yukonga.miuix.kmp.basic.SwitchDefaults.switchColors(),
 ) {
-    CompositionLocalProvider(
-        LocalMinimumInteractiveComponentSize provides Dp.Unspecified,
-    ) {
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = modifier,
-            enabled = enabled,
-            colors = colors,
-        )
-    }
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = colors,
+    )
 }
 
 // ─── Section ───────────────────────────────────────────────────────────────────
@@ -227,8 +214,8 @@ fun SettingsSection(
         if (header != null) {
             Text(
                 text = header.uppercaseForDisplay(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.5.sp,
                 // [T-android-settings-ui-md3] #5 header→card gap = 8dp (was 6dp,
@@ -253,14 +240,14 @@ fun SettingsSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(MiuixTheme.colorScheme.surfaceContainer),
             content = content,
         )
         if (footer != null) {
             Text(
                 text = footer,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 // [T-android-settings-ui-md3] #6 explanatory footer: 8dp below the
                 // card, 4dp before the next section (the parent's 24dp top padding
                 // already provides separation, so keep the footer's own bottom
@@ -284,11 +271,11 @@ fun SettingsRow(
     title: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconColor: Color = MiuixTheme.colorScheme.primary,
     onClick: (() -> Unit)? = null,
     showChevron: Boolean = onClick != null,
     showDivider: Boolean = true,
-    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    titleColor: Color = MiuixTheme.colorScheme.onSurface,
     trailing: (@Composable () -> Unit)? = null,
     // [T-android-settings-ui-md3] #8 single-line List Item is 56dp; a caller with
     // two-line content (e.g. the model list: name + id) passes 72dp for the MD3
@@ -345,7 +332,7 @@ fun SettingsRow(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     color = titleColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -353,8 +340,8 @@ fun SettingsRow(
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -371,7 +358,7 @@ fun SettingsRow(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -384,7 +371,7 @@ fun SettingsRow(
                     .fillMaxWidth()
                     .padding(start = insetStart, end = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
@@ -398,7 +385,7 @@ fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconColor: Color = MiuixTheme.colorScheme.primary,
     enabled: Boolean = true,
     showDivider: Boolean = true,
 ) {
@@ -415,7 +402,7 @@ fun SettingsSwitchRow(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
-                colors = SwitchDefaults.colors(),
+                colors = top.yukonga.miuix.kmp.basic.SwitchDefaults.switchColors(),
             )
         },
     )
@@ -428,8 +415,8 @@ fun SettingsValueRow(
     value: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconColor: Color = MaterialTheme.colorScheme.primary,
-    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    iconColor: Color = MiuixTheme.colorScheme.primary,
+    valueColor: Color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
 ) {
@@ -444,7 +431,7 @@ fun SettingsValueRow(
         trailing = {
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
                 color = valueColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -479,15 +466,15 @@ fun SettingsChoiceRow(
             }
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.main,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
             if (selected) {
                 Icon(
                     Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -498,7 +485,7 @@ fun SettingsChoiceRow(
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
