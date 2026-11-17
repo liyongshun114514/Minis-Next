@@ -79,7 +79,6 @@ import com.openminis.app.i18n.uppercaseForDisplay
  * a public surface for one consumer. Visual feel is intentionally
  * close to the existing settings rows but the components are local.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackgroundSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
