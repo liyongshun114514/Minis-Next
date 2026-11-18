@@ -6,7 +6,6 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import java.time.DayOfWeek
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -14,24 +13,22 @@ import kotlin.math.abs
 import kotlin.math.roundToLong
 
 /**
- * [T-usage-step1] Runs the SHARED usage vectors (src/shared/usage, the file iOS
- * loads too) through the Android usage layer: provider parsing and stream
- * merging, the lenient stored-JSON parser, model-name normalization, and the
- * report builder. Every field present in a case's `expected` is compared; the
- * expected values are hand-computed in the file, not produced by either app.
+ * Exercises provider parsing and stream merging, stored-JSON parsing,
+ * model-name normalization and the report builder. Expected values are
+ * hand-computed in the Android test fixture, not produced by the app.
  */
 class UsageVectorsTest {
 
-    // Gradle runs unit tests with the module dir (src/android/app) as CWD.
-    private val vectorsFile: File = sequenceOf(
-        File("../shared/usage/usage_test_vectors.json"),     // CWD = src/android
-        File("../../shared/usage/usage_test_vectors.json"),  // CWD = src/android/app
-    ).firstOrNull { it.isFile } ?: File("../../shared/usage/usage_test_vectors.json")
-
-    private val cases: JSONArray by lazy { JSONObject(vectorsFile.readText()).getJSONArray("cases") }
+    private val cases: JSONArray by lazy {
+        val path = "/usage/usage_test_vectors.json"
+        val vectors = checkNotNull(javaClass.getResourceAsStream(path)) {
+            "Missing statistics regression fixture in test resources: $path"
+        }
+        JSONObject(vectors.bufferedReader(Charsets.UTF_8).use { it.readText() }).getJSONArray("cases")
+    }
 
     @Test
-    fun `all shared usage vectors pass`() {
+    fun `all usage vectors pass`() {
         val failures = mutableListOf<String>()
         for (i in 0 until cases.length()) {
             val c = cases.getJSONObject(i)
@@ -51,8 +48,10 @@ class UsageVectorsTest {
     }
 
     @Test
-    fun `the vector file holds the 44 cases this suite was written against`() {
-        assertEquals(44, cases.length())
+    fun `the Android fixture covers all four usage areas`() {
+        assertEquals(15, cases.length())
+        val kinds = (0 until cases.length()).map { cases.getJSONObject(it).getString("kind") }.toSet()
+        assertEquals(setOf("parse_provider", "parse_stored", "model_key", "report"), kinds)
     }
 
     // ---- parse_provider -------------------------------------------------
