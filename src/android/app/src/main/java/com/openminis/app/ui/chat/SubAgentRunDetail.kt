@@ -33,14 +33,14 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.StopCircle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf

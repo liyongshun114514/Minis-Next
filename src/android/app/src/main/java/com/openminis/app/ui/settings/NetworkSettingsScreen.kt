@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,20 +24,18 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Troubleshoot
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Checkbox
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -287,7 +286,7 @@ fun NetworkSettingsScreen(
                 }
                 SettingsRow(
                     title = stringResource(R.string.network_sign_out_clear_ellipsis),
-                    titleColor = MaterialTheme.colorScheme.error,
+                    titleColor = MiuixTheme.colorScheme.error,
                     onClick = { confirmClear = true },
                     showChevron = false,
                     showDivider = false,
@@ -337,7 +336,7 @@ fun NetworkSettingsScreen(
                         Text(
                             stringResource(R.string.network_alert_keeps_failing),
                             color = Color(0xFFFF9500),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MiuixTheme.textStyles.footnote2,
                         )
                     }) else null,
                 )
@@ -404,7 +403,7 @@ fun NetworkSettingsScreen(
                 Text(
                     err,
                     color = Color(0xFFFF9500),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body2,
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -416,8 +415,8 @@ fun NetworkSettingsScreen(
             SettingsRow(
                 title = stringResource(R.string.network_restore_direct),
                 icon = Icons.Outlined.Restore,
-                iconColor = MaterialTheme.colorScheme.error,
-                titleColor = MaterialTheme.colorScheme.error,
+                iconColor = MiuixTheme.colorScheme.error,
+                titleColor = MiuixTheme.colorScheme.error,
                 onClick = if (settings.forceDirect || settings.isUnconfigured) null else ({ NetworkHub.restoreDirect() }),
                 showChevron = false,
                 showDivider = false,
@@ -532,25 +531,25 @@ fun NetworkSettingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(8.dp).background(
-                                    if (p.online) Color(0xFF34C759) else MaterialTheme.colorScheme.outline,
+                                    if (p.online) Color(0xFF34C759) else MiuixTheme.colorScheme.outline,
                                     CircleShape,
                                 ),
                             )
                             Spacer(Modifier.size(10.dp))
                             Column {
-                                Text(p.displayName, style = MaterialTheme.typography.bodyMedium)
+                                Text(p.displayName, style = MiuixTheme.textStyles.body1)
                                 SelectionContainer {
                                     Text(
                                         listOfNotNull(p.ipv4, p.os.ifEmpty { null }).joinToString(" · "),
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MiuixTheme.textStyles.body2,
                                         fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     )
                                 }
                             }
                             if (p.exitNode) {
                                 Spacer(Modifier.weight(1f))
-                                Text(stringResource(R.string.network_exit_node), style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.network_exit_node), style = MiuixTheme.textStyles.footnote2)
                             }
                         }
                     }
@@ -569,7 +568,7 @@ fun NetworkSettingsScreen(
             text = { Text(stringResource(R.string.network_sign_out_clear_message)) },
             confirmButton = {
                 MinisTextButton(onClick = { NetworkHub.clearTailscale(); confirmClear = false }) {
-                    Text(stringResource(R.string.network_sign_out_clear), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.network_sign_out_clear), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -684,7 +683,6 @@ internal fun RoutePickerDialog(
  * A half-screen sheet like the model and provider pickers: slim drag handle,
  * Cancel / centred title / Add in one bar, grouped settings cards below.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddProviderRoutesSheet(
     candidates: List<NetworkProviderRow>,
@@ -703,13 +701,13 @@ private fun AddProviderRoutesSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
         // The slim handle the model picker uses (6dp / 4dp, not Material's ~22dp).
         dragHandle = {
             Box(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), contentAlignment = Alignment.TopCenter) {
                 Box(
                     Modifier.width(32.dp).height(4.dp).background(
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                         RoundedCornerShape(2.dp),
                     ),
                 )
@@ -724,12 +722,12 @@ private fun AddProviderRoutesSheet(
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     MinisTextButton(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                        colors = ButtonDefaults.textButtonColors(contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant),
                     ) { Text(stringResource(R.string.network_cancel)) }
                 }
                 Text(
                     stringResource(R.string.network_add_providers),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
@@ -778,12 +776,12 @@ private fun AddProviderRoutesSheet(
 @Composable
 private fun StatusRow(ts: TailscaleStatus, applying: Boolean, paused: Boolean) {
     val (label, color) = when {
-        paused -> stringResource(R.string.network_status_off) to MaterialTheme.colorScheme.onSurfaceVariant
-        applying && !ts.running -> stringResource(R.string.network_status_starting) to MaterialTheme.colorScheme.onSurfaceVariant
+        paused -> stringResource(R.string.network_status_off) to MiuixTheme.colorScheme.onSurfaceContainerVariant
+        applying && !ts.running -> stringResource(R.string.network_status_starting) to MiuixTheme.colorScheme.onSurfaceContainerVariant
         ts.isLoggedIn -> stringResource(R.string.network_status_connected) to Color(0xFF34C759)
         ts.needsLogin -> stringResource(R.string.network_status_not_logged_in) to Color(0xFFFF9500)
-        ts.running -> stringResource(R.string.network_status_connecting) to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> stringResource(R.string.network_status_off) to MaterialTheme.colorScheme.onSurfaceVariant
+        ts.running -> stringResource(R.string.network_status_connecting) to MiuixTheme.colorScheme.onSurfaceContainerVariant
+        else -> stringResource(R.string.network_status_off) to MiuixTheme.colorScheme.onSurfaceContainerVariant
     }
     val ip = ts.ips.firstOrNull { !it.contains(':') } ?: ts.ips.firstOrNull()
     SettingsValueRow(
@@ -826,17 +824,17 @@ private fun DiagnosticsSection() {
                 for (c in r.checks) {
                     val color = when (c.result) {
                         NetworkDiagnostics.Result.PASS -> Color(0xFF34C759)
-                        NetworkDiagnostics.Result.FAIL -> MaterialTheme.colorScheme.error
+                        NetworkDiagnostics.Result.FAIL -> MiuixTheme.colorScheme.error
                         NetworkDiagnostics.Result.WARN -> Color(0xFFFF9500)
-                        NetworkDiagnostics.Result.SKIP -> MaterialTheme.colorScheme.onSurfaceVariant
+                        NetworkDiagnostics.Result.SKIP -> MiuixTheme.colorScheme.onSurfaceContainerVariant
                     }
                     Row(Modifier.padding(vertical = 3.dp)) {
-                        Text(c.result.name, color = color, style = MaterialTheme.typography.labelSmall,
+                        Text(c.result.name, color = color, style = MiuixTheme.textStyles.footnote2,
                             fontFamily = FontFamily.Monospace, modifier = Modifier.heightIn(min = 16.dp).padding(end = 8.dp))
                         Column {
-                            Text(c.name, style = MaterialTheme.typography.bodySmall)
-                            Text(c.detail, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(c.name, style = MiuixTheme.textStyles.body2)
+                            Text(c.detail, style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                         }
                     }
                 }
@@ -887,13 +885,13 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DialogTextField(value = name, onValueChange = { name = it }, placeholder = stringResource(R.string.network_proxy_name))
-                Text(stringResource(R.string.network_proxy_type), style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.network_proxy_type), style = MiuixTheme.textStyles.footnote1)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     for (k in ProxyServer.KINDS) {
                         MinisTextButton(onClick = { kind = k }) {
                             Text(
                                 ProxyServer.kindLabel(k),
-                                color = if (k == kind) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (k == kind) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                     }
@@ -903,16 +901,16 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
                 DialogTextField(value = portText, onValueChange = { portText = it.filter(Char::isDigit).take(5) },
                     placeholder = stringResource(R.string.network_proxy_port),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                Text(stringResource(R.string.network_proxy_authentication), style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.network_proxy_authentication), style = MiuixTheme.textStyles.footnote1)
                 DialogTextField(value = username, onValueChange = { username = it }, placeholder = stringResource(R.string.network_proxy_username))
                 DialogTextField(value = password, onValueChange = { password = it }, placeholder = stringResource(R.string.network_proxy_password),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                Text(stringResource(R.string.network_proxy_bypass), style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.network_proxy_bypass), style = MiuixTheme.textStyles.footnote1)
                 DialogTextField(value = bypassText, onValueChange = { bypassText = it }, placeholder = "example.com, *.lan, 10.0.0.0/8",
                     singleLine = false, maxLines = 4)
-                Text(stringResource(R.string.network_proxy_bypass_footer), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.network_proxy_bypass_footer), style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     MinisTextButton(enabled = valid && !testing, onClick = {
                         testing = true
@@ -932,8 +930,8 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
                     if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 }
                 testResult?.let { (ok, msg) ->
-                    Text(msg, style = MaterialTheme.typography.bodySmall,
-                        color = if (ok) Color(0xFF34C759) else MaterialTheme.colorScheme.error)
+                    Text(msg, style = MiuixTheme.textStyles.body2,
+                        color = if (ok) Color(0xFF34C759) else MiuixTheme.colorScheme.error)
                 }
                 // [FEAT-261021-05] Opened from the "keeps failing" banner: say
                 // why, and let the user stop using it without deleting it.
@@ -943,18 +941,18 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
                     NetworkFailureNote(failure)
                     if (inUse) {
                         MinisTextButton(onClick = { NetworkHub.stopUsingProxy(proxy.id); onDismiss() }) {
-                            Text(stringResource(R.string.network_stop_using_proxy), color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.network_stop_using_proxy), color = MiuixTheme.colorScheme.error)
                         }
                     }
                     Text(
                         stringResource(if (inUse) R.string.network_stop_using_proxy_footer else R.string.network_proxy_not_in_use),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
                 if (!isNew) {
                     MinisTextButton(onClick = { NetworkHub.deleteProxy(proxy.id); onDismiss() }) {
-                        Text(stringResource(R.string.network_proxy_delete), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.network_proxy_delete), color = MiuixTheme.colorScheme.error)
                     }
                 }
             }
@@ -980,8 +978,8 @@ private fun AuthKeyDialog(onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DialogTextField(value = key, onValueChange = { key = it }, placeholder = "tskey-auth-…",
                     visualTransformation = PasswordVisualTransformation())
-                Text(stringResource(R.string.network_auth_key_footer), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.network_auth_key_footer), style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             }
         },
         confirmButton = {

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -17,9 +18,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,7 +81,7 @@ internal fun StreamingDotsText() {
                 text = ".",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.graphicsLayer {
                     val p = decorativePingPong(decorativePhase(tick.value, 700, i * 120))
                     translationY = -3.dp.toPx() * p
@@ -175,7 +175,7 @@ internal fun CompactProgressIndicator(
                 text = stringResource(R.string.cancel),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MiuixTheme.colorScheme.primary,
                 maxLines = 1,
                 modifier = Modifier
                     .clickable(onClick = onCancel)

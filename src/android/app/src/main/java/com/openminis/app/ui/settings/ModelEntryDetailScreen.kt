@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -8,9 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,7 +42,6 @@ import com.openminis.app.ui.components.MinisTextButton
  * meant Android users had no way to override the things iOS lets them
  * tweak (context window, thinking flag, per-modality enablement).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModelEntryDetailScreen(
     instanceId: String,
@@ -128,7 +126,7 @@ fun ModelEntryDetailScreen(
                 onClick = onBack,
                 modifier = Modifier.padding(start = 8.dp),
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
             ) { Text(stringResource(R.string.common_cancel)) }
         },
@@ -193,7 +191,7 @@ fun ModelEntryDetailScreen(
                     onValueChange = { if (entry.isCustom) modelId = it },
                     singleLine = true,
                     readOnly = !entry.isCustom,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(Modifier.height(12.dp))
                 RowLabel(text = stringResource(R.string.model_entry_display_name))
@@ -244,8 +242,8 @@ fun ModelEntryDetailScreen(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         stringResource(R.string.modeldetail_max_tokens_exceeds_warning, baseLimit),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.error.copy(alpha = 0.8f),
                     )
                 }
             }
@@ -336,7 +334,7 @@ fun ModelEntryDetailScreen(
             ) {
                 SettingsRow(
                     title = stringResource(R.string.model_entry_reset_to_default),
-                    titleColor = MaterialTheme.colorScheme.error,
+                    titleColor = MiuixTheme.colorScheme.error,
                     showChevron = false,
                     showDivider = false,
                     onClick = {

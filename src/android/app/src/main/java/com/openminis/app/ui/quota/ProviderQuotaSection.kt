@@ -1,5 +1,6 @@
 package com.openminis.app.ui.quota
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,18 +23,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.PullToRefresh as PullToRefreshBox
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -101,8 +100,8 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
         ) {
             Text(
                 stringResource(R.string.quota_title).uppercaseForDisplay(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.5.sp,
             )
@@ -124,7 +123,7 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
                         Icon(
                             Icons.Filled.Refresh,
                             contentDescription = stringResource(R.string.quota_refresh),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MiuixTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp),
                         )
                     }
@@ -137,7 +136,7 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(MiuixTheme.colorScheme.surfaceContainer),
         ) {
             SectionContent(st, display)
             if (!hidden) {
@@ -188,13 +187,13 @@ private fun CustomBalanceURLRow(instance: ProviderInstance) {
         Column(Modifier.weight(1f)) {
             Text(
                 stringResource(R.string.quota_custom_balance_url_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             Text(
                 shown,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
             )
         }
@@ -203,8 +202,8 @@ private fun CustomBalanceURLRow(instance: ProviderInstance) {
                 if (configured != null) R.string.quota_custom_balance_url_edit
                 else R.string.quota_custom_balance_url_add,
             ),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.button,
+            color = MiuixTheme.colorScheme.primary,
         )
     }
     if (editing && repo != null) {
@@ -231,8 +230,8 @@ private fun CustomBalanceURLDialog(initial: String, onDismiss: () -> Unit, onSav
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     stringResource(R.string.quota_custom_balance_url_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 OutlinedTextField(
                     value = text,
@@ -243,7 +242,7 @@ private fun CustomBalanceURLDialog(initial: String, onDismiss: () -> Unit, onSav
                     isError = error != null,
                 )
                 error?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.error)
                 }
             }
         },
@@ -284,7 +283,7 @@ internal fun QuotaDivider() {
             .fillMaxWidth()
             .padding(start = 14.dp, end = 14.dp)
             .height(0.5.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
     )
 }
 
@@ -296,21 +295,21 @@ private fun ColumnScope.SectionContent(st: QuotaState, display: QuotaInstanceDis
         QuotaInstanceDisplay.Hidden -> Unit
         is QuotaInstanceDisplay.Unsupported -> Text(
             QuotaText.unsupported(context, display.reason),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = rowPadding,
         )
         QuotaInstanceDisplay.Loading -> CheckingRow(rowPadding)
         is QuotaInstanceDisplay.Empty -> Text(
             stringResource(R.string.quota_empty),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = rowPadding,
         )
         is QuotaInstanceDisplay.Failed -> Row(verticalAlignment = Alignment.CenterVertically, modifier = rowPadding) {
             Icon(Icons.Outlined.WarningAmber, null, tint = quotaOrange(), modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text(QuotaText.error(context, display.error), style = MaterialTheme.typography.bodySmall, color = quotaOrange())
+            Text(QuotaText.error(context, display.error), style = MiuixTheme.textStyles.body2, color = quotaOrange())
         }
         is QuotaInstanceDisplay.Pools -> {
             val pools = st.poolsOf(display.subjectId)
@@ -322,13 +321,13 @@ private fun ColumnScope.SectionContent(st: QuotaState, display: QuotaInstanceDis
                 ) {
                     Icon(
                         Icons.Filled.Group, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp),
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(5.dp))
                     Text(
                         stringResource(R.string.quota_shared_by_all),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -347,8 +346,8 @@ internal fun CheckingRow(modifier: Modifier = Modifier) {
         Spacer(Modifier.width(8.dp))
         Text(
             stringResource(R.string.quota_checking),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -385,8 +384,8 @@ private fun SectionFooter(st: QuotaState, display: QuotaInstanceDisplay, instanc
         for ((text, warning) in lines) {
             Text(
                 text,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (warning) quotaOrange() else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = if (warning) quotaOrange() else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 lineHeight = 16.sp,
             )
         }
@@ -434,7 +433,6 @@ internal fun relayDetectionLine(st: QuotaState, instance: ProviderInstance): Str
  * - Pull to refresh / toolbar refresh use the store's forced refresh:
  *   single flight, Retry-After and the 30 s debounce still apply.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuotaDetailSheet(
     instanceId: String,
@@ -466,7 +464,7 @@ fun QuotaDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = !halfHeight),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        containerColor = MiuixTheme.colorScheme.background,
         dragHandle = {
             Box(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), contentAlignment = Alignment.TopCenter) {
                 Box(
@@ -489,7 +487,7 @@ fun QuotaDetailSheet(
                 }
                 Text(
                     instance?.label ?: stringResource(R.string.quota_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
@@ -501,7 +499,7 @@ fun QuotaDetailSheet(
                             Icon(
                                 Icons.Filled.Refresh,
                                 contentDescription = stringResource(R.string.quota_refresh),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MiuixTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -547,23 +545,23 @@ private fun SheetBody(
             for (pool in st.poolsOf(display.subjectId)) PoolSection(st, pool)
             Text(
                 stringResource(R.string.quota_sheet_footer),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 16.dp),
             )
         }
         QuotaInstanceDisplay.Loading -> SheetSection(null) { CheckingRow(pad) }
         is QuotaInstanceDisplay.Unsupported -> SheetSection(null) {
-            Text(QuotaText.unsupported(context, display.reason), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = pad)
+            Text(QuotaText.unsupported(context, display.reason), color = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = pad)
         }
         is QuotaInstanceDisplay.Failed -> SheetSection(null) {
             Text(QuotaText.error(context, display.error), color = quotaOrange(), modifier = pad)
         }
         is QuotaInstanceDisplay.Empty -> SheetSection(null) {
-            Text(stringResource(R.string.quota_empty), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = pad)
+            Text(stringResource(R.string.quota_empty), color = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = pad)
         }
         QuotaInstanceDisplay.Hidden -> SheetSection(null) {
-            Text(stringResource(R.string.quota_error_missing_credential), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = pad)
+            Text(stringResource(R.string.quota_error_missing_credential), color = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = pad)
         }
     }
 }
@@ -574,8 +572,8 @@ private fun SheetSection(header: String?, content: @Composable ColumnScope.() ->
         if (header != null) {
             Text(
                 header.uppercaseForDisplay(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.5.sp,
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, bottom = 8.dp),
@@ -586,7 +584,7 @@ private fun SheetSection(header: String?, content: @Composable ColumnScope.() ->
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(MiuixTheme.colorScheme.surfaceContainer),
             content = content,
         )
     }
@@ -599,7 +597,7 @@ private fun LabeledRow(title: String, value: @Composable () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Text(title, style = MiuixTheme.textStyles.main)
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { value() }
     }
@@ -632,8 +630,8 @@ private fun AccountSection(
             LabeledRow(stringResource(R.string.quota_last_checked)) {
                 Text(
                     QuotaText.stamp(context, at),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     textAlign = TextAlign.End,
                 )
             }
@@ -649,8 +647,8 @@ private fun AccountSection(
             divider()
             Text(
                 text,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (warning) quotaOrange() else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = if (warning) quotaOrange() else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             )
         }
@@ -669,11 +667,11 @@ internal fun relaySheetRows(st: QuotaState, instance: ProviderInstance): (@Compo
         val context = LocalContext.current
         LabeledRow(stringResource(R.string.quota_relay_type)) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(d.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End)
+                Text(d.text, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, textAlign = TextAlign.End)
                 Text(
                     context.getString(R.string.quota_detected, QuotaText.relative(context, d.at)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -704,8 +702,8 @@ private fun PoolSection(st: QuotaState, pool: QuotaPool) {
         LabeledRow(stringResource(R.string.quota_source)) {
             Text(
                 QuotaText.sourceText(context, pool.provenance),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = TextAlign.End,
             )
         }
@@ -713,8 +711,8 @@ private fun PoolSection(st: QuotaState, pool: QuotaPool) {
         LabeledRow(stringResource(R.string.quota_updated)) {
             Text(
                 QuotaText.stamp(context, pool.observedAt),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = TextAlign.End,
             )
         }
@@ -728,12 +726,12 @@ private fun PoolSection(st: QuotaState, pool: QuotaPool) {
                 QuotaCircleIcon(icon, tint)
                 Spacer(Modifier.width(10.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text(QuotaText.scope(context, binding.target), style = MaterialTheme.typography.bodyMedium)
+                    Text(QuotaText.scope(context, binding.target), style = MiuixTheme.textStyles.body1)
                     if (binding.evidence == QuotaPoolBinding.Evidence.assumedSubjectWide) {
                         Text(
                             stringResource(R.string.quota_scope_assumed),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }

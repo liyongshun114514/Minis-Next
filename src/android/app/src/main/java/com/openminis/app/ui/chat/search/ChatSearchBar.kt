@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.search
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.res.Resources
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -20,12 +21,11 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -92,7 +92,7 @@ internal fun ChatSearchBar(controller: ChatSearchController, modifier: Modifier 
                     else R.string.chat_search_wrapped_last,
                 ),
                 fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .padding(bottom = 6.dp)
                     .background(ChatColors.toolCapsuleBg, RoundedCornerShape(12.dp))
@@ -120,8 +120,8 @@ internal fun ChatSearchBar(controller: ChatSearchController, modifier: Modifier 
                     value = q,
                     onValueChange = { controller.updateQuery(it) },
                     singleLine = true,
-                    textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    textStyle = TextStyle(fontSize = 16.sp, color = MiuixTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     // Return steps to the next result and keeps the keyboard
                     // up (iOS ChatSearchBar.onSubmit: the user is stepping

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,11 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -109,11 +109,11 @@ private fun NetworkAlertBanner(event: NetworkAlertEvent, onOpen: () -> Unit, onD
                 Spacer(Modifier.size(10.dp))
                 Column {
                     Text(title, color = Color.White, fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        style = MiuixTheme.textStyles.body1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         stringResource(R.string.network_alert_banner_body, event.failures, failureReason(event.failureClass)),
                         color = Color.White.copy(alpha = 0.92f),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MiuixTheme.textStyles.body2,
                         maxLines = 3,
                     )
                 }
@@ -150,16 +150,16 @@ internal fun NetworkFailureNote(event: NetworkAlertEvent, modifier: Modifier = M
             Spacer(Modifier.size(6.dp))
             Text(
                 stringResource(R.string.network_alert_note, event.failures, failureReason(event.failureClass)),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.Medium,
             )
         }
         if (event.detail.isNotEmpty()) {
             Text(
                 event.detail,
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 3,
                 modifier = Modifier.padding(top = 4.dp),
             )

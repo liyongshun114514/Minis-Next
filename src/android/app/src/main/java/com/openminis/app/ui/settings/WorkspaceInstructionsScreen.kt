@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,18 +16,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,7 +55,6 @@ import java.io.File
  * because their file budgets are separate (65,536 bytes each by default).
  * The fixed application ordering header is outside those file budgets.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceInstructionsScreen(
     onBack: () -> Unit,
@@ -110,8 +107,8 @@ fun WorkspaceInstructionsScreen(
             item {
                 Text(
                     text = stringResource(R.string.workspace_instructions_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
@@ -121,26 +118,26 @@ fun WorkspaceInstructionsScreen(
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clickableRow { scopeDialog = true },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
                             text = stringResource(R.string.workspace_scope_title),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MiuixTheme.textStyles.subtitle,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.workspace_scope_project_root) + ": " + projectRoot,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MiuixTheme.textStyles.body2,
                         )
                         Text(
                             text = stringResource(R.string.workspace_scope_working_directory) + ": " + workingDirectory,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MiuixTheme.textStyles.body2,
                         )
                         Text(
                             text = stringResource(R.string.workspace_budget, maxBytes),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -152,7 +149,7 @@ fun WorkspaceInstructionsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceVariant),
                 ) {
                     Row(
                         modifier = Modifier
@@ -164,13 +161,13 @@ fun WorkspaceInstructionsScreen(
                         Column(Modifier.weight(1f)) {
                             Text(
                                 text = stringResource(R.string.workspace_exclusive_title),
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MiuixTheme.textStyles.subtitle,
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = stringResource(R.string.workspace_exclusive_note),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                         Switch(
@@ -204,8 +201,8 @@ fun WorkspaceInstructionsScreen(
                 item {
                     Text(
                         text = stringResource(R.string.workspace_project_empty),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
@@ -253,8 +250,8 @@ fun WorkspaceInstructionsScreen(
 private fun SectionHeader(text: String) {
     Text(
         text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary,
+        style = MiuixTheme.textStyles.footnote2,
+        color = MiuixTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 12.dp, bottom = 2.dp),
     )
 }
@@ -280,7 +277,7 @@ private fun InstructionRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickableRow(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier
@@ -291,7 +288,7 @@ private fun InstructionRow(
             Icon(
                 imageVector = if (createHint && !exists) Icons.Filled.Add else Icons.Outlined.Description,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
             )
             Column(
                 modifier = Modifier
@@ -300,14 +297,14 @@ private fun InstructionRow(
             ) {
                 Text(
                     text = linuxPath,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (exists) subtitle else stringResource(R.string.workspace_file_missing),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -359,8 +356,8 @@ private fun ScopeDialog(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.workspace_scope_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         },
@@ -372,7 +369,6 @@ private fun ScopeDialog(
  * valid file (dsh renders its heading so the model learns the instruction
  * exists and has no content).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceInstructionEditorScreen(
     linuxPath: String,
@@ -432,8 +428,8 @@ fun WorkspaceInstructionEditorScreen(
         ) {
             Text(
                 text = linuxPath,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
             OutlinedTextField(
@@ -442,22 +438,22 @@ fun WorkspaceInstructionEditorScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f),
-                textStyle = MaterialTheme.typography.bodySmall,
+                textStyle = MiuixTheme.textStyles.body2,
                 placeholder = { Text(stringResource(R.string.workspace_editor_placeholder)) },
             )
             if (saved) {
                 Text(
                     text = stringResource(R.string.workspace_saved),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
             error?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
             }

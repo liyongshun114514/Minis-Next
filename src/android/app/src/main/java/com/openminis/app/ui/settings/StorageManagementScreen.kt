@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisTextButton
 
@@ -14,7 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.Surface
+import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.res.pluralStringResource
 import com.openminis.app.ui.components.MinisAlertDialog
@@ -36,12 +37,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,7 +98,6 @@ internal fun aggregateSessionStorage(
  * bar offers Cancel / Select All, and a bottom bar offers Clear Files and
  * Delete for the selection, each behind a confirmation.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun StorageManagementScreen(
     vm: StorageUsageViewModel,
@@ -252,14 +250,14 @@ internal fun StorageManagementScreen(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 stringResource(R.string.storage_orphan_cleaning),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.main,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         } else {
                             Text(
                                 stringResource(R.string.storage_orphan_clean_button),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.main,
+                                color = MiuixTheme.colorScheme.error,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -281,14 +279,14 @@ internal fun StorageManagementScreen(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 stringResource(R.string.storage_clearing_status),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.main,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         } else {
                             Text(
                                 stringResource(R.string.storage_clear_logs_caches_button),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.main,
+                                color = MiuixTheme.colorScheme.error,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -309,8 +307,8 @@ internal fun StorageManagementScreen(
                         }
                         state.rows.isEmpty() -> Text(
                             stringResource(R.string.storage_no_sessions),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            style = MiuixTheme.textStyles.body1,
                             modifier = Modifier.padding(16.dp),
                         )
                         // Rows follow as their own lazy items; the card is drawn
@@ -334,7 +332,7 @@ internal fun StorageManagementScreen(
                             .animateItem()
                             .padding(horizontal = 16.dp)
                             .clip(shape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                            .background(MiuixTheme.colorScheme.surfaceContainer),
                     ) {
                         StorageSessionRow(
                             title = session.title ?: "Untitled",
@@ -494,15 +492,15 @@ private fun StorageSessionRow(
                 Icon(
                     if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                     contentDescription = null,
-                    tint = if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = if (selected) MiuixTheme.colorScheme.primary
+                    else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(Modifier.width(12.dp))
             }
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -510,8 +508,8 @@ private fun StorageSessionRow(
             Spacer(Modifier.width(8.dp))
             Text(
                 size,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
             )
             if (!selecting) {
@@ -519,7 +517,7 @@ private fun StorageSessionRow(
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -530,7 +528,7 @@ private fun StorageSessionRow(
                     .fillMaxWidth()
                     .padding(start = if (selecting) 50.dp else 16.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
@@ -545,7 +543,7 @@ private fun StorageSelectionBar(
     onClear: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 3.dp) {
+    Surface(color = MiuixTheme.colorScheme.surfaceContainer) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -571,8 +569,8 @@ private fun StorageSelectionBar(
                 ) {
                     Text(
                         stringResource(R.string.storage_batch_clear_button),
-                        color = if (hasSelection && canClear) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        color = if (hasSelection && canClear) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                     )
                 }
                 MinisTextButton(
@@ -582,8 +580,8 @@ private fun StorageSelectionBar(
                 ) {
                     Text(
                         stringResource(R.string.delete),
-                        color = if (hasSelection) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        color = if (hasSelection) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                     )
                 }
             }
@@ -591,7 +589,6 @@ private fun StorageSelectionBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionStorageDetailScreen(
     sessionId: String,
@@ -646,14 +643,14 @@ fun SessionStorageDetailScreen(
                     onClick = {
                         onBrowseFiles(File(sessionsDir, sessionId).absolutePath)
                     },
-                    valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    valueColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     showDivider = false,
                 )
             } else {
                 Text(
                     stringResource(R.string.storage_no_minis_files),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = MiuixTheme.textStyles.body1,
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -669,8 +666,8 @@ fun SessionStorageDetailScreen(
             } else {
                 Text(
                     stringResource(R.string.storage_no_media_files),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = MiuixTheme.textStyles.body1,
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -691,22 +688,22 @@ fun SessionStorageDetailScreen(
                     Spacer(Modifier.width(10.dp))
                     Text(
                         stringResource(R.string.storage_clearing_status),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.main,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 } else {
                     Text(
                         stringResource(R.string.storage_clear_session_button),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (hasFiles) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        style = MiuixTheme.textStyles.main,
+                        color = if (hasFiles) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                         modifier = Modifier.weight(1f),
                     )
                     if (hasFiles) {
                         Text(
                             Formatter.formatFileSize(context, totalSize),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -760,7 +757,7 @@ fun SessionStorageDetailScreen(
                 }) {
                     Text(
                         "Clear ${Formatter.formatFileSize(context, totalSize)}",
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -794,20 +791,20 @@ private fun StorageOverviewRow(
                     .background(color),
             )
             Spacer(Modifier.width(12.dp))
-            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MiuixTheme.textStyles.main, modifier = Modifier.weight(1f))
+            Text(value, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             if (onClick != null) {
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp),
                 )
             }
         }
         if (showDivider) {
-            val divider = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            val divider = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

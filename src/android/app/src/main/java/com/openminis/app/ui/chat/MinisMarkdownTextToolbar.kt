@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
@@ -14,9 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -321,15 +321,15 @@ internal fun MinisMarkdownTextToolbarHost(toolbar: MinisMarkdownTextToolbar) {
         // elevated surface (surfaceContainerHigh — a lighter grey in dark, a
         // subtle shade in light) plus a thin outline border and a stronger
         // shadow so the bar reads as a popped-out floating element.
-        val barColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        val barColor = MiuixTheme.colorScheme.surfaceContainerHigh
         Surface(
             shape = RoundedCornerShape(10.dp),
             color = barColor,
-            tonalElevation = 3.dp,
+
             shadowElevation = 8.dp,
             border = androidx.compose.foundation.BorderStroke(
                 0.5.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f),
             ),
         ) {
             // [T-android-copy-full-reply-scope] Make the action row
@@ -476,8 +476,8 @@ private fun ToolbarButton(label: String, onClick: () -> Unit) {
     // See T-android-text-toolbar-dup-copy.
     Text(
         text = label,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = MiuixTheme.textStyles.button,
+        color = MiuixTheme.colorScheme.onSurface,
         maxLines = 1,
         softWrap = false,
         modifier = Modifier
@@ -493,7 +493,7 @@ private fun ToolbarDivider() {
             .padding(vertical = 8.dp)
             .width(0.5.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f)),
     )
 }
 

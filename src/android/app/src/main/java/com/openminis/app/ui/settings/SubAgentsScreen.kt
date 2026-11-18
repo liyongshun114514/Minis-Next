@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -17,9 +18,8 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -28,14 +28,13 @@ import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.agent.jobs.AgentJobRegistry
 import com.openminis.app.agent.jobs.SubAgentConcurrencyPrefs
 import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +73,6 @@ internal const val DRAFT_AGENT_ID = "__new__"
  * can never be empty — `subagent_task.agent` always has at least one valid
  * value.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val context = LocalContext.current
@@ -101,13 +99,13 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             ) {
                 Text(
                     stringResource(R.string.sub_agents_concurrency_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MiuixTheme.textStyles.title3,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
                 Text(
                     stringResource(R.string.sub_agents_concurrency_footer),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
                 )
                 SettingsSection {
@@ -163,15 +161,15 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     // its wrapper are gone rather than left as an empty layer.
                     Text(
                         stringResource(R.string.sub_agents_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.main,
+                        color = MiuixTheme.colorScheme.onSurface,
                     )
                     // The tool's wire name, as iOS shows it: the reader can
                     // match what they see here against a transcript.
                     Text(
                         SubAgentDefinition.TOOL_NAME,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
@@ -252,9 +250,9 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                         }
                     }
                     if (i < roster.lastIndex) {
-                        androidx.compose.material3.HorizontalDivider(
+                        top.yukonga.miuix.kmp.basic.HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
                         )
                     }
                 }
@@ -282,8 +280,8 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             SettingsSection {
                 Text(
                     stringResource(R.string.sub_agents_limit_reached, SubAgentLimits.MAX_COUNT),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                 )
             }
@@ -500,8 +498,8 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
                 SettingsCardBlock {
                     Text(
                         text = stringResource(R.string.model_group_detail_intensity),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
                     // [T-android-thinking-segment-overflow] Six segments do not
@@ -556,7 +554,7 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
                 SettingsValueRow(
                     title = stringResource(R.string.sub_agent_delete),
                     value = "",
-                    valueColor = MaterialTheme.colorScheme.error,
+                    valueColor = MiuixTheme.colorScheme.error,
                     onClick = { repo.deleteSubAgent(agentId); onBack() },
                     showDivider = false,
                 )
@@ -579,8 +577,8 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
 private fun FieldCounter(count: Int, limit: Int) {
     Text(
         "$count/$limit",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.footnote2,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         textAlign = androidx.compose.ui.text.style.TextAlign.End,
     )
@@ -643,8 +641,8 @@ private fun SubAgentRosterRow(
             Spacer(Modifier.width(12.dp))
             Text(
                 name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.main,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -664,10 +662,10 @@ private fun SubAgentRosterRow(
                     style = LocalTextStyle.current.copy(
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier
                         .background(
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                            MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.15f),
                             RoundedCornerShape(50),
                         )
                         .padding(horizontal = 6.dp, vertical = 1.dp),
@@ -677,8 +675,8 @@ private fun SubAgentRosterRow(
         if (description.isNotEmpty()) {
             Text(
                 description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 32.dp, top = 4.dp),
@@ -687,16 +685,16 @@ private fun SubAgentRosterRow(
         Text(
             modelLabel,
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 32.dp, top = 4.dp),
         )
     }
     if (showDivider) {
-        androidx.compose.material3.HorizontalDivider(
+        top.yukonga.miuix.kmp.basic.HorizontalDivider(
             modifier = Modifier.padding(start = 48.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
         )
     }
 }

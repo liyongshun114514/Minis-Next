@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,12 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.AssistChip
+import com.openminis.app.ui.components.miuix.AssistChipDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -97,8 +97,8 @@ fun ConfigAuditScreen(
         ) {
             Text(
                 text = stringResource(R.string.logs_config_used_count, usage.count, usage.capacity),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             // T292: "Clear All" button removed per product decision — config
             // change history is meant to be a permanent audit trail. The
@@ -118,13 +118,13 @@ fun ConfigAuditScreen(
                     Icon(
                         imageVector = Icons.Filled.History,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                     Text(
                         text = stringResource(R.string.logs_config_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -180,7 +180,7 @@ fun ConfigAuditScreen(
                         }
                     }
                 }) {
-                    Text(stringResource(R.string.logs_config_revert), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.logs_config_revert), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -218,7 +218,7 @@ private fun AuditRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+            .background(MiuixTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
             // [T-config-readable] Tap a record for its details: the readable
             // description plus the full raw change.
             .clickable(onClick = onOpen)
@@ -230,20 +230,20 @@ private fun AuditRow(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = actorLabel(entry.actor),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.weight(1f))
             val ctx = androidx.compose.ui.platform.LocalContext.current
             Text(
                 text = coarseRelativeTime(ctx, entry.at),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         Text(
             text = entry.key,
-            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            style = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
             maxLines = 1,
             overflow = TextOverflow.MiddleEllipsis,
         )
@@ -254,20 +254,20 @@ private fun AuditRow(
             ConfigReadableDivider()
             Text(
                 text = readable,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 color = if (entry.status == ConfigAuditStatus.APPLIED) {
-                    MaterialTheme.colorScheme.onSurface
+                    MiuixTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                 },
             )
         } else Row(verticalAlignment = Alignment.Top) {
             Text(
                 text = displayJSON(entry.oldValueJSON),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -276,17 +276,17 @@ private fun AuditRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
+                tint = MiuixTheme.colorScheme.outline,
                 modifier = Modifier.padding(top = 2.dp),
             )
             Spacer(Modifier.width(6.dp))
             Text(
                 text = displayJSON(entry.newValueJSON),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                 color = if (entry.status == ConfigAuditStatus.APPLIED) {
-                    MaterialTheme.colorScheme.onSurface
+                    MiuixTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -296,8 +296,8 @@ private fun AuditRow(
         if (!entry.caption.isNullOrEmpty()) {
             Text(
                 text = "📝 ${entry.caption}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         when (entry.status) {
@@ -306,14 +306,14 @@ private fun AuditRow(
                     onClick = onRevert,
                     label = { Text(stringResource(R.string.logs_config_revert_chip)) },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = MiuixTheme.colorScheme.surface,
                     ),
                 )
             }
             ConfigAuditStatus.REVERTED -> {
                 Text(
                     text = stringResource(R.string.logs_config_reverted_label),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body2,
                     color = Color(0xFF8E5CD9),
                 )
             }

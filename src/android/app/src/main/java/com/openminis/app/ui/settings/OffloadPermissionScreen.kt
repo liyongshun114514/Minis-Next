@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -11,10 +12,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -354,9 +354,9 @@ private fun IntegrationSection(
             trailing = {
                 Text(
                     text = systemStatusText ?: stringResource(systemStatusTitleRes),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (systemReady) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.button,
+                    color = if (systemReady) MiuixTheme.colorScheme.primary
+                            else MiuixTheme.colorScheme.error,
                 )
             },
         )
@@ -407,7 +407,7 @@ private fun AgentPolicyRow(
             trailing = {
                 Text(
                     text = displayedLevel,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                     color = levelColor(currentLevel),
                 )
             },
@@ -477,7 +477,7 @@ private fun PermissionRow(
             trailing = {
                 Text(
                     text = levelDisplayName(currentLevel),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                     color = levelColor(currentLevel),
                 )
             },
@@ -555,9 +555,9 @@ private fun levelDisplayName(level: OffloadPermissionManager.PermissionLevel): S
 
 @Composable
 private fun levelColor(level: OffloadPermissionManager.PermissionLevel): Color = when (level) {
-    OffloadPermissionManager.PermissionLevel.BYPASS -> MaterialTheme.colorScheme.primary
-    OffloadPermissionManager.PermissionLevel.ASK_ONCE -> MaterialTheme.colorScheme.tertiary
-    OffloadPermissionManager.PermissionLevel.NOT_ALLOWED -> MaterialTheme.colorScheme.error
+    OffloadPermissionManager.PermissionLevel.BYPASS -> MiuixTheme.colorScheme.primary
+    OffloadPermissionManager.PermissionLevel.ASK_ONCE -> MiuixTheme.colorScheme.primary
+    OffloadPermissionManager.PermissionLevel.NOT_ALLOWED -> MiuixTheme.colorScheme.error
 }
 
 private fun isA11yServiceEnabled(context: Context): Boolean {

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -21,12 +22,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.MenuItemColors
-import androidx.compose.material3.Surface
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import com.openminis.app.ui.components.miuix.MenuDefaults
+import com.openminis.app.ui.components.miuix.MenuItemColors
+import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -49,7 +49,7 @@ import com.openminis.app.ui.theme.ChatColors
  * App-wide popup menu with a unified look: softer rounded corners, a lifted
  * shadow, and a clean tonal surface that matches the Teal theme.
  *
- * Drop-in replacement for [androidx.compose.material3.DropdownMenu] — pass
+ * Drop-in replacement for [com.openminis.app.ui.components.miuix.DropdownMenu] — pass
  * [DropdownMenuItem] children as before.
  */
 @Composable
@@ -72,7 +72,7 @@ fun MinisMenu(
     // in dark, a subtle shade in light) so the menu pops out — same fix already
     // validated on the text-selection toolbar (T-android-text-toolbar-dark-
     // visibility). The dark-mode `border` below adds the extra edge definition.
-    containerColor: Color = if (ChatColors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else Color.White,
+    containerColor: Color = if (ChatColors.isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color.White,
     tonalElevation: Dp = 3.dp,
     // [T-android-menu-shadow-clip] Surface's own shadow, capped at
     // [MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION] (8dp).
@@ -95,7 +95,7 @@ fun MinisMenu(
     // Light mode also gets a hairline: the popup's edge needs a subtle line
     // of its own to stay crisply bounded on light surfaces.
     border: BorderStroke? = if (ChatColors.isDark) {
-        BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+        BorderStroke(0.5.dp, MiuixTheme.colorScheme.dividerLine)
     } else {
         BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
     },
@@ -180,7 +180,7 @@ fun MinisMenu(
                         .heightIn(max = maxMenuHeight),
                     shape = shape,
                     color = containerColor,
-                    tonalElevation = tonalElevation,
+
                     // Never past the Popup window's 8dp shadow reserve (see the
                     // shadowElevation parameter): anything larger is clipped.
                     shadowElevation = shadowElevation.coerceAtMost(MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION),
@@ -288,9 +288,9 @@ object MinisMenuDefaults {
 
     @Composable
     fun itemColors(
-        textColor: Color = MaterialTheme.colorScheme.onSurface,
-        leadingIconColor: Color = MaterialTheme.colorScheme.primary,
-        trailingIconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textColor: Color = MiuixTheme.colorScheme.onSurface,
+        leadingIconColor: Color = MiuixTheme.colorScheme.primary,
+        trailingIconColor: Color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
     ): MenuItemColors = MenuDefaults.itemColors(
         textColor = textColor,
         leadingIconColor = leadingIconColor,
@@ -299,8 +299,8 @@ object MinisMenuDefaults {
 
     @Composable
     fun destructiveItemColors(): MenuItemColors = MenuDefaults.itemColors(
-        textColor = MaterialTheme.colorScheme.error,
-        leadingIconColor = MaterialTheme.colorScheme.error,
-        trailingIconColor = MaterialTheme.colorScheme.error,
+        textColor = MiuixTheme.colorScheme.error,
+        leadingIconColor = MiuixTheme.colorScheme.error,
+        trailingIconColor = MiuixTheme.colorScheme.error,
     )
 }

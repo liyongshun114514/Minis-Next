@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,9 +15,8 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -150,14 +150,14 @@ fun DocumentEditorField(
     val border = if (outlined) {
         Modifier.border(
             width = if (focused) 2.dp else 1.dp,
-            color = if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-            shape = MaterialTheme.shapes.extraSmall,
+            color = if (focused) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.outline,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         )
     } else {
         Modifier
     }
     val mergedStyle = LocalTextStyle.current.merge(textStyle)
-    val textColor = if (mergedStyle.color.isSpecified()) mergedStyle.color else MaterialTheme.colorScheme.onSurface
+    val textColor = if (mergedStyle.color.isSpecified()) mergedStyle.color else MiuixTheme.colorScheme.onSurface
 
     Box(
         modifier = modifier
@@ -195,14 +195,14 @@ fun DocumentEditorField(
                     .bringIntoViewRequester(requester)
                     .onFocusChanged { focused = it.isFocused },
                 textStyle = mergedStyle.copy(color = textColor),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
                 onTextLayout = { layout = it },
             )
             if (value.isEmpty() && placeholder != null) {
                 Text(
                     placeholder,
                     style = mergedStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(contentPadding),
                 )
             }

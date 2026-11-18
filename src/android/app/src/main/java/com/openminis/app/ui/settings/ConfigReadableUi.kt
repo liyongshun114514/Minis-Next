@@ -1,12 +1,12 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -53,7 +53,7 @@ internal fun ConfigReadableDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(vertical = 2.dp),
         thickness = onePx,
-        color = MaterialTheme.colorScheme.outlineVariant,
+        color = MiuixTheme.colorScheme.dividerLine,
     )
 }
 
@@ -141,7 +141,7 @@ internal fun ConfigAuditStatusBadge(status: ConfigAuditStatus) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, fontFamily = FontFamily.Monospace),
+            style = MiuixTheme.textStyles.body2.copy(fontSize = 10.sp, fontFamily = FontFamily.Monospace),
             color = Color.White,
         )
     }

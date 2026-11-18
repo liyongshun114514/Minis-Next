@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,25 +23,23 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ListItem
+import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -85,7 +84,6 @@ import kotlin.math.roundToInt
  * verticalScroll wrapper would conflict with the lazy list's infinite-
  * height measure.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModelGroupDetailScreen(
     groupId: String,
@@ -152,11 +150,11 @@ fun ModelGroupDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MiuixTheme.colorScheme.background,
                 ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         LazyColumn(
             state = lazyListState,
@@ -255,8 +253,8 @@ fun ModelGroupDetailScreen(
                 Spacer(Modifier.height(20.dp))
                 Text(
                     text = stringResource(R.string.model_group_detail_models_header_count, memberIds.size),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 32.dp, vertical = 6.dp),
                 )
@@ -271,8 +269,8 @@ fun ModelGroupDetailScreen(
                     ) {
                         Text(
                             "No models in this group.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             modifier = Modifier.padding(vertical = 12.dp),
                         )
                     }
@@ -293,14 +291,14 @@ fun ModelGroupDetailScreen(
                                 headlineContent = {
                                     Text(
                                         stringResource(R.string.model_group_detail_stale_member),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     )
                                 },
                                 supportingContent = {
                                     Text(
                                         entryId,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MiuixTheme.textStyles.footnote2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     )
@@ -309,7 +307,7 @@ fun ModelGroupDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = stringResource(R.string.model_group_detail_unavailable),
-                                        tint = MaterialTheme.colorScheme.error,
+                                        tint = MiuixTheme.colorScheme.error,
                                     )
                                 },
                                 trailingContent = {
@@ -321,7 +319,7 @@ fun ModelGroupDetailScreen(
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = stringResource(R.string.common_remove),
-                                            tint = MaterialTheme.colorScheme.error,
+                                            tint = MiuixTheme.colorScheme.error,
                                         )
                                     }
                                 },
@@ -369,8 +367,8 @@ fun ModelGroupDetailScreen(
                                             Text(
                                                 if (providerDisabled) " · Provider disabled"
                                                 else " · " + stringResource(R.string.model_not_listed_by_provider),
-                                                color = MaterialTheme.colorScheme.error,
-                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MiuixTheme.colorScheme.error,
+                                                style = MiuixTheme.textStyles.body2,
                                             )
                                         }
                                     } else {
@@ -395,7 +393,7 @@ fun ModelGroupDetailScreen(
                                             onDismissRequest = { showMenu = false },
                                         ) {
                                             DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.model_group_detail_remove_from_group), color = MaterialTheme.colorScheme.error) },
+                                                text = { Text(stringResource(R.string.model_group_detail_remove_from_group), color = MiuixTheme.colorScheme.error) },
                                                 onClick = {
                                                     showMenu = false
                                                     entryToRemove = entryId
@@ -497,8 +495,8 @@ fun ModelGroupDetailScreen(
                         SettingsCardBlock {
                             Text(
                                 text = stringResource(R.string.model_group_detail_intensity),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 modifier = Modifier.padding(bottom = 6.dp),
                             )
                             SingleChoiceSegmentedButtonRow(
@@ -617,7 +615,7 @@ fun ModelGroupDetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                        containerColor = MiuixTheme.colorScheme.error,
                     ),
                 ) {
                     Text(stringResource(R.string.model_group_detail_delete_group))
@@ -652,7 +650,7 @@ fun ModelGroupDetailScreen(
                         entryToRemove = null
                     },
                 ) {
-                    Text(stringResource(R.string.common_remove), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_remove), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -675,7 +673,7 @@ fun ModelGroupDetailScreen(
                         onBack()
                     },
                 ) {
-                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -746,13 +744,13 @@ private fun ContextLimitSlider(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = maxContextLabel,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 text = currentLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -772,14 +770,14 @@ private fun ContextLimitSlider(
         Row {
             Text(
                 steps.first().label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 unlimitedLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }

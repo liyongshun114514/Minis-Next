@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -53,19 +54,18 @@ import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.UnfoldMore
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.theme.LocalContentColor
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -102,7 +102,7 @@ import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -492,8 +492,8 @@ private fun BackupTab(
                 if (confirm.isNotEmpty() && confirm != passphrase) {
                     Text(
                         stringResource(R.string.backup_passphrase_mismatch),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
+                        color = MiuixTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.body2,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -544,8 +544,8 @@ private fun BackupTab(
             enabled = running || (selected.isNotEmpty() && passphraseValid),
             colors = if (running) {
                 com.openminis.app.ui.components.MinisButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
+                    containerColor = MiuixTheme.colorScheme.error,
+                    contentColor = MiuixTheme.colorScheme.onError,
                 )
             } else {
                 com.openminis.app.ui.components.MinisButtonDefaults.buttonColors()
@@ -569,8 +569,8 @@ private fun BackupTab(
         error?.let {
             Text(
                 it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -591,8 +591,8 @@ private fun BackupTab(
             hint?.let {
                 Text(
                     it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
@@ -653,9 +653,9 @@ private fun BackupTab(
                 saveStateLine(saveState)?.let { (text, isError) ->
                     Text(
                         text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isError) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = if (isError) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
@@ -709,7 +709,7 @@ private fun DeviceNameSection(enabled: Boolean) {
                 )
             }
             Spacer(Modifier.width(14.dp))
-            val textStyle = MaterialTheme.typography.bodyLarge
+            val textStyle = MiuixTheme.textStyles.main
             androidx.compose.foundation.text.BasicTextField(
                 value = draft,
                 onValueChange = {
@@ -718,8 +718,8 @@ private fun DeviceNameSection(enabled: Boolean) {
                 },
                 enabled = enabled,
                 singleLine = true,
-                textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                textStyle = textStyle.copy(color = MiuixTheme.colorScheme.onSurface),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(MiuixTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(
                     capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words,
                     autoCorrectEnabled = false,
@@ -734,7 +734,7 @@ private fun DeviceNameSection(enabled: Boolean) {
                             Text(
                                 automatic,
                                 style = textStyle,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -828,14 +828,14 @@ private fun BackupHistoryRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     formatTimestamp(record.startedAt),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     backupHistorySubtitle(record),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -846,14 +846,14 @@ private fun BackupHistoryRow(
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(20.dp),
             )
         }
         if (showDivider) {
             Box(
                 Modifier.fillMaxWidth().padding(start = 56.dp)
-                    .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+                    .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }
@@ -942,7 +942,7 @@ private fun MaxFileSizeRow(
             Spacer(Modifier.width(14.dp))
             Text(
                 stringResource(R.string.backup_max_file_size),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 modifier = Modifier.weight(1f),
             )
             // The current value + a compact menu anchored to it (alignEnd), so
@@ -956,14 +956,14 @@ private fun MaxFileSizeRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(Modifier.width(4.dp))
                     Icon(
                         Icons.Outlined.UnfoldMore,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -1106,8 +1106,8 @@ private fun RestoreTab(
             error?.let {
                 Text(
                     it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -1250,8 +1250,8 @@ private fun RestoreTab(
         error?.let {
             Text(
                 it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -1313,7 +1313,7 @@ private fun RestoreReport(
         SettingsSection(header = stringResource(R.string.backup_report_issues)) {
             Column(Modifier.padding(16.dp)) {
                 errors.forEach {
-                    ReportLine(it, Icons.Outlined.ErrorOutline, MaterialTheme.colorScheme.error)
+                    ReportLine(it, Icons.Outlined.ErrorOutline, MiuixTheme.colorScheme.error)
                 }
             }
         }
@@ -1455,7 +1455,7 @@ private fun DestinationRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     remote.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1466,8 +1466,8 @@ private fun DestinationRow(
                         else remote.backend.uppercase(),
                         remote.path,
                     ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1477,7 +1477,7 @@ private fun DestinationRow(
         }
         Box(
             Modifier.fillMaxWidth().padding(start = 56.dp)
-                .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+                .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
         )
     }
 }
@@ -1491,18 +1491,18 @@ private fun DetailValueRow(label: String, value: String, showDivider: Boolean) {
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(label, style = MiuixTheme.textStyles.main)
             Spacer(Modifier.weight(1f))
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         if (showDivider) {
             Box(
                 Modifier.fillMaxWidth().padding(start = 14.dp)
-                    .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+                    .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }
@@ -1528,12 +1528,12 @@ private fun ResultDestinationRow(
             )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(outcome.name, style = MaterialTheme.typography.bodyMedium)
+                Text(outcome.name, style = MiuixTheme.textStyles.body1)
                 outcome.detail?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -1541,7 +1541,7 @@ private fun ResultDestinationRow(
         if (showDivider) {
             Box(
                 Modifier.fillMaxWidth().padding(start = 44.dp)
-                    .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+                    .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }
@@ -1681,16 +1681,16 @@ internal fun RestoreSourceRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = MiuixTheme.textStyles.main,
+                    color = MiuixTheme.colorScheme.primary,
                 )
                 // Where this destination points, so two servers on the same
                 // backend are told apart before the user taps into one.
                 subtitle?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 1,
                         overflow = TextOverflow.MiddleEllipsis,
                     )
@@ -1701,7 +1701,7 @@ internal fun RestoreSourceRow(
         if (showDivider) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(start = 58.dp, end = 14.dp)
-                    .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
@@ -1767,7 +1767,7 @@ private fun InfoLine(label: String, value: String) {
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         Text(value, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
     }
 }
@@ -1821,15 +1821,15 @@ private fun CategorySwitchRow(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1844,7 +1844,7 @@ private fun CategorySwitchRow(
                     .fillMaxWidth()
                     .padding(start = 58.dp, end = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }
@@ -2041,8 +2041,8 @@ private fun RestoreProgressSection(
         if (line.isNotEmpty()) {
             Text(
                 line,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 textAlign = TextAlign.Center,
             )
@@ -2062,7 +2062,7 @@ private fun RestoreProgressSection(
                     Text(
                         stringResource(R.string.restore_stop_confirm),
                         // Destructive: this abandons work in progress.
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -2099,7 +2099,7 @@ private fun ReportLine(text: String, icon: ImageVector, tint: Color) {
             modifier = Modifier.padding(top = 1.dp).size(16.dp),
         )
         Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall, color = tint)
+        Text(text, style = MiuixTheme.textStyles.body2, color = tint)
     }
 }
 

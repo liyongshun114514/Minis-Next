@@ -1,8 +1,8 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.content.Intent
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.R
 import android.graphics.Bitmap
@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
+import top.yukonga.miuix.kmp.basic.Checkbox
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
@@ -47,11 +47,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.BrokenImage
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -116,7 +115,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import java.io.File
-import androidx.compose.material3.LocalTextStyle
+import com.openminis.app.ui.components.miuix.LocalTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 
@@ -183,7 +182,7 @@ private fun ShardSubIndexScope(content: @Composable () -> Unit) {
 private fun currentSelectionHighlightColor(): Color {
     // Match Android's default textSelectHandle tint at ~30% alpha so it
     // visually overlays without obscuring the glyphs underneath.
-    val accent = androidx.compose.material3.MaterialTheme.colorScheme.primary
+    val accent = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.primary
     return accent.copy(alpha = 0.28f)
 }
 
@@ -2765,8 +2764,8 @@ private fun RenderBlock(block: MdBlock) {
                             checked = item.checked,
                             onCheckedChange = null,
                             modifier = Modifier.size(20.dp),
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = colors.link,
+                            colors = top.yukonga.miuix.kmp.basic.CheckboxDefaults.checkboxColors(
+                                checkedBackgroundColor = colors.link,
                             ),
                         )
                         Spacer(Modifier.width(6.dp))

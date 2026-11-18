@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import android.content.ContentValues
@@ -50,15 +51,13 @@ import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ListItem
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -164,7 +163,6 @@ fun FilePreviewScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilePreviewContent(
     item: FileItem,
@@ -265,7 +263,7 @@ private fun FilePreviewContent(
                         text = if (showFullPath) item.file.absolutePath else item.name,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MiuixTheme.textStyles.headline1,
                         modifier = Modifier.clickable { showFullPath = !showFullPath },
                     )
                 },
@@ -380,13 +378,13 @@ internal fun ImagePreview(item: FileItem) {
                         Icons.AutoMirrored.Filled.InsertDriveFile,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         error!!,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        style = MiuixTheme.textStyles.body2,
                     )
                 }
             }
@@ -408,8 +406,8 @@ internal fun ImagePreview(item: FileItem) {
                 // Image info
                 Text(
                     text = "${bitmap!!.width} x ${bitmap!!.height} px  |  ${item.formattedSize}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
@@ -420,7 +418,7 @@ internal fun ImagePreview(item: FileItem) {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(R.string.filepreview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.filepreview_loading), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             }
         }
     }
@@ -458,7 +456,7 @@ internal fun TextPreview(item: FileItem) {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(error!!, color = MaterialTheme.colorScheme.error)
+                Text(error!!, color = MiuixTheme.colorScheme.error)
             }
         }
 
@@ -469,8 +467,8 @@ internal fun TextPreview(item: FileItem) {
                 if (truncated) {
                     Text(
                         text = "Showing first ${MAX_TEXT_PREVIEW_BYTES / 1000} KB of ${item.formattedSize}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
                     HorizontalDivider()
@@ -489,7 +487,7 @@ internal fun TextPreview(item: FileItem) {
                         SafeCopySelection {
                             Text(
                                 text = content!!,
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                style = MiuixTheme.textStyles.body2.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 12.sp,
                                     lineHeight = 18.sp,
@@ -508,7 +506,7 @@ internal fun TextPreview(item: FileItem) {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(R.string.filepreview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.filepreview_loading), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             }
         }
     }
@@ -536,7 +534,7 @@ private fun MarkdownPreview(item: FileItem, onLink: (String) -> Unit) {
 
     when {
         error != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(error!!, color = MaterialTheme.colorScheme.error)
+            Text(error!!, color = MiuixTheme.colorScheme.error)
         }
         content != null -> androidx.compose.runtime.CompositionLocalProvider(
             // [T-md-preview-links] Without this the chat's handler is absent
@@ -557,7 +555,7 @@ private fun MarkdownPreview(item: FileItem, onLink: (String) -> Unit) {
             ),
         ) }
         else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Loading...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Loading...", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
     }
 }
@@ -621,8 +619,8 @@ private fun AudioPreview(item: FileItem) {
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = item.formattedSize,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -640,8 +638,8 @@ private fun VideoPreview(item: FileItem) {
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = item.formattedSize,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -689,7 +687,7 @@ private fun PdfPreview(item: FileItem) {
     when {
         error != null -> PdfOpenExternalFallback(item, error!!)
         pages == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.filepreview_loading_pdf), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.filepreview_loading_pdf), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
         pages!!.isEmpty() -> PdfOpenExternalFallback(item, stringResource(R.string.filepreview_pdf_empty))
         else -> {
@@ -732,13 +730,13 @@ private fun PdfOpenExternalFallback(item: FileItem, reason: String) {
                 Icons.AutoMirrored.Filled.InsertDriveFile,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.filepreview_pdf_render_failed, reason),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             MinisTextButton(onClick = { openExternally(context, item, "application/pdf") }) {
@@ -780,10 +778,10 @@ private fun CsvPreview(item: FileItem) {
 
     when {
         error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(error!!, color = MaterialTheme.colorScheme.error)
+            Text(error!!, color = MiuixTheme.colorScheme.error)
         }
         rows == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.filepreview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.filepreview_loading), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
         else -> {
             val table = rows!!
@@ -791,8 +789,8 @@ private fun CsvPreview(item: FileItem) {
                 if (truncated) {
                     Text(
                         text = "Showing first 200 rows of ${item.formattedSize}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
                     HorizontalDivider()
@@ -804,7 +802,7 @@ private fun CsvPreview(item: FileItem) {
                             cols.forEach { cell ->
                                 Text(
                                     text = cell,
-                                    style = MaterialTheme.typography.bodySmall.copy(
+                                    style = MiuixTheme.textStyles.body2.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
                                         fontWeight = if (rowIdx == 0) FontWeight.Bold else FontWeight.Normal,
@@ -874,17 +872,17 @@ private fun JsonPreview(item: FileItem) {
 
     when {
         error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(error!!, color = MaterialTheme.colorScheme.error)
+            Text(error!!, color = MiuixTheme.colorScheme.error)
         }
         pretty == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.filepreview_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.filepreview_loading), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
         else -> Column(Modifier.fillMaxSize()) {
             if (truncated) {
                 Text(
                     text = "Showing first ${MAX_TEXT_PREVIEW_BYTES / 1000} KB of ${item.formattedSize}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
                 HorizontalDivider()
@@ -902,7 +900,7 @@ private fun JsonPreview(item: FileItem) {
                     SafeCopySelection {
                         Text(
                             text = pretty!!,
-                            style = MaterialTheme.typography.bodySmall.copy(
+                            style = MiuixTheme.textStyles.body2.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
@@ -1018,7 +1016,7 @@ private fun ApkPreview(item: FileItem) {
                     Icons.Default.Android,
                     contentDescription = null,
                     modifier = Modifier.size(72.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -1026,15 +1024,15 @@ private fun ApkPreview(item: FileItem) {
                 // Falls back to the filename when the manifest could not be
                 // read — still the most useful thing we can name it.
                 text = info?.label ?: item.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
             info?.packageName?.let { pkg ->
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = pkg,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
@@ -1044,15 +1042,15 @@ private fun ApkPreview(item: FileItem) {
                 val code = info?.versionCode
                 Text(
                     text = if (code != null) "$version ($code)" else version,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
             Spacer(Modifier.height(6.dp))
             Text(
                 text = item.formattedSize,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             if (parsed && info == null) {
                 // Say so rather than showing a bare filename and letting the
@@ -1060,8 +1058,8 @@ private fun ApkPreview(item: FileItem) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.filepreview_apk_unreadable),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
@@ -1109,18 +1107,18 @@ private fun ArchivePreview(item: FileItem) {
 
     when {
         error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(error!!, color = MaterialTheme.colorScheme.error)
+            Text(error!!, color = MiuixTheme.colorScheme.error)
         }
         entries == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.filepreview_loading_archive), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.filepreview_loading_archive), color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
         else -> {
             val list = entries!!
             Column(Modifier.fillMaxSize()) {
                 Text(
                     text = "${list.size} entries  •  ${item.formattedSize}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 HorizontalDivider()
@@ -1131,7 +1129,7 @@ private fun ArchivePreview(item: FileItem) {
                             headlineContent = {
                                 Text(
                                     e.name,
-                                    style = MaterialTheme.typography.bodySmall.copy(
+                                    style = MiuixTheme.textStyles.body2.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
                                     ),
@@ -1192,13 +1190,13 @@ private fun OfficeOpenExternal(item: FileItem) {
                 Icons.AutoMirrored.Filled.InsertDriveFile,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.filepreview_office_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             MinisTextButton(onClick = {
@@ -1262,13 +1260,13 @@ private fun FileInfoView(item: FileItem) {
                     Icons.AutoMirrored.Filled.InsertDriveFile,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Preview not available",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }

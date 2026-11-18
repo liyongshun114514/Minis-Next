@@ -1,5 +1,6 @@
 package com.openminis.app.ui.preview
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -26,9 +27,8 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -289,8 +289,8 @@ private fun FloatingMenuButton(
             alignEnd = true,
         ) {
             if (onCollapse != null) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { androidx.compose.material3.Text(stringResource(R.string.webapp_action_exit_fullscreen)) },
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
+                    text = { top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.webapp_action_exit_fullscreen)) },
                     leadingIcon = {
                         Icon(Icons.Outlined.FullscreenExit, contentDescription = null)
                     },
@@ -301,8 +301,8 @@ private fun FloatingMenuButton(
                 )
             }
             if (isLoading) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { androidx.compose.material3.Text(stringResource(R.string.webpreview_stop)) },
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
+                    text = { top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.webpreview_stop)) },
                     leadingIcon = {
                         Icon(Icons.Outlined.Stop, contentDescription = null)
                     },
@@ -312,8 +312,8 @@ private fun FloatingMenuButton(
                     },
                 )
             } else {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { androidx.compose.material3.Text(stringResource(R.string.webpreview_reload)) },
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
+                    text = { top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.webpreview_reload)) },
                     leadingIcon = {
                         Icon(Icons.Outlined.Refresh, contentDescription = null)
                     },
@@ -323,8 +323,8 @@ private fun FloatingMenuButton(
                     },
                 )
             }
-            androidx.compose.material3.DropdownMenuItem(
-                text = { androidx.compose.material3.Text(stringResource(R.string.webpreview_open_external)) },
+            com.openminis.app.ui.components.miuix.DropdownMenuItem(
+                text = { top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.webpreview_open_external)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.OpenInBrowser, contentDescription = null)
                 },
@@ -334,18 +334,18 @@ private fun FloatingMenuButton(
                 },
             )
             com.openminis.app.ui.components.MinisMenuDivider()
-            androidx.compose.material3.DropdownMenuItem(
+            com.openminis.app.ui.components.miuix.DropdownMenuItem(
                 text = {
-                    androidx.compose.material3.Text(
+                    top.yukonga.miuix.kmp.basic.Text(
                         stringResource(R.string.webpreview_close),
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.error,
                     )
                 },
                 leadingIcon = {
                     Icon(
                         Icons.Outlined.Close,
                         contentDescription = null,
-                        tint = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        tint = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.error,
                     )
                 },
                 onClick = {

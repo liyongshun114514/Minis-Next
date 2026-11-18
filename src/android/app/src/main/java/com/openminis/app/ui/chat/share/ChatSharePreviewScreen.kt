@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.share
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.content.Intent
 import android.view.ViewGroup
@@ -24,12 +25,11 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material.icons.outlined.TabletAndroid
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -80,7 +80,7 @@ internal fun ChatSharePreviewDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         ChatShareDialogSystemBars()
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MiuixTheme.colorScheme.background) {
             ChatSharePreviewContent(groups, count, request, state, onDismiss)
         }
     }
@@ -230,7 +230,7 @@ private fun ChatSharePreviewContent(
                     Icon(
                         Icons.Outlined.Share,
                         contentDescription = stringResource(R.string.common_share),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MiuixTheme.colorScheme.primary,
                         modifier = Modifier
                             .clip(CircleShape)
                             .clickable { shareExport(context, current.result.file, key.format) }
@@ -264,14 +264,14 @@ private fun ChatSharePreviewContent(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f))
+                        .background(MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f))
                         .padding(20.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
                     Text(
                         text = "${stringResource(R.string.chat_share_creating)} ${p.first}/${p.second}",
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             } else if (err != null && current == null) {

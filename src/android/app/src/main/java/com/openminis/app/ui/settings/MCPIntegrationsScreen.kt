@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,20 +23,17 @@ import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,7 +63,6 @@ import com.openminis.app.ui.components.MinisTextButton
  * icon), an add bottom-sheet with Form / Import-JSON tabs, and a delete
  * confirmation dialog. Strings are English-keyed in strings.xml.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MCPIntegrationsScreen(
     mcpRepository: MCPRepository,
@@ -118,17 +115,17 @@ fun MCPIntegrationsScreen(
                         Icons.Outlined.Extension,
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                     )
                     Text(
                         stringResource(R.string.mcp_empty_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.subtitle,
+                        color = MiuixTheme.colorScheme.onSurface,
                     )
                     Text(
                         stringResource(R.string.mcp_empty_action),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             } else {
@@ -147,7 +144,7 @@ fun MCPIntegrationsScreen(
                                 Icon(
                                     transportIcon,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
@@ -201,7 +198,7 @@ fun MCPIntegrationsScreen(
                     // secret, tokens and the guest's token bridge.
                     com.openminis.app.mcp.oauth.MCPOAuthController(screenContext, http = mcpOAuthHttp).purge(id)
                     deleteId = null
-                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { deleteId = null }) { Text(stringResource(R.string.cancel)) }
@@ -217,7 +214,6 @@ fun MCPIntegrationsScreen(
  * (Form / Import-JSON tabs). When it's non-null the sheet is the edit flow:
  * Form only, pre-filled, with a Delete affordance ([onRequestDelete]).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MCPAddSheet(
     mcpRepository: MCPRepository,
@@ -250,18 +246,15 @@ private fun MCPAddSheet(
         ) {
             Text(
                 stringResource(if (isEdit) R.string.mcp_edit else R.string.mcp_add),
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
             )
 
             if (!isEdit) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                        Text(stringResource(R.string.mcp_tab_form), modifier = Modifier.padding(12.dp))
-                    }
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
-                        Text(stringResource(R.string.mcp_tab_import), modifier = Modifier.padding(12.dp))
-                    }
-                }
+                TabRow(
+                    tabs = listOf(stringResource(R.string.mcp_tab_form), stringResource(R.string.mcp_tab_import)),
+                    selectedTabIndex = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                )
             }
 
             if (isEdit || selectedTab == 0) {
@@ -279,7 +272,6 @@ private fun MCPAddSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MCPFormTab(
     mcpRepository: MCPRepository,
@@ -563,7 +555,7 @@ private fun MCPFormTab(
                 placeholder = stringResource(R.string.mcp_form_headers_placeholder),
                 singleLine = false,
                 modifier = Modifier.height(72.dp),
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             )
             DisabledEnvRefWarning(disabledEnvRefs(url + "\n" + headers, disabledEnvKeys))
 
@@ -585,13 +577,13 @@ private fun MCPFormTab(
                             discoveryNote = null
                         },
                 ) {
-                    androidx.compose.material3.RadioButton(
+                    top.yukonga.miuix.kmp.basic.RadioButton(
                         selected = authKind == kind,
                         onClick = null,
                         enabled = !oauthBusy,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(label), style = MiuixTheme.textStyles.body1)
                 }
             }
 
@@ -601,8 +593,8 @@ private fun MCPFormTab(
                 // stores the result (#432: no confirmation card in between).
                 Text(
                     stringResource(R.string.mcp_signin_intro),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -613,11 +605,11 @@ private fun MCPFormTab(
                                 else -> R.string.mcp_signin_not_signed_in
                             },
                         ),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MiuixTheme.textStyles.body2,
                         color = when {
-                            oauthAuthorized -> MaterialTheme.colorScheme.primary
-                            needsSignInAgain -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            oauthAuthorized -> MiuixTheme.colorScheme.primary
+                            needsSignInAgain -> MiuixTheme.colorScheme.error
+                            else -> MiuixTheme.colorScheme.onSurfaceContainerVariant
                         },
                     )
                     Spacer(Modifier.weight(1f))
@@ -643,8 +635,8 @@ private fun MCPFormTab(
                                 MCPOAuthController.SignInPhase.FINISHING -> R.string.mcp_signin_phase_finishing
                             },
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
                 if (!oauthBusy && (oauthAuthorized || needsSignInAgain || !browserOAuth?.clientId.isNullOrEmpty())) {
@@ -655,12 +647,12 @@ private fun MCPFormTab(
                                 oauthAuthorized = false
                                 discoveryNote = null
                             }) {
-                                Text(stringResource(R.string.mcp_form_oauth_sign_out), color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.mcp_form_oauth_sign_out), color = MiuixTheme.colorScheme.error)
                             }
                         }
                         Spacer(Modifier.weight(1f))
                         MinisTextButton(onClick = { confirmResetSignIn = true }) {
-                            Text(stringResource(R.string.mcp_signin_reset), color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.mcp_signin_reset), color = MiuixTheme.colorScheme.error)
                         }
                     }
                 }
@@ -668,7 +660,7 @@ private fun MCPFormTab(
 
             if (authKind == MCPOAuthSignInLogic.AuthKind.MANUAL) {
                 manualFallbackNote?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
                 FieldLabel(stringResource(R.string.mcp_form_oauth_client_id))
                 DialogTextField(
@@ -709,8 +701,8 @@ private fun MCPFormTab(
                     if (oauthAuthorized) {
                         Text(
                             stringResource(R.string.mcp_form_oauth_authorized),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.primary,
                         )
                         MinisTextButton(
                             enabled = !oauthBusy,
@@ -724,7 +716,7 @@ private fun MCPFormTab(
                         ) {
                             Text(
                                 stringResource(R.string.mcp_form_oauth_sign_out),
-                                color = MaterialTheme.colorScheme.error,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         }
                     }
@@ -784,7 +776,7 @@ private fun MCPFormTab(
             // sign-in to the manual form must not vanish with the switch.
             if (authKind != MCPOAuthSignInLogic.AuthKind.NONE) {
                 discoveryNote?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
             }
         } else {
@@ -835,8 +827,8 @@ private fun MCPFormTab(
                 ) {
                     Text(
                         stringResource(R.string.mcp_form_env_clear),
-                        color = if (env.isNotBlank()) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (env.isNotBlank()) MiuixTheme.colorScheme.error
+                            else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -846,7 +838,7 @@ private fun MCPFormTab(
                 placeholder = stringResource(R.string.mcp_form_env_placeholder),
                 singleLine = false,
                 modifier = Modifier.height(72.dp),
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             )
             DisabledEnvRefWarning(disabledEnvRefs(env, disabledEnvKeys))
             FieldLabel(stringResource(R.string.mcp_form_startup_timeout))
@@ -871,7 +863,7 @@ private fun MCPFormTab(
         )
 
         if (errorText != null) {
-            Text(errorText!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(errorText!!, color = MiuixTheme.colorScheme.error, style = MiuixTheme.textStyles.body2)
         }
 
         // [T-mcp-server-export-android] Build a MCPServerConfig from the CURRENT
@@ -936,7 +928,7 @@ private fun MCPFormTab(
             // row tap no longer means delete, without losing the delete path.
             if (isEdit) {
                 MinisTextButton(onClick = onRequestDelete) {
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error)
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -983,7 +975,7 @@ private fun MCPFormTab(
                 MinisTextButton(onClick = {
                     confirmResetSignIn = false
                     resetBrowserSignIn()
-                }) { Text(stringResource(R.string.mcp_signin_reset_confirm), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.mcp_signin_reset_confirm), color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { confirmResetSignIn = false }) { Text(stringResource(R.string.cancel)) }
@@ -1060,7 +1052,7 @@ private fun MCPFormTab(
                 MinisTextButton(onClick = {
                     env = ""
                     showClearEnvConfirm = false
-                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { showClearEnvConfirm = false }) {
@@ -1101,7 +1093,6 @@ internal fun mcpDiscoveryMessage(context: android.content.Context, e: McpDiscove
         McpDiscoveryException.Kind.NETWORK -> e.detail ?: e.kind.name
     }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MCPEnvVarPickerSheet(
     keys: List<String>,
@@ -1122,13 +1113,13 @@ private fun MCPEnvVarPickerSheet(
         ) {
             Text(
                 stringResource(R.string.mcp_env_picker_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
             )
             if (keys.isEmpty()) {
                 Text(
                     stringResource(R.string.mcp_env_picker_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
             } else {
@@ -1143,15 +1134,15 @@ private fun MCPEnvVarPickerSheet(
                         val disabled = key in disabledKeys
                         Text(
                             "$\$$key",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                            color = if (disabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                            else MaterialTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
+                            color = if (disabled) MiuixTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                            else MiuixTheme.colorScheme.onSurface,
                         )
                         if (disabled) {
                             Text(
                                 "  " + stringResource(R.string.env_var_status_disabled),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                     }
@@ -1180,8 +1171,8 @@ private fun DisabledEnvRefWarning(names: List<String>) {
     if (names.isEmpty()) return
     Text(
         stringResource(R.string.mcp_form_env_disabled_warning, names.joinToString(", ") { "$\$$it" }),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.error,
+        style = MiuixTheme.textStyles.footnote2,
+        color = MiuixTheme.colorScheme.error,
     )
 }
 
@@ -1198,8 +1189,8 @@ private fun MCPImportTab(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             stringResource(R.string.mcp_import_instruction),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         DialogTextField(
             value = text,
@@ -1207,17 +1198,17 @@ private fun MCPImportTab(
             placeholder = stringResource(R.string.mcp_import_placeholder),
             singleLine = false,
             modifier = Modifier.height(200.dp),
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
         )
         if (text.isNotBlank()) {
             Text(
                 stringResource(R.string.mcp_import_found, previewCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         if (errorText != null) {
-            Text(errorText!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(errorText!!, color = MiuixTheme.colorScheme.error, style = MiuixTheme.textStyles.body2)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             MinisTextButton(onClick = onDone) { Text(stringResource(R.string.cancel)) }
@@ -1237,8 +1228,8 @@ private fun MCPImportTab(
 private fun FieldLabel(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.footnote1,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
     )
 }
 

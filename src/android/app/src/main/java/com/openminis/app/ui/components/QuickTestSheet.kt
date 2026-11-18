@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,14 +28,12 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.TextFields
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -141,7 +140,6 @@ internal fun applicableKinds(entry: ModelEntry): List<QuickTestKind> {
     return kinds.take(3)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickTestSheet(
     entry: ModelEntry,
@@ -180,7 +178,7 @@ fun QuickTestSheet(
             ) {
                 Text(
                     text = stringResource(R.string.quicktest_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MiuixTheme.textStyles.title3,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -206,7 +204,7 @@ fun QuickTestSheet(
                     modifier = Modifier
                         .size(34.dp)
                         .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            MiuixTheme.colorScheme.primary.copy(alpha = 0.12f),
                             RoundedCornerShape(8.dp),
                         ),
                     contentAlignment = Alignment.Center,
@@ -214,7 +212,7 @@ fun QuickTestSheet(
                     Icon(
                         Icons.Outlined.Bolt,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MiuixTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -222,12 +220,12 @@ fun QuickTestSheet(
                 Column {
                     Text(
                         entry.model.displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MiuixTheme.textStyles.headline1,
                     )
                     Text(
                         entry.model.id,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -248,7 +246,7 @@ private fun TestCard(run: QuickTestRun) {
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surfaceContainerLow,
+                MiuixTheme.colorScheme.surfaceContainer,
                 RoundedCornerShape(12.dp),
             )
             .padding(12.dp),
@@ -257,13 +255,13 @@ private fun TestCard(run: QuickTestRun) {
             Icon(
                 run.kind.icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 stringResource(run.kind.titleRes),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
             )
@@ -284,22 +282,22 @@ private fun StatusBadge(run: QuickTestRun) {
         is QuickTestState.Failure -> Icon(
             Icons.Filled.Cancel,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.error,
+            tint = MiuixTheme.colorScheme.error,
             modifier = Modifier.size(18.dp),
         )
         else -> Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Filled.CheckCircle,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
             if (run.elapsedMs > 0) {
                 Spacer(Modifier.width(4.dp))
                 Text(
                     String.format("%.1fs", run.elapsedMs / 1000.0),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -311,12 +309,12 @@ private fun TestContent(run: QuickTestRun) {
     when (val s = run.state) {
         is QuickTestState.Running -> Text(
             stringResource(R.string.quicktest_testing),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         is QuickTestState.TextReply -> Text(
             s.text,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MiuixTheme.textStyles.body1,
         )
         is QuickTestState.ImageReply -> {
             val bmp = remember(s.data) {
@@ -331,23 +329,23 @@ private fun TestContent(run: QuickTestRun) {
                         .fillMaxWidth()
                         .heightIn(max = 220.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceContainer,
+                            MiuixTheme.colorScheme.surfaceContainer,
                             RoundedCornerShape(8.dp),
                         ),
                 )
             } else {
                 Text(
                     "Received ${s.data.size} bytes (couldn't decode preview)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
         is QuickTestState.AudioReply -> AudioReplyContent(s.data)
         is QuickTestState.Failure -> Text(
             s.message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -397,13 +395,13 @@ private fun AudioReplyContent(data: ByteArray) {
                 contentDescription = stringResource(
                     if (isPlaying) R.string.quicktest_audio_play else R.string.quicktest_audio_replay,
                 ),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
             )
         }
         Text(
             "%.1f KB".format(data.size / 1024.0),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }

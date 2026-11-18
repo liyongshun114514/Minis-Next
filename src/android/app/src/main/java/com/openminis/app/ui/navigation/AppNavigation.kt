@@ -1,5 +1,6 @@
 package com.openminis.app.ui.navigation
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -7,7 +8,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -583,7 +583,7 @@ fun AppNavigation(
         // correct on cold start.
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MiuixTheme.colorScheme.background),
         // T342: Material 3 motion — shared-axis X transition.
         // Spec (m3.material.io/styles/motion/transitions):
         //   - enter uses EmphasizedDecelerate (cubic-bezier 0.05, 0.7, 0.1, 1.0)

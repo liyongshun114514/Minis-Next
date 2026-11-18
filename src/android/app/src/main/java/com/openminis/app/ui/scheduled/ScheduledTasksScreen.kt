@@ -1,5 +1,6 @@
 package com.openminis.app.ui.scheduled
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,16 +29,14 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,7 +69,6 @@ import java.util.Locale
  * The row no longer shows a result preview — execution history lives in
  * the Run records screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduledTasksScreen(
     onBack: () -> Unit,
@@ -167,12 +165,12 @@ fun ScheduledTasksScreen(
 
     val toDelete = pendingDelete
     if (toDelete != null) {
-        androidx.compose.material3.AlertDialog(
+        com.openminis.app.ui.components.miuix.AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text(stringResource(R.string.scheduled_task_delete_title)) },
             text = { Text(stringResource(R.string.scheduled_task_delete_body, toDelete.label)) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                com.openminis.app.ui.components.MinisTextButton(onClick = {
                     vm.delete(toDelete.id)
                     pendingDelete = null
                 }) {
@@ -180,7 +178,7 @@ fun ScheduledTasksScreen(
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { pendingDelete = null }) {
+                com.openminis.app.ui.components.MinisTextButton(onClick = { pendingDelete = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -202,12 +200,12 @@ private fun EmptyState(padding: PaddingValues) {
                 Icons.Outlined.Schedule,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.scheduled_tasks_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
@@ -240,9 +238,9 @@ private fun ScheduledTaskRow(
                     .clip(CircleShape)
                     .background(
                         if (task.enabled)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)
                         else
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            MiuixTheme.colorScheme.surfaceVariant,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -250,9 +248,9 @@ private fun ScheduledTaskRow(
                     Icons.Outlined.Schedule,
                     contentDescription = null,
                     tint = if (task.enabled)
-                        MaterialTheme.colorScheme.primary
+                        MiuixTheme.colorScheme.primary
                     else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -268,7 +266,7 @@ private fun ScheduledTaskRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = formatScheduleSummary(task),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -284,25 +282,25 @@ private fun ScheduledTaskRow(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
         ) {
-            androidx.compose.material3.DropdownMenuItem(
+            com.openminis.app.ui.components.miuix.DropdownMenuItem(
                 text = { Text(stringResource(R.string.scheduled_task_menu_edit)) },
                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                 onClick = { menuExpanded = false; onEdit() },
             )
-            androidx.compose.material3.DropdownMenuItem(
+            com.openminis.app.ui.components.miuix.DropdownMenuItem(
                 text = { Text(stringResource(R.string.scheduled_task_menu_runs)) },
                 leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
                 onClick = { menuExpanded = false; onViewRuns() },
             )
-            androidx.compose.material3.DropdownMenuItem(
+            com.openminis.app.ui.components.miuix.DropdownMenuItem(
                 text = {
                     Text(
                         stringResource(R.string.scheduled_task_menu_delete),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 },
                 leadingIcon = {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = MiuixTheme.colorScheme.error)
                 },
                 onClick = { menuExpanded = false; onDelete() },
             )

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisTextButton
 
@@ -18,21 +19,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -65,7 +64,6 @@ import java.io.RandomAccessFile
  *
  * Mirrors iOS LogManagementView's grouped-card layout.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogManagementScreen(
     onBack: () -> Unit,
@@ -193,7 +191,7 @@ fun LogManagementScreen(
                     refresh()
                     showDeleteAllConfirm = false
                 }) {
-                    Text(stringResource(R.string.log_delete_confirm), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.log_delete_confirm), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -284,7 +282,7 @@ private fun LogsBody(
                 SettingsValueRow(
                     title = stringResource(R.string.log_no_files),
                     value = "",
-                    valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    valueColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     showDivider = false,
                 )
             } else {
@@ -324,15 +322,15 @@ private fun LogsBody(
             ) {
                 SettingsRow(
                     title = stringResource(R.string.log_delete_all_title),
-                    titleColor = MaterialTheme.colorScheme.error,
+                    titleColor = MiuixTheme.colorScheme.error,
                     onClick = onDeleteAll,
                     showChevron = false,
                     showDivider = false,
                     trailing = {
                         Text(
                             Formatter.formatFileSize(context, totalSize),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     },
                 )
@@ -440,7 +438,6 @@ private class LazyLogFile private constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogDetailScreen(
     fileName: String,
@@ -518,7 +515,7 @@ fun LogDetailScreen(
                         style = TextStyle(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MiuixTheme.colorScheme.error,
                         ),
                         modifier = Modifier.padding(12.dp),
                     )
@@ -539,7 +536,7 @@ fun LogDetailScreen(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
                                 lineHeight = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = MiuixTheme.colorScheme.onSurface,
                             ),
                             modifier = Modifier.fillMaxWidth(),
                         )

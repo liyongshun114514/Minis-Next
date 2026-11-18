@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] User-message rendering extracted verbatim from
 // ChatScreen.kt: UserMessageBubble, UserAttachmentList, FileAttachmentTile,
 // fileIconFor, ImageGalleryDialog. Full import block copied (unused=warnings).
@@ -135,8 +136,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
@@ -144,22 +145,19 @@ import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -242,10 +240,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -385,7 +382,7 @@ internal fun UserMessageBubble(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        val textColor = if (isQueued) secondaryTextColor else MaterialTheme.colorScheme.onSurface
+                        val textColor = if (isQueued) secondaryTextColor else MiuixTheme.colorScheme.onSurface
                         val bubbleBg = if (isQueued) Color.Transparent else userBubbleColor
                         val shape = RoundedCornerShape(18.dp)
                         val dashedStroke = if (isQueued) {
@@ -438,7 +435,7 @@ internal fun UserMessageBubble(
                                     // [T-in-chat-search] matches painted in place
                                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(message.content, com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
                                     color = textColor,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                    style = MiuixTheme.textStyles.body1.copy(fontSize = 16.5.sp),
                                     modifier = bubbleModifier
                                         .background(bubbleBg, shape)
                                         .clip(shape)
@@ -552,7 +549,7 @@ internal fun UserMessageBubble(
                         text = {
                             Text(
                                 stringResource(R.string.chat_longpress_delete_from_here),
-                                color = MaterialTheme.colorScheme.error,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         },
                         onClick = { showMenu = false; onDeleteFromHere() },
@@ -560,7 +557,7 @@ internal fun UserMessageBubble(
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = MiuixTheme.colorScheme.error,
                                 modifier = Modifier.size(18.dp),
                             )
                         },
@@ -579,7 +576,7 @@ internal fun UserMessageBubble(
                         text = {
                             Text(
                                 stringResource(R.string.chat_longpress_compact_above),
-                                color = MaterialTheme.colorScheme.error,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         },
                         onClick = { showMenu = false; onCompactAbove() },
@@ -587,7 +584,7 @@ internal fun UserMessageBubble(
                             Icon(
                                 Icons.Default.Compress,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = MiuixTheme.colorScheme.error,
                                 modifier = Modifier.size(18.dp),
                             )
                         },

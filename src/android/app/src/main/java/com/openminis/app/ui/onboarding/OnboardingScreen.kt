@@ -1,5 +1,6 @@
 package com.openminis.app.ui.onboarding
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
@@ -21,13 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -81,15 +81,15 @@ private fun WelcomeStep(onNext: () -> Unit) {
         ) {
             Text(
                 stringResource(R.string.onboarding_welcome_title),
-                style = MaterialTheme.typography.headlineLarge,
+                style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.onboarding_welcome_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(48.dp))
             MinisButton(onClick = onNext, modifier = Modifier.fillMaxWidth(0.6f)) {
@@ -118,14 +118,14 @@ private fun ApiKeyStep(
         ) {
             Text(
                 stringResource(R.string.onboarding_provider_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.onboarding_provider_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(24.dp))
 
@@ -146,8 +146,8 @@ private fun ApiKeyStep(
                             modifier = Modifier.padding(8.dp),
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface,
+                            color = if (isSelected) MiuixTheme.colorScheme.primary
+                            else MiuixTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                         )
@@ -241,13 +241,13 @@ private fun ModelSelectionStep(
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.onboarding_select_models_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
             )
             Text(
                 stringResource(R.string.onboarding_select_models_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(12.dp))
 
@@ -271,8 +271,8 @@ private fun ModelSelectionStep(
                     item {
                         Text(
                             instance?.label ?: instanceId,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = MiuixTheme.textStyles.button,
+                            color = MiuixTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp),
                         )
                     }
@@ -296,12 +296,12 @@ private fun ModelSelectionStep(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
+                                        .background(MiuixTheme.colorScheme.primary),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         "${selectionIndex + 1}",
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        color = MiuixTheme.colorScheme.onPrimary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                     )
@@ -311,16 +311,16 @@ private fun ModelSelectionStep(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        .background(MiuixTheme.colorScheme.surfaceVariant),
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(entry.model.displayName, style = MaterialTheme.typography.bodyMedium)
+                                Text(entry.model.displayName, style = MiuixTheme.textStyles.body1)
                                 Text(
                                     entry.model.id,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
                             }
                         }

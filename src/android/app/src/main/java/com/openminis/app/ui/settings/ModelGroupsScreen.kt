@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,21 +39,19 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MovieCreation
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuBox
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ListItem
+import com.openminis.app.ui.components.miuix.MenuAnchorType
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -84,7 +83,6 @@ import com.openminis.app.ui.components.SectionDivider
 import com.openminis.app.ui.components.SectionFooter
 import com.openminis.app.ui.components.SectionHeader
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModelGroupsScreen(
     providerRepository: ProviderRepository,
@@ -198,19 +196,19 @@ fun ModelGroupsScreen(
                             Icons.Default.Layers,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = stringResource(R.string.model_groups_no_model_groups),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.headline1,
+                            color = MiuixTheme.colorScheme.onSurface,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.model_groups_groups_let_you_combine_models_for_fallba),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -260,15 +258,15 @@ fun ModelGroupsScreen(
                                         SwipeRowAction(
                                             label = stringResource(R.string.common_edit),
                                             icon = Icons.Filled.Edit,
-                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            containerColor = MiuixTheme.colorScheme.secondaryContainer,
+                                            contentColor = MiuixTheme.colorScheme.onSecondaryContainer,
                                             onClick = { onGroupClick(group.id) },
                                         ),
                                         SwipeRowAction(
                                             label = stringResource(R.string.common_delete),
                                             icon = Icons.Filled.Delete,
-                                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            containerColor = MiuixTheme.colorScheme.errorContainer,
+                                            contentColor = MiuixTheme.colorScheme.onErrorContainer,
                                             onClick = { groupToDelete = group },
                                         ),
                                     ),
@@ -378,8 +376,8 @@ fun ModelGroupsScreen(
                 Column {
                     Text(
                         "Enter a name for the new model group.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
@@ -445,7 +443,7 @@ fun ModelGroupsScreen(
                 ) {
                     Text(
                         stringResource(R.string.common_delete),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -469,7 +467,7 @@ private fun BadgeLabel(text: String, color: androidx.compose.ui.graphics.Color) 
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MiuixTheme.textStyles.footnote2,
             color = color,
             fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
@@ -477,7 +475,6 @@ private fun BadgeLabel(text: String, color: androidx.compose.ui.graphics.Color) 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GroupDropdown(
     label: String,
@@ -539,7 +536,6 @@ private fun GroupDropdown(
  * T182 `AgentLoopModelsScreen` did when it materialised every entry
  * in a single `Column`.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 private fun LazyListScope.agentLoopModelsSectionItems(
     providerRepository: ProviderRepository,
     config: com.openminis.app.data.model.ProviderConfig,
@@ -582,8 +578,8 @@ private fun LazyListScope.agentLoopModelsSectionItems(
             Box(modifier = Modifier.cardRow(isFirst = true, isLast = true)) {
                 Text(
                     text = stringResource(R.string.agent_loop_section_empty_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                 )
             }
@@ -736,7 +732,7 @@ private fun AgentLoopRow(
             Icon(
                 imageVector = Icons.Default.DragHandle,
                 contentDescription = stringResource(R.string.model_group_detail_drag_to_reorder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -744,20 +740,20 @@ private fun AgentLoopRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.main,
+                    color = MiuixTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium,
                 )
                 if (badge != null) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    BadgeLabel(badge, MaterialTheme.colorScheme.primary)
+                    BadgeLabel(badge, MiuixTheme.colorScheme.primary)
                 }
             }
             if (!subtitle.isNullOrEmpty()) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -768,7 +764,7 @@ private fun AgentLoopRow(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = stringResource(R.string.agent_loop_section_remove),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -883,8 +879,8 @@ private fun groupTopModalities(
  */
 @Composable
 private fun GroupModalityIcon(marker: GroupModalityMarker) {
-    val outputTint = MaterialTheme.colorScheme.primary
-    val inputTint = MaterialTheme.colorScheme.onSurfaceVariant
+    val outputTint = MiuixTheme.colorScheme.primary
+    val inputTint = MiuixTheme.colorScheme.onSurfaceContainerVariant
     val size = Modifier.size(14.dp)
     val (vector, labelRes, tint) = when {
         marker.isOutput && marker.kind == "video" -> Triple(Icons.Default.MovieCreation, R.string.modeldetail_video_output, outputTint)
@@ -903,7 +899,6 @@ private fun GroupModalityIcon(marker: GroupModalityMarker) {
 /** A single group row inside the Groups section card. Built as a plain
  *  Composable (not a ListItem) so it inherits the card's surface color
  *  cleanly without ListItem's container override. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GroupRow(
     group: ModelGroup,
@@ -965,7 +960,7 @@ private fun GroupRow(
                 Icon(
                     imageVector = Icons.Default.DragHandle,
                     contentDescription = stringResource(R.string.model_group_detail_drag_to_reorder),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -978,9 +973,9 @@ private fun GroupRow(
             ) {
                 Text(
                     text = group.name,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MiuixTheme.textStyles.main,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                 )
                 // [T-android-modelgroup-modality-icons] Mark the group's top-2
                 // most distinctive modalities (inputs + outputs) right after the
@@ -989,12 +984,12 @@ private fun GroupRow(
                 groupTopModalities(group, config).forEach { marker ->
                     GroupModalityIcon(marker)
                 }
-                if (isPrimary) BadgeLabel("Primary", MaterialTheme.colorScheme.primary)
-                if (isSub) BadgeLabel("Sub", MaterialTheme.colorScheme.tertiary)
+                if (isPrimary) BadgeLabel("Primary", MiuixTheme.colorScheme.primary)
+                if (isSub) BadgeLabel("Sub", MiuixTheme.colorScheme.primary)
                 if (allDisabled) {
                     BadgeLabel(
                         stringResource(R.string.model_group_no_usable_models_badge),
-                        MaterialTheme.colorScheme.error,
+                        MiuixTheme.colorScheme.error,
                     )
                 }
             }
@@ -1012,15 +1007,15 @@ private fun GroupRow(
             }
             Text(
                 text = subtitleText,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (allDisabled) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = if (allDisabled) MiuixTheme.colorScheme.error
+                        else MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             if (preview.isNotEmpty()) {
                 Text(
                     text = preview,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.outline,
                     maxLines = 1,
                 )
             }
@@ -1028,7 +1023,7 @@ private fun GroupRow(
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }

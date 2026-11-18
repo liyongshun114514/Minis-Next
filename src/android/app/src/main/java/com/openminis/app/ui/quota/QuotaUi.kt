@@ -1,5 +1,6 @@
 package com.openminis.app.ui.quota
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,9 +23,8 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -151,18 +151,18 @@ fun QuotaWatch(instanceId: String?, reason: String) {
 fun QuotaTone.color(): Color {
     val dark = LocalChatPalette.current.isDark
     return when (this) {
-        QuotaTone.normal -> MaterialTheme.colorScheme.onSurfaceVariant
+        QuotaTone.normal -> MiuixTheme.colorScheme.onSurfaceContainerVariant
         QuotaTone.healthy -> if (dark) Color(0xFF30D158) else Color(0xFF34C759)
         QuotaTone.caution -> if (dark) Color(0xFFFF9F0A) else Color(0xFFFF9500)
         QuotaTone.critical -> if (dark) Color(0xFFFF453A) else Color(0xFFFF3B30)
-        QuotaTone.muted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        QuotaTone.muted -> MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f)
     }
 }
 
 /** Emphasised amount text: neutral stays primary, warnings keep their colour. */
 @Composable
 fun QuotaTone.amountColor(): Color = when (this) {
-    QuotaTone.normal, QuotaTone.healthy -> MaterialTheme.colorScheme.onSurface
+    QuotaTone.normal, QuotaTone.healthy -> MiuixTheme.colorScheme.onSurface
     else -> color()
 }
 
@@ -320,7 +320,7 @@ fun QuotaUsageBar(fraction: Double, tone: QuotaTone, modifier: Modifier = Modifi
             .fillMaxWidth()
             .height(6.dp)
             .clip(RoundedCornerShape(3.dp))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
     ) {
         if (fraction > 0) {
             Box(
@@ -358,9 +358,9 @@ fun QuotaStatusChip(status: PoolStatus) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(c))
         Text(
             label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MiuixTheme.textStyles.footnote2,
             fontWeight = FontWeight.Medium,
-            color = if (tone == QuotaTone.normal) MaterialTheme.colorScheme.onSurfaceVariant else c,
+            color = if (tone == QuotaTone.normal) MiuixTheme.colorScheme.onSurfaceContainerVariant else c,
             maxLines = 1,
         )
     }
@@ -383,7 +383,7 @@ fun QuotaWindowLine(window: QuotaWindow, pool: QuotaPool) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 QuotaFormat.windowLabel(window, strings),
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 fontWeight = FontWeight.Medium,
             )
             Spacer(Modifier.weight(1f))
@@ -391,14 +391,14 @@ fun QuotaWindowLine(window: QuotaWindow, pool: QuotaPool) {
             if (util != null) {
                 Text(
                     QuotaFormat.percentUsedText(util.percent, strings),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (tone == QuotaTone.healthy) MaterialTheme.colorScheme.onSurfaceVariant else tone.color(),
+                    style = MiuixTheme.textStyles.body2,
+                    color = if (tone == QuotaTone.healthy) MiuixTheme.colorScheme.onSurfaceContainerVariant else tone.color(),
                 )
             } else if (remaining != null) {
                 Text(
                     context.getString(R.string.quota_left, QuotaFormat.amount(remaining, pool.unit, locale, strings)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -406,8 +406,8 @@ fun QuotaWindowLine(window: QuotaWindow, pool: QuotaPool) {
         window.resetsAt?.let {
             Text(
                 context.getString(R.string.quota_resets, QuotaText.relative(context, it)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }
@@ -435,7 +435,7 @@ fun QuotaPoolRow(pool: QuotaPool, status: PoolStatus, detailed: Boolean = false,
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 QuotaText.poolName(context, pool),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -449,7 +449,7 @@ fun QuotaPoolRow(pool: QuotaPool, status: PoolStatus, detailed: Boolean = false,
             if (status.freshness != QuotaFreshness.expired && headline != null) {
                 Text(
                     headline,
-                    style = if (detailed) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                    style = if (detailed) MiuixTheme.textStyles.headline1 else MiuixTheme.textStyles.main,
                     fontWeight = FontWeight.SemiBold,
                     color = tone.amountColor(),
                     maxLines = 1,
@@ -459,8 +459,8 @@ fun QuotaPoolRow(pool: QuotaPool, status: PoolStatus, detailed: Boolean = false,
         if (status.freshness == QuotaFreshness.expired) {
             Text(
                 context.getString(R.string.quota_data_expired),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         } else {
             PoolDetails(pool, tone, detailed)
@@ -482,18 +482,18 @@ private fun PoolDetails(pool: QuotaPool, tone: QuotaTone, detailed: Boolean) {
         if (detailed && pool.kind == QuotaPool.Kind.prepaidBalance) {
             Text(
                 context.getString(R.string.quota_prepaid_no_percent),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         QuotaFormat.breakdown(amounts, pool.unit, locale, strings)?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
     }
     if (pool.verdict == QuotaPool.Verdict.rejected) {
         Text(
             context.getString(R.string.quota_account_rejected),
-            style = MaterialTheme.typography.bodySmall,
+            style = MiuixTheme.textStyles.body2,
             color = QuotaTone.critical.color(),
         )
     }
@@ -501,8 +501,8 @@ private fun PoolDetails(pool: QuotaPool, tone: QuotaTone, detailed: Boolean) {
     if (pool.unlimited) {
         Text(
             context.getString(R.string.quota_no_limit),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -532,8 +532,8 @@ private fun CapLine(pool: QuotaPool, amounts: QuotaAmounts, total: BigDecimal, t
                 QuotaFormat.amount(used, pool.unit, locale, strings),
                 QuotaFormat.amount(total, pool.unit, locale, strings),
             ) + (util?.let { " · " + QuotaFormat.percent(it.percent) } ?: ""),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -576,17 +576,17 @@ fun QuotaConsoleLinkRow(url: String, onOpen: () -> Unit, modifier: Modifier = Mo
         QuotaCircleIcon(Icons.Filled.Language, Color(0xFF007AFF), size = 28)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.quota_console_link), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.quota_console_link), style = MiuixTheme.textStyles.main)
             Text(
                 com.openminis.app.quota.QuotaConsoleLink.host(url),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
         Icon(
             Icons.AutoMirrored.Filled.OpenInNew,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(16.dp),
         )
     }

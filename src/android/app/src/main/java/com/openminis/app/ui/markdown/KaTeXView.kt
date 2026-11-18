@@ -1,5 +1,6 @@
 package com.openminis.app.ui.markdown
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.LruCache
@@ -14,8 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -199,7 +199,7 @@ fun KaTeXRenderView(
         Text(
             text = latex,
             style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             modifier = modifier,
         )
     } else {

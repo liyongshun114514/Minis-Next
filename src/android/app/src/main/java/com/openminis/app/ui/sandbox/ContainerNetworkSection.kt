@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -7,13 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.MinisButton as Button
+import com.openminis.app.ui.components.miuix.ListItem
+import com.openminis.app.ui.components.miuix.ListItemDefaults
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,7 +77,7 @@ internal fun ContainerNetworkSection() {
     Column {
         Text(
             stringResource(R.string.rootfs_dns_mode),
-            style = MaterialTheme.typography.titleSmall,
+            style = MiuixTheme.textStyles.subtitle,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
         )
         ModeRow(
@@ -102,7 +102,7 @@ internal fun ContainerNetworkSection() {
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.rootfs_dns_servers)) },
                     placeholder = { Text("223.5.5.5\n2400:3200::1", fontFamily = FontFamily.Monospace) },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                     minLines = 3,
                     isError = !parsed.isValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
@@ -132,8 +132,8 @@ internal fun ContainerNetworkSection() {
                 is ContainerDns.Plan.Custom -> stringResource(R.string.rootfs_dns_effective_custom, p.servers.joinToString(", "))
                 ContainerDns.Plan.System -> stringResource(R.string.rootfs_dns_effective_system)
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
@@ -143,7 +143,7 @@ internal fun ContainerNetworkSection() {
 private fun ModeRow(label: String, description: String, selected: Boolean, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(label) },
-        supportingContent = { Text(description, style = MaterialTheme.typography.bodySmall) },
+        supportingContent = { Text(description, style = MiuixTheme.textStyles.body2) },
         leadingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = selected, onClick = onClick)

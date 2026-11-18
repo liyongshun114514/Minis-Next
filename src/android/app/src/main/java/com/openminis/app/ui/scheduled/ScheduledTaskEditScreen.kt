@@ -1,5 +1,6 @@
 package com.openminis.app.ui.scheduled
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,30 +22,28 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
+import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.DatePicker
+import com.openminis.app.ui.components.miuix.DatePickerDialog
+import com.openminis.app.ui.components.miuix.FilterChip
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TimeInput
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.rememberDatePickerState
+import com.openminis.app.ui.components.miuix.rememberTimePickerState
 import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.ui.chat.localizedName
-import androidx.compose.material3.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,7 +85,6 @@ import java.util.Locale
  */
 private enum class TargetKind { NEW, FOLLOW_UP, RERUN, AGENT }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduledTaskEditScreen(
     taskId: String?,
@@ -378,7 +376,6 @@ fun ScheduledTaskEditScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditFormBody(
     padding: PaddingValues,
@@ -480,12 +477,12 @@ private fun EditFormBody(
             Column {
                 SectionLabel(stringResource(R.string.scheduled_task_field_trigger))
                 Spacer(Modifier.height(8.dp))
-                Text(fixedTriggerText, style = MaterialTheme.typography.bodyLarge)
+                Text(fixedTriggerText, style = MiuixTheme.textStyles.main)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.scheduled_task_trigger_readonly_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -585,7 +582,7 @@ private fun EditFormBody(
             Text(
                 stringResource(R.string.scheduled_task_rerun_note),
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
 
@@ -622,7 +619,7 @@ private fun EditFormBody(
         if (!isNew) {
             MinisOutlinedButton(
                 onClick = onDelete,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MiuixTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.scheduled_task_delete)) }
         }
@@ -656,7 +653,7 @@ private fun EditFormBody(
             Column(modifier = Modifier.padding(bottom = 24.dp)) {
                 Text(
                     stringResource(R.string.scheduled_task_field_thinking),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 )
                 // "App default" == inherit == null.
@@ -758,7 +755,7 @@ private fun EditFormBody(
 
 @Composable
 private fun SectionLabel(text: String) {
-    Text(text, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+    Text(text, fontWeight = FontWeight.Medium, color = MiuixTheme.colorScheme.onSurface)
 }
 
 @Composable
@@ -779,7 +776,7 @@ private fun PickerRow(
             {
                 IconButton(onClick = onClear) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(0.dp))
-                    Text("✕", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("✕", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
             }
         } else null,
@@ -789,7 +786,6 @@ private fun PickerRow(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SessionPickerDialog(
     vm: ScheduledTasksViewModel,
@@ -827,7 +823,6 @@ private fun SessionPickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessagePickerDialog(
     vm: ScheduledTasksViewModel,
@@ -866,7 +861,6 @@ private fun MessagePickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DateDialog(initialMs: Long?, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
     val state = rememberDatePickerState(initialSelectedDateMillis = initialMs)
@@ -1002,7 +996,7 @@ private fun ThinkingChoiceRow(label: String, selected: Boolean, onClick: () -> U
             Icon(
                 Icons.Filled.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
             )
         }
     }

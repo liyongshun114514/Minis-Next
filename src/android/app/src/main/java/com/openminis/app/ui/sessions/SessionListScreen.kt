@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sessions
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -98,31 +99,29 @@ import android.content.Intent
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Surface
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.MinisTextButton as TextButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Surface
 import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionTextField
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Badge
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Badge
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.FloatingActionButtonDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -591,7 +590,7 @@ private fun relativeDate(context: Context, timestamp: Long): String {
     return "$month/$day"
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SessionListScreen(
     chatRepository: ChatRepository,
@@ -1143,8 +1142,8 @@ fun SessionListScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.search_no_results, searchQuery),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.main,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                     } else if (configLoaded) {
@@ -1300,7 +1299,7 @@ fun SessionListScreen(
                                     // group would show no highlight at all.
                                     rowBackground = when {
                                         session.id == selectedSessionId ->
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                            MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)
                                         inFolder -> Color.Transparent
                                         else -> null
                                     },
@@ -1439,10 +1438,10 @@ fun SessionListScreen(
                                 .height(48.dp)
                                 .shadow(8.dp, RoundedCornerShape(24.dp))
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                .background(MiuixTheme.colorScheme.surfaceContainer)
                                 .border(
                                     0.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
                                     RoundedCornerShape(24.dp),
                                 )
                                 .padding(start = 10.dp, end = 8.dp),
@@ -1471,7 +1470,7 @@ fun SessionListScreen(
                                     bar.folder.name,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = MiuixTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -1482,7 +1481,7 @@ fun SessionListScreen(
                                     .size(32.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
                                     )
                                     .clickable {
                                         // [T-search-folder-collapse] In a result set the
@@ -1494,7 +1493,7 @@ fun SessionListScreen(
                                 Icon(
                                     Icons.Default.KeyboardArrowUp,
                                     contentDescription = stringResource(R.string.group_collapse),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -1688,7 +1687,7 @@ fun SessionListScreen(
         // text fields, and MinisAlertDialog is a title/text/buttons component.
         // Widening it for a single caller would push layout complexity into
         // every other dialog in the app.
-        androidx.compose.material3.AlertDialog(
+        com.openminis.app.ui.components.miuix.AlertDialog(
             onDismissRequest = { folderToRename = null },
             title = { Text(stringResource(R.string.group_rename)) },
             text = {
@@ -1901,7 +1900,7 @@ private fun DualFabRow(
                             if (topGroups.isNotEmpty()) showGroupMenu = true
                         },
                     ),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                shadowElevation = 4.dp,
             ) {
                 Icon(Icons.Outlined.Forum, contentDescription = "New Chat", tint = Color.White, modifier = Modifier.size(24.dp))
             }
@@ -1953,9 +1952,9 @@ private fun DualFabRow(
                             )
                         }
                         .shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.15f)),
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                    shadowElevation = 4.dp,
                 ) {
-                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.sessionlist_search_action), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.sessionlist_search_action), tint = MiuixTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
                 }
             }
         }
@@ -1996,7 +1995,7 @@ private fun DualFabRow(
                     // transition on slow stores. Snaps back to the close
                     // button as soon as results land.
                     if (isSearching) {
-                        androidx.compose.material3.CircularProgressIndicator(
+                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
                             modifier = Modifier
                                 .padding(end = 12.dp)
                                 .size(18.dp),
@@ -2024,11 +2023,11 @@ private fun DualFabRow(
                 // surface above the list. Also drop both border colors —
                 // capsule shape with no outline reads more like iOS's filled
                 // search bar than the M3 outlined field default.
-                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.8f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                colors = com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+                    focusedBorderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.8f),
+                    unfocusedBorderColor = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -2065,7 +2064,7 @@ private fun SelectionToolbar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f))
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f))
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
@@ -2129,14 +2128,14 @@ private fun SelectionToolbar(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete),
-                    tint = if (selectedCount > 0) MaterialTheme.colorScheme.error else Color.Gray,
+                    tint = if (selectedCount > 0) MiuixTheme.colorScheme.error else Color.Gray,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.delete),
                     fontSize = 11.sp,
-                    color = if (selectedCount > 0) MaterialTheme.colorScheme.error else Color.Gray,
+                    color = if (selectedCount > 0) MiuixTheme.colorScheme.error else Color.Gray,
                 )
             }
         }
@@ -2161,7 +2160,7 @@ private fun SectionHeader(title: String) {
             Icon(
                 imageVector = Icons.Default.PushPin,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier
                     .size(14.dp)
                     .padding(end = 0.dp),
@@ -2172,7 +2171,7 @@ private fun SectionHeader(title: String) {
             text = title,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }
@@ -2239,8 +2238,8 @@ private fun SessionItemContent(
                 Icon(
                     imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
                     contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (isSelected) MiuixTheme.colorScheme.primary
+                    else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(24.dp),
                 )
             },
@@ -2285,21 +2284,21 @@ private fun SessionItemContent(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
+                        .background(MiuixTheme.colorScheme.surface.copy(alpha = 0.7f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        androidx.compose.material3.CircularProgressIndicator(
+                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
                         )
                         Text(
                             stringResource(R.string.sessionlist_regenerating_title),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -2441,7 +2440,7 @@ private fun SessionItemContent(
                 MinisMenuDivider()
                 // Delete
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
+                    text = { Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error) },
                     onClick = {
                         showContextMenu = false
                         onDeleteRequest(session.id)
@@ -2450,7 +2449,7 @@ private fun SessionItemContent(
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = MiuixTheme.colorScheme.error,
                         )
                     },
                 )
@@ -2494,7 +2493,7 @@ private fun folderEdgeColor(): Color =
     else Color.Black.copy(alpha = 0.08f)
 
 @Composable
-private fun folderFillColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
+private fun folderFillColor(): Color = MiuixTheme.colorScheme.surfaceContainer
 
 private fun Modifier.folderSurface(
     segment: FolderSegment,
@@ -2585,14 +2584,14 @@ private fun FolderShowMoreRow(hidden: Int, onClick: () -> Unit) {
         Icon(
             Icons.Filled.KeyboardArrowDown,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp),
         )
         Text(
             stringResource(R.string.sessionlist_folder_show_more, FolderPages.nextPageCount(hidden), hidden),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
+            color = MiuixTheme.colorScheme.primary,
         )
     }
 }
@@ -2647,7 +2646,7 @@ private fun groupGlyphPath(side: Float): Path = Path().apply {
 @Composable
 private fun FolderMemberTile(members: List<FolderTileMember>, size: Dp = 44.dp, loadingColor: Color? = null) {
     val scale = size.value / 44f
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val muted = MiuixTheme.colorScheme.onSurfaceContainerVariant
     Box(
         modifier = Modifier
             .size(size)
@@ -2908,7 +2907,7 @@ private fun FolderCard(
                     else androidx.compose.ui.text.AnnotatedString(block.folder.name),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -2932,7 +2931,7 @@ private fun FolderCard(
                         else -> stringResource(R.string.group_empty)
                     },
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -2945,7 +2944,7 @@ private fun FolderCard(
                 Text(
                     dateText,
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.outline,
+                    color = MiuixTheme.colorScheme.outline,
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -2955,14 +2954,14 @@ private fun FolderCard(
                         Icon(
                             Icons.Default.PushPin,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.outline,
+                            tint = MiuixTheme.colorScheme.outline,
                             modifier = Modifier.size(12.dp),
                         )
                     }
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
+                        tint = MiuixTheme.colorScheme.outline,
                         modifier = Modifier
                             .size(18.dp)
                             .rotate(chevronRotation),
@@ -3040,7 +3039,7 @@ private fun FolderCard(
                             stringResource(
                                 R.string.group_delete_with_sessions, block.totalCount,
                             ),
-                            color = MaterialTheme.colorScheme.error,
+                            color = MiuixTheme.colorScheme.error,
                         )
                     },
                     onClick = { menuOpen = false; onDeleteWithSessions() },
@@ -3048,7 +3047,7 @@ private fun FolderCard(
                         Icon(
                             Icons.Outlined.Delete,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = MiuixTheme.colorScheme.error,
                             modifier = Modifier.size(20.dp),
                         )
                     },
@@ -3134,7 +3133,7 @@ private fun SessionRow(
             // clip only ever shaped the ripple. Now the tint is the rounded
             // rect itself, matching the folder card's shape and leaving equal
             // gutters left and right.
-            .background(rowBackground ?: MaterialTheme.colorScheme.surface)
+            .background(rowBackground ?: MiuixTheme.colorScheme.surface)
             .then(
                 if (onLongClick != null) {
                     Modifier
@@ -3260,7 +3259,7 @@ private fun SessionRow(
                     text = highlightedAnnotatedString(titleText, searchQuery),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -3269,7 +3268,7 @@ private fun SessionRow(
                     text = titleText,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -3281,7 +3280,7 @@ private fun SessionRow(
                 Text(
                     text = highlightedAnnotatedString(searchSnippet, searchQuery),
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -3289,7 +3288,7 @@ private fun SessionRow(
                 Text(
                     text = session.lastMessage ?: "No messages yet",
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -3300,7 +3299,7 @@ private fun SessionRow(
         Text(
             text = timeText,
             fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.outline,
+            color = MiuixTheme.colorScheme.outline,
         )
     }
 }
@@ -3332,7 +3331,7 @@ private fun DialogTextFieldFrame(content: @Composable () -> Unit) {
         // dark mode — verified on device.
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant,
+            MiuixTheme.colorScheme.dividerLine,
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -3410,7 +3409,7 @@ private fun GroupLoadingBorder(cornerRadius: Dp, color: Color, modifier: Modifie
 @Composable
 private fun groupLoadingColor(category: String?): Color {
     val style = categoryStyle(category)
-    return if (category.isNullOrBlank() || style == categoryStyle(null)) MaterialTheme.colorScheme.primary else style.color
+    return if (category.isNullOrBlank() || style == categoryStyle(null)) MiuixTheme.colorScheme.primary else style.color
 }
 
 private val GROUP_LOADING_STROKE = 2.5.dp
@@ -3487,7 +3486,7 @@ private fun SessionBadgeOverlay(
     state: com.openminis.app.service.SessionBadgeStore.SessionBadgeState,
     modifier: Modifier = Modifier,
     /** The ring that lifts the badge off the icon: the background behind it. */
-    ringColor: Color = MaterialTheme.colorScheme.surface,
+    ringColor: Color = MiuixTheme.colorScheme.surface,
 ) {
     when (state) {
         com.openminis.app.service.SessionBadgeStore.SessionBadgeState.PAUSED -> {
@@ -3552,20 +3551,20 @@ private fun OnboardingLanding(
             imageVector = Icons.Default.AutoAwesome,
             contentDescription = null,
             modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
         )
         Spacer(Modifier.height(16.dp))
 
         Text(
             text = stringResource(R.string.sessionlist_welcome_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MiuixTheme.textStyles.title3,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.sessionlist_welcome_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             textAlign = TextAlign.Center,
         )
 
@@ -3635,12 +3634,12 @@ private fun OnboardingLanding(
                     imageVector = Icons.Default.History,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Text(
                     text = stringResource(R.string.sessionlist_welcome_restore_backup),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -3662,7 +3661,7 @@ private fun SetupStepCard(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(12.dp),
             )
             .clickable(enabled = isEnabled, onClick = onClick)
@@ -3674,7 +3673,7 @@ private fun SetupStepCard(
             modifier = Modifier
                 .size(32.dp)
                 .background(
-                    color = if (isDone) Color(0xFF34C759) else MaterialTheme.colorScheme.primary,
+                    color = if (isDone) Color(0xFF34C759) else MiuixTheme.colorScheme.primary,
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -3702,15 +3701,15 @@ private fun SetupStepCard(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 fontWeight = FontWeight.Medium,
-                color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onSurface,
+                color = if (isDone) MiuixTheme.colorScheme.onSurfaceContainerVariant
+                else MiuixTheme.colorScheme.onSurface,
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
 
@@ -3718,7 +3717,7 @@ private fun SetupStepCard(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             )
         }
     }
@@ -3733,7 +3732,6 @@ private val allCategories = listOf(
     "Design", "Productivity", "Support", "Other",
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionEditSheet(
     session: ChatSessionEntity,
@@ -3781,7 +3779,7 @@ internal fun SessionEditSheet(
                 Spacer(Modifier.weight(1f))
                 Text(
                     "Edit Session",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.weight(1f))
@@ -3805,7 +3803,7 @@ internal fun SessionEditSheet(
 
             Text(
                 "Category",
-                style = MaterialTheme.typography.titleSmall,
+                style = MiuixTheme.textStyles.subtitle,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
 
@@ -3824,7 +3822,7 @@ internal fun SessionEditSheet(
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 if (isSelected) style.color.copy(alpha = 0.2f)
-                                else MaterialTheme.colorScheme.surfaceContainerHigh
+                                else MiuixTheme.colorScheme.surfaceContainerHigh
                             )
                             .clickable {
                                 selectedCategory = if (isSelected) null else cat.lowercase()
@@ -3844,7 +3842,7 @@ internal fun SessionEditSheet(
                                 cat,
                                 fontSize = 11.sp,
                                 color = if (isSelected) style.color
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             )
                         }
@@ -3864,7 +3862,7 @@ internal fun SessionEditSheet(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (isRegenerating) {
-                    androidx.compose.material3.CircularProgressIndicator(
+                    com.openminis.app.ui.components.miuix.CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                     )
@@ -3954,7 +3952,7 @@ private fun SessionExportSummaryDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for ((label, value) in rows) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                        Text(label, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, fontSize = 14.sp)
                         Spacer(Modifier.width(12.dp))
                         Text(value, fontSize = 14.sp)
                     }

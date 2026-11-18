@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.sandbox.SandboxDistribution
 import com.openminis.app.ui.settings.SettingsSwitch
@@ -33,18 +34,16 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.outlined.Javascript
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ListItem
+import com.openminis.app.ui.components.miuix.ListItemDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -578,8 +577,8 @@ private fun MirrorCategoryRow(category: MirrorCategory, onClick: () -> Unit) {
                 if (active && selected != null) {
                     Text(
                         text = selected.name,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIfShort(),
@@ -593,7 +592,7 @@ private fun MirrorCategoryRow(category: MirrorCategory, onClick: () -> Unit) {
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                 )
             }
         },
@@ -636,13 +635,12 @@ private fun LatencyBadge(ms: Int) {
     ) {
         Text(
             text = "${ms}ms",
-            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+            style = MiuixTheme.textStyles.footnote2.copy(fontFamily = FontFamily.Monospace),
             color = color,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MirrorCategoryDetailScreen(
     category: MirrorCategory,
@@ -677,8 +675,8 @@ fun MirrorCategoryDetailScreen(
             // --- Current section ---
             Text(
                 text = stringResource(R.string.mirror_current_section),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.subtitle,
+                color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
@@ -703,14 +701,14 @@ fun MirrorCategoryDetailScreen(
                     headlineContent = {
                         Text(
                             selected.name,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MiuixTheme.textStyles.body1,
                         )
                     },
                     supportingContent = {
                         Text(
                             selected.baseURL,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -720,7 +718,7 @@ fun MirrorCategoryDetailScreen(
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.mirror_official_default)) },
                     colors = ListItemDefaults.colors(
-                        headlineColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        headlineColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     ),
                 )
             }
@@ -729,8 +727,8 @@ fun MirrorCategoryDetailScreen(
             HorizontalDivider()
             Text(
                 text = if (sortedResults.isEmpty()) stringResource(R.string.mirror_mirrors_section) else stringResource(R.string.mirror_speed_test_results_section),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.subtitle,
+                color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
@@ -807,40 +805,40 @@ private fun MirrorRow(
         Icon(
             if (isSelected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
             contentDescription = null,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary
-                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = if (isSelected) MiuixTheme.colorScheme.primary
+                   else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(mirror.name, style = MaterialTheme.typography.bodyMedium)
+                Text(mirror.name, style = MiuixTheme.textStyles.body1)
                 if (mirror.isOfficial) {
                     Spacer(Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
+                            .background(MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.12f))
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
                         Text(
                             stringResource(R.string.mirror_official_badge),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
                 Spacer(Modifier.width(6.dp))
                 Text(
                     mirror.region,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                 )
             }
             Text(
                 mirror.baseURL,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -850,8 +848,8 @@ private fun MirrorRow(
         } else if (failed) {
             Text(
                 stringResource(R.string.mirror_timeout_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }

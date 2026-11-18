@@ -1,5 +1,6 @@
 package com.openminis.app.ui.navigation
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
@@ -17,11 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.currentWindowSize
@@ -29,7 +29,7 @@ import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.VerticalDivider
+import top.yukonga.miuix.kmp.basic.VerticalDivider
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -609,7 +609,7 @@ fun ChatSplitScaffold(
                         // extend left of the seam.
                         VerticalDivider(
                             thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
+                            color = MiuixTheme.colorScheme.dividerLine,
                         )
                     }
                     // [T-android-no-keyboard-on-open] Focusable so it takes
@@ -857,13 +857,13 @@ private fun NoConversationSelected(
                 text = soulMeta.name.ifBlank {
                     com.openminis.app.agent.SoulMetadata.DEFAULT.name
                 },
-                style = MaterialTheme.typography.titleLarge,
+                style = MiuixTheme.textStyles.title3,
                 textAlign = TextAlign.Center,
             )
             Text(
                 text = stringResource(R.string.split_no_conversation_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp),
             )

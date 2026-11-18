@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -18,15 +19,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,7 +57,6 @@ import com.openminis.app.ui.components.MinisTextButton
  * tap-and-add-immediately bottom sheet) so a user adding 5 models from
  * the same provider doesn't bounce in and out of the picker.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAgentLoopModelsScreen(
     providerRepository: ProviderRepository,
@@ -123,11 +121,11 @@ fun AddAgentLoopModelsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MiuixTheme.colorScheme.background,
                 ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         // [T-picker-search-debounce] Ranked, capped, debounced search.
         val searchSections = com.openminis.app.ui.components.rememberModelEntryPickerSections(
@@ -167,7 +165,6 @@ fun AddAgentLoopModelsScreen(
  * Visuals (selection circle, surfaceContainer card, divider treatment)
  * mirror the entries picker so both feel like one family.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAgentLoopGroupsScreen(
     providerRepository: ProviderRepository,
@@ -219,11 +216,11 @@ fun AddAgentLoopGroupsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MiuixTheme.colorScheme.background,
                 ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         if (available.isEmpty()) {
             Box(
@@ -235,8 +232,8 @@ fun AddAgentLoopGroupsScreen(
             ) {
                 Text(
                     stringResource(R.string.agent_loop_section_no_available_groups),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         } else {
@@ -250,7 +247,7 @@ fun AddAgentLoopGroupsScreen(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 16.dp)
                             .background(
-                                MaterialTheme.colorScheme.surfaceContainer,
+                                MiuixTheme.colorScheme.surfaceContainer,
                                 RoundedCornerShape(12.dp),
                             ),
                     ) {
@@ -291,27 +288,27 @@ fun AddAgentLoopGroupsScreen(
                                     if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = null,
                                     tint = if (isSelected) Color(0xFF007AFF)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                     modifier = Modifier.size(20.dp),
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         group.name,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MiuixTheme.textStyles.body1,
                                         fontWeight = FontWeight.Medium,
                                     )
                                     Text(
                                         preview,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        style = MiuixTheme.textStyles.footnote2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                     )
                                 }
                             }
                             if (index < available.size - 1) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(start = 46.dp, end = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                    color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                                 )
                             }
                         }

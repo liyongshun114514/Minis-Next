@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Assistant-message + tool-pill + thinking rendering
 // extracted verbatim from ChatScreen.kt: AssistantHeader, AssistantMessageView,
 // BoundsTrackedBlock, InlineErrorBanner, ToolStopButton,
@@ -133,8 +134,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
@@ -146,22 +147,19 @@ import com.openminis.app.ui.settings.getAppearancePrefs
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import com.openminis.app.ui.util.expandToggleClickable
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -242,10 +240,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -320,7 +317,7 @@ internal fun AssistantHeader() {
             text = displayName,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
         )
     }
 }
@@ -381,7 +378,7 @@ internal fun UsageCapsule(usage: ChatTokenUsage?, completedAt: Long?) {
     val clock = remember(completedAt, today) {
         completedAt?.let { formatReplyClock(it, System.currentTimeMillis(), java.util.Locale.getDefault()) }
     }
-    val ink = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val ink = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -765,7 +762,6 @@ internal fun formatToolDetailsForClipboard(block: AssistantBlock): String {
 private const val SHIMMER_PERIOD_MS = 2800
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ToolCallPill(
     block: AssistantBlock,
@@ -920,7 +916,7 @@ internal fun ToolCallPill(
                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(controlSummary ?: displayToolTitle(block), com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -941,7 +937,7 @@ internal fun ToolCallPill(
                     text = durationText,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                     softWrap = false,
                     maxLines = 1,
                 )
@@ -1333,7 +1329,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                                 charCount / 1000,
                             ),
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                             // [T-thinking-hint-align] Vertical padding only. The iOS
                             // original insets BOTH the hint and the thinking text by
                             // 12pt; here the text below has no horizontal inset, so a
@@ -1359,7 +1355,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                 Text(
                     text = displayContent,
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                     lineHeight = 19.sp,
                 )
             }

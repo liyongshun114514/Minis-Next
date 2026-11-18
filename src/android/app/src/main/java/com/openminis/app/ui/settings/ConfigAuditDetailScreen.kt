@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,10 +12,9 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -99,7 +99,7 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
         if (!e.caption.isNullOrEmpty()) {
             SettingsSection(header = stringResource(R.string.config_audit_detail_note)) {
                 SettingsCardBlock {
-                    SelectionContainer { Text(e.caption, style = MaterialTheme.typography.bodyMedium) }
+                    SelectionContainer { Text(e.caption, style = MiuixTheme.textStyles.body1) }
                 }
             }
         }
@@ -109,21 +109,21 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
                 val readable = e.readable
                 if (readable != null) {
                     SelectionContainer {
-                        Text(readable.displayText(localize), style = MaterialTheme.typography.bodyMedium)
+                        Text(readable.displayText(localize), style = MiuixTheme.textStyles.body1)
                     }
                 } else {
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(
                             imageVector = Icons.Filled.History,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.config_audit_detail_predates),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -145,8 +145,8 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
                 SettingsRow(
                     title = stringResource(R.string.config_audit_detail_revert),
                     icon = Icons.AutoMirrored.Filled.Undo,
-                    iconColor = MaterialTheme.colorScheme.error,
-                    titleColor = MaterialTheme.colorScheme.error,
+                    iconColor = MiuixTheme.colorScheme.error,
+                    titleColor = MiuixTheme.colorScheme.error,
                     onClick = { if (!reverting) confirmRevert = true },
                     showChevron = false,
                     showDivider = false,
@@ -199,7 +199,7 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
                         }
                     }
                 }) {
-                    Text(stringResource(R.string.logs_config_revert), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.logs_config_revert), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -227,9 +227,9 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
 @Composable
 private fun RawBlock(title: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         SelectionContainer {
-            Text(value, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+            Text(value, style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace))
         }
     }
 }

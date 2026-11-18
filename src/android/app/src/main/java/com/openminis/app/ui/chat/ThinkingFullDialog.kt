@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -111,7 +111,7 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                                 NumberFormat.getIntegerInstance().format(content.length),
                             ),
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         )
                     }
                     MinisTextButton(onClick = {
@@ -153,7 +153,7 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                                     text = ThinkingChunking.chunkText(content, list, i).removeSuffix("\n"),
                                     fontSize = 13.sp,
                                     lineHeight = 19.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 )
                             }
                             if (ThinkingChunking.hasMore(revealed, list.size)) {

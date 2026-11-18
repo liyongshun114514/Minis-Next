@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,13 +25,12 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material3.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
@@ -174,7 +174,7 @@ fun LazyListScope.modelEntryPickerItems(
                     Icons.Default.Search,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             },
             trailingIcon = {
@@ -209,9 +209,9 @@ fun LazyListScope.modelEntryPickerItems(
                     // are bodyMedium SemiBold — same size, heavier weight — so
                     // the header read as the weaker of the two. Matches the
                     // chat model picker.
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.weight(1f),
                 )
                 Box(
@@ -220,7 +220,7 @@ fun LazyListScope.modelEntryPickerItems(
                         // oversized circle competes with the provider name.
                         .size(24.dp)
                         .background(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                            MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                             CircleShape,
                         )
                         .clip(CircleShape)
@@ -237,7 +237,7 @@ fun LazyListScope.modelEntryPickerItems(
                         if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -248,7 +248,7 @@ fun LazyListScope.modelEntryPickerItems(
             HorizontalDivider(
                 modifier = Modifier.padding(start = 20.dp, end = 16.dp),
                 thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
             )
         }
 
@@ -263,7 +263,7 @@ fun LazyListScope.modelEntryPickerItems(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceContainer,
+                            MiuixTheme.colorScheme.surfaceContainer,
                             RoundedCornerShape(12.dp),
                         )
                         .clip(RoundedCornerShape(12.dp))
@@ -277,7 +277,7 @@ fun LazyListScope.modelEntryPickerItems(
                     Spacer(Modifier.width(10.dp))
                     Text(
                         firstEntry.model.displayName,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MiuixTheme.textStyles.body1,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
@@ -289,8 +289,8 @@ fun LazyListScope.modelEntryPickerItems(
                             entries.size,
                             entries.size,
                         ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     )
                 }
             }
@@ -309,7 +309,7 @@ fun LazyListScope.modelEntryPickerItems(
                 Column(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer, cardShape),
+                        .background(MiuixTheme.colorScheme.surfaceContainer, cardShape),
                 ) {
                         val isSelected = entry.id in selectedIds
                         val rowShape = when {
@@ -333,7 +333,7 @@ fun LazyListScope.modelEntryPickerItems(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     entry.model.displayName,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MiuixTheme.textStyles.body1,
                                 )
                                 // [T-model-row-premature-wrap] Id, "·" and the
                                 // modality chips (iOS entryRow modalityBadges: img /
@@ -358,8 +358,8 @@ fun LazyListScope.modelEntryPickerItems(
                                     lead = {
                                         Text(
                                             entry.model.id,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            style = MiuixTheme.textStyles.footnote2,
+                                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                         )
                                     },
                                     tags = { badges.forEach { badge -> ModalityBadge(badge) } },
@@ -375,7 +375,7 @@ fun LazyListScope.modelEntryPickerItems(
                                     Icon(
                                         Icons.Outlined.Bolt,
                                         contentDescription = stringResource(R.string.quicktest_button),
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = MiuixTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp),
                                     )
                                 }
@@ -384,7 +384,7 @@ fun LazyListScope.modelEntryPickerItems(
                         if (index < entries.size - 1) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 52.dp, end = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                             )
                         }
                 }
@@ -397,8 +397,8 @@ fun LazyListScope.modelEntryPickerItems(
         item("__search_cap_footer__") {
             Text(
                 stringResource(R.string.model_picker_search_capped, result.shown, result.totalMatches),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -411,8 +411,8 @@ fun LazyListScope.modelEntryPickerItems(
         item("__empty__") {
             Text(
                 stringResource(if (isSearching) emptySearchTextRes else emptyTextRes),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(16.dp),
             )
         }
@@ -425,7 +425,7 @@ private fun SelectionDot(isSelected: Boolean) {
         if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
         contentDescription = null,
         tint = if (isSelected) Color(0xFF007AFF)
-        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
         modifier = Modifier.size(20.dp),
     )
 }
@@ -470,10 +470,10 @@ fun ModalityBadge(badge: String) {
         fontWeight = FontWeight.Medium,
         maxLines = 1,
         softWrap = false,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         modifier = Modifier
             .background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
                 RoundedCornerShape(3.dp),
             )
             .padding(horizontal = 4.dp, vertical = 1.dp),
@@ -488,8 +488,8 @@ fun ModalityBadge(badge: String) {
 fun ModelRowSeparatorDot() {
     Text(
         "·",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        style = MiuixTheme.textStyles.footnote2,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
     )
 }
 

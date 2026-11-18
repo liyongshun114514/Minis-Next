@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,16 +85,16 @@ fun BackupDestinationBrowseScreen(
                         Spacer(Modifier.width(10.dp))
                         Text(
                             stringResource(R.string.backup_dest_loading),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
                 packages.isEmpty() -> {
                     Text(
                         stringResource(R.string.backup_dest_no_packages),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                     )
                 }
@@ -112,8 +112,8 @@ fun BackupDestinationBrowseScreen(
         error?.let {
             Text(
                 it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.error,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
@@ -136,7 +136,7 @@ fun BackupDestinationBrowseScreen(
                 ) {
                     Text(
                         stringResource(R.string.backup_dest_delete_confirm),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -164,7 +164,7 @@ private fun PackageRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     pkg.displayName,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,
                 )
@@ -173,15 +173,15 @@ private fun PackageRow(
                         append(humanBytes(pkg.size))
                         pkg.modified?.let { append(" · "); append(formatTimestamp(it)) }
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.backup_dest_delete_confirm),
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = MiuixTheme.colorScheme.error,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -189,7 +189,7 @@ private fun PackageRow(
         if (showDivider) {
             Box(
                 Modifier.fillMaxWidth().padding(start = 14.dp)
-                    .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+                    .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }

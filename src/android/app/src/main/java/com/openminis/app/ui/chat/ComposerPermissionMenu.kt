@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
@@ -9,13 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -58,8 +58,8 @@ internal fun ComposerPermissionMenuItem(onClick: () -> Unit) {
                 Text("权限")
                 Text(
                     "Root / chroot · ${RootGrantPolicy.label(access)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         },
@@ -85,7 +85,7 @@ internal fun ComposerPermissionDialog(onDismiss: () -> Unit) {
             Column {
                 Text(
                     "与设置中的原生 Root 权限同步。真实 Root 能修改设备和数据；chroot 不是安全隔离边界。设备 su 管理器仍可单独要求授权。已启动的交互会话保留其获准范围，请先停止会话再撤销。",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body2,
                 )
                 descriptions.forEach { (access, description) ->
                     Row(
@@ -97,7 +97,7 @@ internal fun ComposerPermissionDialog(onDismiss: () -> Unit) {
                         RadioButton(selected = selection == access, onClick = null)
                         Column(Modifier.padding(start = 8.dp)) {
                             Text(RootGrantPolicy.label(access))
-                            Text(description, style = MaterialTheme.typography.bodySmall)
+                            Text(description, style = MiuixTheme.textStyles.body2)
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,18 +37,16 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.BorderStroke
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -83,7 +82,7 @@ import com.openminis.app.ui.components.SectionTextField
 
 private const val TAG = "ProviderDetail"
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProviderDetailScreen(
     instanceId: String,
@@ -311,7 +310,7 @@ fun ProviderDetailScreen(
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f),
                 )
                 // Auto-append /v1 switch row — inline Row with heightIn=44dp
                 // so the row matches the URL-input row above and the save
@@ -328,7 +327,7 @@ fun ProviderDetailScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.provider_detail_auto_append_v1),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MiuixTheme.textStyles.main,
                         modifier = Modifier.weight(1f),
                     )
                     SettingsSwitch(
@@ -339,7 +338,7 @@ fun ProviderDetailScreen(
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f),
                 )
                 // [T-provider-custom-user-agent] Custom User-Agent input —
                 // only for OpenAI-/Anthropic-compat (relay) protocols. Some
@@ -356,7 +355,7 @@ fun ProviderDetailScreen(
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(
                             text = stringResource(R.string.provider_detail_custom_user_agent),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MiuixTheme.textStyles.main,
                         )
                         SectionTextField(
                             value = customUserAgent,
@@ -369,7 +368,7 @@ fun ProviderDetailScreen(
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f),
                     )
                 }
                 // Save action — TextButton presentation so it reads as a list
@@ -586,8 +585,8 @@ fun ProviderDetailScreen(
                         {
                             Text(
                                 text = stringResource(R.string.voice_service_hidden_badge),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                     } else {
@@ -651,7 +650,7 @@ fun ProviderDetailScreen(
                     Icon(
                         Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.provider_detail_refresh_models),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MiuixTheme.colorScheme.primary,
                     )
                 },
                 showDivider = entries.isNotEmpty() || true,
@@ -780,14 +779,14 @@ fun ProviderDetailScreen(
                             text = {
                                 Text(
                                     stringResource(R.string.common_delete),
-                                    color = MaterialTheme.colorScheme.error,
+                                    color = MiuixTheme.colorScheme.error,
                                 )
                             },
                             leadingIcon = {
                                 Icon(
                                     Icons.Filled.Delete,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = MiuixTheme.colorScheme.error,
                                 )
                             },
                             onClick = {
@@ -816,7 +815,7 @@ fun ProviderDetailScreen(
                             if (hiddenExpanded) Icons.Default.ExpandMore
                             else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     },
                 )
@@ -854,7 +853,7 @@ fun ProviderDetailScreen(
                 .padding(horizontal = 16.dp)
                 .padding(top = 20.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
+                containerColor = MiuixTheme.colorScheme.error,
             ),
         ) {
             Text(stringResource(R.string.provider_detail_delete_provider))
@@ -1057,15 +1056,15 @@ private fun OAuthCredentialBlock(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             "OAuth",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MiuixTheme.textStyles.main,
             fontWeight = FontWeight.Medium,
         )
         Spacer(modifier = Modifier.width(8.dp))
         if (displayedKey.isNotEmpty()) {
             Text(
                 maskedKey(displayedKey),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.weight(1f),
             )
             Box(
@@ -1073,7 +1072,7 @@ private fun OAuthCredentialBlock(
                     .padding(horizontal = 8.dp)
                     .size(8.dp)
                     .background(
-                        if (needsReauth) MaterialTheme.colorScheme.error else Color(0xFF34C759),
+                        if (needsReauth) MiuixTheme.colorScheme.error else Color(0xFF34C759),
                         CircleShape,
                     ),
             )
@@ -1081,9 +1080,9 @@ private fun OAuthCredentialBlock(
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 if (isAuthenticating) stringResource(R.string.oauth_status_signing_in) else "Not connected",
-                color = if (isAuthenticating) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = if (isAuthenticating) MiuixTheme.colorScheme.onSurfaceContainerVariant
+                else MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
             )
         }
     }
@@ -1108,8 +1107,8 @@ private fun OAuthCredentialBlock(
                 AppLogger.info(TAG, "OAuth signed out for ${instance.id} (tokens + apiKey cleared)")
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.error,
+                containerColor = MiuixTheme.colorScheme.errorContainer,
+                contentColor = MiuixTheme.colorScheme.error,
             ),
         ) {
             Text(stringResource(R.string.provider_detail_sign_out))
@@ -1118,8 +1117,8 @@ private fun OAuthCredentialBlock(
     if (displayedKey.isNotEmpty() && needsReauth) {
         Text(
             stringResource(R.string.provider_oauth_sign_in_expired_detail),
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
+            color = MiuixTheme.colorScheme.error,
+            style = MiuixTheme.textStyles.body2,
         )
         Spacer(modifier = Modifier.height(8.dp))
         // [T-oauth-reauth-buttons-one-row] Sign In Again and Sign Out side by
@@ -1169,7 +1168,7 @@ private fun OAuthProgressLine(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 8.dp),
         ) {
-            androidx.compose.material3.CircularProgressIndicator(
+            com.openminis.app.ui.components.miuix.CircularProgressIndicator(
                 modifier = Modifier.size(14.dp),
                 strokeWidth = 2.dp,
             )
@@ -1182,15 +1181,15 @@ private fun OAuthProgressLine(
                         R.string.oauth_waiting_for_authorization
                     },
                 ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     } else if (error != null) {
         Text(
             error,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.error,
             modifier = Modifier.padding(top = 8.dp),
         )
     }
@@ -1236,7 +1235,7 @@ private fun ApiKeyCredentialBlock(
             MinisSmallOutlinedButton(
                 onClick = onCancelEdit,
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
             ) {
                 Text(stringResource(R.string.common_cancel))
@@ -1250,7 +1249,7 @@ private fun ApiKeyCredentialBlock(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (keyVisible) storedKey else maskedKey(storedKey),
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                style = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onToggleVisibility) {
@@ -1336,7 +1335,7 @@ private fun ManualBearerTokenSection(
             onValueChange = { draft = it },
             singleLine = false,
             placeholder = stringResource(R.string.provider_detail_paste_bearer_token),
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             fieldModifier = Modifier.bringIntoViewOnFocus(),
         )
         Row(modifier = Modifier.padding(top = 8.dp)) {
@@ -1348,7 +1347,7 @@ private fun ManualBearerTokenSection(
                     draft = ""
                 },
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
             ) {
                 Text(stringResource(R.string.common_cancel))
@@ -1377,8 +1376,8 @@ private fun ManualBearerTokenSection(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "Configured",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
             Box(
@@ -1403,7 +1402,7 @@ private fun ManualBearerTokenSection(
                     reloadTick++
                 },
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
+                    contentColor = MiuixTheme.colorScheme.error,
                 ),
             ) {
                 Text(stringResource(R.string.common_remove))
@@ -1437,8 +1436,8 @@ private fun ModalityIconsRow(
     inputModalities: List<String>,
     outputModalities: List<String>,
 ) {
-    val inputTint = MaterialTheme.colorScheme.onSurfaceVariant
-    val outputTint = MaterialTheme.colorScheme.primary
+    val inputTint = MiuixTheme.colorScheme.onSurfaceContainerVariant
+    val outputTint = MiuixTheme.colorScheme.primary
     val size = Modifier.size(14.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1487,7 +1486,7 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
                 onClick = { menuOpen = true },
                 showChevron = false,
                 showDivider = false,
-                trailing = { Text(label(seconds), color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailing = { Text(label(seconds), color = MiuixTheme.colorScheme.onSurfaceContainerVariant) },
             )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 for (preset in setting.PRESETS) {
@@ -1507,11 +1506,11 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
         var text by remember { mutableStateOf(seconds.toString()) }
         val parsed = text.trim().toIntOrNull()
         val valid = parsed != null && parsed in setting.MIN_SECONDS..setting.MAX_SECONDS
-        androidx.compose.material3.AlertDialog(
+        com.openminis.app.ui.components.miuix.AlertDialog(
             onDismissRequest = { customOpen = false },
             title = { Text(stringResource(R.string.provider_detail_response_idle_timeout)) },
             text = {
-                androidx.compose.material3.OutlinedTextField(
+                com.openminis.app.ui.components.miuix.OutlinedTextField(
                     value = text,
                     onValueChange = { v -> text = v.filter { it.isDigit() }.take(4) },
                     singleLine = true,
@@ -1523,13 +1522,13 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
                 )
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(
+                com.openminis.app.ui.components.MinisTextButton(
                     enabled = valid,
                     onClick = { customOpen = false; parsed?.let { apply(it) } },
                 ) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { customOpen = false }) {
+                com.openminis.app.ui.components.MinisTextButton(onClick = { customOpen = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

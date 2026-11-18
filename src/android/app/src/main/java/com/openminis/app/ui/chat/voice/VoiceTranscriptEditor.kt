@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.voice
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.text.Editable
 import android.text.InputType
@@ -9,7 +10,6 @@ import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -44,8 +44,8 @@ internal fun VoiceTranscriptEditor(
     maxHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
-    val highlight = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f).toArgb()
+    val textColor = MiuixTheme.colorScheme.onSurface.toArgb()
+    val highlight = MiuixTheme.colorScheme.primary.copy(alpha = 0.3f).toArgb()
     val maxHeightPx = with(LocalDensity.current) { maxHeight.roundToPx() }
     val latestOnChange = rememberUpdatedState(onValueChange)
 

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.share
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -48,12 +49,11 @@ import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VerticalAlignBottom
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -148,7 +148,7 @@ internal fun ChatShareSelectionDialog(request: ChatShareRequest, onDismiss: () -
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         ChatShareDialogSystemBars()
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MiuixTheme.colorScheme.background) {
             // Nothing in here takes part in the chat's text selection.
             CompositionLocalProvider(LocalMinisSelectionController provides null) {
                 ChatShareSelectionContent(request, onDismiss)
@@ -162,7 +162,7 @@ internal fun ChatShareSelectionDialog(request: ChatShareRequest, onDismiss: () -
 private fun ChatShareSelectionContent(request: ChatShareRequest, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = MiuixTheme.colorScheme.primary
     var hideTools by remember { mutableStateOf(ChatSharePrefs.hideTools(context)) }
     var hideThinking by remember { mutableStateOf(ChatSharePrefs.hideThinking(context)) }
     fun isHidden(kind: ChatShareCell.Kind) =
@@ -281,7 +281,7 @@ private fun ChatShareSelectionContent(request: ChatShareRequest, onDismiss: () -
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(MiuixTheme.colorScheme.surfaceContainer)
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         ) {
@@ -333,7 +333,7 @@ internal fun ChatShareTopBar(
     onTrailing: () -> Unit = {},
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = MiuixTheme.colorScheme.primary
     Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 6.dp)) {
         Text(
             text = leading,
@@ -349,7 +349,7 @@ internal fun ChatShareTopBar(
             text = title,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -583,16 +583,16 @@ private fun ChatShareFloatingChip(label: String, icon: ImageVector, struck: Bool
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .chatShareFloatingSurface(palette.isDark, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
+            .chatShareFloatingSurface(palette.isDark, MiuixTheme.colorScheme.surface, MiuixTheme.colorScheme.onSurface)
             .clickable(onClick = onClick)
             .padding(horizontal = 9.dp, vertical = 7.dp),
     ) {
-        StruckIcon(icon, struck, MaterialTheme.colorScheme.primary, 14.dp)
+        StruckIcon(icon, struck, MiuixTheme.colorScheme.primary, 14.dp)
         Text(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             softWrap = false,
         )

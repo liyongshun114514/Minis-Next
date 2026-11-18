@@ -1,5 +1,6 @@
 package com.openminis.app.ui.media
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
@@ -36,14 +37,13 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SliderDefaults
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -134,13 +134,13 @@ fun InlineAudioPlayer(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp)),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MiuixTheme.colorScheme.surfaceContainerHigh,
     ) {
         if (error != null) {
             Text(
                 "Audio error: $error",
                 modifier = Modifier.padding(12.dp),
-                color = MaterialTheme.colorScheme.error,
+                color = MiuixTheme.colorScheme.error,
                 fontSize = 12.sp,
             )
         } else {
@@ -164,12 +164,12 @@ fun InlineAudioPlayer(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(MiuixTheme.colorScheme.primary),
                     ) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.onPrimary,
+                            tint = MiuixTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -189,8 +189,8 @@ fun InlineAudioPlayer(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(position, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(duration, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(position, fontSize = 11.sp, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                            Text(duration, fontSize = 11.sp, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                         }
                     }
 
@@ -210,7 +210,7 @@ fun InlineAudioPlayer(
                             Icon(
                                 Icons.Default.Stop,
                                 contentDescription = "Stop",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -222,7 +222,7 @@ fun InlineAudioPlayer(
                 Text(
                     fileName,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     modifier = Modifier.padding(top = 4.dp),
                 )
@@ -246,7 +246,7 @@ fun InlineVideoPlayer(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp)),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MiuixTheme.colorScheme.surfaceContainerHigh,
     ) {
         androidx.compose.ui.viewinterop.AndroidView(
             factory = { ctx ->
@@ -576,10 +576,10 @@ private fun FullscreenVideoContent(file: File, onDismiss: () -> Unit) {
                         scrubbing = false
                     },
                     valueRange = 0f..(durationMs.coerceAtLeast(1)).toFloat(),
-                    colors = SliderDefaults.colors(
+                    colors = SliderDefaults.sliderColors(
                         thumbColor = Color.White,
-                        activeTrackColor = Color.White,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                        foregroundColor = Color.White,
+                        inforegroundColor = Color.White.copy(alpha = 0.3f),
                     ),
                     modifier = Modifier.weight(1f),
                 )

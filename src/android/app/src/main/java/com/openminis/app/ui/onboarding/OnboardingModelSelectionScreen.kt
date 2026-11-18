@@ -1,5 +1,6 @@
 package com.openminis.app.ui.onboarding
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.ui.components.MinisButton
@@ -24,16 +25,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,8 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +62,6 @@ import com.openminis.app.data.repository.ProviderRepository
  * Onboarding step 2: pick 1-3 models from configured providers
  * and create a "Default Models" group. Mirrors iOS OnboardingModelSelectionView.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingModelSelectionScreen(
     providerRepository: ProviderRepository,
@@ -183,8 +181,8 @@ fun OnboardingModelSelectionScreen(
         ) {
             Text(
                 stringResource(R.string.onboarding_select_models_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(12.dp))
 
@@ -219,8 +217,8 @@ fun OnboardingModelSelectionScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             stringResource(R.string.onboarding_loading_models),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -234,8 +232,8 @@ fun OnboardingModelSelectionScreen(
                         item(key = "header_$instanceId") {
                             Text(
                                 instance?.label ?: instanceId,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = MiuixTheme.textStyles.button,
+                                color = MiuixTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp),
                             )
                         }
@@ -259,15 +257,15 @@ fun OnboardingModelSelectionScreen(
                                         .size(26.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceVariant
+                                            if (isSelected) MiuixTheme.colorScheme.primary
+                                            else MiuixTheme.colorScheme.surfaceVariant
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
                                         Text(
                                             "${selectionIndex + 1}",
-                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            color = MiuixTheme.colorScheme.onPrimary,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
                                         )
@@ -277,12 +275,12 @@ fun OnboardingModelSelectionScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         entry.model.displayName,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MiuixTheme.textStyles.body1,
                                     )
                                     Text(
                                         entry.model.id,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     )
                                 }
                             }
@@ -342,15 +340,15 @@ private fun ModelFetchFailure(
             val headline = stringResource(R.string.onboarding_models_fetch_failed)
             Text(
                 headline,
-                style = MaterialTheme.typography.titleSmall,
+                style = MiuixTheme.textStyles.subtitle,
                 textAlign = TextAlign.Center,
             )
             if (detail.isNotBlank() && detail != headline) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     textAlign = TextAlign.Center,
                     maxLines = 6,
                 )

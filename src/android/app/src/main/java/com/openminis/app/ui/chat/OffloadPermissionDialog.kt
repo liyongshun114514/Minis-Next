@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,10 +11,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,25 +79,25 @@ fun OffloadPermissionDialog() {
             Column {
                 Text(
                     stringResource(R.string.offload_perm_dialog_intro),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     req.toolTitle,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.offload_perm_dialog_tool_label, req.toolName),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
                     req.description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                 )
             }
         },
@@ -128,7 +128,7 @@ fun OffloadPermissionDialog() {
                     onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
+                        contentColor = MiuixTheme.colorScheme.error,
                     ),
                 ) {
                     Text(stringResource(R.string.offload_perm_deny_session))
@@ -177,11 +177,11 @@ private fun RootCommandConfirmDialog(req: PermissionRequest) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = MaterialTheme.shapes.small,
+                            color = MiuixTheme.colorScheme.surfaceVariant,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                         )
                         .padding(10.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                     maxLines = if (expanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = {
@@ -199,7 +199,7 @@ private fun RootCommandConfirmDialog(req: PermissionRequest) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     req.description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                 )
             }
         },
@@ -222,7 +222,7 @@ private fun RootCommandConfirmDialog(req: PermissionRequest) {
                     onClick = deny,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
+                        contentColor = MiuixTheme.colorScheme.error,
                     ),
                 ) {
                     Text("拒绝")

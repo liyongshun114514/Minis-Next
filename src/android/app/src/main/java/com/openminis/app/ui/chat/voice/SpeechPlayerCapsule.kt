@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.voice
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -43,12 +44,10 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SliderDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -131,7 +130,6 @@ import androidx.compose.ui.graphics.graphicsLayer
  * floating tool bar — has a stable measured height within a turn, so the plain
  * animated lift below suffices.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpeechPlayerCapsule(
     modifier: Modifier = Modifier,
@@ -460,7 +458,7 @@ private fun CompactSpeaker(
         Box(
             Modifier
                 .size(40.dp)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), CircleShape)
+                .background(MiuixTheme.colorScheme.surface.copy(alpha = 0.92f), CircleShape)
                 .border(0.5.dp, Color.Gray.copy(alpha = 0.25f), CircleShape)
                 .pointerInput(muted) {
                     detectTapGestures(
@@ -491,7 +489,7 @@ private fun CompactSpeaker(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .offset(x = 6.dp, y = 4.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
+                    .background(MiuixTheme.colorScheme.primary, RoundedCornerShape(50))
                     .padding(horizontal = 4.dp, vertical = 1.dp),
             )
         }
@@ -523,7 +521,7 @@ private fun ExpandedCapsule(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(40.dp)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), RoundedCornerShape(50))
+            .background(MiuixTheme.colorScheme.surface.copy(alpha = 0.95f), RoundedCornerShape(50))
             .border(0.5.dp, Color.Gray.copy(alpha = 0.25f), RoundedCornerShape(50))
             .padding(horizontal = 14.dp),
     ) {
@@ -533,7 +531,7 @@ private fun ExpandedCapsule(
             Modifier
                 .size(28.dp)
                 .background(
-                    if (volumeOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+                    if (volumeOpen) MiuixTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
                     CircleShape,
                 )
                 .clickable(onClick = onSpeakerTap)
@@ -551,7 +549,7 @@ private fun ExpandedCapsule(
             Icon(
                 Icons.Default.GraphicEq,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(13.dp),
             )
             Spacer(Modifier.width(4.dp))
@@ -570,7 +568,7 @@ private fun ExpandedCapsule(
             Icon(
                 Icons.Default.UnfoldMore,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(12.dp),
             )
         }
@@ -585,7 +583,7 @@ private fun ExpandedCapsule(
             Modifier
                 .size(width = 46.dp, height = 22.dp)
                 .background(
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.15f),
                     RoundedCornerShape(50),
                 )
                 .clickable(onClick = onSpeedTap),
@@ -594,8 +592,8 @@ private fun ExpandedCapsule(
             Text(
                 VoiceOutputState.speedLabel(speed),
                 maxLines = 1,
-                color = if (speed > 1.0f) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (speed > 1.0f) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = TextAlign.Center,
                 style = androidx.compose.ui.text.TextStyle(
                     fontSize = 11.sp,
@@ -612,7 +610,7 @@ private fun ExpandedCapsule(
         Icon(
             Icons.Default.Close,
             contentDescription = stringResource(R.string.standard_sheet_close),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.size(20.dp).clickable(onClick = onClose),
         )
     }
@@ -638,14 +636,14 @@ private fun VolumeBar(
     modifier: Modifier = Modifier,
 ) {
     val percent = (volume * 100).roundToInt()
-    val tint = MaterialTheme.colorScheme.primary
+    val tint = MiuixTheme.colorScheme.primary
     val label = stringResource(R.string.read_aloud_volume)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .width(width)
             .height(40.dp)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), RoundedCornerShape(50))
+            .background(MiuixTheme.colorScheme.surface.copy(alpha = 0.95f), RoundedCornerShape(50))
             .border(0.5.dp, Color.Gray.copy(alpha = 0.25f), RoundedCornerShape(50))
             .padding(horizontal = 14.dp),
     ) {
@@ -661,7 +659,7 @@ private fun VolumeBar(
                     else -> Icons.AutoMirrored.Filled.VolumeUp
                 },
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -670,10 +668,10 @@ private fun VolumeBar(
             onValueChange = onVolumeChange,
             onValueChangeFinished = onVolumeChangeFinished,
             valueRange = 0f..VoiceOutputState.MAX_VOLUME,
-            colors = SliderDefaults.colors(
+            colors = SliderDefaults.sliderColors(
                 thumbColor = tint,
-                activeTrackColor = tint,
-                inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                foregroundColor = tint,
+                inforegroundColor = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.25f),
             ),
             modifier = Modifier
                 .weight(1f)
@@ -686,7 +684,7 @@ private fun VolumeBar(
             modifier = Modifier.width(40.dp),
             textAlign = TextAlign.End,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             maxLines = 1,
         )
     }
@@ -699,15 +697,15 @@ private fun SpeakerGlyph(muted: Boolean, synthesizing: Boolean, ring: androidx.c
         Icon(
             if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
             contentDescription = null,
-            tint = if (muted) MaterialTheme.colorScheme.onSurfaceVariant
-            else MaterialTheme.colorScheme.primary,
+            tint = if (muted) MiuixTheme.colorScheme.onSurfaceContainerVariant
+            else MiuixTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp),
         )
         if (synthesizing && !muted) {
             // [T-android-decorative-anim-perf] Static arc, rotated as a layer
             // from the shared tick: recorded once, no per-frame Canvas re-record.
             val tick = rememberDecorativeTick()
-            val arcColor = MaterialTheme.colorScheme.primary
+            val arcColor = MiuixTheme.colorScheme.primary
             Canvas(Modifier.size(ring).graphicsLayer { rotationZ = decorativePhase(tick.value, 900) * 360f }) {
                 drawArc(
                     color = arcColor,

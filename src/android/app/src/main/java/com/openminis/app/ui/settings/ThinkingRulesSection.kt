@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,9 +20,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,14 +71,14 @@ fun ThinkingRulesSection(
                 Icon(
                     Icons.Default.Info,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.thinking_rules_official_protocol_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -147,14 +147,14 @@ fun ThinkingRulesSection(
         SettingsRow(
             title = stringResource(R.string.thinking_rules_default_rules_count, builtIns.size),
             icon = Icons.Default.Lock,
-            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            iconColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             onClick = { defaultsExpanded = !defaultsExpanded },
             showChevron = false,
             trailing = {
                 Icon(
                     if (defaultsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.ArrowDropDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             },
             showDivider = defaultsExpanded || customRules.isNotEmpty(),
@@ -185,7 +185,7 @@ fun ThinkingRulesSection(
         SettingsRow(
             title = stringResource(R.string.thinking_rules_add_rule),
             icon = Icons.Default.Add,
-            iconColor = MaterialTheme.colorScheme.primary,
+            iconColor = MiuixTheme.colorScheme.primary,
             onClick = {
                 editorRequest = ThinkingRuleEditorRequest(
                     existingId = null,
@@ -208,8 +208,8 @@ fun ThinkingRulesSection(
         if (hit != null) {
             Text(
                 text = hit,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 4.dp),
             )
         }
@@ -253,7 +253,7 @@ private fun ThinkingRuleRow(
                 Icon(
                     Icons.Default.Lock,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(8.dp))
@@ -261,15 +261,15 @@ private fun ThinkingRuleRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title.ifEmpty { "(unnamed rule)" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -278,7 +278,7 @@ private fun ThinkingRuleRow(
                 Icon(
                     Icons.Default.KeyboardArrowUp,
                     contentDescription = stringResource(R.string.thinking_rules_move_up),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp).clickable(onClick = onMoveUp),
                 )
                 Spacer(Modifier.width(4.dp))
@@ -287,7 +287,7 @@ private fun ThinkingRuleRow(
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.thinking_rules_move_down),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp).clickable(onClick = onMoveDown),
                 )
                 Spacer(Modifier.width(4.dp))
@@ -295,8 +295,8 @@ private fun ThinkingRuleRow(
             if (onDelete != null) {
                 Text(
                     text = stringResource(R.string.common_delete),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.clickable(onClick = onDelete).padding(horizontal = 4.dp),
                 )
             }
@@ -307,9 +307,9 @@ private fun ThinkingRuleRow(
 
 @Composable
 private fun SettingsRowInsetDivider() {
-    androidx.compose.material3.HorizontalDivider(
+    top.yukonga.miuix.kmp.basic.HorizontalDivider(
         modifier = Modifier.padding(start = 14.dp),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant,
+        color = MiuixTheme.colorScheme.dividerLine,
     )
 }

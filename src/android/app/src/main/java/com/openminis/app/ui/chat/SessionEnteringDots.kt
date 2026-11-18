@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +49,7 @@ internal fun showSessionEnteringIndicator(
 @Composable
 internal fun SessionEnteringDots(modifier: Modifier = Modifier) {
     val tick = rememberDecorativeTick()
-    val color = MaterialTheme.colorScheme.primary
+    val color = MiuixTheme.colorScheme.primary
     Box(modifier = modifier.height(24.dp), contentAlignment = Alignment.Center) {
         Row(horizontalArrangement = Arrangement.spacedBy(DOT_SIZE * 0.7f)) {
             repeat(3) { i ->

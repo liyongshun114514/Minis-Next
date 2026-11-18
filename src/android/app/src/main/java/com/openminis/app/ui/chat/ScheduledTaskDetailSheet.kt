@@ -35,15 +35,14 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -103,7 +102,6 @@ private val StatusRed = Color(0xFFFF3B30)
  *   wording and which history rows link to another chat. Null in read-only
  *   transcripts.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ScheduledTaskDetailSheet(
     marker: ScheduledTaskMarker,

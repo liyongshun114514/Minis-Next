@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.share
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -27,9 +28,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,7 +94,7 @@ internal fun ChatShareFormatSwitch(
     val pillW by animateDpAsState(with(density) { (frame?.width ?: 0f).toDp() }, spring(dampingRatio = 0.8f, stiffness = 500f), label = "pillW")
     Box(
         modifier = modifier
-            .chatShareFloatingSurface(palette.isDark, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
+            .chatShareFloatingSurface(palette.isDark, MiuixTheme.colorScheme.surface, MiuixTheme.colorScheme.onSurface)
             .pointerInput(format, imageUnavailable) {
                 var total = 0f
                 detectHorizontalDragGestures(
@@ -154,8 +154,8 @@ private fun FormatSegment(
     onClick: () -> Unit,
     onFrame: (SegmentFrame) -> Unit,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val color = if (selected) accent else MaterialTheme.colorScheme.onSurface
+    val accent = MiuixTheme.colorScheme.primary
+    val color = if (selected) accent else MiuixTheme.colorScheme.onSurface
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -251,15 +251,15 @@ internal class ChatShareControl(
  */
 @Composable
 internal fun ChatShareControlStrip(items: List<ChatShareControl>) {
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = MiuixTheme.colorScheme.primary
     Row(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(MiuixTheme.colorScheme.surfaceContainer)
             .navigationBarsPadding()
             .padding(top = 8.dp, bottom = 4.dp, start = 8.dp, end = 8.dp),
     ) {
         for (item in items) {
-            val color = if (item.active) accent else MaterialTheme.colorScheme.onSurface
+            val color = if (item.active) accent else MiuixTheme.colorScheme.onSurface
             androidx.compose.foundation.layout.Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),

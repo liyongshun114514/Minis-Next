@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,9 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -141,7 +141,7 @@ private fun StatSection(title: String, content: @Composable () -> Unit) {
             text = title.uppercaseForDisplay(),
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.padding(bottom = 6.dp),
         )
         content()
@@ -159,7 +159,7 @@ private fun StatRow(label: String, value: String) {
         Text(
             text = label,
             fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.width(12.dp))
         Spacer(modifier = Modifier.weight(1f))
@@ -167,12 +167,12 @@ private fun StatRow(label: String, value: String) {
             text = value,
             fontSize = 14.sp,
             fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
     HorizontalDivider(
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f),
     )
 }
 

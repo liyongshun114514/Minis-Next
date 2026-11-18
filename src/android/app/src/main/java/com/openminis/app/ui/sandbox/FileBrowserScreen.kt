@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
@@ -42,18 +43,16 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -88,7 +87,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import com.openminis.app.ui.components.MinisTextButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileBrowserScreen(
     viewModel: FileBrowserViewModel,
@@ -176,12 +174,12 @@ fun FileBrowserScreen(
                                 Icons.Filled.Folder,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                             Text(
                                 stringResource(R.string.filebrowser_empty_folder),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                style = MiuixTheme.textStyles.body1,
                             )
                         }
                     }
@@ -226,7 +224,7 @@ fun FileBrowserScreen(
                     viewModel.deleteItem(item)
                     deleteTarget = null
                 }) {
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -308,7 +306,7 @@ private fun BreadcrumbBar(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -402,12 +400,12 @@ private fun BreadcrumbCapsule(
             text = label,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelLarge,
+            style = MiuixTheme.textStyles.button,
             fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
             color = if (isCurrent) {
-                MaterialTheme.colorScheme.onSecondaryContainer
+                MiuixTheme.colorScheme.onSecondaryContainer
             } else {
-                MaterialTheme.colorScheme.primary
+                MiuixTheme.colorScheme.primary
             },
             modifier = Modifier
                 .then(
@@ -420,9 +418,9 @@ private fun BreadcrumbCapsule(
                 .widthIn(max = 180.dp)
                 .background(
                     if (isCurrent) {
-                        MaterialTheme.colorScheme.secondaryContainer
+                        MiuixTheme.colorScheme.secondaryContainer
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
+                        MiuixTheme.colorScheme.surfaceContainerHigh
                     },
                     shape,
                 )
@@ -484,7 +482,7 @@ private fun FileItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -497,8 +495,8 @@ private fun FileItemRow(
                 }
                 Text(
                     text = parts.joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                 )
             }
@@ -510,7 +508,7 @@ private fun FileItemRow(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp).size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
             )
         } else {
             // [T-file-row-polish] "More" (the long-press actions) and Export:
@@ -579,7 +577,7 @@ private fun FileIconTile(kind: FileIconKind, isSymlink: Boolean) {
                     .size(14.dp)
                     .clip(CircleShape)
                     .background(SYMLINK_BADGE)
-                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                    .border(1.5.dp, MiuixTheme.colorScheme.surface, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.size(9.dp), tint = Color.White)
@@ -603,10 +601,10 @@ private fun RowActionButton(icon: ImageVector, contentDescription: String, onCli
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MiuixTheme.colorScheme.onSurfaceContainerVariant)
         }
     }
 }
@@ -671,7 +669,7 @@ private fun FileRowMenu(
             )
         }
         if (!item.isDirectory) {
-            val danger = MaterialTheme.colorScheme.error
+            val danger = MiuixTheme.colorScheme.error
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete), color = danger) },
                 leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = danger) },
@@ -731,7 +729,7 @@ private fun FileIconKind.icon(): ImageVector = when (this) {
 /** Folders take the app accent; files a fixed color per type (iOS tints). */
 @Composable
 private fun FileIconKind.tint(): Color = when (this) {
-    FileIconKind.FOLDER -> MaterialTheme.colorScheme.primary
+    FileIconKind.FOLDER -> MiuixTheme.colorScheme.primary
     FileIconKind.CODE -> Color(0xFF9C27B0)
     FileIconKind.SHELL -> Color(0xFF4CAF50)
     FileIconKind.IMAGE -> Color(0xFFFF9800)

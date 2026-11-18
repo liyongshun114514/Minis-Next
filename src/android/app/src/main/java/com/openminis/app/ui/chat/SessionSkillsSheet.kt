@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +19,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -200,8 +200,8 @@ fun SessionSkillsSheet(
                 ) {
                     Text(
                         text = stringResource(R.string.session_skills_header_installed),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 0.5.sp,
                     )
@@ -239,8 +239,8 @@ fun SessionSkillsSheet(
                 if (filteredSkills.isEmpty()) {
                     Text(
                         text = stringResource(R.string.skills_search_no_match, searchQuery),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp, vertical = 24.dp),
@@ -318,17 +318,17 @@ private fun EmptySkillsCard() {
                 Icons.Outlined.Description,
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
             )
             Text(
                 stringResource(R.string.session_skills_empty_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Text(
                 stringResource(R.string.session_skills_empty_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
             )
         }
     }
@@ -387,12 +387,12 @@ private fun SessionSkillDetail(
             SelectionContainer {
                 Text(
                     text = skillMd,
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    style = MiuixTheme.textStyles.body2.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
@@ -409,8 +409,8 @@ private fun SessionSkillDetail(
                         } else {
                             Icons.Outlined.Description
                         },
-                        iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        titleColor = MaterialTheme.colorScheme.onSurface,
+                        iconColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        titleColor = MiuixTheme.colorScheme.onSurface,
                         onClick = { onFileClick(path) },
                         showDivider = index < otherFiles.size - 1,
                     )

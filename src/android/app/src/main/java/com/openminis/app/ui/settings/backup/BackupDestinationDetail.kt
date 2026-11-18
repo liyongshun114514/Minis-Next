@@ -1,16 +1,16 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -158,8 +158,8 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
                     } else {
                         Text(
                             "/${r.path.trimStart('/')}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.StartEllipsis,
                         )
@@ -188,7 +188,7 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
             // re-tested — the editor does that before saving.
             SettingsRow(
                 title = stringResource(R.string.backup_dest_edit_connection),
-                titleColor = MaterialTheme.colorScheme.primary,
+                titleColor = MiuixTheme.colorScheme.primary,
                 onClick = if (busy) null else ({
                     vm.clearError(); vm.clearCertificateRejection()
                     nav.editingConnection = true
@@ -201,8 +201,8 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
     error?.let {
         Text(
             it,
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
+            color = MiuixTheme.colorScheme.error,
+            style = MiuixTheme.textStyles.body2,
             modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
         )
     }
@@ -213,7 +213,7 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
         if (!local) {
             SettingsRow(
                 title = stringResource(R.string.backup_dest_test_connection),
-                titleColor = MaterialTheme.colorScheme.primary,
+                titleColor = MiuixTheme.colorScheme.primary,
                 onClick = if (testing) null else ({
                     testing = true
                     testResult = null
@@ -228,7 +228,7 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
                         testing -> CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         testResult?.first == true -> Text(
                             stringResource(R.string.backup_dest_connected),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MiuixTheme.textStyles.body2,
                             color = Color(0xFF34A853),
                         )
                     }
@@ -239,15 +239,15 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
             testResult?.takeIf { !it.first }?.let { (_, msg) ->
                 Text(
                     msg.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
         }
         SettingsRow(
             title = stringResource(R.string.backup_dest_remove_destination),
-            titleColor = MaterialTheme.colorScheme.error,
+            titleColor = MiuixTheme.colorScheme.error,
             onClick = if (busy) null else ({ confirmRemove = true }),
             showChevron = false,
             showDivider = false,
@@ -264,7 +264,7 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
                     if (!local) {
                         Text(
                             stringResource(R.string.backup_dest_rename_hint),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MiuixTheme.textStyles.body1,
                         )
                         Spacer(Modifier.height(8.dp))
                     }
@@ -308,7 +308,7 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
                 }) {
                     Text(
                         stringResource(R.string.backup_dest_remove_action),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -355,8 +355,8 @@ private fun ConnectionEditor(
     Column(Modifier.padding(16.dp)) {
         Text(
             stringResource(R.string.backup_dest_connection_header).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         backend.fields.filter { !it.isSecret }.forEach { f ->
             Spacer(Modifier.height(8.dp))
@@ -372,8 +372,8 @@ private fun ConnectionEditor(
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.backup_dest_password_header).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(8.dp))
             ServerFieldInput(
@@ -436,7 +436,7 @@ private fun ConnectionEditor(
             if (busy) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = MiuixTheme.colorScheme.onPrimary,
                 )
             } else {
                 Text(stringResource(R.string.backup_dest_save))
@@ -451,8 +451,8 @@ private fun ConnectionEditor(
         error?.let {
             Text(
                 it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }

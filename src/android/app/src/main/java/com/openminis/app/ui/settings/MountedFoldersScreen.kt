@@ -30,9 +30,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderShared
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+import com.openminis.app.ui.components.miuix.SwipeToDismissBox
+import com.openminis.app.ui.components.miuix.SwipeToDismissBoxValue
+import com.openminis.app.ui.components.miuix.rememberSwipeToDismissBoxState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold

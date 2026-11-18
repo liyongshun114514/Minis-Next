@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisTextButton
 
@@ -33,20 +34,18 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ListItem
+import com.openminis.app.ui.components.miuix.ListItemDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,7 +68,6 @@ import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SettingsRowDivider
 import com.openminis.app.ui.components.SettingsSection
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RootfsManagementScreen(
     onBack: () -> Unit,
@@ -90,7 +88,7 @@ fun RootfsManagementScreen(
     // T168: iOS-style inset-grouped background. surfaceContainerLowest sits
     // a hair below `surface`, so the rounded section cards (which use
     // `surface`) read as raised pads against the page bg.
-    val groupedBg = MaterialTheme.colorScheme.surfaceContainerLowest
+    val groupedBg = MiuixTheme.colorScheme.background
     Scaffold(
         topBar = {
             TopAppBar(
@@ -123,9 +121,9 @@ fun RootfsManagementScreen(
                             if (state.isInstalled) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
                             contentDescription = null,
                             tint = if (state.isInstalled)
-                                MaterialTheme.colorScheme.primary
+                                MiuixTheme.colorScheme.primary
                             else
-                                MaterialTheme.colorScheme.error,
+                                MiuixTheme.colorScheme.error,
                         )
                     },
                     colors = transparentListItemColors(),
@@ -138,7 +136,7 @@ fun RootfsManagementScreen(
                             if (state.rootfsSize > 0) {
                                 Text(
                                     Formatter.formatFileSize(context, state.rootfsSize),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
                             } else {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -152,8 +150,8 @@ fun RootfsManagementScreen(
                         supportingContent = {
                             Text(
                                 state.rootfsPath,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 maxLines = 1,
                             )
                         },
@@ -169,15 +167,15 @@ fun RootfsManagementScreen(
                         supportingContent = {
                             Text(
                                 migrationError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         },
                         leadingContent = {
                             Icon(
                                 Icons.Filled.Cancel,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = MiuixTheme.colorScheme.error,
                             )
                         },
                         colors = transparentListItemColors(),
@@ -194,7 +192,7 @@ fun RootfsManagementScreen(
                             Icon(
                                 Icons.Filled.Folder,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MiuixTheme.colorScheme.primary,
                             )
                         },
                         trailingContent = {
@@ -318,11 +316,11 @@ fun RootfsManagementScreen(
                 SettingsSection(title = stringResource(R.string.rootfs_result_section)) {
                     Text(
                         text = msg,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MiuixTheme.textStyles.body1,
                         color = if (state.lastOperationSuccess)
-                            MaterialTheme.colorScheme.primary
+                            MiuixTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.error,
+                            MiuixTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -335,19 +333,19 @@ fun RootfsManagementScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = stringResource(R.string.rootfs_about_title),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MiuixTheme.textStyles.subtitle,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.rootfs_about_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.rootfs_about_operations),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -367,7 +365,7 @@ fun RootfsManagementScreen(
                     showResetDialog = false
                     viewModel.resetRootfs(context, keepUserData = false)
                 }) {
-                    Text("Reset", color = MaterialTheme.colorScheme.error)
+                    Text("Reset", color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -396,7 +394,7 @@ fun RootfsManagementScreen(
                     showResetBackupDialog = false
                     viewModel.resetRootfs(context, keepUserData = true)
                 }) {
-                    Text(stringResource(R.string.rootfs_reset_backup_confirm_button), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.rootfs_reset_backup_confirm_button), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -540,7 +538,7 @@ private fun SandboxBackendSection() {
         }
         message?.let { text ->
             ListItem(
-                headlineContent = { Text(text, style = MaterialTheme.typography.bodySmall) },
+                headlineContent = { Text(text, style = MiuixTheme.textStyles.body2) },
                 colors = transparentListItemColors(),
             )
         }
@@ -569,7 +567,7 @@ private fun SandboxBackendSection() {
                     pendingTasks = emptyList()
                     pendingTarget = null
                     apply(target, stopActive = true)
-                }) { Text("停止并切换", color = MaterialTheme.colorScheme.error) }
+                }) { Text("停止并切换", color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { pendingTasks = emptyList(); pendingTarget = null }) { Text("取消") }
@@ -607,16 +605,16 @@ private fun RowScope.BackendSegmentButton(
             ),
         shape = RoundedCornerShape(12.dp),
         color = if (selected) {
-            MaterialTheme.colorScheme.primary
+            MiuixTheme.colorScheme.primary
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MiuixTheme.colorScheme.surfaceContainer
         },
         contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimary
+            MiuixTheme.colorScheme.onPrimary
         } else {
-            MaterialTheme.colorScheme.onSurface
+            MiuixTheme.colorScheme.onSurface
         },
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = if (selected) null else BorderStroke(1.dp, MiuixTheme.colorScheme.dividerLine),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -636,7 +634,7 @@ private fun RowScope.BackendSegmentButton(
                 }
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MiuixTheme.textStyles.subtitle,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
                 )
@@ -644,11 +642,11 @@ private fun RowScope.BackendSegmentButton(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = caption,
-                style = MaterialTheme.typography.labelSmall,
+                style = MiuixTheme.textStyles.footnote2,
                 color = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                 },
                 textAlign = TextAlign.Center,
                 maxLines = 2,

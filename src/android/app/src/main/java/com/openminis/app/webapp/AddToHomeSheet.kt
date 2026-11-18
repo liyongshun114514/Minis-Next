@@ -1,5 +1,6 @@
 package com.openminis.app.webapp
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -41,12 +42,11 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Web
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,7 +106,6 @@ sealed class WebAppSource {
     ) : WebAppSource()
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 /**
  * Bottom-sheet for "Add to Home Screen". T-pwa-2 launched it from the
  * chat-attachment chip's long-press menu; T-pwa-3 also launches it from
@@ -215,7 +214,7 @@ fun AddToHomeSheet(
         ) {
             Text(
                 text = stringResource(R.string.webapp_add_to_home),
-                style = MaterialTheme.typography.titleLarge,
+                style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.SemiBold,
             )
 
@@ -223,7 +222,7 @@ fun AddToHomeSheet(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = stringResource(R.string.webapp_sheet_title_label),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                 )
                 OutlinedTextField(
                     value = titleText,
@@ -239,7 +238,7 @@ fun AddToHomeSheet(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = stringResource(R.string.webapp_sheet_session_label),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                 )
                 val sourceLabel = when (source) {
                     is WebAppSource.ChatAttachment ->
@@ -248,8 +247,8 @@ fun AddToHomeSheet(
                 }
                 Text(
                     text = sourceLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
 
@@ -257,7 +256,7 @@ fun AddToHomeSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = stringResource(R.string.webapp_sheet_icon_label),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                 )
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -331,7 +330,7 @@ fun AddToHomeSheet(
                     }
                     Text(
                         text = stringResource(R.string.webapp_sheet_icon_pick),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MiuixTheme.textStyles.body1,
                     )
                 }
             }
@@ -339,8 +338,8 @@ fun AddToHomeSheet(
             if (copyFailed) {
                 Text(
                     text = stringResource(R.string.webapp_pin_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
                 )
             }
 
@@ -433,8 +432,8 @@ private fun IconOption(
     contentDescription: String,
     content: @Composable () -> Unit,
 ) {
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary
-                      else MaterialTheme.colorScheme.outlineVariant
+    val borderColor = if (selected) MiuixTheme.colorScheme.primary
+                      else MiuixTheme.colorScheme.dividerLine
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -443,7 +442,7 @@ private fun IconOption(
                 color = borderColor,
                 shape = RoundedCornerShape(10.dp),
             )
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+            .background(MiuixTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

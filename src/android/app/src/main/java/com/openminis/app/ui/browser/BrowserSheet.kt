@@ -1,5 +1,6 @@
 package com.openminis.app.ui.browser
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
@@ -41,15 +42,13 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -121,9 +120,9 @@ fun BrowserSheet(
     var showDownloads by remember { mutableStateOf(false) }
     val downloadEntries by tabPool.downloads.collectAsState()
 
-    val accent = MaterialTheme.colorScheme.primary
-    val secondaryBg = MaterialTheme.colorScheme.surfaceContainer
-    val tertiaryBg = MaterialTheme.colorScheme.surfaceContainerHigh
+    val accent = MiuixTheme.colorScheme.primary
+    val secondaryBg = MiuixTheme.colorScheme.surfaceContainer
+    val tertiaryBg = MiuixTheme.colorScheme.surfaceContainerHigh
 
     // Mirror iOS onAppear: ensure at least one tab exists when the sheet opens.
     // Callers should also call `ensureTabForUI()` before flipping the sheet
@@ -157,7 +156,7 @@ fun BrowserSheet(
                         UserAgentProfile.CUSTOM -> Icons.Default.Edit
                     },
                     contentDescription = stringResource(R.string.browser_settings_title),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         },
@@ -210,7 +209,7 @@ fun BrowserSheet(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                             modifier = Modifier.padding(start = 4.dp),
                         )
                     }
@@ -241,7 +240,7 @@ fun BrowserSheet(
                         .background(tertiaryBg, RoundedCornerShape(10.dp))
                         .border(
                             0.5.dp,
-                            MaterialTheme.colorScheme.outlineVariant,
+                            MiuixTheme.colorScheme.dividerLine,
                             RoundedCornerShape(10.dp),
                         )
                         .padding(horizontal = 10.dp),
@@ -258,7 +257,7 @@ fun BrowserSheet(
                             textStyle = LocalTextStyle.current.copy(
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = MiuixTheme.colorScheme.onSurface,
                             ),
                             cursorBrush = androidx.compose.ui.graphics.SolidColor(accent),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -279,7 +278,7 @@ fun BrowserSheet(
                                 stringResource(R.string.browser_search_placeholder),
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
                     }
@@ -334,8 +333,8 @@ fun BrowserSheet(
                         Text(
                             if (selectedTab == null) stringResource(R.string.browser_no_tab_open)
                             else stringResource(R.string.browser_enter_url_hint),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.main,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -370,7 +369,7 @@ fun BrowserSheet(
                     )
                     Text(
                         dl.filename,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MiuixTheme.textStyles.footnote1,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -415,10 +414,10 @@ fun BrowserSheet(
                 // unviewed terminal entries and hides at 0 (iOS v2 spec).
                 if (downloadEntries.isNotEmpty()) {
                     val badgeCount = tabPool.downloadBadgeCount(downloadEntries)
-                    androidx.compose.material3.BadgedBox(
+                    top.yukonga.miuix.kmp.basic.BadgedBox(
                         badge = {
                             if (badgeCount > 0) {
-                                androidx.compose.material3.Badge { Text("$badgeCount") }
+                                top.yukonga.miuix.kmp.basic.Badge { Text("$badgeCount") }
                             }
                         },
                     ) {
@@ -494,9 +493,9 @@ private fun TabChip(
     onClick: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val bg = if (isSelected) accent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHighest
+    val bg = if (isSelected) accent.copy(alpha = 0.15f) else MiuixTheme.colorScheme.surfaceContainerHigh
     val borderColor = if (isSelected) accent.copy(alpha = 0.4f) else Color.Transparent
-    val textColor = if (isSelected) accent else MaterialTheme.colorScheme.onSurface
+    val textColor = if (isSelected) accent else MiuixTheme.colorScheme.onSurface
 
     Row(
         modifier = Modifier
@@ -524,7 +523,7 @@ private fun TabChip(
                     Icons.Default.Close,
                     contentDescription = stringResource(R.string.browser_close_tab),
                     modifier = Modifier.size(10.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -544,8 +543,8 @@ private fun ToolbarIcon(
             icon,
             contentDescription = contentDesc,
             modifier = Modifier.size(22.dp),
-            tint = if (!enabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                else tint ?: MaterialTheme.colorScheme.onSurface,
+            tint = if (!enabled) MiuixTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                else tint ?: MiuixTheme.colorScheme.onSurface,
         )
     }
 }
@@ -565,7 +564,7 @@ private fun BrowserAddressBarIcon(isLoading: Boolean, accent: Color) {
             Icons.Default.Language,
             contentDescription = null,
             modifier = Modifier.size(14.dp),
-            tint = if (isLoading) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isLoading) accent else MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         if (isLoading) {
             // [T-android-decorative-anim-perf] DecorativeSpinner, not Material's:

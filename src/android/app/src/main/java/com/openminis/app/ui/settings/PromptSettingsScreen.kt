@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,11 +12,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -232,15 +232,15 @@ fun PromptSettingsScreen(
                             title = entry.title.ifBlank { entry.id },
                             subtitle = entry.source.takeIf { it.isNotBlank() },
                             icon = Icons.Outlined.Description,
-                            iconColor = MaterialTheme.colorScheme.primary,
+                            iconColor = MiuixTheme.colorScheme.primary,
                             onClick = { onEditBuiltin(entry.id) },
                             showDivider = index != groupEntries.lastIndex,
                             trailing = {
                                 if (overridden) {
                                     Text(
                                         text = stringResource(R.string.prompt_catalog_badge_edited),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.tertiary,
+                                        style = MiuixTheme.textStyles.footnote2,
+                                        color = MiuixTheme.colorScheme.primary,
                                     )
                                 }
                             },
@@ -263,8 +263,8 @@ private fun CatalogNote(text: String) {
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }

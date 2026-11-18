@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -288,7 +288,7 @@ private fun DetailToolbar(
                 Icon(
                     Icons.AutoMirrored.Filled.Undo,
                     contentDescription = stringResource(R.string.memory_action_revoke),
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = MiuixTheme.colorScheme.error,
                 )
             }
         }
@@ -360,7 +360,7 @@ private fun MemoryToolRow(
     showDivider: Boolean,
 ) {
     val opLabel = if (record.isWrite) "memory_write" else "memory_get"
-    val opColor = MaterialTheme.colorScheme.primary
+    val opColor = MiuixTheme.colorScheme.primary
 
     Column(modifier = Modifier.clickable(onClick = onClick)) {
         Row(
@@ -372,8 +372,8 @@ private fun MemoryToolRow(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     record.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.main,
+                    color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -398,8 +398,8 @@ private fun MemoryToolRow(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         record.preview,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -413,7 +413,7 @@ private fun MemoryToolRow(
                     .fillMaxWidth()
                     .padding(start = 14.dp, end = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
             )
         }
     }

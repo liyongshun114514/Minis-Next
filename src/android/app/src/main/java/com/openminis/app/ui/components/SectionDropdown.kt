@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,16 +8,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuBox
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +41,6 @@ import androidx.compose.ui.text.TextStyle
  * dropdown draws itself with [SectionDesign.RowHorizontalPadding] inside
  * its own card surface (matches iOS form-cell behaviour).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> SectionDropdown(
     selected: T,
@@ -51,7 +49,7 @@ fun <T> SectionDropdown(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     itemLabel: (T) -> String = { it.toString() },
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    textStyle: TextStyle = MiuixTheme.textStyles.main,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -88,8 +86,8 @@ fun <T> SectionDropdown(
                     .menuAnchor()
                     .fillMaxWidth()
                     .heightIn(min = SectionDesign.RowMinHeight),
-                textStyle = mergedTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                textStyle = mergedTextStyle.copy(color = MiuixTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
                 singleLine = true,
                 interactionSource = interactionSource,
                 decorationBox = { innerTextField ->

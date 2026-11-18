@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sessions
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Router
 import androidx.compose.material.icons.outlined.VpnLock
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -122,7 +122,7 @@ private val Red = Color(0xFFFF3B30)
 
 @Composable
 private fun tailscaleDisplay(level: TailscaleLevel): Pair<String, Color> {
-    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val secondary = MiuixTheme.colorScheme.onSurfaceContainerVariant
     return when (level) {
         TailscaleLevel.CONNECTING -> stringResource(R.string.network_status_connecting) to secondary
         TailscaleLevel.CONNECTED -> stringResource(R.string.network_status_connected) to Green
@@ -136,6 +136,6 @@ private fun tailscaleDisplay(level: TailscaleLevel): Pair<String, Color> {
 @Composable
 private fun proxyDisplay(level: ProxyLevel): Pair<String, Color> = when (level) {
     ProxyLevel.AVAILABLE -> stringResource(R.string.network_badge_available) to Green
-    ProxyLevel.CHECKING -> stringResource(R.string.network_diagnostics_running) to MaterialTheme.colorScheme.onSurfaceVariant
+    ProxyLevel.CHECKING -> stringResource(R.string.network_diagnostics_running) to MiuixTheme.colorScheme.onSurfaceContainerVariant
     ProxyLevel.UNAVAILABLE -> stringResource(R.string.network_badge_unavailable) to Red
 }

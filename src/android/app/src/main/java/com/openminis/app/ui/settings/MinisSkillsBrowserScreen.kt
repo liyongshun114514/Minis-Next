@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisTextButton
 
@@ -30,15 +31,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +63,6 @@ private enum class HudState {
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MinisSkillsBrowserScreen(
     skillRepository: SkillRepository,
@@ -121,15 +119,15 @@ fun MinisSkillsBrowserScreen(
                         },
                         enabled = hudState != HudState.IMPORTING,
                     ) {
-                        Text(stringResource(R.string.skills_browser_import_button), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.skills_browser_import_button), style = MiuixTheme.textStyles.headline1)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MiuixTheme.colorScheme.background,
                 ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         Box(
             modifier = Modifier
@@ -232,22 +230,22 @@ fun MinisSkillsBrowserScreen(
                                 strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(10.dp))
-                            Text(stringResource(R.string.skills_browser_hud_importing), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.skills_browser_hud_importing), color = Color.White, style = MiuixTheme.textStyles.button)
                         }
                         HudState.SUCCESS -> {
                             Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF34C759), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text(hudMessage, color = Color.White, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            Text(hudMessage, color = Color.White, style = MiuixTheme.textStyles.button, maxLines = 1)
                         }
                         HudState.ERROR -> {
                             Icon(Icons.Filled.Error, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text(hudMessage, color = Color.White, style = MaterialTheme.typography.labelLarge, maxLines = 2)
+                            Text(hudMessage, color = Color.White, style = MiuixTheme.textStyles.button, maxLines = 2)
                         }
                         HudState.HINT -> {
                             Icon(Icons.Filled.Info, contentDescription = null, tint = Color(0xFF007AFF), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text(hudMessage, color = Color.White, style = MaterialTheme.typography.labelLarge, maxLines = 2)
+                            Text(hudMessage, color = Color.White, style = MiuixTheme.textStyles.button, maxLines = 2)
                         }
                         HudState.HIDDEN -> {}
                     }

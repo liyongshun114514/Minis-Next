@@ -183,7 +183,7 @@ fun decorativePingPong(phase: Float): Float {
 
 /**
  * [T-android-decorative-anim-perf] A drop-in replacement for Material's
- * indeterminate [androidx.compose.material3.CircularProgressIndicator] that
+ * indeterminate [com.openminis.app.ui.components.miuix.CircularProgressIndicator] that
  * costs a layer property per tick instead of a frame-rate animation.
  *
  * Material's spinner owns a private `InfiniteTransition` running at the

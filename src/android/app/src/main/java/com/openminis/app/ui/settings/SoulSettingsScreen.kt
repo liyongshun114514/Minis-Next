@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -21,15 +22,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,7 +80,6 @@ import kotlinx.coroutines.withContext
  * ([com.openminis.app.agent.SystemPromptBuilder]) and are unchanged by this
  * screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SoulSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -257,10 +255,10 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .background(MiuixTheme.colorScheme.surfaceVariant)
                                     .border(
                                         width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                        color = MiuixTheme.colorScheme.dividerLine,
                                         shape = CircleShape,
                                     )
                                     .clickable { showIconMenu = true },
@@ -273,13 +271,13 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                 Icon(
                                     imageVector = Icons.Filled.Edit,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    tint = MiuixTheme.colorScheme.onPrimary,
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
                                         .padding(2.dp)
                                         .size(14.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
+                                        .background(MiuixTheme.colorScheme.primary)
                                         .padding(2.5.dp),
                                 )
                             }
@@ -326,7 +324,7 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                             value = body,
                             onValueChange = { body = it },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            textStyle = MiuixTheme.textStyles.body1.copy(
                                 fontFamily = FontFamily.Monospace,
                             ),
                             placeholder = stringResource(R.string.soul_body_placeholder),
@@ -352,11 +350,11 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                     isDirty -> stringResource(R.string.kairos_prompt_global_unsaved)
                                     else -> stringResource(R.string.kairos_prompt_global_saved)
                                 },
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MiuixTheme.textStyles.body2,
                                 color = if (isDirty || saving) {
-                                    MaterialTheme.colorScheme.tertiary
+                                    MiuixTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                                 },
                                 modifier = Modifier.weight(1f),
                             )
@@ -497,7 +495,6 @@ private fun SoulIconMenu(
  * Two rows of suggestions, tap-to-fill, a live preview at render size, and a
  * free-form field that normalizes per keystroke.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SoulEmojiPickerSheet(
     current: String,
@@ -516,7 +513,7 @@ private fun SoulEmojiPickerSheet(
                 text = stringResource(R.string.soul_icon_emoji_title),
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(16.dp))
 
@@ -526,7 +523,7 @@ private fun SoulEmojiPickerSheet(
                     .align(Alignment.CenterHorizontally)
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MiuixTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -547,7 +544,7 @@ private fun SoulEmojiPickerSheet(
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (e == draft) MaterialTheme.colorScheme.primaryContainer
+                                    if (e == draft) MiuixTheme.colorScheme.primaryContainer
                                     else Color.Transparent,
                                 )
                                 .clickable { draft = e },

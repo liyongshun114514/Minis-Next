@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,12 +32,10 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -98,7 +97,6 @@ import java.util.concurrent.TimeUnit
  */
 private const val MOVE_TO_SESSION_LIMIT = 50
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoveToSessionSheet(
     currentSessionId: String,
@@ -160,7 +158,7 @@ fun MoveToSessionSheet(
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Text(
                 stringResource(R.string.move_to_sheet_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             // [T-android-moveto-new-chat] Deliberately OUTSIDE the
@@ -173,8 +171,8 @@ fun MoveToSessionSheet(
             if (sessions.isEmpty()) {
                 Text(
                     stringResource(R.string.move_to_sheet_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(16.dp),
                 )
             } else {
@@ -198,7 +196,7 @@ fun MoveToSessionSheet(
                         // row is what keeps the MIDDLE rows square-edged: per-row
                         // rounding would carve notches between adjacent rows.
                         .clip(RoundedCornerShape(16.dp))
-                        .background(color = MaterialTheme.colorScheme.surface),
+                        .background(color = MiuixTheme.colorScheme.surface),
                 ) {
                     items(sessions, key = { it.id }) { session ->
                         MoveToPickerRow(
@@ -227,7 +225,7 @@ fun MoveToSessionSheet(
  */
 @Composable
 private fun NewChatRow(onClick: () -> Unit) {
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = MiuixTheme.colorScheme.primary
     Row(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -236,7 +234,7 @@ private fun NewChatRow(onClick: () -> Unit) {
             // clip first, so this row's own click indication stays inside its
             // rounded shape instead of squaring off the corners.
             .clip(RoundedCornerShape(16.dp))
-            .background(color = MaterialTheme.colorScheme.surface)
+            .background(color = MiuixTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -259,7 +257,7 @@ private fun NewChatRow(onClick: () -> Unit) {
             text = stringResource(R.string.new_chat),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -312,14 +310,14 @@ private fun MoveToPickerRow(
                 text = session.title ?: untitled,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = timeText,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.outline,
+                color = MiuixTheme.colorScheme.outline,
                 maxLines = 1,
             )
         }

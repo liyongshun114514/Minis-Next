@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Composer/input widgets + tool preview/status bar
 // extracted verbatim from ChatScreen.kt: AttachmentChip, InputCircleButton,
 // MicButton, ToolPreviewThumbnail, FloatingToolStatusBar, ThinkingLevelPicker.
@@ -136,8 +137,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
@@ -145,22 +146,19 @@ import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -245,10 +243,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -327,7 +324,7 @@ internal fun AttachmentChip(
                 Column(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant, chipShape)
+                        .background(MiuixTheme.colorScheme.surfaceVariant, chipShape)
                         .border(1.dp, ChatColors.thumbnailBorder, chipShape),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -335,14 +332,14 @@ internal fun AttachmentChip(
                     Icon(
                         Icons.AutoMirrored.Filled.InsertDriveFile,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = attachment.fileName,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
+                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 2,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 4.dp),
@@ -357,7 +354,7 @@ internal fun AttachmentChip(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(20.dp)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                .background(MiuixTheme.colorScheme.surface, CircleShape)
                 .border(0.5.dp, ChatColors.thumbnailBorder, CircleShape)
                 .clip(CircleShape)
                 .clickable(onClick = onRemove),
@@ -366,7 +363,7 @@ internal fun AttachmentChip(
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                tint = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.size(13.dp),
             )
         }
@@ -414,7 +411,7 @@ internal fun MicButton(
     val bg = if (isRecording) Color.Red.copy(alpha = 0.15f)
              else ChatColors.inputIconBg
     val tint = if (isRecording) Color.Red
-               else MaterialTheme.colorScheme.onSurfaceVariant
+               else MiuixTheme.colorScheme.onSurfaceContainerVariant
     val borderColor = if (isRecording) Color.Transparent else ChatColors.inputIconBorder
     Box(
         modifier = Modifier
@@ -1004,7 +1001,7 @@ private fun ToolPreviewThumbnail(
 
 // [T-android-tool-pager-longpress] ExperimentalFoundationApi is for
 // combinedClickable on the pager chevrons.
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 /**
  * [T-android-toolbar-gap] The floating tool bar's geometry, shared with the
  * chat list's bottom reserve so the two cannot drift apart.
@@ -1155,7 +1152,7 @@ internal fun FloatingToolStatusBar(
                     isDone -> Icons.Default.CheckCircle to ToolCheckColor
                     isFailed -> Icons.Default.Error to ToolErrorColor
                     isCancelled -> Icons.Default.Close to ToolCancelColor
-                    else -> Icons.Default.Build to MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> Icons.Default.Build to MiuixTheme.colorScheme.onSurfaceContainerVariant
                 }
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
             }
@@ -1206,8 +1203,8 @@ internal fun FloatingToolStatusBar(
                     Icon(
                         Icons.Default.ChevronLeft,
                         contentDescription = "Previous",
-                        tint = if (currentIndex > 0) MaterialTheme.colorScheme.onSurface
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                        tint = if (currentIndex > 0) MiuixTheme.colorScheme.onSurface
+                               else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                         modifier = Modifier
                             .size(18.dp)
                             // [T-android-tool-pager-longpress] Long-press jumps
@@ -1234,7 +1231,7 @@ internal fun FloatingToolStatusBar(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         // [T-android-tool-pager-a11y] Say what this counts.
                         // It sits immediately right of the tool TITLE, so when
                         // that title belongs to a sub agent the bare "3/12"
@@ -1249,8 +1246,8 @@ internal fun FloatingToolStatusBar(
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = "Next",
-                        tint = if (canStepNext || !followLatest) MaterialTheme.colorScheme.onSurface
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                        tint = if (canStepNext || !followLatest) MiuixTheme.colorScheme.onSurface
+                               else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                         modifier = Modifier
                             .size(18.dp)
                             // [T-android-tool-pager-longpress] Long-press restores
@@ -1318,7 +1315,7 @@ internal fun FloatingToolStatusBar(
                 DropdownMenu(expanded = showThumbMenu, onDismissRequest = { showThumbMenu = false }) {
                     DropdownMenuItem(
                         text = {
-                            Text(stringResource(R.string.tool_preview_close_menu), color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.tool_preview_close_menu), color = MiuixTheme.colorScheme.error)
                         },
                         onClick = {
                             showThumbMenu = false

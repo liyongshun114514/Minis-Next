@@ -1,18 +1,17 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,7 +30,6 @@ import com.openminis.app.ui.components.modelEntryPickerItems
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisTextButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddModelsToGroupScreen(
     groupId: String,
@@ -105,11 +103,11 @@ fun AddModelsToGroupScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MiuixTheme.colorScheme.background,
                 ),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.background,
     ) { padding ->
         // Resolved here (Composable context) — LazyListScope below can't call
         // stringResource. Localizes the injected System provider section label.

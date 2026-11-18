@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -23,10 +24,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -173,8 +173,8 @@ fun SessionMcpsSheet(
                 ) {
                     Text(
                         text = stringResource(R.string.mcp_section_servers).uppercaseForDisplay(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 0.5.sp,
                     )
@@ -200,8 +200,8 @@ fun SessionMcpsSheet(
                 if (filteredServers.isEmpty()) {
                     Text(
                         text = stringResource(R.string.mcps_search_no_match, searchQuery),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 32.dp, vertical = 24.dp),
@@ -336,8 +336,8 @@ private fun SessionMcpDetail(server: MCPRepository.MCPServerConfig) {
         if (headerNames.isNotEmpty() || envNames.isNotEmpty()) {
             Text(
                 text = stringResource(R.string.session_mcp_detail_values_hidden),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp),
                 lineHeight = 16.sp,
             )
@@ -369,17 +369,17 @@ private fun McpDetailRow(
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Spacer(modifier = Modifier.height(2.dp))
         val text: @Composable () -> Unit = {
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium.let {
+                style = MiuixTheme.textStyles.body1.let {
                     if (monospace) it.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp) else it
                 },
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
             )
         }
         // A SelectionContainer would take the long-press for itself.
@@ -392,10 +392,10 @@ private fun McpDetailText(text: String, monospace: Boolean = false) {
     SelectionContainer {
         Text(
             text,
-            style = MaterialTheme.typography.bodyMedium.let {
+            style = MiuixTheme.textStyles.body1.let {
                 if (monospace) it.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp) else it
             },
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -410,7 +410,7 @@ private fun McpDetailDivider() {
             .fillMaxWidth()
             .padding(start = 14.dp, end = 14.dp)
             .height(0.5.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
     )
 }
 
@@ -440,17 +440,17 @@ private fun EmptyMcpsCard() {
                 Icons.Outlined.Extension,
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
             )
             Text(
                 stringResource(R.string.session_mcps_empty_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Text(
                 stringResource(R.string.session_mcps_empty_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
             )
         }
     }

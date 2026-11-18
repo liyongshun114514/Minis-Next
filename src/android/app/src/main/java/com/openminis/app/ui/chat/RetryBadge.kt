@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +17,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +118,6 @@ internal fun RetryBadge(attempt: Int, maxAttempts: Int, onClick: () -> Unit) {
  * [T-android-retry-badge] The retries of this task so far: number, time,
  * error, model / endpoint, delay, and whether the model changed.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RetryLogSheet(records: List<RetryRecord>, onDismiss: () -> Unit) {
     val timeFormat = androidx.compose.runtime.remember {
@@ -127,11 +125,11 @@ internal fun RetryLogSheet(records: List<RetryRecord>, onDismiss: () -> Unit) {
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-            Text(stringResource(R.string.retry_sheet_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.retry_sheet_title), style = MiuixTheme.textStyles.headline1)
             Spacer(Modifier.height(4.dp))
             Text(
                 stringResource(R.string.retry_sheet_subtitle),
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 color = ChatColors.secondaryText,
             )
             Spacer(Modifier.height(12.dp))

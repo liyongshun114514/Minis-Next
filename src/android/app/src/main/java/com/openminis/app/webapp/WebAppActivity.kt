@@ -1,5 +1,7 @@
 package com.openminis.app.webapp
 
+import com.openminis.app.ui.theme.MinisTheme
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -37,14 +39,12 @@ import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -188,7 +188,7 @@ class WebAppActivity : ComponentActivity() {
     private fun renderHost() {
         val file = resolvedFile ?: return
         setContent {
-            MaterialTheme {
+            MinisTheme {
                 WebAppHost(
                     file = file,
                     initialFullscreen = isFullscreen,
@@ -207,8 +207,7 @@ class WebAppActivity : ComponentActivity() {
      * T-pwa-3: replaces the prior toast-and-finish with an inline error
      * screen offering an "Open in Minis" escape hatch.
      */
-    @OptIn(ExperimentalMaterial3Api::class)
-    private fun renderSourceMissing(sourceSessionId: String?) {
+        private fun renderSourceMissing(sourceSessionId: String?) {
         webViewRef?.apply {
             stopLoading()
             (parent as? ViewGroup)?.removeView(this)
@@ -217,7 +216,7 @@ class WebAppActivity : ComponentActivity() {
         webViewRef = null
 
         setContent {
-            MaterialTheme {
+            MinisTheme {
                 Scaffold(
                     topBar = {
                         TopAppBar(title = { Text(stringResource(R.string.webapp_activity_label)) })
@@ -235,12 +234,12 @@ class WebAppActivity : ComponentActivity() {
                             ) {
                                 Text(
                                     text = stringResource(R.string.webapp_source_missing_title),
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MiuixTheme.textStyles.headline1,
                                 )
                                 Text(
                                     text = stringResource(R.string.webapp_source_missing_body),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MiuixTheme.textStyles.body1,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
                                 MinisButton(onClick = { openInMinis(sourceSessionId) }) {
                                     Text(stringResource(R.string.webapp_open_in_minis))

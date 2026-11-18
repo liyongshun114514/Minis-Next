@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,19 +38,17 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ListItem
+import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.miuix.SegmentedButton
+import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
+import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -245,7 +244,6 @@ private fun availableCredentials(type: ProviderType): List<ProviderCredential> {
 
 // -- Step 1: Choose Provider Type --
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChooseProviderScreen(
     onBack: () -> Unit,
@@ -356,7 +354,6 @@ private fun ChooseProviderScreen(
 
 // -- Step 2: Choose Credential Type --
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChooseCredentialScreen(
     providerType: ProviderType,
@@ -429,7 +426,6 @@ private fun oauthDescription(type: ProviderType): String = when (type) {
 
 // -- Step 3: Configure & Save --
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConfigureProviderScreen(
     providerType: ProviderType,
@@ -813,15 +809,15 @@ private fun ColumnScope.OAuthConfigSection(
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.add_provider_authenticated), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.add_provider_authenticated), style = MiuixTheme.textStyles.main, fontWeight = FontWeight.Medium)
                 }
                 if (maskedToken != null) {
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.add_provider_token), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.add_provider_token), style = MiuixTheme.textStyles.footnote2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                     Text(
                         maskedToken!!,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -998,7 +994,7 @@ private fun ColumnScope.OAuthConfigSection(
                     if (isAuthenticating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = MiuixTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp,
                         )
                         Spacer(Modifier.width(8.dp))
@@ -1011,8 +1007,8 @@ private fun ColumnScope.OAuthConfigSection(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         errorMessage!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             }

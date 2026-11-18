@@ -1158,14 +1158,14 @@
     "id": "ui.components.quicktestsheet.19ff2b5b393d",
     "group": "连接测试",
     "title": "连接测试",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/components/QuickTestSheet.kt:543",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/components/QuickTestSheet.kt:541",
     "defaultTemplate": "Hi! I'm setting you up in Minis. Say hello back in one short, friendly sentence."
   },
   {
     "id": "ui.components.quicktestsheet.821c2d3afbc8",
     "group": "连接测试",
     "title": "生图测试",
-    "source": "src/android/app/src/main/java/com/openminis/app/ui/components/QuickTestSheet.kt:562",
+    "source": "src/android/app/src/main/java/com/openminis/app/ui/components/QuickTestSheet.kt:560",
     "defaultTemplate": "A friendly cute mascot logo for an app called Minis, minimalist, centered, soft colors"
   },
   {

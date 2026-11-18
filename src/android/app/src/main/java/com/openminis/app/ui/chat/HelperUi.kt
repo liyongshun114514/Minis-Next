@@ -47,16 +47,14 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -1374,7 +1372,6 @@ internal fun AgentCallbackCard(callback: AgentCallback, onTap: () -> Unit, modif
  * glyph while the child is processing. Replaces the half-sheet (easy to
  * dismiss by accident, hard to scroll).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentTranscriptScreen(sessionId: String, onBack: () -> Unit) {
     val context = LocalContext.current

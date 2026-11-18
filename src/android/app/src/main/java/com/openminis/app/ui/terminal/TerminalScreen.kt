@@ -37,8 +37,8 @@ import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.PauseCircle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 import android.content.ClipData

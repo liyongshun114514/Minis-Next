@@ -1,5 +1,6 @@
 package com.openminis.app.ui.quota
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,9 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,7 +62,7 @@ object QuotaTagStyle {
     fun background(level: QuotaLevel): Color {
         val dark = LocalChatPalette.current.isDark
         return when (level) {
-            QuotaLevel.normal -> MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.12f else 0.08f)
+            QuotaLevel.normal -> MiuixTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.12f else 0.08f)
             QuotaLevel.low -> if (dark) Color(0xFFFFD60A) else Color(0xFFFFCC00)
             QuotaLevel.depleted -> if (dark) Color(0xFFFF453A) else Color(0xFFFF3B30)
         }
@@ -118,7 +118,7 @@ fun QuotaSectionHeaderBadge(instanceId: String, onTap: (() -> Unit)?) {
             color = fg,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+            style = MiuixTheme.textStyles.footnote2.copy(fontFeatureSettings = "tnum"),
         )
         if (onTap != null) {
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(10.dp))
@@ -166,7 +166,7 @@ fun ModelQuotaMemberPill(instanceId: String, modelId: String, onTap: () -> Unit)
             fontWeight = FontWeight.Medium,
             color = fg,
             maxLines = 1,
-            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+            style = MiuixTheme.textStyles.footnote2.copy(fontFeatureSettings = "tnum"),
         )
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(8.dp))
     }
@@ -218,7 +218,7 @@ fun ModelQuotaHintView(instanceId: String, modelId: String) {
             fontWeight = FontWeight.Medium,
             color = color,
             maxLines = 1,
-            style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+            style = MiuixTheme.textStyles.footnote2.copy(fontFeatureSettings = "tnum"),
         )
     }
 }

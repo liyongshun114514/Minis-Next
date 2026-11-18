@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sessions
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,13 +18,11 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,7 +86,6 @@ internal fun groupPickerOrder(folders: List<FolderEntity>, lastActivity: Map<Str
  *   no-op control, which reads as broken. "Any" rather than "all" so a mixed
  *   multi-selection still gets the option.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupPickerSheet(
     folders: List<FolderEntity>,
@@ -138,7 +136,7 @@ fun GroupPickerSheet(
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
             )
 
@@ -180,19 +178,19 @@ fun GroupPickerSheet(
                     Icon(
                         Icons.Default.Warning,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = MiuixTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.size(12.dp))
                     Column {
                         Text(
                             stringResource(R.string.group_duplicate_exists, duplicate.name),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MiuixTheme.textStyles.body1,
                         )
                         Text(
                             stringResource(R.string.group_duplicate_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     }
                 }
@@ -213,14 +211,14 @@ fun GroupPickerSheet(
                     Icon(
                         Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MiuixTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.size(12.dp))
                     Text(
                         // Group name is user data — interpolated, not a key.
                         stringResource(R.string.group_suggest_merge, merge.folderName),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MiuixTheme.textStyles.body1,
                     )
                 }
             }
@@ -248,7 +246,7 @@ fun GroupPickerSheet(
                             Icon(
                                 Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MiuixTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -261,8 +259,8 @@ fun GroupPickerSheet(
                                 if (suggestFailed) R.string.group_suggest_failed
                                 else R.string.group_suggest,
                             ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -289,8 +287,8 @@ fun GroupPickerSheet(
             if (folders.isNotEmpty() || anyFiled) {
                 Text(
                     text = stringResource(R.string.group_section_header),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 4.dp),
                 )
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
@@ -350,16 +348,16 @@ private fun GroupRow(
         Icon(
             icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.size(16.dp))
         Column(Modifier.fillMaxWidth()) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(title, style = MiuixTheme.textStyles.main)
             Text(
                 subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }

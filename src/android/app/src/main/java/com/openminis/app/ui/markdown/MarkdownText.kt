@@ -1,5 +1,6 @@
 package com.openminis.app.ui.markdown
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -34,12 +35,11 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -88,8 +88,8 @@ import androidx.compose.ui.unit.sp
 fun MarkdownText(
     markdown: String,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurface,
-    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = MiuixTheme.colorScheme.onSurface,
+    style: TextStyle = MiuixTheme.textStyles.body1,
 ) {
     val parsed = remember(markdown) { MarkdownParser.parseWithMath(markdown) }
 
@@ -203,7 +203,7 @@ private fun ParagraphBlock(
 private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
     val context = LocalContext.current
     val codeColor = Color(0xFF4EC9B0) // Green code text
-    val bgColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val bgColor = MiuixTheme.colorScheme.surfaceContainerHigh
 
     Column(
         modifier = Modifier
@@ -221,8 +221,8 @@ private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
         ) {
             Text(
                 text = block.language.ifEmpty { "code" },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             IconButton(
                 onClick = {
@@ -235,7 +235,7 @@ private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
                     Icons.Default.ContentCopy,
                     contentDescription = androidx.compose.ui.res.stringResource(com.openminis.app.R.string.copy_code_block),
                     modifier = Modifier.height(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
         }
@@ -290,7 +290,7 @@ private fun BlockquoteView(
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             // Inner content uses onSurfaceVariant so quoted text reads as
             // secondary, matching the iOS quote treatment.
-            val quotedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val quotedColor = MiuixTheme.colorScheme.onSurfaceContainerVariant
             for (inner in block.blocks) {
                 BlockContent(inner, quotedColor, baseStyle, mathSpans)
             }
@@ -389,7 +389,7 @@ private fun TableView(
             // Header row
             Row(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                     .height(IntrinsicSize.Min),
             ) {
                 for ((colIdx, header) in table.headers.withIndex()) {
@@ -500,9 +500,9 @@ private fun InlineContent(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    val inlineCodeBg = MaterialTheme.colorScheme.surfaceContainerHighest
-    val inlineCodeColor = MaterialTheme.colorScheme.primary
-    val linkColor = MaterialTheme.colorScheme.primary
+    val inlineCodeBg = MiuixTheme.colorScheme.surfaceContainerHigh
+    val inlineCodeColor = MiuixTheme.colorScheme.primary
+    val linkColor = MiuixTheme.colorScheme.primary
 
     // Strip any leftover math placeholders (U+FFFC MATH<n> U+FFFC). The
     // ParagraphBlock split path resolves them when math spans are
@@ -805,8 +805,8 @@ private fun openMediaExternally(context: Context, file: File, mime: String) {
 
 @Composable
 private fun MinisImageBlock(block: MarkdownParser.Block.Image) {
-    val surfaceBg = MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val surfaceBg = MiuixTheme.colorScheme.surfaceVariant
+    val borderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.3f)
     // [T-android-image-session-direct] Carry the owning chat session (when
     // this markdown is rendered inside one) so a minis:// image resolves in
     // that session's directory rather than through global state.
@@ -841,9 +841,9 @@ private fun MinisVideoBlock(block: MarkdownParser.Block.Video) {
     val context = LocalContext.current
     val file = remember(block.url) { resolveMediaFile(block.url) }
     val filename = remember(block.url) { filenameFromUrl(block.url) }
-    val surfaceBg = MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    val captionColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val surfaceBg = MiuixTheme.colorScheme.surfaceVariant
+    val borderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val captionColor = MiuixTheme.colorScheme.onSurfaceContainerVariant
 
     // Generate a thumbnail frame off the main thread via MediaMetadataRetriever.
     val thumbnail by produceState<Bitmap?>(initialValue = null, key1 = file?.absolutePath) {
@@ -915,7 +915,7 @@ private fun MinisVideoBlock(block: MarkdownParser.Block.Video) {
             )
             Text(
                 text = filename,
-                style = MaterialTheme.typography.bodySmall,
+                style = MiuixTheme.textStyles.body2,
                 color = captionColor,
                 maxLines = 1,
                 modifier = Modifier.padding(start = 4.dp),
@@ -963,10 +963,10 @@ private fun MinisAudioBlock(block: MarkdownParser.Block.Audio) {
         onDispose { try { player?.setOnCompletionListener(null) } catch (_: Throwable) {} }
     }
 
-    val tint = MaterialTheme.colorScheme.primary
-    val subtle = MaterialTheme.colorScheme.onSurfaceVariant
-    val cardBg = MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val tint = MiuixTheme.colorScheme.primary
+    val subtle = MiuixTheme.colorScheme.onSurfaceContainerVariant
+    val cardBg = MiuixTheme.colorScheme.surfaceVariant
+    val borderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.3f)
     val context = LocalContext.current
 
     Row(
@@ -1001,8 +1001,8 @@ private fun MinisAudioBlock(block: MarkdownParser.Block.Audio) {
         ) {
             Text(
                 text = block.alt.ifEmpty { filename },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
             val progress = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
@@ -1018,7 +1018,7 @@ private fun MinisAudioBlock(block: MarkdownParser.Block.Audio) {
             if (durationMs > 0) {
                 Text(
                     text = "${formatMs(positionMs)} / ${formatMs(durationMs)}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MiuixTheme.textStyles.footnote2,
                     color = subtle,
                     modifier = Modifier.padding(top = 2.dp),
                 )

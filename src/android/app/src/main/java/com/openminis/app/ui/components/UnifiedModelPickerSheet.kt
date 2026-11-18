@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,16 +33,14 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -88,7 +87,7 @@ import com.openminis.app.ui.theme.ChatColors
  * Selection semantics (unchanged): tap = select + dismiss; selecting the
  * bound group row clears the override (null = follow the group).
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun UnifiedModelPickerSheet(
     providerRepository: ProviderRepository,
@@ -162,7 +161,7 @@ fun UnifiedModelPickerSheet(
         }
     }
 
-    val cardColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val cardColor = MiuixTheme.colorScheme.surfaceContainerHigh
     val cardShape = RoundedCornerShape(14.dp)
 
     ModalBottomSheet(
@@ -209,7 +208,7 @@ fun UnifiedModelPickerSheet(
                 Spacer(Modifier.weight(1f))
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
@@ -234,10 +233,10 @@ fun UnifiedModelPickerSheet(
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .height(42.dp),
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
+                textStyle = MiuixTheme.textStyles.body1.copy(
+                    color = MiuixTheme.colorScheme.onSurface,
                 ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
                 interactionSource = searchInteraction,
                 decorationBox = { innerTextField ->
                     OutlinedTextFieldDefaults.DecorationBox(
@@ -251,7 +250,7 @@ fun UnifiedModelPickerSheet(
                                 Icons.Default.Search,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         },
                         trailingIcon = {
@@ -348,7 +347,7 @@ fun UnifiedModelPickerSheet(
                                     else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = null,
                                     tint = if (groupSelected) Color(0xFF34C759)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                     modifier = Modifier.size(22.dp),
                                 )
                                 Spacer(Modifier.width(10.dp))
@@ -363,7 +362,7 @@ fun UnifiedModelPickerSheet(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             boundGroupName ?: "",
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = MiuixTheme.textStyles.body1,
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Spacer(Modifier.width(6.dp))
@@ -371,7 +370,7 @@ fun UnifiedModelPickerSheet(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
                                                 .background(
-                                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                    MiuixTheme.colorScheme.surfaceContainerHigh,
                                                     RoundedCornerShape(8.dp),
                                                 )
                                                 .padding(horizontal = 5.dp, vertical = 1.dp),
@@ -380,14 +379,14 @@ fun UnifiedModelPickerSheet(
                                                 Icons.Default.ArrowCircleDown,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(9.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                                             )
                                             Spacer(Modifier.width(2.dp))
                                             Text(
                                                 "FB",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                                             )
                                         }
                                     }
@@ -404,15 +403,15 @@ fun UnifiedModelPickerSheet(
                                                     SystemVoiceEntries.resolve(id) != null
                                             },
                                         ),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .background(
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                                            MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                                             CircleShape,
                                         )
                                         .clip(CircleShape)
@@ -424,7 +423,7 @@ fun UnifiedModelPickerSheet(
                                         else Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     )
                                 }
                             }
@@ -446,7 +445,7 @@ fun UnifiedModelPickerSheet(
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 52.dp, end = 16.dp),
                                         thickness = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                                     )
                                     val inst = config.instances
                                         .find { it.id == entry.providerInstanceId }
@@ -497,7 +496,7 @@ fun UnifiedModelPickerSheet(
                                             lead = {
                                                 Text(
                                                     entry.model.displayName.ifBlank { entry.model.id },
-                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    style = MiuixTheme.textStyles.body1,
                                                 )
                                             },
                                             tags = {
@@ -523,8 +522,8 @@ fun UnifiedModelPickerSheet(
                     item("group_footer") {
                         Text(
                             stringResource(R.string.voice_input_picker_group_footer),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
                         )
                     }
@@ -547,7 +546,7 @@ fun UnifiedModelPickerSheet(
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 52.dp, end = 16.dp),
                                         thickness = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                                     )
                                 }
                                 Row(
@@ -578,13 +577,13 @@ fun UnifiedModelPickerSheet(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             entry.model.displayName,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = MiuixTheme.textStyles.body1,
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
                                             systemEntrySubtitle(entry),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MiuixTheme.textStyles.footnote2,
+                                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                         )
                                     }
                                     if (systemInEffect && selectedId == null) {
@@ -608,7 +607,7 @@ fun UnifiedModelPickerSheet(
                                         HorizontalDivider(
                                             modifier = Modifier.padding(start = 52.dp, end = 16.dp),
                                             thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                                         )
                                         val sysId = systemEntries.firstOrNull()?.id
                                         Row(
@@ -629,12 +628,12 @@ fun UnifiedModelPickerSheet(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     v.label,
-                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    style = MiuixTheme.textStyles.body1,
                                                 )
                                                 Text(
                                                     v.name,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    style = MiuixTheme.textStyles.footnote2,
+                                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                                 )
                                             }
                                         }
@@ -694,9 +693,9 @@ fun UnifiedModelPickerSheet(
                                 val providerName = inst.label.ifEmpty { inst.providerType.displayName }
                                 Text(
                                     providerName,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MiuixTheme.textStyles.headline1,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f),
@@ -710,8 +709,8 @@ fun UnifiedModelPickerSheet(
                                     val editLabel = stringResource(R.string.model_picker_edit_provider, providerName)
                                     Text(
                                         stringResource(R.string.model_picker_groups_edit),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = MiuixTheme.textStyles.button,
+                                        color = MiuixTheme.colorScheme.primary,
                                         maxLines = 1,
                                         softWrap = false,
                                         modifier = Modifier
@@ -726,7 +725,7 @@ fun UnifiedModelPickerSheet(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .background(
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                                            MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                                             CircleShape,
                                         )
                                         .clip(CircleShape)
@@ -742,14 +741,14 @@ fun UnifiedModelPickerSheet(
                                         else Icons.Default.KeyboardArrowUp,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     )
                                 }
                             }
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 16.dp, end = 16.dp),
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                             )
                             if (!collapsed) {
                                 entries.forEachIndexed { i, entry ->
@@ -757,7 +756,7 @@ fun UnifiedModelPickerSheet(
                                         HorizontalDivider(
                                             modifier = Modifier.padding(start = 52.dp, end = 16.dp),
                                             thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.3f),
                                         )
                                     }
                                     Row(
@@ -786,7 +785,7 @@ fun UnifiedModelPickerSheet(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 entry.model.displayName.ifBlank { entry.model.id },
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                style = MiuixTheme.textStyles.body1,
                                                 fontWeight = FontWeight.SemiBold,
                                             )
                                             // [T-model-row-premature-wrap] Id, "·" and the
@@ -804,8 +803,8 @@ fun UnifiedModelPickerSheet(
                                                 lead = {
                                                     Text(
                                                         entry.baseModel.id,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        style = MiuixTheme.textStyles.footnote2,
+                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                                     )
                                                 },
                                                 tags = { badges.forEach { badge -> ModalityBadge(badge) } },
@@ -818,7 +817,7 @@ fun UnifiedModelPickerSheet(
                                             Icon(
                                                 Icons.Outlined.Bolt,
                                                 contentDescription = stringResource(R.string.quicktest_button),
-                                                tint = MaterialTheme.colorScheme.primary,
+                                                tint = MiuixTheme.colorScheme.primary,
                                                 modifier = Modifier.size(18.dp),
                                             )
                                         }
@@ -855,9 +854,9 @@ private fun PickerSectionHeader(
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.titleMedium,
+            style = MiuixTheme.textStyles.headline1,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 16.dp, top = 14.dp, bottom = 6.dp),
@@ -872,7 +871,7 @@ private fun SelectionMark(selected: Boolean) {
         if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
         contentDescription = null,
         tint = if (selected) Color(0xFF007AFF)
-        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
         modifier = Modifier.size(20.dp),
     )
 }

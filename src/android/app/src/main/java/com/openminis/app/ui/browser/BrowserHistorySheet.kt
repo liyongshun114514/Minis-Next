@@ -1,5 +1,6 @@
 package com.openminis.app.ui.browser
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
@@ -19,15 +20,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +44,6 @@ import java.util.Date
 import java.util.Locale
 import com.openminis.app.ui.components.MinisTextButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserHistorySheet(
     historyStore: BrowserHistoryStore,
@@ -80,7 +78,7 @@ fun BrowserHistorySheet(
             ) {
                 Text(
                     stringResource(R.string.browser_history_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -88,7 +86,7 @@ fun BrowserHistorySheet(
                     onClick = { showClearConfirm = true },
                     enabled = historyStore.getEntries().isNotEmpty(),
                 ) {
-                    Text(stringResource(R.string.browser_history_clear), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.browser_history_clear), color = MiuixTheme.colorScheme.error)
                 }
                 MinisTextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.browser_history_done))
@@ -105,7 +103,7 @@ fun BrowserHistorySheet(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(20.dp),
-                textStyle = MaterialTheme.typography.bodySmall,
+                textStyle = MiuixTheme.textStyles.body2,
             )
 
             Spacer(Modifier.height(8.dp))
@@ -120,14 +118,14 @@ fun BrowserHistorySheet(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             stringResource(R.string.browser_history_empty_title),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.main,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             stringResource(R.string.browser_history_empty_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                         )
                     }
                 }
@@ -140,9 +138,9 @@ fun BrowserHistorySheet(
                         item(key = "header_$dayLabel") {
                             Text(
                                 dayLabel,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MiuixTheme.textStyles.footnote1,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
                             )
                         }
@@ -159,19 +157,19 @@ fun BrowserHistorySheet(
                                     Icons.Default.Language,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         entry.title.ifEmpty { entry.domain },
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MiuixTheme.textStyles.body1,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
                                         entry.url,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -179,7 +177,7 @@ fun BrowserHistorySheet(
                                 Text(
                                     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(entry.timestamp)),
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                 )
                             }
                             HorizontalDivider(modifier = Modifier.padding(start = 46.dp))
@@ -200,7 +198,7 @@ fun BrowserHistorySheet(
                     historyStore.clear()
                     showClearConfirm = false
                 }) {
-                    Text(stringResource(R.string.browser_history_clear), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.browser_history_clear), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {

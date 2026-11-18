@@ -1,15 +1,14 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +46,6 @@ import com.openminis.app.ui.settings.SettingsSection
  * [AddServerForm] and [FolderBrowser] from that screen, so there is exactly
  * one Add Server implementation in the app.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RestoreServersScreen(
     onBack: () -> Unit,
@@ -109,7 +107,7 @@ fun RestoreServersScreen(
             remotes.forEach { r ->
                 RestoreSourceRow(
                     icon = Icons.Outlined.Cloud,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MiuixTheme.colorScheme.primary,
                     label = r.name,
                     subtitle = stringResource(
                         R.string.backup_server_row,
@@ -127,7 +125,7 @@ fun RestoreServersScreen(
                             Icon(
                                 Icons.Outlined.Info,
                                 contentDescription = stringResource(R.string.backup_dest_details),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MiuixTheme.colorScheme.primary,
                             )
                         }
                     },
@@ -138,7 +136,7 @@ fun RestoreServersScreen(
             // withheld.
             RestoreSourceRow(
                 icon = Icons.Outlined.Add,
-                iconColor = MaterialTheme.colorScheme.primary,
+                iconColor = MiuixTheme.colorScheme.primary,
                 label = stringResource(R.string.backup_dest_add_server),
                 enabled = true,
                 onClick = { adding = true },

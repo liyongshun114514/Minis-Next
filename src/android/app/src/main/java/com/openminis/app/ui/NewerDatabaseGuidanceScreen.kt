@@ -1,15 +1,16 @@
 package com.openminis.app.ui
 
+import com.openminis.app.ui.theme.MinisTheme
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.MinisButton as Button
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +37,7 @@ import com.openminis.app.data.db.DatabaseVersionGuard
  */
 @Composable
 fun NewerDatabaseGuidanceScreen(onExit: () -> Unit) {
-    MaterialTheme {
+    MinisTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -50,13 +51,13 @@ fun NewerDatabaseGuidanceScreen(onExit: () -> Unit) {
                 ) {
                     Text(
                         text = stringResource(R.string.newer_db_title),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MiuixTheme.textStyles.title3,
                         textAlign = TextAlign.Center,
                     )
                     Text(
                         text = stringResource(R.string.newer_db_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         textAlign = TextAlign.Center,
                     )
                     // Concrete numbers, because "a newer version" alone leaves
@@ -66,8 +67,8 @@ fun NewerDatabaseGuidanceScreen(onExit: () -> Unit) {
                             R.string.newer_db_versions,
                             DatabaseVersionGuard.CODE_DB_VERSION,
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         textAlign = TextAlign.Center,
                     )
                     Button(onClick = onExit, modifier = Modifier.fillMaxWidth()) {

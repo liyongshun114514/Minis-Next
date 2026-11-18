@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.icu.text.MeasureFormat
 import android.icu.util.Measure
 import android.icu.util.MeasureUnit
@@ -26,13 +27,12 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -209,7 +209,7 @@ internal fun ScheduledTaskPill(currentSessionId: () -> String) {
                     confirmCancelAll = false
                     val n = manager.disableAllCreatedBy(sessionId, "user cancelled all from the timer pill")
                     AppLogger.info("SchedPill", "cancel all session=${sessionId.take(8)} cancelled=$n")
-                }) { Text(stringResource(R.string.sched_pill_cancel_all_confirm), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.sched_pill_cancel_all_confirm), color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmCancelAll = false }) { Text(stringResource(R.string.sched_pill_not_now)) }
@@ -260,7 +260,7 @@ private fun PillCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .shadow(6.dp, CircleShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.08f), spotColor = Color.Black.copy(alpha = 0.08f))
-                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .background(MiuixTheme.colorScheme.surface, CircleShape)
                     .background(ScheduledAccent.copy(alpha = 0.06f), CircleShape)
                     .border(0.75.dp, ScheduledAccent.copy(alpha = 0.28f), CircleShape)
                     .combinedClickable(
@@ -345,8 +345,8 @@ private fun PillCard(
                     onClick = { menuOpen = false; onHide() },
                 )
                 DropdownMenuItem(
-                    text = { Text(cancelLabel, color = MaterialTheme.colorScheme.error) },
-                    leadingIcon = { Icon(Icons.Outlined.Cancel, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    text = { Text(cancelLabel, color = MiuixTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Outlined.Cancel, contentDescription = null, tint = MiuixTheme.colorScheme.error) },
                     onClick = { menuOpen = false; onCancelAll() },
                 )
             }

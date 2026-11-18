@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -15,9 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,12 +93,12 @@ internal fun LargeContentBadge(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 RoundedCornerShape(12.dp),
             )
             .border(
                 0.5.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                MiuixTheme.colorScheme.outline.copy(alpha = 0.4f),
                 RoundedCornerShape(12.dp),
             )
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -110,8 +110,8 @@ internal fun LargeContentBadge(
         }
         Text(
             text = preview,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.85f),
         )
 
         Row(
@@ -121,8 +121,8 @@ internal fun LargeContentBadge(
         ) {
             Text(
                 text = stringResource(R.string.chat_message_large_collapsed_title, sizeLabel),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(end = 8.dp),
             )
 
@@ -143,7 +143,7 @@ internal fun LargeContentBadge(
                 )
                 Text(
                     text = stringResource(R.string.chat_message_large_expand),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
@@ -170,7 +170,7 @@ internal fun LargeContentBadge(
                 )
                 Text(
                     text = stringResource(R.string.chat_message_large_export),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MiuixTheme.textStyles.button,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
@@ -328,8 +328,8 @@ private fun DegradedStreamingTail(content: String) {
             } else {
                 content
             },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
@@ -24,12 +25,11 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,7 +107,7 @@ fun BackupHistoryDetailScreen(
                 Icon(
                     Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.backup_history_remove),
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = MiuixTheme.colorScheme.error,
                 )
             }
         },
@@ -174,8 +174,8 @@ fun BackupHistoryDetailScreen(
                 ?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.error,
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                     )
                 }
@@ -202,8 +202,8 @@ fun BackupHistoryDetailScreen(
             if (record.log.isEmpty()) {
                 Text(
                     stringResource(R.string.backup_history_no_log),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.fillMaxWidth().padding(14.dp),
                 )
             } else {
@@ -222,8 +222,8 @@ fun BackupHistoryDetailScreen(
                 if (folded > 0) {
                     Text(
                         stringResource(R.string.backup_history_log_show_all, entries.size),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.primary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { showAllLog = true }
@@ -259,7 +259,7 @@ fun BackupHistoryDetailScreen(
                                 if (canDeleteFiles) R.string.backup_history_remove_record_only
                                 else R.string.backup_history_remove,
                             ),
-                            color = MaterialTheme.colorScheme.error,
+                            color = MiuixTheme.colorScheme.error,
                         )
                     }
                     if (canDeleteFiles) {
@@ -268,7 +268,7 @@ fun BackupHistoryDetailScreen(
                         ) {
                             Text(
                                 stringResource(R.string.backup_history_remove_with_files),
-                                color = MaterialTheme.colorScheme.error,
+                                color = MiuixTheme.colorScheme.error,
                             )
                         }
                     }
@@ -334,7 +334,7 @@ fun BackupHistoryDetailScreen(
                 ) {
                     Text(
                         stringResource(R.string.backup_delete_files_confirm_action),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -403,7 +403,7 @@ private fun DetailRow(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(label, style = MiuixTheme.textStyles.main)
             Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                 when {
@@ -413,8 +413,8 @@ private fun DetailRow(
                     // trailing column.
                     value != null -> Text(
                         value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         textAlign = TextAlign.End,
                     )
                 }
@@ -424,7 +424,7 @@ private fun DetailRow(
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -438,7 +438,7 @@ private fun DetailRow(
 private fun StatusValue(status: BackupHistory.Status) {
     val (icon, tint, textRes) = when (status) {
         BackupHistory.Status.RUNNING ->
-            Triple(null, MaterialTheme.colorScheme.onSurfaceVariant, R.string.backup_history_running)
+            Triple(null, MiuixTheme.colorScheme.onSurfaceContainerVariant, R.string.backup_history_running)
         BackupHistory.Status.SUCCEEDED ->
             Triple(Icons.Outlined.CheckCircle, Color(0xFF34C759), R.string.backup_status_succeeded)
         BackupHistory.Status.COMPLETED_WITH_ISSUES ->
@@ -453,7 +453,7 @@ private fun StatusValue(status: BackupHistory.Status) {
             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
         }
         Spacer(Modifier.width(6.dp))
-        Text(stringResource(textRes), style = MaterialTheme.typography.bodyMedium, color = tint)
+        Text(stringResource(textRes), style = MiuixTheme.textStyles.body1, color = tint)
     }
 }
 
@@ -481,15 +481,15 @@ private fun DestinationOutcomeRow(
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(outcome.name, style = MaterialTheme.typography.bodyLarge)
+                Text(outcome.name, style = MiuixTheme.textStyles.main)
                 // The saved name alone ("HomeLab") does not say WHERE the file
                 // went. Backend + folder underneath, so someone opening a
                 // months-old record can find the package by hand.
                 destinationSubtitle(outcome)?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         maxLines = 1,
                         overflow = TextOverflow.MiddleEllipsis,
                     )
@@ -497,9 +497,9 @@ private fun DestinationOutcomeRow(
                 outcome.detail?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (outcome.succeeded) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.body2,
+                        color = if (outcome.succeeded) MiuixTheme.colorScheme.onSurfaceContainerVariant
+                        else MiuixTheme.colorScheme.error,
                     )
                 }
             }
@@ -507,7 +507,7 @@ private fun DestinationOutcomeRow(
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -529,8 +529,8 @@ private fun LogRow(entry: BackupHistory.LogEntry, showDivider: Boolean) {
         ) {
             Text(
                 formatTimeOnly(entry.at),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Text(
                 // [T-android-backup-log-sanitize] A cleaned record keeps one
@@ -538,9 +538,9 @@ private fun LogRow(entry: BackupHistory.LogEntry, showDivider: Boolean) {
                 com.openminis.app.backup.BackupLogRules.omittedCount(entry)
                     ?.let { stringResource(R.string.backup_history_log_omitted, it) }
                     ?: entry.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (entry.isProblem) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body2,
+                color = if (entry.isProblem) MiuixTheme.colorScheme.error
+                else MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -552,7 +552,7 @@ private fun LogRow(entry: BackupHistory.LogEntry, showDivider: Boolean) {
 private fun RowDivider(inset: androidx.compose.ui.unit.Dp) {
     Box(
         Modifier.fillMaxWidth().padding(start = inset)
-            .height(0.5.dp).background(MaterialTheme.colorScheme.outlineVariant),
+            .height(0.5.dp).background(MiuixTheme.colorScheme.dividerLine),
     )
 }
 

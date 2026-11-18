@@ -1,12 +1,12 @@
 package com.openminis.app.ui.util
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -47,7 +47,7 @@ fun Modifier.expandToggleClickable(
 ): Modifier = composed {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val tint = if (pressed) MaterialTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA) else Color.Transparent
+    val tint = if (pressed) MiuixTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA) else Color.Transparent
     val base = this.background(tint, pressedShape)
     if (onLongClick == null) {
         base.clickable(

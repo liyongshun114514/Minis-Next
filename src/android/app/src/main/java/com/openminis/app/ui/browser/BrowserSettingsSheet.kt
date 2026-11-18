@@ -1,5 +1,6 @@
 package com.openminis.app.ui.browser
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.res.stringResource
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -27,18 +28,16 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -69,7 +68,6 @@ import com.openminis.app.browser.SiteCookieCleaner
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.util.bringIntoViewOnFocus
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserSettingsSheet(
     tabPool: BrowserTabPool,
@@ -161,7 +159,7 @@ fun BrowserSettingsSheet(
             ) {
                 Text(
                     stringResource(R.string.browser_settings_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -173,7 +171,7 @@ fun BrowserSettingsSheet(
             // ── User Agent ──
             Text(
                 stringResource(R.string.browser_settings_user_agent),
-                style = MaterialTheme.typography.titleSmall,
+                style = MiuixTheme.textStyles.subtitle,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(8.dp))
@@ -203,12 +201,12 @@ fun BrowserSettingsSheet(
                         },
                     )
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                        Text(label, style = MiuixTheme.textStyles.body1)
                         Text(
                             uaSubtitle,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MiuixTheme.textStyles.footnote2,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -226,7 +224,7 @@ fun BrowserSettingsSheet(
                     label = { Text(stringResource(R.string.browser_settings_custom_ua_label)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     singleLine = false,
-                    textStyle = MaterialTheme.typography.bodySmall,
+                    textStyle = MiuixTheme.textStyles.body2,
                 )
                 MinisTextButton(onClick = {
                     tabPool.setUserAgentFromUI(UserAgentProfile.CUSTOM, customUA)
@@ -307,7 +305,7 @@ fun BrowserSettingsSheet(
             // ── Idle Tab Eviction ──
             Text(
                 stringResource(R.string.browser_settings_idle_timeout),
-                style = MaterialTheme.typography.titleSmall,
+                style = MiuixTheme.textStyles.subtitle,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(4.dp))
@@ -315,8 +313,8 @@ fun BrowserSettingsSheet(
                 stringResource(R.string.browser_settings_idle_timeout_desc) + " " +
                     "(default ${BrowserTabPool.DEFAULT_IDLE_TIMEOUT_MINUTES}, range " +
                     "${BrowserTabPool.MIN_IDLE_TIMEOUT_MINUTES}–${BrowserTabPool.MAX_IDLE_TIMEOUT_MINUTES}).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,7 +328,7 @@ fun BrowserSettingsSheet(
                     // scroll-into-view it sits behind the soft keyboard
                     // every time the user taps it.
                     modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
-                    textStyle = MaterialTheme.typography.bodyMedium,
+                    textStyle = MiuixTheme.textStyles.body1,
                 )
                 Spacer(Modifier.size(8.dp))
                 MinisTextButton(
@@ -351,7 +349,7 @@ fun BrowserSettingsSheet(
             // ── Cookies & Website Data ──
             Text(
                 stringResource(R.string.browser_settings_cookies_title),
-                style = MaterialTheme.typography.titleSmall,
+                style = MiuixTheme.textStyles.subtitle,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(8.dp))
@@ -371,7 +369,7 @@ fun BrowserSettingsSheet(
                     label = { Text(stringResource(R.string.browser_settings_filter_by_domain)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    textStyle = MaterialTheme.typography.bodySmall,
+                    textStyle = MiuixTheme.textStyles.body2,
                 )
             }
 
@@ -384,8 +382,8 @@ fun BrowserSettingsSheet(
                         hasCookies -> stringResource(R.string.browser_settings_cookies_stored)
                         else -> stringResource(R.string.browser_settings_no_cookies)
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             } else {
                 LazyColumn(modifier = Modifier.height((domains.size.coerceAtMost(6) * 44).dp)) {
@@ -396,7 +394,7 @@ fun BrowserSettingsSheet(
                         ) {
                             Text(
                                 domain,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MiuixTheme.textStyles.body1,
                                 modifier = Modifier.weight(1f),
                             )
                             IconButton(
@@ -415,7 +413,7 @@ fun BrowserSettingsSheet(
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = stringResource(R.string.browser_settings_clear_cookies_for, domain),
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = MiuixTheme.colorScheme.error,
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -427,8 +425,8 @@ fun BrowserSettingsSheet(
             cookieDeleteFailed?.let { failed ->
                 Text(
                     stringResource(R.string.browser_settings_clear_cookies_for_failed, failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -439,7 +437,7 @@ fun BrowserSettingsSheet(
                 onClick = { showClearConfirm = true },
                 enabled = hasCookies,
             ) {
-                Text(stringResource(R.string.browser_settings_clear_all_cookies), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.browser_settings_clear_all_cookies), color = MiuixTheme.colorScheme.error)
             }
         }
     }
@@ -467,7 +465,7 @@ fun BrowserSettingsSheet(
                         }
                     }
                 }) {
-                    Text(stringResource(R.string.browser_settings_clear), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.browser_settings_clear), color = MiuixTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -535,7 +533,7 @@ private fun ViewportSection(
 ) {
     Text(
         "Web Viewport",
-        style = MaterialTheme.typography.titleSmall,
+        style = MiuixTheme.textStyles.subtitle,
         fontWeight = FontWeight.SemiBold,
     )
     Spacer(Modifier.height(8.dp))
@@ -552,12 +550,12 @@ private fun ViewportSection(
             onClick = onSelectDefault,
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text("Default (auto by UA)", style = MaterialTheme.typography.bodyMedium)
+            Text("Default (auto by UA)", style = MiuixTheme.textStyles.body1)
             val (uaW, uaH) = selectedProfile.viewportSize
             Text(
                 "${uaW} × $uaH",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }
@@ -574,11 +572,11 @@ private fun ViewportSection(
             onClick = onSelectCustom,
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text("Custom", style = MaterialTheme.typography.bodyMedium)
+            Text("Custom", style = MiuixTheme.textStyles.body1)
             Text(
                 "Set your own width × height",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }
@@ -599,11 +597,11 @@ private fun ViewportSection(
                 // scroll-into-view so the soft keyboard doesn't cover
                 // the Custom viewport editor.
                 modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
             Spacer(Modifier.size(8.dp))
-            Text("×", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("×", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             Spacer(Modifier.size(8.dp))
             OutlinedTextField(
                 value = heightText,
@@ -613,7 +611,7 @@ private fun ViewportSection(
                 // [T-android-browser-settings-keyboard-overlap] focus →
                 // scroll-into-view; mirrors the Width field.
                 modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
             Spacer(Modifier.size(8.dp))
@@ -630,8 +628,8 @@ private fun ViewportSection(
         Spacer(Modifier.height(12.dp))
         Text(
             "Quick Set",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Spacer(Modifier.height(6.dp))
         Row(
@@ -644,14 +642,14 @@ private fun ViewportSection(
             for ((label, w, h) in viewportPresets) {
                 val active = widthText.toIntOrNull() == w && heightText.toIntOrNull() == h
                 val bg = if (active) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.18f)
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                    MiuixTheme.colorScheme.surfaceVariant
                 }
                 val fg = if (active) {
-                    MaterialTheme.colorScheme.primary
+                    MiuixTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                 }
                 Surface(
                     modifier = Modifier
@@ -665,13 +663,13 @@ private fun ViewportSection(
                     ) {
                         Text(
                             label,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MiuixTheme.textStyles.body2,
                             color = fg,
                             fontWeight = FontWeight.Medium,
                         )
                         Text(
                             "$w × $h",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MiuixTheme.textStyles.footnote2,
                             color = fg,
                             fontFamily = FontFamily.Monospace,
                         )
@@ -689,8 +687,8 @@ private fun ViewportSection(
         } else {
             "Using UA default $resW × $resH. Set a custom size to override."
         },
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.body2,
+        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
     )
 }
 
@@ -717,7 +715,7 @@ private fun UaMismatchBanner(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
+            .background(MiuixTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
             .padding(8.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -725,13 +723,13 @@ private fun UaMismatchBanner(message: String) {
             Icons.Filled.Warning,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.tertiary,
+            tint = MiuixTheme.colorScheme.primary,
         )
         Spacer(Modifier.size(8.dp))
         Text(
             message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -138,10 +139,9 @@ import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ripple
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Switch
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Switch
 import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
@@ -163,23 +163,20 @@ import androidx.compose.material.icons.outlined.Delete
 import com.openminis.app.ui.components.MinisIcons
 import com.openminis.app.ui.components.MenuItemIcon
 import com.openminis.app.ui.components.MinisMenuDivider
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -275,10 +272,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -514,7 +510,7 @@ private data class ScrollFollowKey(
     val blockSig: Long,
 )
 
-@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class, ExperimentalLayoutApi::class)
+@OptIn(kotlinx.coroutines.FlowPreview::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     sessionId: String,
@@ -3235,13 +3231,13 @@ fun ChatScreen(
                             MinisMenuDivider()
                             // Clear Chat (iOS parity, red)
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_menu_clear_chat), color = MaterialTheme.colorScheme.error) },
+                                text = { Text(stringResource(R.string.chat_menu_clear_chat), color = MiuixTheme.colorScheme.error) },
                                 onClick = {
                                     showChatMenu = false
                                     showClearChatDialog = true
                                 },
                                 leadingIcon = {
-                                    MenuItemIcon(Icons.Outlined.Delete, tint = MaterialTheme.colorScheme.error)
+                                    MenuItemIcon(Icons.Outlined.Delete, tint = MiuixTheme.colorScheme.error)
                                 },
                             )
                             MinisMenuDivider()
@@ -3411,13 +3407,13 @@ fun ChatScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 speedTierLabel(shownSpeedTier),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = MiuixTheme.textStyles.body1,
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                             )
                                             Icon(
                                                 Icons.Default.ChevronRight,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                                 modifier = Modifier.size(18.dp),
                                             )
                                         }
@@ -3471,7 +3467,7 @@ fun ChatScreen(
                                     text = {
                                         Text(
                                             stringResource(R.string.debug_trigger_crash_menu),
-                                            color = MaterialTheme.colorScheme.error,
+                                            color = MiuixTheme.colorScheme.error,
                                         )
                                     },
                                     onClick = {
@@ -3483,7 +3479,7 @@ fun ChatScreen(
                                     leadingIcon = {
                                         MenuItemIcon(
                                             Icons.Outlined.BugReport,
-                                            tint = MaterialTheme.colorScheme.error,
+                                            tint = MiuixTheme.colorScheme.error,
                                         )
                                     },
                                 )
@@ -3510,7 +3506,7 @@ fun ChatScreen(
                                             Icon(
                                                 Icons.Default.Check,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
+                                                tint = MiuixTheme.colorScheme.primary,
                                                 modifier = Modifier.size(18.dp),
                                             )
                                         }
@@ -3521,7 +3517,7 @@ fun ChatScreen(
                     }
                 },
                 windowInsets = WindowInsets.statusBars,
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                colors = com.openminis.app.ui.components.miuix.TopAppBarDefaults.topAppBarColors(
                     containerColor = ChatColors.background.copy(alpha = 0.92f),
                     scrolledContainerColor = ChatColors.background.copy(alpha = 0.92f),
                 ),
@@ -5145,7 +5141,7 @@ fun ChatScreen(
                                 Text(
                                     text = stringResource(R.string.chat_load_older_messages),
                                     color = ChatColors.secondaryText,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MiuixTheme.textStyles.body2,
                                 )
                             }
                         }
@@ -5360,13 +5356,13 @@ fun ChatScreen(
                         Column(Modifier.fillMaxWidth().heightIn(max = sheetMaxHeight).padding(bottom = 24.dp)) {
                             Text(
                                 stringResource(R.string.subagent_status_title),
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MiuixTheme.textStyles.title3,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                             )
                             Text(
                                 stringResource(R.string.subagent_status_counts, subAgentStatusActiveCount(statusJobs), statusJobs.size),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
                             )
                             SubAgentStatusPanel(
@@ -5514,7 +5510,7 @@ fun ChatScreen(
                 // than jumping to the oldest message.
                 if (messages.isNotEmpty() && !isNearBottom.value) {
                     val upBaseBottom = scrollControlsBottom
-                    androidx.compose.material3.FilledIconButton(
+                    com.openminis.app.ui.components.miuix.FilledIconButton(
                         onClick = {
                             // [T-android-updown-fab-asymmetry] Arm the same flag a
                             // finger-drag would. The down-button is gated on
@@ -5537,7 +5533,7 @@ fun ChatScreen(
                             .padding(end = 12.dp + fabEndInset, bottom = upBaseBottom + 46.dp)
                             .shadow(4.dp, CircleShape)
                             .size(36.dp),
-                        colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                        colors = com.openminis.app.ui.components.miuix.IconButtonDefaults.filledIconButtonColors(
                             containerColor = ChatColors.inputBg,
                             contentColor = ChatColors.primaryText,
                         ),
@@ -5556,7 +5552,7 @@ fun ChatScreen(
 
                 if (userScrolledAway && contentOverflows.value && messages.isNotEmpty()) {
                     val fabBottomPadding = scrollControlsBottom
-                    androidx.compose.material3.FilledIconButton(
+                    com.openminis.app.ui.components.miuix.FilledIconButton(
                         onClick = {
                             // [T-android-scroll-fab-down-stuck] Clear the
                             // scrolled-away intent SYNCHRONOUSLY on tap — that
@@ -5589,7 +5585,7 @@ fun ChatScreen(
                             .padding(end = 12.dp + fabEndInset, bottom = fabBottomPadding)
                             .shadow(4.dp, CircleShape)
                             .size(36.dp),
-                        colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                        colors = com.openminis.app.ui.components.miuix.IconButtonDefaults.filledIconButtonColors(
                             containerColor = ChatColors.inputBg,
                             contentColor = ChatColors.primaryText,
                         ),
@@ -5975,7 +5971,7 @@ fun ChatScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     if (isMentionScanning) {
-                                        androidx.compose.material3.CircularProgressIndicator(
+                                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
                                             modifier = Modifier.size(14.dp),
                                             strokeWidth = 1.5.dp,
                                             color = ChatColors.secondaryText,
@@ -6034,7 +6030,7 @@ fun ChatScreen(
                                                 .fillMaxWidth()
                                                 .background(
                                                     if (isSelected) {
-                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)
                                                     } else {
                                                         Color.Transparent
                                                     },
@@ -6333,7 +6329,7 @@ fun ChatScreen(
                                 dismissOnClickOutside = false,
                             ),
                         ) {
-                            androidx.compose.material3.Surface(
+                            top.yukonga.miuix.kmp.basic.Surface(
                                 shape = androidx.compose.foundation.shape.CircleShape,
                                 // Mirrors iOS .ultraThinMaterial — solid-
                                 // looking pill against the input bg.
@@ -6341,9 +6337,9 @@ fun ChatScreen(
                                 // washed out into the input card on the
                                 // light theme, which is why it stopped
                                 // reading as a pill.
-                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                color = MiuixTheme.colorScheme.surfaceVariant,
                                 shadowElevation = 0.dp,
-                                tonalElevation = 0.dp,
+
                                 border = androidx.compose.foundation.BorderStroke(
                                     0.5.dp,
                                     ChatColors.thumbnailBorder,
@@ -6752,9 +6748,9 @@ fun ChatScreen(
                         LaunchedEffect(imeVisible) {
                             if (imeVisible) onComposerVisit(usageLifecycle.onImeShown())
                         }
-                        val mergedTextStyle = MaterialTheme.typography.bodyMedium.copy(
+                        val mergedTextStyle = MiuixTheme.textStyles.body1.copy(
                             fontSize = 16.5.sp * chatInputFontScale,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MiuixTheme.colorScheme.onSurface,
                         )
                         // [T-android-enter-to-send-broken] Live read of the
                         // "Return key sends" preference. Bound here (not
@@ -7093,7 +7089,7 @@ fun ChatScreen(
                                     } else false
                                 },
                             textStyle = mergedTextStyle,
-                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MiuixTheme.colorScheme.primary),
                             maxLines = 6,
                             // [T-android-enter-to-send-broken] When the
                             // user has Return-Key=Send turned on, ask the
@@ -7167,14 +7163,14 @@ fun ChatScreen(
                                                     hint = shownHint,
                                                     page = shownHint.pages().getOrElse((-1 - key) % 2) { UsageHintPage.CONTEXT },
                                                     fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                                                 )
                                             } else if (poolPage != null && contextUsageHint != null) {
                                                 UsageHintPageText(
                                                     hint = contextUsageHint!!,
                                                     page = poolPage,
                                                     fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                                                 )
                                             } else {
                                                 Text(
@@ -7182,7 +7178,7 @@ fun ChatScreen(
                                                         ComposerPlaceholderPool.textIndex(key),
                                                         soulName.name,
                                                     ),
-                                                    color = MaterialTheme.colorScheme.onSurface
+                                                    color = MiuixTheme.colorScheme.onSurface
                                                         .copy(alpha = 0.25f),
                                                     fontSize = 16.5.sp * chatInputFontScale,
                                                     maxLines = 1,
@@ -7238,7 +7234,7 @@ fun ChatScreen(
                                 Icon(
                                     Icons.Default.Add,
                                     contentDescription = "Attach",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -7386,7 +7382,7 @@ fun ChatScreen(
                             ) {
                                 Text(
                                     text = stringResource(R.string.chat_edit_exit_button),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MiuixTheme.textStyles.footnote1,
                                     color = ChatColors.secondaryText,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 )
@@ -7577,7 +7573,7 @@ fun ChatScreen(
                                     .wrapContentWidth()
                                     .clip(RoundedCornerShape(50))
                                     .background(
-                                        if (ttsEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        if (ttsEnabled) MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
                                         else ChatColors.secondaryText.copy(alpha = 0.10f),
                                     )
                                     .clickable {
@@ -7598,7 +7594,7 @@ fun ChatScreen(
                                     if (readReplies) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
-                                    tint = if (ttsEnabled) MaterialTheme.colorScheme.primary else ChatColors.secondaryText,
+                                    tint = if (ttsEnabled) MiuixTheme.colorScheme.primary else ChatColors.secondaryText,
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
@@ -7626,7 +7622,7 @@ fun ChatScreen(
                                             trim = LineHeightStyle.Trim.None,
                                         ),
                                     ),
-                                    color = if (ttsEnabled) MaterialTheme.colorScheme.primary else ChatColors.secondaryText,
+                                    color = if (ttsEnabled) MiuixTheme.colorScheme.primary else ChatColors.secondaryText,
                                 )
                             }
                             // [T-android-streaming-readaloud] Speak the reply AS
@@ -8536,14 +8532,14 @@ private fun ThinkingLevelBadge(
 ) {
     val context = LocalContext.current
     // Secondary grey for icon + label (iOS secondaryText parity) — no accent.
-    val badgeColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val badgeColor = MiuixTheme.colorScheme.onSurfaceContainerVariant
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             // Faint translucent-grey capsule (iOS Color.secondary.opacity(0.10)).
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
             // Own clickable → consumes the tap, opens the thinking sheet.
             .clickable(onClick = onClick)
             .padding(horizontal = 5.dp, vertical = 1.dp),
@@ -8576,7 +8572,6 @@ private fun ThinkingLevelBadge(
  * levels can be compared; the explicit OK button closes the sheet and the sheet
  * can still be dismissed by swipe/back/outside tap.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ThinkingLevelSheet(
     currentLevel: com.openminis.app.data.model.ThinkingLevel,

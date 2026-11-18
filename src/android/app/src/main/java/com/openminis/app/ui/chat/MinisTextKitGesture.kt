@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,9 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -683,7 +683,7 @@ private fun SelectionHandleDot(
     listState: LazyListState,
     reverseLayout: Boolean,
 ) {
-    val color = MaterialTheme.colorScheme.primary
+    val color = MiuixTheme.colorScheme.primary
     val density = androidx.compose.ui.platform.LocalDensity.current
     val dotPx = with(density) { (HANDLE_DOT_SIZE_DP / 2).toPx() }
     val hitPx = with(density) { HANDLE_HIT_SIZE_DP.toPx() }
@@ -1024,7 +1024,7 @@ fun MinisSelectionToolbarHost(
         // [T-android-text-toolbar-dark-visibility] Elevated container colour +
         // border + stronger shadow so the bar pops out of the chat background
         // in dark mode (bare `surface` was nearly invisible there).
-        val barColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        val barColor = MiuixTheme.colorScheme.surfaceContainerHigh
         // [T-android-table-toolbar-overflow] Cap the bar to the screen width so
         // it can't spill past the edge. A table selection appends Copy Table /
         // Copy Table Image to an already-long row (Copy · Add to Input · Read
@@ -1042,11 +1042,11 @@ fun MinisSelectionToolbarHost(
             modifier = Modifier.widthIn(max = maxBarWidth),
             shape = RoundedCornerShape(10.dp),
             color = barColor,
-            tonalElevation = 3.dp,
+
             shadowElevation = 8.dp,
             border = androidx.compose.foundation.BorderStroke(
                 0.5.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f),
             ),
         ) {
             // Make the action row horizontally scrollable so it survives
@@ -1286,7 +1286,7 @@ fun MinisSelectionToolbarHost(
                 // Each label is measured in the button's own style, plus its
                 // padding and divider, against the capped bar width.
                 val toolbarMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
-                val buttonStyle = MaterialTheme.typography.labelLarge
+                val buttonStyle = MiuixTheme.textStyles.button
                 val buttonPadPx = with(density) { (14.dp * 2 + 1.dp).toPx() }
                 fun buttonWidth(label: String): Float =
                     toolbarMeasurer.measure(label, buttonStyle, maxLines = 1, softWrap = false)
@@ -1353,12 +1353,12 @@ fun MinisSelectionToolbarHost(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    tonalElevation = 3.dp,
+                                    color = MiuixTheme.colorScheme.surfaceContainerHigh,
+
                                     shadowElevation = 8.dp,
                                     border = BorderStroke(
                                         0.5.dp,
-                                        MaterialTheme.colorScheme.outlineVariant
+                                        MiuixTheme.colorScheme.dividerLine
                                             .copy(alpha = 0.6f),
                                     ),
                                 ) {
@@ -1366,8 +1366,8 @@ fun MinisSelectionToolbarHost(
                                         for (child in item.children) {
                                             Text(
                                                 child.label,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = MiuixTheme.textStyles.body1,
+                                                color = MiuixTheme.colorScheme.onSurface,
                                                 maxLines = 1,
                                                 softWrap = false,
                                                 modifier = Modifier
@@ -1454,12 +1454,12 @@ fun MinisSelectionToolbarHost(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                tonalElevation = 3.dp,
+                                color = MiuixTheme.colorScheme.surfaceContainerHigh,
+
                                 shadowElevation = 8.dp,
                                 border = androidx.compose.foundation.BorderStroke(
                                     0.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                                    MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f),
                                 ),
                             ) {
                                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -1482,8 +1482,8 @@ fun MinisSelectionToolbarHost(
                                             } else {
                                                 item.label
                                             },
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MiuixTheme.textStyles.body1,
+                                            color = MiuixTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                             softWrap = false,
                                             modifier = Modifier
@@ -1504,8 +1504,8 @@ fun MinisSelectionToolbarHost(
                                             for (child in item.children) {
                                                 Text(
                                                     child.label,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    style = MiuixTheme.textStyles.body1,
+                                                    color = MiuixTheme.colorScheme.onSurface,
                                                     maxLines = 1,
                                                     softWrap = false,
                                                     modifier = Modifier
@@ -1593,7 +1593,7 @@ private fun MinisToolbarDivider() {
             .padding(vertical = 8.dp)
             .width(0.5.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f)),
     )
 }
 
@@ -1605,8 +1605,8 @@ private fun MinisToolbarButton(
 ) {
     Text(
         text = label,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = MiuixTheme.textStyles.button,
+        color = MiuixTheme.colorScheme.onSurface,
         maxLines = 1,
         softWrap = false,
         modifier = modifier

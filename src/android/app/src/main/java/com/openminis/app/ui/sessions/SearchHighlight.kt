@@ -1,6 +1,6 @@
 package com.openminis.app.ui.sessions
 
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -29,8 +29,8 @@ import com.openminis.app.data.repository.SessionSearch
 @Composable
 fun highlightedAnnotatedString(text: String, query: String): AnnotatedString {
     if (query.isBlank() || text.isEmpty()) return AnnotatedString(text)
-    val highlightBg = MaterialTheme.colorScheme.tertiaryContainer
-    val highlightFg = MaterialTheme.colorScheme.onTertiaryContainer
+    val highlightBg = MiuixTheme.colorScheme.secondaryContainer
+    val highlightFg = MiuixTheme.colorScheme.onSecondaryContainer
     val ranges = SessionSearch.hitRanges(text, SessionSearch.searchTerms(query))
     if (ranges.isEmpty()) return AnnotatedString(text)
     return buildAnnotatedString {

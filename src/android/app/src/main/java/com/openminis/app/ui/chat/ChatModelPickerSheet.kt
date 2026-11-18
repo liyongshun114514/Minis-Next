@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] ModelPickerSheet (+ its private helpers fuzzyMatch /
 // providerDotColor) extracted verbatim from ChatScreen.kt. Full import block
 // copied from ChatScreen.kt (unused imports are warnings, not errors);
@@ -137,8 +138,8 @@ import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
@@ -146,25 +147,22 @@ import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ExperimentalMaterial3Api
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.openminis.app.ui.components.rememberSheetScrollGuard
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -248,10 +246,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -282,7 +279,6 @@ import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.MinisTextButton
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ModelPickerSheet(
     groups: List<ModelGroup>,
@@ -443,7 +439,7 @@ internal fun ModelPickerSheet(
                 Spacer(Modifier.weight(1f))
                 Text(
                     stringResource(R.string.model_picker_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
@@ -474,10 +470,10 @@ internal fun ModelPickerSheet(
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .height(42.dp),
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
+                textStyle = MiuixTheme.textStyles.body1.copy(
+                    color = MiuixTheme.colorScheme.onSurface,
                 ),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(MiuixTheme.colorScheme.primary),
                 interactionSource = searchInteraction,
                 decorationBox = { innerTextField ->
                     OutlinedTextFieldDefaults.DecorationBox(
@@ -491,7 +487,7 @@ internal fun ModelPickerSheet(
                                 Icons.Default.Search,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         },
                         trailingIcon = {
@@ -589,7 +585,7 @@ internal fun ModelPickerSheet(
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    MiuixTheme.colorScheme.surfaceContainerHigh,
                                     RoundedCornerShape(14.dp),
                                 ),
                         ) {
@@ -612,9 +608,9 @@ internal fun ModelPickerSheet(
                                     // read as the weaker of the two and the
                                     // hierarchy inverted. titleMedium (16sp) +
                                     // SemiBold puts it a step above.
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MiuixTheme.textStyles.headline1,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(start = 16.dp, top = 14.dp, bottom = 6.dp),
@@ -683,7 +679,7 @@ internal fun ModelPickerSheet(
                                         if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                         contentDescription = null,
                                         tint = if (isSelected) Color(0xFF34C759)
-                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                        else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                         modifier = Modifier.size(22.dp),
                                     )
                                     Spacer(Modifier.width(10.dp))
@@ -706,7 +702,7 @@ internal fun ModelPickerSheet(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 group.name,
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                style = MiuixTheme.textStyles.body1,
                                                 fontWeight = FontWeight.SemiBold,
                                             )
                                             Spacer(Modifier.width(6.dp))
@@ -715,7 +711,7 @@ internal fun ModelPickerSheet(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier
                                                     .background(
-                                                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        MiuixTheme.colorScheme.surfaceContainerHigh,
                                                         RoundedCornerShape(8.dp),
                                                     )
                                                     .padding(horizontal = 5.dp, vertical = 1.dp),
@@ -726,14 +722,14 @@ internal fun ModelPickerSheet(
                                                     else Icons.Default.AccountTree,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(9.dp),
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                                                 )
                                                 Spacer(Modifier.width(2.dp))
                                                 Text(
                                                     strategyLabel,
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                                                 )
                                             }
                                         }
@@ -741,20 +737,20 @@ internal fun ModelPickerSheet(
                                         if (resolvedEntry != null) {
                                             Text(
                                                 "→ ${resolvedEntry.model.displayName}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                style = MiuixTheme.textStyles.body2,
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                                             )
                                         } else if (resolvedCount > 0) {
                                             Text(
                                                 pluralStringResource(R.plurals.model_picker_models_count, resolvedCount, resolvedCount),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                                style = MiuixTheme.textStyles.body2,
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                             )
                                         } else {
                                             Text(
                                                 stringResource(R.string.model_picker_models_count_unlinked, group.memberEntryIds.size),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                style = MiuixTheme.textStyles.body2,
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                                             )
                                         }
                                     }
@@ -813,7 +809,7 @@ internal fun ModelPickerSheet(
                                         modifier = Modifier
                                             .size(24.dp)
                                             .background(
-                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                                                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                                                 CircleShape,
                                             )
                                             .clip(CircleShape)
@@ -830,7 +826,7 @@ internal fun ModelPickerSheet(
                                             if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                         )
                                     }
                                 }
@@ -851,8 +847,8 @@ internal fun ModelPickerSheet(
                                     if (displayMembers.isEmpty()) {
                                         Text(
                                             stringResource(R.string.model_picker_no_linked_models),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                             modifier = Modifier.padding(start = 48.dp, top = 4.dp, bottom = 8.dp),
                                         )
                                     }
@@ -874,7 +870,7 @@ internal fun ModelPickerSheet(
                                                 HorizontalDivider(
                                                     modifier = Modifier.padding(start = 72.dp, end = 16.dp),
                                                     thickness = 0.5.dp,
-                                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                                    color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                                                 )
                                             }
                                             val isActive = activeEntryId == entry.id
@@ -890,7 +886,7 @@ internal fun ModelPickerSheet(
                                                     if (isActive) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                     contentDescription = null,
                                                     tint = if (isActive) Color(0xFF007AFF)
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                                    else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.2f),
                                                     modifier = Modifier.size(17.dp),
                                                 )
                                                 Spacer(Modifier.width(10.dp))
@@ -922,20 +918,20 @@ internal fun ModelPickerSheet(
                                                         if (instance != null) {
                                                             Text(
                                                                 instance.label.ifEmpty { instance.providerType.displayName },
-                                                                style = MaterialTheme.typography.labelSmall,
+                                                                style = MiuixTheme.textStyles.footnote2,
                                                                 fontWeight = FontWeight.Medium,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.7f),
                                                             )
                                                             Text(
                                                                 " · ",
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                                style = MiuixTheme.textStyles.footnote2,
+                                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                                                             )
                                                         }
                                                         Text(
                                                             entry.model.id,
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                            style = MiuixTheme.textStyles.footnote2,
+                                                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
                                                         )
                                                     }
                                                 }
@@ -949,7 +945,7 @@ internal fun ModelPickerSheet(
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 48.dp, end = 16.dp),
                                         thickness = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                                     )
                                 }
                             }
@@ -960,8 +956,8 @@ internal fun ModelPickerSheet(
                         item {
                             Text(
                                 stringResource(R.string.model_picker_groups_footer),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                 // T236: hint sits between Model Groups card and
                                 // first Provider card — top 8 hugs the group
                                 // card, bottom 12 separates from the next card.
@@ -991,7 +987,7 @@ internal fun ModelPickerSheet(
                                 modifier = Modifier
                                     .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = if (isCollapsed) 6.dp else 0.dp)
                                     .background(
-                                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        MiuixTheme.colorScheme.surfaceContainerHigh,
                                         if (isCollapsed) RoundedCornerShape(14.dp)
                                         else RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                                     ),
@@ -1017,9 +1013,9 @@ internal fun ModelPickerSheet(
                                             providerName,
                                             // Same rank as the "Model Groups"
                                             // header above — see that comment.
-                                            style = MaterialTheme.typography.titleMedium,
+                                            style = MiuixTheme.textStyles.headline1,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                             // [T-android-picker-provider-edit] One
                                             // line, so a long name cannot push the
                                             // two buttons off the row.
@@ -1050,8 +1046,8 @@ internal fun ModelPickerSheet(
                                         val editLabel = stringResource(R.string.model_picker_edit_provider, providerName)
                                         Text(
                                             stringResource(R.string.model_picker_groups_edit),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            style = MiuixTheme.textStyles.button,
+                                            color = MiuixTheme.colorScheme.primary,
                                             maxLines = 1,
                                             softWrap = false,
                                             modifier = Modifier
@@ -1070,7 +1066,7 @@ internal fun ModelPickerSheet(
                                         modifier = Modifier
                                             .size(24.dp)
                                             .background(
-                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                                                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                                                 CircleShape,
                                             )
                                             .clip(CircleShape)
@@ -1087,7 +1083,7 @@ internal fun ModelPickerSheet(
                                             if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                         )
                                     }
                                 }
@@ -1101,7 +1097,7 @@ internal fun ModelPickerSheet(
                                 HorizontalDivider(
                                     modifier = Modifier.padding(start = 16.dp, end = 16.dp),
                                     thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                    color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                                 )
 
                                 if (isCollapsed) {
@@ -1126,7 +1122,7 @@ internal fun ModelPickerSheet(
                                                 if (selectedEntry != null) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                 contentDescription = null,
                                                 tint = if (selectedEntry != null) Color(0xFF007AFF)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                                else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                                 modifier = Modifier.size(20.dp),
                                             )
                                             Spacer(Modifier.width(10.dp))
@@ -1171,7 +1167,7 @@ internal fun ModelPickerSheet(
                                         HorizontalDivider(
                                             modifier = Modifier.padding(start = 16.dp, end = 16.dp),
                                             thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                            color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                                         )
                                         // [T-android-model-picker-polish] Explicit
                                         // "Show N models" affordance, as iOS has.
@@ -1212,7 +1208,7 @@ internal fun ModelPickerSheet(
                                                     entries.size,
                                                     entries.size,
                                                 ),
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MiuixTheme.textStyles.footnote1,
                                                 color = Color(0xFF007AFF),
                                             )
                                         }
@@ -1228,7 +1224,7 @@ internal fun ModelPickerSheet(
                                     modifier = Modifier
                                         .padding(start = 16.dp, end = 16.dp, bottom = if (isLastRow) 6.dp else 0.dp)
                                         .background(
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            MiuixTheme.colorScheme.surfaceContainerHigh,
                                             if (isLastRow) RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
                                             else androidx.compose.ui.graphics.RectangleShape,
                                         ),
@@ -1258,7 +1254,7 @@ internal fun ModelPickerSheet(
                                                 if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                 contentDescription = null,
                                                 tint = if (isSelected) Color(0xFF007AFF)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                                else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                                 modifier = Modifier.size(20.dp),
                                             )
                                             Spacer(Modifier.width(10.dp))
@@ -1280,7 +1276,7 @@ internal fun ModelPickerSheet(
                                             HorizontalDivider(
                                                 modifier = Modifier.padding(start = 52.dp, end = 16.dp),
                                                 thickness = 0.5.dp,
-                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                                color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f),
                                             )
                                         }
                                 }
@@ -1295,8 +1291,8 @@ internal fun ModelPickerSheet(
                     item(key = "__search_cap_footer__") {
                         Text(
                             stringResource(R.string.model_picker_search_capped, r.shown, r.totalMatches),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1318,28 +1314,28 @@ internal fun ModelPickerSheet(
                                 if (searchText.isNotEmpty()) Icons.Default.Search else Icons.Default.Memory,
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 stringResource(if (searchText.isNotEmpty()) R.string.model_picker_no_results else R.string.model_picker_no_models),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                             if (searchText.isEmpty()) {
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     stringResource(R.string.model_picker_configure_hint),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
                                     textAlign = TextAlign.Center,
                                 )
                             } else {
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     stringResource(R.string.model_picker_try_different_search),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                                 )
                             }
                         }
@@ -1352,13 +1348,13 @@ internal fun ModelPickerSheet(
                 // screen.
                 val jumpTarget = pickerJumpTarget
                 if (jumpTarget != null && showJumpButton) {
-                    androidx.compose.material3.SmallFloatingActionButton(
+                    com.openminis.app.ui.components.miuix.SmallFloatingActionButton(
                         onClick = { pickerScope.launch { pickerListState.animateScrollToItem(jumpTarget.first, jumpTarget.second) } },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 20.dp, bottom = 12.dp),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = MaterialTheme.colorScheme.primary,
+                        containerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MiuixTheme.colorScheme.primary,
                     ) {
                         Icon(
                             Icons.Default.MyLocation,
@@ -1416,7 +1412,7 @@ private fun ModelNameWithActiveBadge(
 ) {
     FitOrWrapLine(
         lead = {
-            Text(name, style = MaterialTheme.typography.bodyMedium)
+            Text(name, style = MiuixTheme.textStyles.body1)
         },
         tags = {
             quotaPill?.invoke()
@@ -1456,8 +1452,8 @@ private fun ProviderEntryRowText(
                 )
                 Text(
                     entry.model.id,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                 )
             },
             tags = {

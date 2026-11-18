@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.ui.components.DecorativeSpinner
 import android.content.Context
 import android.content.SharedPreferences
@@ -34,10 +35,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -384,9 +384,9 @@ private fun ComposerChoiceMenu(
         // Same surface language as MinisMenu (elevated container in dark,
         // white in light, launcher-style soft halo, hairline border), with a
         // touch of translucency so the composer reads through the edges.
-        val container = if (ChatColors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else Color.White
+        val container = if (ChatColors.isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color.White
         val border = if (ChatColors.isDark) {
-            BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+            BorderStroke(0.5.dp, MiuixTheme.colorScheme.dividerLine)
         } else {
             BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
         }
@@ -411,14 +411,14 @@ private fun ComposerChoiceMenu(
                 ),
             shape = shape,
             color = container.copy(alpha = 0.97f),
-            tonalElevation = 3.dp,
+
             border = border,
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp).selectableGroup()) {
                 Text(
                     text = header,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier
                         .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
                         .semantics { heading() },
@@ -448,20 +448,20 @@ private fun ReturnModeRow(
         Icon(
             icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.main,
+            color = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         if (selected) {
             Icon(
                 Icons.Default.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
         } else {

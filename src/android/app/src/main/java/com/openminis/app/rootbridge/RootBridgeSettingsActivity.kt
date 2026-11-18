@@ -1,5 +1,6 @@
 package com.openminis.app.rootbridge
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,11 +8,10 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.runtime.*
 import com.openminis.app.offload.ROOT_ENABLE_MESSAGE
 import com.openminis.app.offload.RootAccess
@@ -123,7 +123,7 @@ fun RootPermissionScreen(onBack: () -> Unit) {
                 trailing = {
                     Text(
                         text = RootGrantPolicy.label(level),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MiuixTheme.textStyles.button,
                     )
                 },
                 onClick = { expanded = true },

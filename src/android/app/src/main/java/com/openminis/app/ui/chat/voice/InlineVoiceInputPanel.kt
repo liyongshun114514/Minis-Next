@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat.voice
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -32,12 +33,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.DropdownMenu
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -645,7 +645,7 @@ internal fun InlineVoiceInputPanel(
             // correction runs regardless: consent governs whether we STORE the
             // learning data, not whether the feature works.
             if (showCorrectionConsent) {
-                androidx.compose.material3.AlertDialog(
+                com.openminis.app.ui.components.miuix.AlertDialog(
                     onDismissRequest = {
                         // Dismissing without choosing is not an answer; leave
                         // hasPrompted unset so the question can be asked again.
@@ -654,7 +654,7 @@ internal fun InlineVoiceInputPanel(
                     title = { Text(stringResource(R.string.voice_correction_consent_title)) },
                     text = { Text(stringResource(R.string.voice_correction_consent_body)) },
                     confirmButton = {
-                        androidx.compose.material3.TextButton(onClick = {
+                        com.openminis.app.ui.components.MinisTextButton(onClick = {
                             com.openminis.app.speech.correction.VoiceCorrectionConsent
                                 .setEnabled(panelContext, true)
                             com.openminis.app.speech.correction.VoiceCorrectionConsent
@@ -666,7 +666,7 @@ internal fun InlineVoiceInputPanel(
                         }
                     },
                     dismissButton = {
-                        androidx.compose.material3.TextButton(onClick = {
+                        com.openminis.app.ui.components.MinisTextButton(onClick = {
                             com.openminis.app.speech.correction.VoiceCorrectionConsent
                                 .setPrompted(panelContext, true)
                             showCorrectionConsent = false
@@ -808,7 +808,7 @@ internal fun InlineVoiceInputPanel(
         } else {
             failed.message?.takeIf { it.isNotBlank() } ?: failed.error.name
         }
-        androidx.compose.material3.AlertDialog(
+        com.openminis.app.ui.components.miuix.AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.voice_asr_failed_title)) },
             text = {
@@ -821,12 +821,12 @@ internal fun InlineVoiceInputPanel(
                 )
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { retryFailedUtterance() }) {
+                com.openminis.app.ui.components.MinisTextButton(onClick = { retryFailedUtterance() }) {
                     Text(stringResource(R.string.voice_asr_retry))
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { VoiceSendGate.discardCurrent() }) {
+                com.openminis.app.ui.components.MinisTextButton(onClick = { VoiceSendGate.discardCurrent() }) {
                     Text(stringResource(R.string.voice_asr_discard))
                 }
             },
@@ -909,7 +909,7 @@ private fun ExpandedContent(
             if (usageLine != null) {
                 Text(
                     text = com.openminis.app.ui.chat.contextUsageAnnotatedText(usageLine),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                     color = ChatColors.secondaryText,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -920,7 +920,7 @@ private fun ExpandedContent(
                         permissionDenied, isEditing, isRecording, isTranscribing,
                         transcript, recordingTipIndex, resultTipIndex,
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                     color = ChatColors.secondaryText,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -930,7 +930,7 @@ private fun ExpandedContent(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.voice_panel_exit_edit),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MiuixTheme.textStyles.footnote1,
                     fontWeight = FontWeight.SemiBold,
                     color = ChatColors.secondaryText,
                     modifier = Modifier
@@ -956,7 +956,7 @@ private fun ExpandedContent(
                 Spacer(Modifier.width(5.dp))
                 Text(
                     transcribeError,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MiuixTheme.textStyles.footnote2,
                     color = ChatColors.secondaryText,
                     maxLines = 2,
                 )
@@ -1014,20 +1014,20 @@ private fun ExpandedContent(
             if (groupName != null) {
                 Text(
                     groupName,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MiuixTheme.textStyles.footnote2,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MiuixTheme.colorScheme.primary,
                 )
                 Text(
                     "  ·  ",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MiuixTheme.textStyles.footnote2,
                     color = ChatColors.secondaryText.copy(alpha = 0.5f),
                 )
             }
             Text(
                 modelLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.primary,
                 maxLines = 1,
             )
             Spacer(Modifier.width(3.dp))
@@ -1063,7 +1063,7 @@ private fun CompactContent(
         if (transcript.isNotEmpty()) {
             Text(
                 stringResource(R.string.voice_panel_buffered_chars, transcript.length),
-                style = MaterialTheme.typography.labelSmall,
+                style = MiuixTheme.textStyles.footnote2,
                 color = ChatColors.secondaryText,
                 maxLines = 1,
             )
@@ -1107,7 +1107,7 @@ private fun SwitchModelPill(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f))
             .clickable(onClick = onClick)
             .semantics { contentDescription = a11y }
             .padding(horizontal = 12.dp, vertical = 7.dp),
@@ -1116,14 +1116,14 @@ private fun SwitchModelPill(onClick: () -> Unit) {
             Icons.Default.SkipNext,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
         )
         Spacer(Modifier.width(4.dp))
         Text(
             stringResource(R.string.voice_asr_switch_model),
-            style = MaterialTheme.typography.labelMedium,
+            style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
+            color = MiuixTheme.colorScheme.primary,
             maxLines = 1,
         )
     }
@@ -1170,8 +1170,8 @@ private fun TranscriptArea(
         ) {
             Text(
                 transcript,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.main,
+                color = MiuixTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1250,7 +1250,7 @@ private fun MicCircleButton(
         if (isTranscribing) {
             TranscribingRing(
                 diameter = diameter,
-                color = MaterialTheme.colorScheme.primary,
+                color = MiuixTheme.colorScheme.primary,
             )
         }
         when {
@@ -1506,7 +1506,7 @@ private fun VoiceEngineUnavailableNotice(
             Text(
                 text = stringResource(R.string.voice_panel_no_engine_title),
                 style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -1519,7 +1519,7 @@ private fun VoiceEngineUnavailableNotice(
         Text(
             text = stringResource(R.string.voice_panel_no_engine_body),
             style = TextStyle(fontSize = 12.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         )
@@ -1583,7 +1583,7 @@ private fun NoticeActionButton(label: String, onClick: () -> Unit) {
         Text(
             text = label,
             style = TextStyle(fontSize = 12.sp),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
         )
     }
 }

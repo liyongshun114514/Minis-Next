@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisTextButton
@@ -50,26 +51,23 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material3.AlertDialog
+import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ListItem
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.DialogTextField
 import com.openminis.app.ui.components.safeLaunchPicker
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,7 +111,6 @@ private sealed class UpdateStatus {
     data class Failed(val reason: String) : UpdateStatus()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillsManagementScreen(
     skillRepository: SkillRepository,
@@ -261,24 +258,24 @@ fun SkillsManagementScreen(
                         Icons.Outlined.Description,
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                     )
                     Text(
                         stringResource(R.string.skill_empty_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.subtitle,
+                        color = MiuixTheme.colorScheme.onSurface,
                     )
                     Text(
                         stringResource(R.string.skill_empty_action),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             } else if (filteredSkills.isEmpty()) {
                 Text(
                     text = stringResource(R.string.skills_search_no_match, searchQuery),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 24.dp),
@@ -363,7 +360,7 @@ fun SkillsManagementScreen(
                 ) {
                     Icon(Icons.Outlined.Description, contentDescription = null, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.skill_import_modal_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.skill_import_modal_title), style = MiuixTheme.textStyles.main)
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
                 Row(
@@ -378,7 +375,7 @@ fun SkillsManagementScreen(
                 ) {
                     Icon(Icons.Outlined.Language, contentDescription = null, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.skill_minis_skills_modal), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.skill_minis_skills_modal), style = MiuixTheme.textStyles.main)
                 }
             }
         }
@@ -401,7 +398,7 @@ fun SkillsManagementScreen(
                 MinisTextButton(onClick = {
                     deleteSkillId?.let { skillRepository.delete(it) }
                     deleteSkillId = null
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text("Delete", color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { deleteSkillId = null }) { Text(stringResource(R.string.common_cancel)) }
@@ -412,7 +409,6 @@ fun SkillsManagementScreen(
 
 // ─── Import Sheet (3 modes: URL / Paste / File) ─────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SkillImportSheet(
     skillRepository: SkillRepository,
@@ -480,26 +476,20 @@ private fun SkillImportSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.skill_import_modal_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.skill_import_modal_title), style = MiuixTheme.textStyles.headline1)
 
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0; errorText = null }) {
-                    Text(stringResource(R.string.skill_import_tab_url), modifier = Modifier.padding(12.dp))
-                }
-                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1; errorText = null }) {
-                    Text(stringResource(R.string.skill_import_tab_paste), modifier = Modifier.padding(12.dp))
-                }
-                Tab(selected = selectedTab == 2, onClick = { selectedTab = 2; errorText = null }) {
-                    Text(stringResource(R.string.skill_import_tab_file), modifier = Modifier.padding(12.dp))
-                }
-            }
+            TabRow(
+                tabs = listOf(stringResource(R.string.skill_import_tab_url), stringResource(R.string.skill_import_tab_paste), stringResource(R.string.skill_import_tab_file)),
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it; errorText = null },
+            )
 
             when (selectedTab) {
                 0 -> {
                     Text(
                         stringResource(R.string.skill_import_url_instruction),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     DialogTextField(
@@ -513,8 +503,8 @@ private fun SkillImportSheet(
                 1 -> {
                     Text(
                         stringResource(R.string.skill_import_paste_instruction),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     DialogTextField(
@@ -522,15 +512,15 @@ private fun SkillImportSheet(
                         onValueChange = { pasteContent = it; errorText = null },
                         modifier = Modifier.height(200.dp),
                         singleLine = false,
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                         isError = errorText != null,
                     )
                 }
                 2 -> {
                     Text(
                         stringResource(R.string.skill_import_file_instruction),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     MinisTextButton(
                         onClick = { fileLauncher.safeLaunchPicker("*/*", context, "SkillsManagement") },
@@ -540,7 +530,7 @@ private fun SkillImportSheet(
             }
 
             if (errorText != null) {
-                Text(errorText!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(errorText!!, color = MiuixTheme.colorScheme.error, style = MiuixTheme.textStyles.body2)
             }
 
             if (selectedTab < 2) {
@@ -599,7 +589,6 @@ private fun downloadSkillFromUrl(url: String): String? {
 
 // ─── Skill Detail Screen (full page, matching iOS) ──────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillDetailScreen(
     skillId: String,
@@ -731,9 +720,9 @@ fun SkillDetailScreen(
             DetailSection {
                 // Name (tap pencil → edit dialog, T155)
                 DetailRow {
-                    Text(stringResource(R.string.skill_detail_label_name), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(120.dp))
+                    Text(stringResource(R.string.skill_detail_label_name), style = MiuixTheme.textStyles.body1, modifier = Modifier.width(120.dp))
                     Spacer(Modifier.weight(1f))
-                    Text(skill.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(skill.name, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                     Spacer(Modifier.width(4.dp))
                     Icon(
                         Icons.Default.Edit, contentDescription = "Edit name",
@@ -741,24 +730,24 @@ fun SkillDetailScreen(
                             editName = skill.name
                             showEditNameDialog = true
                         },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                     )
                 }
                 DetailDivider()
 
                 // Version
                 DetailRow {
-                    Text(stringResource(R.string.skill_detail_label_version), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(120.dp))
+                    Text(stringResource(R.string.skill_detail_label_version), style = MiuixTheme.textStyles.body1, modifier = Modifier.width(120.dp))
                     Spacer(Modifier.weight(1f))
-                    Text(skill.version, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(skill.version, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
                 DetailDivider()
 
                 // Last Modified
                 DetailRow {
-                    Text(stringResource(R.string.skill_detail_label_modified), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(120.dp))
+                    Text(stringResource(R.string.skill_detail_label_modified), style = MiuixTheme.textStyles.body1, modifier = Modifier.width(120.dp))
                     Spacer(Modifier.weight(1f))
-                    Text(relativeTime(skill.updatedAt), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(relativeTime(skill.updatedAt), style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
                 DetailDivider()
 
@@ -774,9 +763,9 @@ fun SkillDetailScreen(
                         }
                     },
                 ) {
-                    Text(stringResource(R.string.skill_detail_label_source), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(120.dp))
+                    Text(stringResource(R.string.skill_detail_label_source), style = MiuixTheme.textStyles.body1, modifier = Modifier.width(120.dp))
                     Spacer(Modifier.weight(1f))
-                    Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(sourceLabel, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                 }
             }
 
@@ -804,8 +793,8 @@ fun SkillDetailScreen(
                     }) {
                         SettingsActionIcon(Icons.Default.Refresh, SettingsIconBlue)
                         Spacer(Modifier.width(14.dp))
-                        Text(stringResource(R.string.skill_detail_update_url), color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                        Text(relativeTime(skill.updatedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.skill_detail_update_url), color = MiuixTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                        Text(relativeTime(skill.updatedAt), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                     }
                     DetailDivider()
                 }
@@ -816,7 +805,7 @@ fun SkillDetailScreen(
                 }) {
                     SettingsActionIcon(Icons.Outlined.Description, SettingsIconBlue)
                     Spacer(Modifier.width(14.dp))
-                    Text(stringResource(R.string.skill_detail_update_file), color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.skill_detail_update_file), color = MiuixTheme.colorScheme.primary)
                 }
                 DetailDivider()
 
@@ -829,7 +818,7 @@ fun SkillDetailScreen(
                 }) {
                     SettingsActionIcon(Icons.Default.Refresh, SettingsIconGreen)
                     Spacer(Modifier.width(14.dp))
-                    Text(stringResource(R.string.skill_detail_rescan), color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.skill_detail_rescan), color = MiuixTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 }
 
                 // Inline status row — only rendered while there's something to
@@ -841,7 +830,7 @@ fun SkillDetailScreen(
                         DetailRow {
                             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(10.dp))
-                            Text(s.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(s.label, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                         }
                     }
                     is UpdateStatus.Done -> {
@@ -849,15 +838,15 @@ fun SkillDetailScreen(
                         DetailRow {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF34C759), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text(stringResource(R.string.skill_detail_updated), style = MaterialTheme.typography.bodySmall, color = Color(0xFF34C759))
+                            Text(stringResource(R.string.skill_detail_updated), style = MiuixTheme.textStyles.body2, color = Color(0xFF34C759))
                         }
                     }
                     is UpdateStatus.Failed -> {
                         DetailDivider()
                         DetailRow {
-                            Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Error, contentDescription = null, tint = MiuixTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text(s.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Text(s.reason, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.error)
                         }
                     }
                     UpdateStatus.Idle -> Unit
@@ -874,8 +863,8 @@ fun SkillDetailScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         MarkdownText(
                             markdown = preview,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            style = MiuixTheme.textStyles.body2,
                         )
                     }
                 }
@@ -893,17 +882,17 @@ fun SkillDetailScreen(
                 skillFiles.forEachIndexed { index, relativePath ->
                     if (index > 0) DetailDivider()
                     DetailRow(clickable = true, onClick = { onFileClick(skill.id, relativePath) }) {
-                        Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Description, contentDescription = null, tint = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(
                             relativePath,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            style = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -918,7 +907,7 @@ fun SkillDetailScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
+                    containerColor = MiuixTheme.colorScheme.error,
                 ),
             ) {
                 Text(stringResource(R.string.skill_detail_delete))
@@ -939,7 +928,7 @@ fun SkillDetailScreen(
                     skillRepository.delete(skill.id)
                     showDeleteDialog = false
                     onBack()
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text("Delete", color = MiuixTheme.colorScheme.error) }
             },
             dismissButton = {
                 MinisTextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.common_cancel)) }
@@ -953,7 +942,7 @@ fun SkillDetailScreen(
     if (showEditNameDialog) {
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
             title = { Text(stringResource(R.string.skill_detail_edit_name_title)) },
             text = {
                 DialogTextField(
@@ -992,8 +981,8 @@ private fun DetailSection(
         if (header != null) {
             Text(
                 text = header.uppercaseForDisplay(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                 letterSpacing = 0.5.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -1004,7 +993,7 @@ private fun DetailSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(MiuixTheme.colorScheme.surfaceContainer),
         ) {
             content()
         }
@@ -1048,7 +1037,7 @@ private fun DetailDivider() {
             .fillMaxWidth()
             .padding(start = 14.dp, end = 14.dp)
             .height(0.5.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
     )
 }
 
@@ -1169,7 +1158,6 @@ private fun relativeTime(millis: Long): String {
 
 // ─── Skill File Viewer Screen (full page, matching iOS) ─────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SkillFileViewerScreen(
     skillId: String,
@@ -1251,7 +1239,7 @@ fun SkillFileViewerScreen(
                     .padding(padding)
                     .padding(horizontal = 8.dp),
                 outlined = true,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
             )
         } else {
             LazyColumn(
@@ -1263,8 +1251,8 @@ fun SkillFileViewerScreen(
                 item {
                     Text(
                         initialContent,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        color = MiuixTheme.colorScheme.onSurface,
                     )
                 }
             }

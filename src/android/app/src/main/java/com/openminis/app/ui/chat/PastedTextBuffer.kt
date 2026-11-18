@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,14 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.basic.Icon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -389,7 +389,7 @@ fun PastedTextChip(
                 .align(Alignment.BottomStart)
                 .size(64.dp)
                 .clip(chipShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant, chipShape)
+                .background(MiuixTheme.colorScheme.surfaceVariant, chipShape)
                 .border(1.dp, ChatColors.thumbnailBorder, chipShape)
                 .clickable { showPreview = true },
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -401,20 +401,20 @@ fun PastedTextChip(
                 // bubble will show for it afterwards.
                 Icons.AutoMirrored.Filled.TextSnippet,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(20.dp),
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "#${pasted.id}",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.footnote2.copy(fontSize = 10.sp),
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
             Text(
                 text = "${pasted.text.length}",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
             )
         }
@@ -424,7 +424,7 @@ fun PastedTextChip(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(20.dp)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                .background(MiuixTheme.colorScheme.surface, CircleShape)
                 .border(0.5.dp, ChatColors.thumbnailBorder, CircleShape)
                 .clip(CircleShape)
                 .clickable(onClick = onRemove),
@@ -433,7 +433,7 @@ fun PastedTextChip(
             Icon(
                 Icons.Default.Close,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                tint = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.size(13.dp),
             )
         }
@@ -466,19 +466,19 @@ private fun PastedTextPreviewDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            color = MiuixTheme.colorScheme.surface,
+
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
                     text = "${pasted.placeholder}  ·  ${pasted.text.length}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.subtitle,
+                    color = MiuixTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = pasted.text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier
                         .padding(top = 12.dp)
                         // Capped so a huge paste cannot push the close button

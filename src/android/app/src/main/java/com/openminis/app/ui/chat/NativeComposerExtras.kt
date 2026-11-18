@@ -26,10 +26,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -268,7 +267,7 @@ internal fun ComposerModelThinkingBar(
                     if (modelInteractionSource != null) {
                         Modifier.clickable(
                             interactionSource = modelInteractionSource,
-                            indication = ripple(),
+                            indication = top.yukonga.miuix.kmp.utils.MiuixIndication(color = MiuixTheme.colorScheme.onSurface),
                             onClick = onModelClick,
                         )
                     } else {

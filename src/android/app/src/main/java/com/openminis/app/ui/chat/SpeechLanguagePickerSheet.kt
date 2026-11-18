@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +18,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +46,6 @@ import java.util.Locale
  * Locales are sorted so anything matching the device's system preferences
  * floats to the top, then the remainder alphabetically by display name.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpeechLanguagePickerSheet(
     onDismiss: () -> Unit,
@@ -128,7 +126,7 @@ fun SpeechLanguagePickerSheet(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = stringResource(R.string.speech_lang_picker_selected),
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = MiuixTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp),
                                 )
                             }

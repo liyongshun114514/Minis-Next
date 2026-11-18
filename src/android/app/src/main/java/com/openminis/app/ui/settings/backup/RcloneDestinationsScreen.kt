@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,17 +20,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.NorthWest
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuBox
+import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
+import com.openminis.app.ui.components.miuix.DropdownMenuItem
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.OutlinedTextField
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,7 +65,6 @@ import com.openminis.app.ui.settings.SettingsSwitchRow
  * (toggle on/off, remove) and hosts the add-server flow (pick backend → fill
  * connection fields → connect → browse/create a destination folder → save).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RcloneDestinationsScreen(onBack: () -> Unit) {
     val vm: RcloneDestinationsViewModel = viewModel()
@@ -140,8 +138,8 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
         justSaved?.let { name ->
             Text(
                 stringResource(R.string.backup_dest_saved_confirm, name),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium,
+                color = MiuixTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.body1,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
@@ -153,7 +151,7 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
             if (remotes.isEmpty()) {
                 Text(
                     stringResource(R.string.backup_dest_none),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(16.dp),
                 )
             } else {
@@ -215,8 +213,8 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
             error?.let {
                 Text(
                     it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MiuixTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
@@ -224,7 +222,6 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 // [T-android-restore-server-list] `internal`, not `private`: the
 // Restore-from-Server list hosts this SAME form rather than growing a second
 // copy of a 150-line screen with its own backend catalog, TLS opt-in and
@@ -373,7 +370,7 @@ internal fun AddServerForm(
                 // overflows the button.
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = MiuixTheme.colorScheme.onPrimary,
                 )
             } else {
                 Text(
@@ -395,16 +392,16 @@ internal fun AddServerForm(
         if (displayName.isNotEmpty() && !nameOk) {
             Text(
                 stringResource(R.string.backup_dest_name_invalid),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
         error?.let {
             Text(
                 it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -490,7 +487,7 @@ private fun FolderPickerRow(
             Text(
                 label,
                 color = tint,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.main,
                 maxLines = 1,
                 overflow = TextOverflow.MiddleEllipsis,
                 modifier = Modifier.padding(start = 10.dp).weight(1f),
@@ -498,8 +495,8 @@ private fun FolderPickerRow(
             trailing?.let {
                 Text(
                     it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     modifier = Modifier.padding(start = 8.dp),
                 )
@@ -511,7 +508,7 @@ private fun FolderPickerRow(
                     .fillMaxWidth()
                     .padding(start = 14.dp)
                     .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
+                    .background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }
@@ -528,7 +525,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
     var newFolderName by remember { mutableStateOf("") }
 
     Column(Modifier.padding(16.dp)) {
-        Text(stringResource(R.string.backup_dest_choose_folder), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.backup_dest_choose_folder), style = MiuixTheme.textStyles.headline1)
 
         // [T-android-folder-picker-ios-parity] Path + New Folder on one line,
         // matching iOS: the path reads as a pill and the only action that
@@ -541,7 +538,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
         ) {
             Text(
                 "/${b.path.trimStart('/')}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 maxLines = 1,
                 // Truncate the FRONT: the deepest component is the one that
                 // says where you are, and a long path's leading segments are
@@ -550,14 +547,14 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(50))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
             IconButton(onClick = { showNewFolder = true }, enabled = !busy) {
                 Icon(
                     Icons.Outlined.CreateNewFolder,
                     contentDescription = stringResource(R.string.backup_dest_new_folder),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                 )
             }
         }
@@ -570,7 +567,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
                 .fillMaxWidth()
                 .padding(top = 4.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
         ) {
             // First row in the list, not a separate button above it: going up
             // is navigation of the same kind as going down.
@@ -578,7 +575,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
                 FolderPickerRow(
                     icon = Icons.Outlined.NorthWest,
                     label = stringResource(R.string.backup_dest_up),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                     enabled = !busy,
                     showDivider = true,
                     onClick = { vm.navigateTo(b.path.substringBeforeLast('/', "")) },
@@ -589,7 +586,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
                 FolderPickerRow(
                     icon = Icons.Outlined.Folder,
                     label = entry.name,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MiuixTheme.colorScheme.primary,
                     enabled = !busy,
                     showDivider = i < b.entries.lastIndex,
                     // Right-hand column: when the backend reports one. Several
@@ -602,8 +599,8 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
             if (b.entries.isEmpty() && !busy) {
                 Text(
                     stringResource(R.string.backup_dest_no_subfolders),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = MiuixTheme.textStyles.body1,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
@@ -633,8 +630,8 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
         error?.let {
             Text(
                 it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = MiuixTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }

@@ -1,5 +1,6 @@
 package com.openminis.app.ui.browser
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -19,15 +20,13 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,7 +53,6 @@ import com.openminis.app.browser.BrowserTabPool
  * v3 semantics); in-flight rows stay. Opening the panel marks terminal
  * entries seen, which zeroes the toolbar badge.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserDownloadsSheet(
     tabPool: BrowserTabPool,
@@ -84,7 +82,7 @@ fun BrowserDownloadsSheet(
             ) {
                 Text(
                     stringResource(R.string.browser_downloads_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MiuixTheme.textStyles.headline1,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -97,8 +95,8 @@ fun BrowserDownloadsSheet(
             if (downloads.isEmpty()) {
                 Text(
                     stringResource(R.string.browser_downloads_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
             } else {
@@ -131,11 +129,11 @@ private fun DownloadRow(
     ) {
         val (icon, tint) = when (entry.state) {
             BrowserTabPool.DownloadState.DOWNLOADING ->
-                Icons.Default.Download to MaterialTheme.colorScheme.primary
+                Icons.Default.Download to MiuixTheme.colorScheme.primary
             BrowserTabPool.DownloadState.COMPLETED ->
                 Icons.Default.CheckCircle to androidx.compose.ui.graphics.Color(0xFF34C759)
             BrowserTabPool.DownloadState.FAILED ->
-                Icons.Default.ErrorOutline to MaterialTheme.colorScheme.error
+                Icons.Default.ErrorOutline to MiuixTheme.colorScheme.error
         }
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
@@ -143,7 +141,7 @@ private fun DownloadRow(
             Text(
                 // Middle truncation keeps the extension visible (iOS v3).
                 BrowserTabPool.middleTruncated(entry.filename, head = 24, tail = 12),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -163,8 +161,8 @@ private fun DownloadRow(
                     }
                     Text(
                         statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                     Spacer(Modifier.height(4.dp))
                     if (entry.totalBytes > 0) {
@@ -183,16 +181,16 @@ private fun DownloadRow(
                     Text(
                         android.text.format.Formatter
                             .formatShortFileSize(context, entry.bytesDone),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
                 BrowserTabPool.DownloadState.FAILED -> {
                     Text(
                         entry.failureReason
                             ?: stringResource(R.string.browser_downloads_failed),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.error,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -206,7 +204,7 @@ private fun DownloadRow(
                     Icon(
                         Icons.Default.Cancel,
                         contentDescription = stringResource(R.string.browser_downloads_cancel),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -215,7 +213,7 @@ private fun DownloadRow(
                     Icon(
                         Icons.Default.OpenInNew,
                         contentDescription = stringResource(R.string.browser_downloads_open),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MiuixTheme.colorScheme.primary,
                     )
                 }
             }

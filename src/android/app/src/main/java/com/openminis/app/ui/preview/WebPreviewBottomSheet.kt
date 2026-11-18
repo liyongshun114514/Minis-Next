@@ -1,5 +1,6 @@
 package com.openminis.app.ui.preview
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.R
 
@@ -36,13 +37,11 @@ import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -88,7 +87,6 @@ import com.openminis.app.ui.theme.ChatColors
 // hidden until validation/development completes.
 private const val WEBAPP_PIN_ENTRY_ENABLED = false
 
-@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("ClickableViewAccessibility")
 @Composable
 fun WebPreviewBottomSheet(
@@ -162,7 +160,7 @@ fun WebPreviewBottomSheet(
         },
         sheetState = sheetState,
         dragHandle = null,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MiuixTheme.colorScheme.surface,
         // Sheet is full-height so the scrim region above the sheet collapses
         // to nothing — avoids the grey scrim band above the sheet top.
         // Zero content insets so the sheet's surface paints all the way under
@@ -308,7 +306,7 @@ internal fun WebPreviewToolbar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .let { if (topInsetPadding) it.windowInsetsPadding(WindowInsets.statusBars) else it }
             .padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -327,7 +325,7 @@ internal fun WebPreviewToolbar(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -335,7 +333,7 @@ internal fun WebPreviewToolbar(
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -358,7 +356,7 @@ internal fun WebPreviewToolbar(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
             ) {
-                androidx.compose.material3.DropdownMenuItem(
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
                     text = { Text(stringResource(R.string.webpreview_open_external)) },
                     leadingIcon = {
                         Icon(Icons.Default.OpenInBrowser, contentDescription = null)
@@ -368,7 +366,7 @@ internal fun WebPreviewToolbar(
                         onOpenExternal()
                     },
                 )
-                androidx.compose.material3.DropdownMenuItem(
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
                     text = { Text(stringResource(R.string.webpreview_reload)) },
                     leadingIcon = {
                         Icon(Icons.Default.Refresh, contentDescription = null)
@@ -378,7 +376,7 @@ internal fun WebPreviewToolbar(
                         onReload()
                     },
                 )
-                androidx.compose.material3.DropdownMenuItem(
+                com.openminis.app.ui.components.miuix.DropdownMenuItem(
                     text = {
                         Text(
                             if (desktopMode) stringResource(R.string.webpreview_mobile_site)
@@ -398,7 +396,7 @@ internal fun WebPreviewToolbar(
                     },
                 )
                 if (onExpand != null) {
-                    androidx.compose.material3.DropdownMenuItem(
+                    com.openminis.app.ui.components.miuix.DropdownMenuItem(
                         text = { Text(stringResource(R.string.webpreview_open_fullscreen)) },
                         leadingIcon = {
                             Icon(Icons.Default.Fullscreen, contentDescription = null)
@@ -410,7 +408,7 @@ internal fun WebPreviewToolbar(
                     )
                 }
                 if (onPinToHome != null) {
-                    androidx.compose.material3.DropdownMenuItem(
+                    com.openminis.app.ui.components.miuix.DropdownMenuItem(
                         text = { Text(stringResource(R.string.webpreview_pin_to_home)) },
                         leadingIcon = {
                             Icon(Icons.Default.AddToHomeScreen, contentDescription = null)
@@ -442,7 +440,7 @@ private fun ToolbarIcon(
         Icon(
             imageVector = icon,
             contentDescription = description,
-            tint = MaterialTheme.colorScheme.onSurface,
+            tint = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp),
         )
     }

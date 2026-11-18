@@ -1,5 +1,6 @@
 package com.openminis.app.ui.scheduled
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,13 +22,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,7 +50,6 @@ import java.util.Locale
  * (non-null sessionId) is tappable → opens that chat. Backed by the live
  * tasks flow so new runs appear without re-entering the screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduledTaskRunsScreen(
     taskId: String,
@@ -80,7 +78,7 @@ fun ScheduledTaskRunsScreen(
                             Text(
                                 task.label,
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -124,12 +122,12 @@ private fun EmptyRuns(padding: PaddingValues) {
                 Icons.Outlined.History,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.scheduled_task_runs_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
@@ -149,7 +147,7 @@ private fun RunRow(run: ScheduledRun, onOpenSession: (String) -> Unit) {
         Icon(
             imageVector = if (run.ok) Icons.Filled.CheckCircle else Icons.Filled.Error,
             contentDescription = null,
-            tint = if (run.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            tint = if (run.ok) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.error,
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(12.dp))
@@ -163,7 +161,7 @@ private fun RunRow(run: ScheduledRun, onOpenSession: (String) -> Unit) {
             if (!preview.isNullOrBlank()) {
                 Text(
                     text = preview,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     fontSize = 12.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -175,7 +173,7 @@ private fun RunRow(run: ScheduledRun, onOpenSession: (String) -> Unit) {
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.scheduled_task_runs_open_session),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.size(20.dp),
             )
         }

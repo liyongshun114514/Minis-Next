@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings.backup
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -23,16 +24,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.openminis.app.ui.components.miuix.AlertDialog
+import com.openminis.app.ui.components.miuix.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.LinearProgressIndicator
+import com.openminis.app.ui.components.miuix.ModalBottomSheet
+import com.openminis.app.ui.components.miuix.SheetValue
+import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -136,8 +135,8 @@ fun RestoreBrowseScreen(
                     loading -> LoadingRow(stringResource(R.string.backup_dest_loading))
                     entries.isEmpty() -> Text(
                         stringResource(R.string.restore_browse_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                     )
                     else -> entries.forEachIndexed { i, e ->
@@ -152,8 +151,8 @@ fun RestoreBrowseScreen(
                                     SwipeRowAction(
                                         label = stringResource(R.string.backup_dest_delete_confirm),
                                         icon = Icons.Outlined.Delete,
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                        containerColor = MiuixTheme.colorScheme.errorContainer,
+                                        contentColor = MiuixTheme.colorScheme.onErrorContainer,
                                         onClick = { pendingDelete = e },
                                     ),
                                 ),
@@ -174,8 +173,8 @@ fun RestoreBrowseScreen(
             error?.let {
                 Text(
                     it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
@@ -229,7 +228,7 @@ fun RestoreBrowseScreen(
                 }) {
                     Text(
                         stringResource(R.string.backup_dest_delete_confirm),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                     )
                 }
             },
@@ -276,7 +275,7 @@ private fun BreadcrumbBar(
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(16.dp),
                 )
                 Crumb(seg, enabled = i < segments.lastIndex) { onNavigate(i + 1) }
@@ -284,7 +283,7 @@ private fun BreadcrumbBar(
         }
         Box(
             Modifier.fillMaxWidth().height(0.5.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant),
+                .background(MiuixTheme.colorScheme.dividerLine),
         )
     }
 }
@@ -293,9 +292,9 @@ private fun BreadcrumbBar(
 private fun Crumb(text: String, enabled: Boolean, onClick: () -> Unit) {
     Text(
         text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (enabled) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.onSurface,
+        style = MiuixTheme.textStyles.body1,
+        color = if (enabled) MiuixTheme.colorScheme.primary
+        else MiuixTheme.colorScheme.onSurface,
         maxLines = 1,
         modifier = Modifier
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
@@ -336,7 +335,7 @@ private fun EntryRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     entry.name,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MiuixTheme.textStyles.body1,
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,
                 )
@@ -346,8 +345,8 @@ private fun EntryRow(
                             append(humanBytes(entry.size))
                             entry.modified?.let { append(" · "); append(formatTimestamp(it)) }
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
                 }
             }
@@ -355,7 +354,7 @@ private fun EntryRow(
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -363,7 +362,7 @@ private fun EntryRow(
         if (showDivider) {
             Box(
                 Modifier.fillMaxWidth().padding(start = 56.dp).height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
+                    .background(MiuixTheme.colorScheme.dividerLine),
             )
         }
     }
@@ -389,7 +388,6 @@ private fun EntryRow(
  *
  * Abandoning the work stays possible; it just has to be said out loud.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressSheet(
     title: String,
@@ -413,7 +411,7 @@ private fun ProgressSheet(
         ) {
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MiuixTheme.textStyles.headline1,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(14.dp))
@@ -434,7 +432,7 @@ private fun TransferSheet(t: BackupViewModel.TransferInfo, onCancel: () -> Unit)
         title = stringResource(R.string.restore_downloading),
         onCancel = onCancel,
     ) {
-        Text(t.name, style = MaterialTheme.typography.bodySmall, maxLines = 1,
+        Text(t.name, style = MiuixTheme.textStyles.body2, maxLines = 1,
             overflow = TextOverflow.MiddleEllipsis)
         Spacer(Modifier.height(10.dp))
         LinearProgressIndicator(
@@ -449,14 +447,14 @@ private fun TransferSheet(t: BackupViewModel.TransferInfo, onCancel: () -> Unit)
                     append("  ·  "); append(humanBytes(t.bytesPerSecond.toLong())); append("/s")
                 }
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         t.secondsRemaining?.let {
             Text(
                 stringResource(R.string.restore_time_left, durationText(it * 1000)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
         }
     }
@@ -487,7 +485,7 @@ private fun OpenStageSheet(
         Row(verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(12.dp))
-            Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(label), style = MiuixTheme.textStyles.body1)
         }
         // [T-android-open-progress] Real counts under the stage label. Absent
         // until the first entry lands, so the row does not flash "0 files".
@@ -495,13 +493,13 @@ private fun OpenStageSheet(
             Spacer(Modifier.height(10.dp))
             Text(
                 stringResource(R.string.restore_open_progress, p.files, humanBytes(p.bytes)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Text(
                 p.current,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 maxLines = 1,
                 overflow = TextOverflow.MiddleEllipsis,
             )
@@ -519,8 +517,8 @@ private fun LoadingRow(text: String) {
         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(
             text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
     }
 }

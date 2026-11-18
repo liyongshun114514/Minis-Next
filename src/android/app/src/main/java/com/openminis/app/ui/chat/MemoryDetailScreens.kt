@@ -1,5 +1,6 @@
 package com.openminis.app.ui.chat
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,11 +16,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Icon
+import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -103,14 +103,14 @@ private fun SavedToast(modifier: Modifier = Modifier) {
         modifier = modifier
             .padding(bottom = 12.dp)
             .background(
-                color = MaterialTheme.colorScheme.inverseSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 shape = RoundedCornerShape(50),
             )
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
         Text(
             text = stringResource(R.string.memory_save_toast),
-            color = MaterialTheme.colorScheme.inverseOnSurface,
+            color = MiuixTheme.colorScheme.surface,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
         )
@@ -258,7 +258,7 @@ fun RevokeConfirmDialog(
             MinisTextButton(onClick = onConfirm) {
                 Text(
                     stringResource(R.string.memory_action_revoke),
-                    color = MaterialTheme.colorScheme.error,
+                    color = MiuixTheme.colorScheme.error,
                 )
             }
         },

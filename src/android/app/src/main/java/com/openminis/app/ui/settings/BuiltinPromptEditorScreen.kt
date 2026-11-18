@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,9 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.openminis.app.ui.components.miuix.AlertDialog
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -251,8 +251,8 @@ private fun BuiltinPromptEditorContent(
                         if (loadFailed) R.string.prompt_catalog_load_error
                         else R.string.prompt_catalog_editor_missing,
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
                 )
             }
@@ -287,7 +287,7 @@ private fun BuiltinPromptEditorContent(
                                 restored = false
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            textStyle = MiuixTheme.textStyles.body1.copy(
                                 fontFamily = FontFamily.Monospace,
                             ),
                             placeholder = stringResource(R.string.prompt_catalog_editor_placeholder),
@@ -303,11 +303,11 @@ private fun BuiltinPromptEditorContent(
                         ) {
                             Text(
                                 text = statusText,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MiuixTheme.textStyles.body2,
                                 color = if (isDirty || saving) {
-                                    MaterialTheme.colorScheme.tertiary
+                                    MiuixTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    MiuixTheme.colorScheme.onSurfaceContainerVariant
                                 },
                                 modifier = Modifier.weight(1f),
                             )
