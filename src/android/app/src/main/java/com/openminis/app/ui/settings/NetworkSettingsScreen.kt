@@ -26,14 +26,14 @@ import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Troubleshoot
 import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.CircularProgressIndicator
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Checkbox
+import com.openminis.app.ui.components.miuix.Checkbox
 import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.ui.text.font.FontWeight

@@ -59,8 +59,13 @@ fun MinisTheme(
         CompositionLocalProvider(
             LocalChatPalette provides chatPalette,
             LocalTextStyle provides textStyles.main,
-            content = content,
-        )
+        ) {
+            // Root host also covers dialogs declared as siblings of a screen Scaffold.
+            top.yukonga.miuix.kmp.basic.Scaffold(
+                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
+                containerColor = colors.background,
+            ) { content() }
+        }
     }
 }
 

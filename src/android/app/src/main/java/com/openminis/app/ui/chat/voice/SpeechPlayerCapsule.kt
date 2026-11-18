@@ -47,7 +47,7 @@ import androidx.compose.material.icons.filled.UnfoldMore
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SliderDefaults
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -671,7 +671,7 @@ private fun VolumeBar(
             colors = SliderDefaults.sliderColors(
                 thumbColor = tint,
                 foregroundColor = tint,
-                inforegroundColor = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.25f),
+                backgroundColor = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.25f),
             ),
             modifier = Modifier
                 .weight(1f)

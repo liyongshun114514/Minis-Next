@@ -43,7 +43,7 @@ import com.openminis.app.ui.components.miuix.ListItem
 import com.openminis.app.ui.components.miuix.ListItemDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import com.openminis.app.ui.components.miuix.TopAppBar
 import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable

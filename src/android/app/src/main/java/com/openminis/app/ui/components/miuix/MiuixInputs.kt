@@ -32,6 +32,8 @@ object OutlinedTextFieldDefaults {
         visualTransformation: VisualTransformation,
         interactionSource: androidx.compose.foundation.interaction.MutableInteractionSource,
         placeholder: (@Composable () -> Unit)? = null,
+        label: (@Composable () -> Unit)? = null,
+        isError: Boolean = false,
         leadingIcon: (@Composable () -> Unit)? = null,
         trailingIcon: (@Composable () -> Unit)? = null,
         colors: TextFieldColors = TextFieldDefaults.textFieldColors(),

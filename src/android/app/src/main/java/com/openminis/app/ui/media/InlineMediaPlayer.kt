@@ -43,7 +43,7 @@ import com.openminis.app.ui.components.miuix.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SliderDefaults
 import top.yukonga.miuix.kmp.basic.Surface
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -579,7 +579,7 @@ private fun FullscreenVideoContent(file: File, onDismiss: () -> Unit) {
                     colors = SliderDefaults.sliderColors(
                         thumbColor = Color.White,
                         foregroundColor = Color.White,
-                        inforegroundColor = Color.White.copy(alpha = 0.3f),
+                        backgroundColor = Color.White.copy(alpha = 0.3f),
                     ),
                     modifier = Modifier.weight(1f),
                 )

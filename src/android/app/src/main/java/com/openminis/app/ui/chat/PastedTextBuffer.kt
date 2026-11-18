@@ -26,7 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.Surface
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable

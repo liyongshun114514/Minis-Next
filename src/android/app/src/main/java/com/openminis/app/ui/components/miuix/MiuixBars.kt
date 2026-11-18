@@ -19,7 +19,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Immutable
 data class TopAppBarColors(val containerColor: Color)
 object TopAppBarDefaults {
-    @Composable fun topAppBarColors(containerColor: Color = MiuixTheme.colorScheme.surface) = TopAppBarColors(containerColor)
+    @Composable fun topAppBarColors(containerColor: Color = MiuixTheme.colorScheme.surface,
+        scrolledContainerColor: Color = containerColor) = TopAppBarColors(containerColor)
 }
 
 /** Rich chat titles need multiple reactive lines, which SmallTopAppBar's String API cannot express. */
@@ -31,9 +32,10 @@ fun TopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
     windowInsets: WindowInsets = WindowInsets.statusBars,
+    expandedHeight: androidx.compose.ui.unit.Dp = 56.dp,
 ) {
     Surface(color = colors.containerColor, modifier = modifier) {
-        Row(Modifier.fillMaxWidth().windowInsetsPadding(windowInsets).heightIn(min = 56.dp).padding(horizontal = 8.dp),
+        Row(Modifier.fillMaxWidth().windowInsetsPadding(windowInsets).heightIn(min = expandedHeight).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             navigationIcon()
             Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {

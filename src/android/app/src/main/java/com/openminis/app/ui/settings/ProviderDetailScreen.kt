@@ -46,7 +46,7 @@ import com.openminis.app.ui.components.miuix.SegmentedButton
 import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
 import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

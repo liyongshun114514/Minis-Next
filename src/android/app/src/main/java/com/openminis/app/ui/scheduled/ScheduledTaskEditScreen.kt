@@ -36,7 +36,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import com.openminis.app.ui.components.miuix.SegmentedButton
 import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
 import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import com.openminis.app.ui.components.miuix.TimeInput
 import com.openminis.app.ui.components.miuix.TopAppBar
 import com.openminis.app.ui.components.miuix.rememberDatePickerState

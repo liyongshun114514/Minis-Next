@@ -30,7 +30,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import com.openminis.app.ui.components.miuix.LinearProgressIndicator
 import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.miuix.SheetValue
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect

@@ -29,7 +29,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.miuix.OutlinedTextField
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.PullToRefresh as PullToRefreshBox
 import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState

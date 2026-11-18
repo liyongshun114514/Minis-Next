@@ -28,7 +28,7 @@ import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import com.openminis.app.ui.components.miuix.OutlinedTextField
-import top.yukonga.miuix.kmp.basic.Text
+import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
