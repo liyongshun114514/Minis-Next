@@ -1,10 +1,8 @@
 # Minis Next UI / Flutter 迁移记录
 
-## 当前任务（2026-11-18）
+## 当前状态（2026-11-18）
 
-用户重新启动 Android Compose UI 全量迁移到 Miuix，要求仅在 `ui` 分支工作、通过 GitHub Actions 编译、不在本机运行 Gradle；迁移完成后再讨论合并到 `minis-next`。此前 2026-11-01 的暂停记录只描述旧任务，不适用于本次新请求。
-
-已开始：Miuix 0.9.5-beta01 主题/依赖已在 `ui` 分支基线上；公共设置 Scaffold、设置卡片、确认框、设置 TextField 已分批迁移。当前尚未全量完成，Actions 仍在迭代中。
+`ui` 分支已完成 Miuix 0.9.5-beta01 全量替换：`androidx.compose.material3:material3` 已从模块依赖移除，生产 Kotlin 代码仅保留平板分栏所需的 `androidx.compose.material3.adaptive` 布局坐标与导航（`ChatSplitScaffold.kt`）。后续在 GitHub Actions 复验移除主库后的 APK 与回归测试；真机实测视觉验收仍待目标设备安装验证，且暂未合并到 `minis-next`。
 
 ## 历史暂停（2026-11-01）
 

@@ -104,9 +104,7 @@ fun StandardChatSheet(
 }
 
 /**
- * Slim replacement for [androidx.compose.material3.BottomSheetDefaults.DragHandle].
- * Same 32×4 indicator pill, but with 6dp top + 4dp bottom padding so the title
- * sits closer to the indicator than the Material default (22dp / 22dp).
+ * Slim sheet drag handle (32×4 indicator pill) with 6dp top + 4dp bottom padding so the title sits closer to the top.
  */
 @Composable
 private fun CompactDragHandle() {
