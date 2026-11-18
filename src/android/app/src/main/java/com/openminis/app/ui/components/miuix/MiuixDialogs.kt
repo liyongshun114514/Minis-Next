@@ -26,11 +26,17 @@ fun AlertDialog(
     WindowDialog(show = true, onDismissRequest = onDismissRequest, modifier = modifier,
         backgroundColor = containerColor) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            title?.let { it() }
-            text?.let { it() }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)) {
-                dismissButton?.invoke()
+            title?.let {
+                CompositionLocalProvider(LocalTextStyle provides MiuixTheme.textStyles.title3) { it() }
+            }
+            text?.let {
+                CompositionLocalProvider(LocalTextStyle provides MiuixTheme.textStyles.body1) { it() }
+            }
+            // Stacked native actions stay readable with long translations and enlarged fonts.
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.End) {
                 confirmButton()
+                dismissButton?.invoke()
             }
         }
     }

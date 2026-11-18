@@ -29,7 +29,7 @@ class ExpandHeaderNoRippleTest {
         assertTrue("TalkBack label and role are forwarded",
             helper.contains("onClickLabel = onClickLabel,") && helper.contains("role = role,"))
         assertTrue("pressed feedback reuses the theme, no new colour",
-            helper.contains("MaterialTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA)"))
+            helper.contains("MiuixTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA)"))
     }
 
     @Test

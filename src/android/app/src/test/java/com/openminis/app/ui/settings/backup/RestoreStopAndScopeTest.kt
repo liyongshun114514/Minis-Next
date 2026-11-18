@@ -133,7 +133,7 @@ class RestoreStopAndScopeTest {
         assertTrue("confirm must call the ViewModel", confirm.contains("vm.stopRunningRestore()"))
         assertTrue(
             "the destructive action must be coloured as such",
-            confirm.contains("MaterialTheme.colorScheme.error"),
+            confirm.contains("MiuixTheme.colorScheme.error"),
         )
         val dismiss = section.substringAfter("dismissButton = {")
         assertTrue("dismiss must not cancel the restore", !dismiss.contains("stopRunningRestore"))

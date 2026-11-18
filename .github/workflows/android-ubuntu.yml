@@ -220,7 +220,10 @@ jobs:
             --tests '*PromptOverridesTest' --tests '*PromptTemplateTest' --tests '*PromptRuntimeIntegrationTest' --tests '*UnifiedPromptSettingsTest' \
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
-            --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest'
+            --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest' \
+            --tests '*MiuixMigrationUiTest' --tests '*UpdateDialogButtonPlanTest' \
+            --tests '*RestoreStopAndScopeTest' --tests '*RestoreReportSeverityTest' \
+            --tests '*ExpandHeaderNoRippleTest' --tests '*InAppThemeSourceGuardTest'
           # The final extraction test invokes this task again; preserve the first
           # selected-regression XMLs instead of silently replacing their reports.
           cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions

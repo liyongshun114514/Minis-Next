@@ -152,7 +152,7 @@ class RestoreReportSeverityTest {
     fun `errors are red and notices are amber, in separate sections`() {
         assertTrue(
             "errors must use the theme error colour",
-            screen.contains("ReportLine(it, Icons.Outlined.ErrorOutline, MaterialTheme.colorScheme.error)"),
+            screen.contains("ReportLine(it, Icons.Outlined.ErrorOutline, MiuixTheme.colorScheme.error)"),
         )
         assertTrue(
             "notices must use the amber helper",
