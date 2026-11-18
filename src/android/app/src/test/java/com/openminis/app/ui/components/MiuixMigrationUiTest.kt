@@ -217,9 +217,11 @@ class MiuixMigrationUiTest {
         val labels = listOf("Auto", "Images API", "Chat").map {
             compose.onNodeWithText(it).assertIsDisplayed().getUnclippedBoundsInRoot()
         }
-        assertEquals(labels[0].height, labels[1].height)
-        assertEquals(labels[0].top, labels[1].top)
-        assertEquals(labels[1].top, labels[2].top)
+        val first = labels.first()
+        labels.drop(1).forEach { bounds ->
+            assertEquals(first.top, bounds.top)
+            assertEquals(first.bottom, bounds.bottom)
+        }
     }
 
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {
