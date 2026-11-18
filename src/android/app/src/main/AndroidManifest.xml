@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The blur library has no manifest components. Settings only captures a backdrop
+         when RuntimeShader is available; GlassIconButton has a non-shader fallback. -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- T33: Check Update — needed to launch the system installer for the
          downloaded APK. The user must additionally grant "install unknown

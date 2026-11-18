@@ -5,6 +5,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,20 +20,23 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.ui.platform.LocalLayoutDirection
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -84,67 +90,47 @@ fun SettingsScaffold(
     bottomBar: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val scrollState = if (scrollable) rememberScrollState() else null
+    val backdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
+    val pageColor = MiuixTheme.colorScheme.surface
+    val fadeInDistance = with(androidx.compose.ui.platform.LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
         topBar = {
-            if (centerTitle) {
-                Box {
-                    SmallTopAppBar(
-                    title = title,
-                    navigationIcon = {
-                        when {
-                            navigation != null -> navigation()
-                            onBack != null -> IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                            }
-                        }
-                    },
-                    actions = { actions?.invoke() },
-                    color = MiuixTheme.colorScheme.background,
-                    )
-                    Text(
-                        text = title,
-                        modifier = Modifier.align(Alignment.Center),
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            } else {
-                TopAppBar(
-                    title = title,
-                    navigationIcon = {
-                        when {
-                            navigation != null -> navigation()
-                            onBack != null -> IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                            }
-                        }
-                    },
-                    actions = { actions?.invoke() },
-                    color = MiuixTheme.colorScheme.background,
-                )
-            }
+            SettingsGlassTopBar(
+                title = title,
+                backdrop = backdrop,
+                overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
+                centerTitle = centerTitle,
+                onBack = onBack,
+                navigation = navigation,
+                actions = actions,
+            )
         },
         floatingActionButton = { floatingActionButton?.invoke() },
         bottomBar = { bottomBar?.invoke() },
-        containerColor = MiuixTheme.colorScheme.background,
-        content = { padding ->
-        // T183: imePadding() shrinks the scroll container by the IME's
-        // height while the keyboard is up, giving Modifier.bringIntoView()
-        // (used by `bringIntoViewOnFocus`) a meaningful "above the
-        // keyboard" rect to scroll a focused TextField into. Without it,
-        // adjustResize + edge-to-edge leaves the scrollable column at
-        // full height behind the IME and bringIntoView is a no-op.
-        val baseMod = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .imePadding()
+        containerColor = pageColor,
+    ) { padding ->
+        val direction = LocalLayoutDirection.current
+        val viewportPadding = PaddingValues(
+            start = padding.calculateStartPadding(direction),
+            end = padding.calculateEndPadding(direction),
+            bottom = padding.calculateBottomPadding(),
+        )
+        val capture = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier
         Column(
-            modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
+            modifier = Modifier.fillMaxSize()
+                .then(capture)
+                .background(pageColor)
+                .padding(viewportPadding)
+                .consumeWindowInsets(padding)
+                // Keep the focused TextField's bring-into-view viewport above the keyboard.
+                .imePadding()
+                .then(if (scrollState != null) Modifier.verticalScroll(scrollState) else Modifier)
+                // Inside the scroll viewport so rows actually travel behind the glass.
+                .padding(top = padding.calculateTopPadding()),
             content = content,
         )
-        }
-    )
+    }
 }
 
 // ─── Switch ────────────────────────────────────────────────────────────────────
@@ -244,12 +230,10 @@ fun SettingsSection(
         // asymmetry it cost was invisible in a tall multi-row card and glaring
         // in a single-row one ("Status / Enabled", "Voice Services", the
         // thinking-rules note).
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer),
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+            cornerRadius = 18.dp,
+            colors = CardDefaults.defaultColors(),
             content = content,
         )
         if (footer != null) {

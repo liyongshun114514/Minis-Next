@@ -3,6 +3,12 @@ package com.openminis.app.ui.components
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
+import com.openminis.app.R
+import com.openminis.app.ui.settings.SettingsScaffold
+import com.openminis.app.ui.settings.SettingsSection
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -100,6 +106,38 @@ class MiuixMigrationUiTest {
         compose.onNodeWithText("Sheet content").assertIsDisplayed()
         compose.onNodeWithText("Close sheet").performClick()
         compose.runOnIdle { assertTrue(closed) }
+    }
+
+    @Test fun settingsGlassBarStaysFixedAndBackWorksAfterScrolling() {
+        verifySettingsScrollAndBack(dark = false)
+    }
+
+    @Config(sdk = [32])
+    @Test fun settingsGlassBarFallbackStillScrollsAndNavigates() {
+        verifySettingsScrollAndBack(dark = true)
+    }
+
+    private fun verifySettingsScrollAndBack(dark: Boolean) {
+        var backClicks = 0
+        compose.setContent {
+            MinisTheme(darkTheme = dark) {
+                SettingsScaffold(title = "Glass Settings", onBack = { backClicks++ }, centerTitle = true) {
+                    SettingsSection(header = "Appearance") { Text("First preference") }
+                    Spacer(Modifier.height(1100.dp))
+                    SettingsSection(header = "About") { Text("Last preference") }
+                    Spacer(Modifier.height(24.dp))
+                }
+            }
+        }
+        val title = compose.onNodeWithText("Glass Settings").assertIsDisplayed()
+        val initialTitleBounds = title.getUnclippedBoundsInRoot()
+        compose.onNodeWithText("First preference").assertIsDisplayed()
+        compose.onNodeWithText("Last preference").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("First preference").assertIsNotDisplayed()
+        assertEquals(initialTitleBounds, title.getUnclippedBoundsInRoot())
+        val backLabel = compose.activity.getString(R.string.settings_back)
+        compose.onNodeWithContentDescription(backLabel).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, backClicks) }
     }
 
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {

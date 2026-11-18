@@ -424,8 +424,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Miuix UI (Compose Multiplatform Android artifacts)
-    // Note: miuix-blur requires minSdk 33 and is intentionally excluded while minSdk = 26.
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta01")
+    // The glass module pulls in miuix-blur. Settings gates its backdrop on API 33+.
+    implementation("top.yukonga.miuix.kmp:miuix-glass-android:0.9.5-beta01")
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta01")
     implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta01")
 
