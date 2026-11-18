@@ -69,41 +69,32 @@ fun DropdownMenuItem(
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
 ) {
     val alpha = if (enabled) 1f else 0.38f
-    Surface(color = Color.Transparent, onClick = onClick, enabled = enabled, modifier = modifier) {
-        Row(Modifier.fillMaxWidth().padding(contentPadding).heightIn(min = 24.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            leadingIcon?.let { CompositionLocalProvider(LocalContentColor provides colors.leadingIconColor.copy(alpha = alpha)) { it() } }
-            Box(Modifier.weight(1f)) { CompositionLocalProvider(LocalContentColor provides colors.textColor.copy(alpha = alpha)) { text() } }
-            trailingIcon?.let { CompositionLocalProvider(LocalContentColor provides colors.trailingIconColor.copy(alpha = alpha)) { it() } }
-        }
+    top.yukonga.miuix.kmp.basic.BasicComponent(
+        modifier = modifier,
+        onClick = onClick,
+        enabled = enabled,
+        insideMargin = contentPadding,
+        startAction = leadingIcon?.let { icon -> {
+            CompositionLocalProvider(LocalContentColor provides colors.leadingIconColor.copy(alpha = alpha)) { icon() }
+        } },
+        endActions = trailingIcon?.let { icon -> {
+            CompositionLocalProvider(LocalContentColor provides colors.trailingIconColor.copy(alpha = alpha)) { icon() }
+        } },
+    ) {
+        CompositionLocalProvider(LocalContentColor provides colors.textColor.copy(alpha = alpha)) { text() }
     }
 }
 
 @Composable
 fun DropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    if (expanded) Popup(onDismissRequest = onDismissRequest, properties = PopupProperties(focusable = true)) {
-        Surface(shape = RoundedCornerShape(20.dp), color = MiuixTheme.colorScheme.surfaceContainer,
-            shadowElevation = 8.dp, modifier = Modifier.widthIn(min = 180.dp, max = 320.dp)) {
-            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()).padding(vertical = 8.dp), content = content)
+    top.yukonga.miuix.kmp.window.WindowListPopup(
+        show = expanded,
+        onDismissRequest = onDismissRequest,
+        enableWindowDim = false,
+    ) {
+        top.yukonga.miuix.kmp.basic.ListPopupColumn {
+            Column(content = content)
         }
-    }
-}
-
-/** Anchoring scope for the few custom read-only input selectors. */
-class ExposedDropdownMenuScope(private val onToggle: () -> Unit) {
-    fun Modifier.menuAnchor(type: MenuAnchorType = MenuAnchorType.PrimaryNotEditable): Modifier = clickable(onClick = onToggle)
-    @Composable fun ExposedDropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) =
-        DropdownMenu(expanded, onDismissRequest, content)
-}
-enum class MenuAnchorType { PrimaryNotEditable }
-@Composable
-fun ExposedDropdownMenuBox(expanded: Boolean, onExpandedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier, content: @Composable ExposedDropdownMenuScope.() -> Unit) {
-    Box(modifier) { ExposedDropdownMenuScope { onExpandedChange(!expanded) }.content() }
-}
-object ExposedDropdownMenuDefaults {
-    @Composable fun TrailingIcon(expanded: Boolean) {
-        top.yukonga.miuix.kmp.basic.Text(if (expanded) "▴" else "▾")
     }
 }
 

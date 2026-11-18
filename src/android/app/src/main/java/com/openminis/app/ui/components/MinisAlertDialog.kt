@@ -2,33 +2,18 @@ package com.openminis.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import top.yukonga.miuix.kmp.basic.Surface
 import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
-/**
- * App-wide confirmation dialog. Tighter than the Material 3 default
- * (16 dp radius, titleLarge instead of headlineSmall) so small
- * confirmation prompts don't read as oversized cards. The destructive
- * variant tints the confirm button with `colorScheme.error`, matching
- * the pattern iOS uses for `UIAlertActionStyle.destructive`.
+/** Shared confirmation window using Miuix's native shape, inset handling and animations.
+ * All actions use native buttons and stay readable at enlarged font scales.
  */
 @Composable
 fun MinisAlertDialog(
@@ -57,72 +42,32 @@ fun MinisAlertDialog(
      */
     neutralColor: Color? = null,
 ) {
-    Dialog(
+    top.yukonga.miuix.kmp.window.WindowDialog(
+        show = true,
+        title = title,
+        summary = text,
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
     ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MiuixTheme.colorScheme.surface,
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = title,
-                    style = MiuixTheme.textStyles.headline1,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
-                )
-                if (text != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = text,
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                val confirmColor = if (isDestructive) {
-                    MiuixTheme.colorScheme.error
-                } else {
-                    MiuixTheme.colorScheme.primary
-                }
-                if (neutralText != null && onNeutral != null) {
-                    // Stacked layout. Order runs least-committal first
-                    // (dismiss) down to the most specific action, so the
-                    // primary choice sits closest to the thumb.
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.End,
-                    ) {
-                        MinisTextButton(onClick = onDismiss) {
-                            Text(dismissText)
-                        }
-                        MinisTextButton(onClick = onConfirm) {
-                            Text(text = confirmText, color = confirmColor)
-                        }
-                        MinisTextButton(onClick = onNeutral) {
-                            Text(text = neutralText, color = neutralColor ?: confirmColor)
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        MinisTextButton(onClick = onDismiss) {
-                            Text(dismissText)
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        MinisTextButton(onClick = onConfirm) {
-                            Text(text = confirmText, color = confirmColor)
-                        }
-                    }
-                }
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            MinisButton(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth(),
+                colors = if (isDestructive) MinisButtonDefaults.primaryColors(
+                    color = MiuixTheme.colorScheme.error,
+                    contentColor = MiuixTheme.colorScheme.onError,
+                ) else MinisButtonDefaults.primaryColors(),
+            ) { Text(confirmText) }
+            if (neutralText != null && onNeutral != null) {
+                MinisOutlinedButton(
+                    onClick = onNeutral,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = MinisButtonDefaults.secondaryColors(
+                        contentColor = neutralColor ?: MiuixTheme.colorScheme.primary,
+                    ),
+                ) { Text(neutralText) }
+            }
+            MinisOutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                Text(dismissText)
             }
         }
     }

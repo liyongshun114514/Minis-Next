@@ -41,13 +41,10 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolumeUp
 import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
-import com.openminis.app.ui.components.miuix.ExposedDropdownMenuBox
-import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.MenuAnchorType
 import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
 import com.openminis.app.ui.components.miuix.Text
@@ -482,43 +479,15 @@ private fun GroupDropdown(
     selectedId: String?,
     onSelect: (String?) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = groups.find { it.id == selectedId }?.name ?: stringResource(R.string.model_groups_none)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+    val none = stringResource(R.string.model_groups_none)
+    top.yukonga.miuix.kmp.preference.WindowSpinnerPreference(
+        title = label,
+        items = listOf(top.yukonga.miuix.kmp.basic.DropdownItem(text = none)) +
+            groups.map { top.yukonga.miuix.kmp.basic.DropdownItem(text = it.name) },
+        selectedIndex = groups.indexOfFirst { it.id == selectedId } + 1,
+        onSelectedIndexChange = { index -> onSelect(groups.getOrNull(index - 1)?.id) },
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-    ) {
-        OutlinedTextField(
-            value = selectedName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.model_groups_none)) },
-                onClick = {
-                    onSelect(null)
-                    expanded = false
-                },
-            )
-            groups.forEach { group ->
-                DropdownMenuItem(
-                    text = { Text(group.name) },
-                    onClick = {
-                        onSelect(group.id)
-                        expanded = false
-                    },
-                )
-            }
-        }
-    }
+    )
 }
 
 /**

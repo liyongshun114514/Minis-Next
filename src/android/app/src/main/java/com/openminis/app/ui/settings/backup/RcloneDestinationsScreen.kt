@@ -23,8 +23,6 @@ import androidx.compose.material.icons.outlined.NorthWest
 import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ExposedDropdownMenuBox
-import com.openminis.app.ui.components.miuix.ExposedDropdownMenuDefaults
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import com.openminis.app.ui.components.miuix.OutlinedTextField
@@ -249,7 +247,6 @@ internal fun AddServerForm(
     val error by vm.error.collectAsState()
     val certificateRejected by vm.certificateRejected.collectAsState()
 
-    var backendExpanded by remember { mutableStateOf(false) }
     var backend by remember { mutableStateOf(RcloneBackendCatalog.all.first()) }
     var displayName by remember { mutableStateOf("") }
     val fieldValues = remember { mutableStateMapOf<String, String>() }
@@ -268,33 +265,20 @@ internal fun AddServerForm(
     // That crash fired every time "Add Server" was opened.
     Column(Modifier.padding(16.dp)) {
         // Backend picker
-        ExposedDropdownMenuBox(
-            expanded = backendExpanded,
-            onExpandedChange = { backendExpanded = it },
-        ) {
-            OutlinedTextField(
-                value = backend.title,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(R.string.backup_dest_server_type)) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(backendExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
-            )
-            ExposedDropdownMenu(
-                expanded = backendExpanded,
-                onDismissRequest = { backendExpanded = false },
-            ) {
-                RcloneBackendCatalog.all.forEach { b ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.backup_dest_backend_label, b.title, b.subtitle)) },
-                        onClick = {
-                            backend = b; backendExpanded = false
-                            fieldValues.clear()
-                        },
-                    )
-                }
-            }
-        }
+        top.yukonga.miuix.kmp.preference.WindowSpinnerPreference(
+            title = stringResource(R.string.backup_dest_server_type),
+            items = RcloneBackendCatalog.all.map { b ->
+                top.yukonga.miuix.kmp.basic.DropdownItem(
+                    text = stringResource(R.string.backup_dest_backend_label, b.title, b.subtitle),
+                )
+            },
+            selectedIndex = RcloneBackendCatalog.all.indexOf(backend).coerceAtLeast(0),
+            onSelectedIndexChange = { index ->
+                backend = RcloneBackendCatalog.all[index]
+                fieldValues.clear()
+            },
+            enabled = !busy,
+        )
 
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
