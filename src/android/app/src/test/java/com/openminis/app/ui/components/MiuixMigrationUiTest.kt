@@ -1,12 +1,13 @@
 package com.openminis.app.ui.components
 
 import android.app.Application
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.openminis.app.ui.components.miuix.*
 import com.openminis.app.ui.theme.MinisTheme
 import org.junit.Assert.*
@@ -24,7 +25,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class MiuixMigrationUiTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun nativeButtonsHonorEnabledAndCallback() {
         var clicks = 0

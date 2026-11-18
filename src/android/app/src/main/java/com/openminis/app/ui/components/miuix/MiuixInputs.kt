@@ -1,6 +1,7 @@
 package com.openminis.app.ui.components.miuix
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
@@ -165,13 +166,17 @@ fun OutlinedTextField(
         label?.invoke()
         Box(contentAlignment = Alignment.CenterStart) {
             TextField(
-                value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(),
+                value = value, onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth().then(
+                    if (isError) Modifier.semantics { error("Invalid value") } else Modifier,
+                ),
                 enabled = enabled, readOnly = readOnly, textStyle = textStyle,
                 leadingIcon = leadingIcon, trailingIcon = trailingIcon,
                 visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
                 keyboardActions = keyboardActions, singleLine = singleLine,
                 maxLines = maxLines, minLines = minLines,
                 colors = if (isError) colors.copy(borderColor = MiuixTheme.colorScheme.error) else colors,
+                cornerRadius = TextFieldDefaults.CornerRadius,
             )
             if (value.text.isEmpty() && placeholder != null) {
                 Box(Modifier.padding(start = if (leadingIcon == null) 16.dp else 48.dp, end = 16.dp)) {

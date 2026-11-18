@@ -461,7 +461,8 @@ dependencies {
     // ProcessLifecycleOwner — used by XAIOAuthManager to detect Custom
     // Tab dismissal (T-xai-oauth-stop-resume port iOS d1dbdd5d).
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
+    // Upgraded to match Miuix 0.9.5-beta01's navigationevent dispatcher requirement.
+    implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Navigation
