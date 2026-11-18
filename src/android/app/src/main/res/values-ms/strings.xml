@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">Kunci API dan log masuk OAuth</string>
     <string name="settings_model_groups">Kumpulan Model</string>
     <string name="settings_model_groups_subtitle">Sandaran dan pengimbangan beban</string>
-    <string name="settings_token_usage">Penggunaan Token</string>
+    <string name="settings_token_usage">Aktiviti</string>
     <string name="settings_token_usage_subtitle">Pantau penggunaan API merentas semua pembekal</string>
     <string name="settings_section_appearance">Penampilan</string>
     <string name="settings_appearance_subtitle">Tema, saiz fon, dan paparan</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">Kosongkan Fail Sesi?</string>
     <string name="storage_clear_confirm_text">Ini akan memadam %1$s fail. Tindakan ini tidak boleh dibatalkan.</string>
     <string name="storage_clear_confirm_button">Kosongkan %1$s</string>
-    <string name="usage_title">Penggunaan</string>
+    <string name="usage_title">Aktiviti</string>
     <string name="usage_section_total">Jumlah Penggunaan</string>
     <string name="usage_label_total_input">Jumlah Input (termasuk Cache)</string>
     <string name="usage_label_output">Token Output</string>

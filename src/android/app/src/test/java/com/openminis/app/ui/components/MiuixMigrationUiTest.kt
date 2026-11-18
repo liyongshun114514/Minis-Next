@@ -6,6 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.openminis.app.ui.navigation.MainDestination
+import com.openminis.app.ui.navigation.MainNavigationLayout
+import com.openminis.app.ui.settings.ImageEndpointLabel
 import com.openminis.app.R
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
@@ -138,6 +145,81 @@ class MiuixMigrationUiTest {
         val backLabel = compose.activity.getString(R.string.settings_back)
         compose.onNodeWithContentDescription(backLabel).assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, backClicks) }
+    }
+
+    @Test fun mainDockSwitchesTabsRestoresStateAndLeavesDetailRoutesFullScreen() {
+        compose.setContent {
+            MinisTheme {
+                val nav = rememberNavController()
+                MainNavigationLayout(nav) {
+                    NavHost(nav, startDestination = MainDestination.Home.route) {
+                        composable(MainDestination.Home.route) { Text("Conversations page") }
+                        composable(MainDestination.Agents.route) { Text("Agents page") }
+                        composable(MainDestination.Trajectory.route) {
+                            var range by rememberSaveable { mutableStateOf("7 days") }
+                            MinisButton(onClick = { range = "30 days" }) { Text(range) }
+                        }
+                        composable(MainDestination.Settings.route) {
+                            MinisButton(onClick = { nav.navigate("sample_detail") }) { Text("Open detail") }
+                        }
+                        composable("sample_detail") {
+                            MinisButton(onClick = { nav.popBackStack() }) { Text("Close detail") }
+                        }
+                    }
+                }
+            }
+        }
+        fun tab(destination: MainDestination) = compose.onNodeWithText(compose.activity.getString(destination.label))
+        tab(MainDestination.Home).assertIsSelected()
+        tab(MainDestination.Trajectory).performClick().assertIsSelected()
+        compose.onNodeWithText("7 days").performClick()
+        tab(MainDestination.Agents).performClick().assertIsSelected()
+        compose.onNodeWithText("Agents page").assertIsDisplayed()
+        tab(MainDestination.Trajectory).performClick().assertIsSelected()
+        compose.onNodeWithText("30 days").assertIsDisplayed()
+        tab(MainDestination.Settings).performClick().assertIsSelected()
+        compose.onNodeWithText("Open detail").performClick()
+        tab(MainDestination.Home).assertDoesNotExist()
+        compose.onNodeWithText("Close detail").performClick()
+        tab(MainDestination.Settings).assertIsSelected()
+        tab(MainDestination.Home).performClick().assertIsSelected()
+        compose.onNodeWithText("Conversations page").assertIsDisplayed()
+    }
+
+    @Config(qualifiers = "w900dp-h700dp")
+    @Test fun wideMainNavigationUsesLeadingRail() {
+        compose.setContent {
+            MinisTheme {
+                MainNavigationLayout(MainDestination.Home, onSelect = {}) { Text("Workspace") }
+            }
+        }
+        val home = compose.onNodeWithText(compose.activity.getString(R.string.main_nav_home))
+        val activity = compose.onNodeWithText(compose.activity.getString(R.string.usage_title))
+        val homeBounds = home.assertIsSelected().getUnclippedBoundsInRoot()
+        val activityBounds = activity.assertIsDisplayed().getUnclippedBoundsInRoot()
+        val workspaceBounds = compose.onNodeWithText("Workspace").getUnclippedBoundsInRoot()
+        assertTrue(homeBounds.top < activityBounds.top)
+        assertTrue(homeBounds.right < workspaceBounds.left)
+    }
+
+    @Test fun providerImageEndpointLabelsFitOneLineAtLargerTextSize() {
+        compose.setContent {
+            MinisTheme(fontScale = 1.25f) {
+                SingleChoiceSegmentedButtonRow {
+                    listOf("Auto", "Images API", "Chat").forEachIndexed { index, label ->
+                        SegmentedButton(index == 0, onClick = {}, shape = SegmentedButtonDefaults.itemShape(index, 3)) {
+                            ImageEndpointLabel(label)
+                        }
+                    }
+                }
+            }
+        }
+        val labels = listOf("Auto", "Images API", "Chat").map {
+            compose.onNodeWithText(it).assertIsDisplayed().getUnclippedBoundsInRoot()
+        }
+        assertEquals(labels[0].height, labels[1].height)
+        assertEquals(labels[0].top, labels[1].top)
+        assertEquals(labels[1].top, labels[2].top)
     }
 
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {

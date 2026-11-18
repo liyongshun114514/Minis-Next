@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">API keys e inicio de sesión con OAuth</string>
     <string name="settings_model_groups">Grupos de modelos</string>
     <string name="settings_model_groups_subtitle">Respaldo y balanceo de carga</string>
-    <string name="settings_token_usage">Uso de tokens</string>
+    <string name="settings_token_usage">Actividad</string>
     <string name="settings_token_usage_subtitle">Controla el uso de la API entre proveedores</string>
     <string name="settings_section_appearance">Apariencia</string>
     <string name="settings_appearance_subtitle">Tema, tamaño de fuente y visualización</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">¿Borrar los archivos de sesión?</string>
     <string name="storage_clear_confirm_text">Se eliminarán %1$s de archivos. Esta acción no se puede deshacer.</string>
     <string name="storage_clear_confirm_button">Borrar %1$s</string>
-    <string name="usage_title">Uso</string>
+    <string name="usage_title">Actividad</string>
     <string name="usage_section_total">Uso total</string>
     <string name="usage_label_total_input">Entrada total (incl. caché)</string>
     <string name="usage_label_output">Tokens de salida</string>

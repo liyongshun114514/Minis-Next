@@ -161,7 +161,7 @@
     <string name="settings_manage_providers_subtitle">Chiavi API e accesso con OAuth</string>
     <string name="settings_model_groups">Gruppi di modelli</string>
     <string name="settings_model_groups_subtitle">Fallback e bilanciamento del carico</string>
-    <string name="settings_token_usage">Utilizzo dei token</string>
+    <string name="settings_token_usage">Attività</string>
     <string name="settings_token_usage_subtitle">Monitora l\'utilizzo delle API tra i provider</string>
     <string name="settings_section_appearance">Aspetto</string>
     <string name="settings_appearance_subtitle">Tema, dimensione del testo e visualizzazione</string>
@@ -954,7 +954,7 @@
         <item quantity="many">%1$d conversazioni eliminate, liberati %2$s</item>
         <item quantity="other">%1$d conversazioni eliminate, liberati %2$s</item>
     </plurals>
-    <string name="usage_title">Utilizzo</string>
+    <string name="usage_title">Attività</string>
     <string name="usage_section_total">Utilizzo totale</string>
     <string name="usage_label_total_input">Input totale (cache inclusa)</string>
     <string name="usage_label_output">Token di output</string>

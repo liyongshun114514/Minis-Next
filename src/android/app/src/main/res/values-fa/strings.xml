@@ -160,7 +160,7 @@
     <string name="settings_manage_providers_subtitle">کلیدهای API و ورود با OAuth</string>
     <string name="settings_model_groups">گروه‌های مدل</string>
     <string name="settings_model_groups_subtitle">جایگزین و توزیع بار</string>
-    <string name="settings_token_usage">مصرف توکن</string>
+    <string name="settings_token_usage">فعالیت</string>
     <string name="settings_token_usage_subtitle">پیگیری مصرف API در همهٔ ارائه‌دهندگان</string>
     <string name="settings_section_appearance">ظاهر</string>
     <string name="settings_appearance_subtitle">پوسته، اندازهٔ قلم و نمایش</string>
@@ -950,7 +950,7 @@
         <item quantity="one">%1$d گفتگو حذف شد و %2$s آزاد شد</item>
         <item quantity="other">%1$d گفتگو حذف شد و %2$s آزاد شد</item>
     </plurals>
-    <string name="usage_title">مصرف</string>
+    <string name="usage_title">فعالیت</string>
     <string name="usage_section_total">مصرف کل</string>
     <string name="usage_label_total_input">کل ورودی (با احتساب حافظهٔ پنهان)</string>
     <string name="usage_label_output">توکن‌های خروجی</string>

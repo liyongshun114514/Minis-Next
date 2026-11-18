@@ -191,7 +191,7 @@
     <string name="settings_manage_providers_subtitle">API keys and OAuth sign-in</string>
     <string name="settings_model_groups">Model Groups</string>
     <string name="settings_model_groups_subtitle">Fallback and load balancing</string>
-    <string name="settings_token_usage">Token Usage</string>
+    <string name="settings_token_usage">Activity</string>
     <string name="settings_token_usage_subtitle">Track API usage across providers</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_appearance_subtitle">Theme, font size, and display</string>
@@ -1090,7 +1090,7 @@
         <item quantity="one">Deleted %1$d conversation, freed %2$s</item>
         <item quantity="other">Deleted %1$d conversations, freed %2$s</item>
     </plurals>
-    <string name="usage_title">Usage</string>
+    <string name="usage_title">Activity</string>
     <string name="usage_section_total">Total Usage</string>
     <string name="usage_label_total_input">Total Input (incl. Cache)</string>
     <string name="usage_label_output">Output Tokens</string>
@@ -2780,4 +2780,9 @@
     <string name="mcp_dcr_registration_unreadable">The registration response could not be read.</string>
     <string name="mcp_dcr_http_status">%1$s returned HTTP %2$d.</string>
     <string name="mcp_dcr_unreadable">%1$s returned data that could not be read.</string>
+    <string name="main_nav_home">Home</string>
+    <string name="main_nav_agents">Agents</string>
+    <string name="provider_image_endpoint_auto">Auto</string>
+    <string name="provider_image_endpoint_images">Images API</string>
+    <string name="provider_image_endpoint_chat">Chat</string>
 </resources>

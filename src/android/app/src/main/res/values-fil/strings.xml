@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">Mga API key at OAuth sign-in</string>
     <string name="settings_model_groups">Mga Model Group</string>
     <string name="settings_model_groups_subtitle">Fallback at load balancing</string>
-    <string name="settings_token_usage">Paggamit ng Token</string>
+    <string name="settings_token_usage">Aktibidad</string>
     <string name="settings_token_usage_subtitle">Subaybayan ang paggamit ng API sa lahat ng provider</string>
     <string name="settings_section_appearance">Hitsura</string>
     <string name="settings_appearance_subtitle">Tema, laki ng font, at display</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">I-clear ang Mga File ng Session?</string>
     <string name="storage_clear_confirm_text">Buburahin nito ang %1$s ng mga file. Hindi na ito maibabalik.</string>
     <string name="storage_clear_confirm_button">I-clear ang %1$s</string>
-    <string name="usage_title">Paggamit</string>
+    <string name="usage_title">Aktibidad</string>
     <string name="usage_section_total">Kabuuang Paggamit</string>
     <string name="usage_label_total_input">Kabuuang Input (kasama ang Cache)</string>
     <string name="usage_label_output">Mga Output Token</string>

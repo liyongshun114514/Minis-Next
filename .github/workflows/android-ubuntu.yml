@@ -223,6 +223,7 @@ jobs:
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest' \
             --tests '*MiuixMigrationUiTest' --tests '*UpdateDialogButtonPlanTest' \
+            --tests '*ModelGroupReorderTest' --tests '*UsageVectorsTest' --tests '*UsageDisplayTest' \
             --tests '*RestoreStopAndScopeTest' --tests '*RestoreReportSeverityTest' \
             --tests '*ExpandHeaderNoRippleTest' --tests '*InAppThemeSourceGuardTest'
           # The final extraction test invokes this task again; preserve the first

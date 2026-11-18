@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">API anahtarları ve OAuth ile oturum açma</string>
     <string name="settings_model_groups">Model Grupları</string>
     <string name="settings_model_groups_subtitle">Yedekleme ve yük dengeleme</string>
-    <string name="settings_token_usage">Token Kullanımı</string>
+    <string name="settings_token_usage">Etkinlik</string>
     <string name="settings_token_usage_subtitle">Tüm sağlayıcılarda API kullanımını izleyin</string>
     <string name="settings_section_appearance">Görünüm</string>
     <string name="settings_appearance_subtitle">Tema, yazı tipi boyutu ve görüntü</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">Oturum dosyaları temizlensin mi?</string>
     <string name="storage_clear_confirm_text">Bu işlem %1$s boyutundaki dosyaları siler ve geri alınamaz.</string>
     <string name="storage_clear_confirm_button">Temizle: %1$s</string>
-    <string name="usage_title">Kullanım</string>
+    <string name="usage_title">Etkinlik</string>
     <string name="usage_section_total">Toplam Kullanım</string>
     <string name="usage_label_total_input">Toplam Giriş (Önbellek dahil)</string>
     <string name="usage_label_output">Çıkış Token\'ları</string>

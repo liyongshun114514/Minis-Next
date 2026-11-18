@@ -149,7 +149,7 @@
     <string name="settings_manage_providers_subtitle">Ключи API и вход через OAuth</string>
     <string name="settings_model_groups">Группы моделей</string>
     <string name="settings_model_groups_subtitle">Резервирование и балансировка нагрузки</string>
-    <string name="settings_token_usage">Расход токенов</string>
+    <string name="settings_token_usage">Активность</string>
     <string name="settings_token_usage_subtitle">Отслеживание использования API по провайдерам</string>
     <string name="settings_section_appearance">Внешний вид</string>
     <string name="settings_appearance_subtitle">Тема, размер шрифта и отображение</string>
@@ -905,7 +905,7 @@
     <string name="storage_clear_confirm_title">Очистить файлы сессии?</string>
     <string name="storage_clear_confirm_text">Будет удалено %1$s файлов. Это действие нельзя отменить.</string>
     <string name="storage_clear_confirm_button">Очистить %1$s</string>
-    <string name="usage_title">Использование</string>
+    <string name="usage_title">Активность</string>
     <string name="usage_section_total">Всего использовано</string>
     <string name="usage_label_total_input">Всего входных (вкл. кэш)</string>
     <string name="usage_label_output">Выходные токены</string>

@@ -148,7 +148,7 @@
     <string name="settings_manage_providers_subtitle">API 키와 OAuth 로그인</string>
     <string name="settings_model_groups">모델 그룹</string>
     <string name="settings_model_groups_subtitle">폴백 및 로드 밸런싱</string>
-    <string name="settings_token_usage">토큰 사용량</string>
+    <string name="settings_token_usage">활동</string>
     <string name="settings_token_usage_subtitle">여러 제공자의 API 사용 현황 추적</string>
     <string name="settings_section_appearance">외관</string>
     <string name="settings_appearance_subtitle">테마, 글꼴 크기, 표시</string>
@@ -904,7 +904,7 @@
     <string name="storage_clear_confirm_title">세션 파일을 삭제하시겠습니까?</string>
     <string name="storage_clear_confirm_text">%1$s 의 파일을 삭제합니다. 이 작업은 되돌릴 수 없습니다.</string>
     <string name="storage_clear_confirm_button">%1$s 지우기</string>
-    <string name="usage_title">사용량</string>
+    <string name="usage_title">활동</string>
     <string name="usage_section_total">총 사용량</string>
     <string name="usage_label_total_input">총 입력 (캐시 포함)</string>
     <string name="usage_label_output">출력 토큰</string>

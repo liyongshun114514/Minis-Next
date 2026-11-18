@@ -148,7 +148,7 @@
     <string name="settings_manage_providers_subtitle">API キーと OAuth サインイン</string>
     <string name="settings_model_groups">モデルグループ</string>
     <string name="settings_model_groups_subtitle">フォールバックと負荷分散</string>
-    <string name="settings_token_usage">トークン使用量</string>
+    <string name="settings_token_usage">アクティビティ</string>
     <string name="settings_token_usage_subtitle">プロバイダー横断で API 使用状況を追跡</string>
     <string name="settings_section_appearance">外観</string>
     <string name="settings_appearance_subtitle">テーマ、フォントサイズ、表示</string>
@@ -908,7 +908,7 @@
     <string name="storage_clear_confirm_title">セッションファイルを削除しますか？</string>
     <string name="storage_clear_confirm_text">%1$s のファイルを削除します。この操作は取り消せません。</string>
     <string name="storage_clear_confirm_button">%1$s をクリア</string>
-    <string name="usage_title">使用量</string>
+    <string name="usage_title">アクティビティ</string>
     <string name="usage_section_total">合計使用量</string>
     <string name="usage_label_total_input">合計入力（キャッシュ含む）</string>
     <string name="usage_label_output">出力トークン</string>

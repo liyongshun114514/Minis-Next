@@ -160,7 +160,7 @@
     <string name="settings_manage_providers_subtitle">API-kulcsok és OAuth-bejelentkezés</string>
     <string name="settings_model_groups">Modellcsoportok</string>
     <string name="settings_model_groups_subtitle">Tartalék és terheléselosztás</string>
-    <string name="settings_token_usage">Tokenhasználat</string>
+    <string name="settings_token_usage">Tevékenység</string>
     <string name="settings_token_usage_subtitle">API-használat követése a szolgáltatók között</string>
     <string name="settings_section_appearance">Megjelenés</string>
     <string name="settings_appearance_subtitle">Téma, betűméret és megjelenítés</string>
@@ -950,7 +950,7 @@
         <item quantity="one">%1$d beszélgetés törölve, %2$s felszabadítva</item>
         <item quantity="other">%1$d beszélgetés törölve, %2$s felszabadítva</item>
     </plurals>
-    <string name="usage_title">Használat</string>
+    <string name="usage_title">Tevékenység</string>
     <string name="usage_section_total">Teljes használat</string>
     <string name="usage_label_total_input">Teljes bemenet (cache-sel)</string>
     <string name="usage_label_output">Kimeneti tokenek</string>

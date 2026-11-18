@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">Chaves de API e login com OAuth</string>
     <string name="settings_model_groups">Grupos de modelos</string>
     <string name="settings_model_groups_subtitle">Fallback e balanceamento de carga</string>
-    <string name="settings_token_usage">Uso de tokens</string>
+    <string name="settings_token_usage">Atividade</string>
     <string name="settings_token_usage_subtitle">Acompanhe o uso da API em todos os provedores</string>
     <string name="settings_section_appearance">Aparência</string>
     <string name="settings_appearance_subtitle">Tema, tamanho da fonte e exibição</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">Limpar os arquivos da sessão?</string>
     <string name="storage_clear_confirm_text">Isso exclui %1$s de arquivos. Não é possível desfazer.</string>
     <string name="storage_clear_confirm_button">Limpar: %1$s</string>
-    <string name="usage_title">Uso</string>
+    <string name="usage_title">Atividade</string>
     <string name="usage_section_total">Uso total</string>
     <string name="usage_label_total_input">Entrada total (incluindo cache)</string>
     <string name="usage_label_output">Tokens de saída</string>

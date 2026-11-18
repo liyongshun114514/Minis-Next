@@ -158,7 +158,7 @@
     <string name="settings_manage_providers_subtitle">API 金鑰與 OAuth 登入</string>
     <string name="settings_model_groups">模型群組</string>
     <string name="settings_model_groups_subtitle">備援與負載平衡</string>
-    <string name="settings_token_usage">Token 用量</string>
+    <string name="settings_token_usage">軌跡</string>
     <string name="settings_token_usage_subtitle">追蹤各供應商的 API 用量</string>
     <string name="settings_section_appearance">外觀</string>
     <string name="settings_appearance_subtitle">主題、字型大小與顯示</string>
@@ -946,7 +946,7 @@
     <plurals name="storage_batch_delete_result">
         <item quantity="other">已刪除 %1$d 個對話，釋放 %2$s</item>
     </plurals>
-    <string name="usage_title">用量</string>
+    <string name="usage_title">軌跡</string>
     <string name="usage_section_total">總用量</string>
     <string name="usage_label_total_input">輸入總計（含快取）</string>
     <string name="usage_label_output">輸出 Token</string>
@@ -2510,4 +2510,9 @@
     <string name="mcp_dcr_registration_unreadable">無法讀取註冊回應。</string>
     <string name="mcp_dcr_http_status">%1$s 回傳了 HTTP %2$d。</string>
     <string name="mcp_dcr_unreadable">%1$s 回傳的資料無法讀取。</string>
+    <string name="main_nav_home">首頁</string>
+    <string name="main_nav_agents">Agents</string>
+    <string name="provider_image_endpoint_auto">自動</string>
+    <string name="provider_image_endpoint_images">圖像 API</string>
+    <string name="provider_image_endpoint_chat">聊天</string>
 </resources>

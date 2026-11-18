@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">Clés API et connexion OAuth</string>
     <string name="settings_model_groups">Groupes de modèles</string>
     <string name="settings_model_groups_subtitle">Repli et répartition de charge</string>
-    <string name="settings_token_usage">Consommation de tokens</string>
+    <string name="settings_token_usage">Activité</string>
     <string name="settings_token_usage_subtitle">Suivi de l\'utilisation de l\'API entre fournisseurs</string>
     <string name="settings_section_appearance">Apparence</string>
     <string name="settings_appearance_subtitle">Thème, taille de police et affichage</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">Effacer les fichiers de session ?</string>
     <string name="storage_clear_confirm_text">Cela supprimera %1$s de fichiers. Cette action est irréversible.</string>
     <string name="storage_clear_confirm_button">Effacer %1$s</string>
-    <string name="usage_title">Utilisation</string>
+    <string name="usage_title">Activité</string>
     <string name="usage_section_total">Utilisation totale</string>
     <string name="usage_label_total_input">Entrée totale (cache inclus)</string>
     <string name="usage_label_output">Tokens de sortie</string>

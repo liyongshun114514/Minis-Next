@@ -571,6 +571,7 @@ fun AppNavigation(
         quickActionStart != null -> quickActionStart
         else -> Routes.SESSION_LIST
     }
+    MainNavigationLayout(navController) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -1547,9 +1548,10 @@ fun AppNavigation(
         }
 
         composable(Routes.USAGE_STATS) {
+            val providerConfig by providerRepository.config.collectAsState()
             UsageStatsScreen(
                 chatDao = chatRepository.dao,
-                providerConfig = providerRepository.config.value,
+                providerConfig = providerConfig,
                 onBack = { navController.safePopBackStack() },
             )
         }
@@ -1725,5 +1727,6 @@ fun AppNavigation(
                 },
             )
         }
+    }
     }
 }

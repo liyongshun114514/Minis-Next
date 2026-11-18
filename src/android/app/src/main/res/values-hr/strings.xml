@@ -177,7 +177,7 @@
     <string name="settings_manage_providers_subtitle">API ključevi i OAuth prijava</string>
     <string name="settings_model_groups">Grupe modela</string>
     <string name="settings_model_groups_subtitle">Pričuva i raspodjela opterećenja</string>
-    <string name="settings_token_usage">Potrošnja tokena</string>
+    <string name="settings_token_usage">Aktivnost</string>
     <string name="settings_token_usage_subtitle">Pratite potrošnju API-ja po pružateljima</string>
     <string name="settings_section_appearance">Izgled</string>
     <string name="settings_appearance_subtitle">Tema, veličina fonta i prikaz</string>
@@ -991,7 +991,7 @@
     <string name="storage_clear_confirm_title">Očistiti datoteke sesije?</string>
     <string name="storage_clear_confirm_text">Ovo će izbrisati %1$s datoteka. Ova se radnja ne može poništiti.</string>
     <string name="storage_clear_confirm_button">Očisti %1$s</string>
-    <string name="usage_title">Potrošnja</string>
+    <string name="usage_title">Aktivnost</string>
     <string name="usage_section_total">Ukupna potrošnja</string>
     <string name="usage_label_total_input">Ukupan ulaz (uklj. predmemoriju)</string>
     <string name="usage_label_output">Izlazni tokeni</string>

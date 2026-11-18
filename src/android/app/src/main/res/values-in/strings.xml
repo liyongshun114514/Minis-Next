@@ -152,7 +152,7 @@
     <string name="settings_manage_providers_subtitle">Kunci API dan masuk via OAuth</string>
     <string name="settings_model_groups">Grup Model</string>
     <string name="settings_model_groups_subtitle">Cadangan dan penyeimbangan beban</string>
-    <string name="settings_token_usage">Penggunaan Token</string>
+    <string name="settings_token_usage">Aktivitas</string>
     <string name="settings_token_usage_subtitle">Pantau penggunaan API di semua penyedia</string>
     <string name="settings_section_appearance">Tampilan</string>
     <string name="settings_appearance_subtitle">Tema, ukuran font, dan tampilan</string>
@@ -908,7 +908,7 @@
     <string name="storage_clear_confirm_title">Hapus Berkas Sesi?</string>
     <string name="storage_clear_confirm_text">Ini akan menghapus %1$s berkas. Tindakan ini tidak dapat dibatalkan.</string>
     <string name="storage_clear_confirm_button">Hapus %1$s</string>
-    <string name="usage_title">Penggunaan</string>
+    <string name="usage_title">Aktivitas</string>
     <string name="usage_section_total">Total Penggunaan</string>
     <string name="usage_label_total_input">Total Input (termasuk Cache)</string>
     <string name="usage_label_output">Token Output</string>

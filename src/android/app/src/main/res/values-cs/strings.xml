@@ -162,7 +162,7 @@
     <string name="settings_manage_providers_subtitle">Klíče API a přihlášení přes OAuth</string>
     <string name="settings_model_groups">Skupiny modelů</string>
     <string name="settings_model_groups_subtitle">Záloha a rozložení zátěže</string>
-    <string name="settings_token_usage">Využití tokenů</string>
+    <string name="settings_token_usage">Aktivita</string>
     <string name="settings_token_usage_subtitle">Sleduj využití API napříč poskytovateli</string>
     <string name="settings_section_appearance">Vzhled</string>
     <string name="settings_appearance_subtitle">Motiv, velikost písma a zobrazení</string>
@@ -958,7 +958,7 @@
         <item quantity="many">Smazáno %1$d konverzace, uvolněno %2$s</item>
         <item quantity="other">Smazáno %1$d konverzací, uvolněno %2$s</item>
     </plurals>
-    <string name="usage_title">Využití</string>
+    <string name="usage_title">Aktivita</string>
     <string name="usage_section_total">Celkové využití</string>
     <string name="usage_label_total_input">Celkový vstup (vč. cache)</string>
     <string name="usage_label_output">Výstupní tokeny</string>

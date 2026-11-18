@@ -148,7 +148,7 @@
     <string name="settings_manage_providers_subtitle">Chei API și autentificare OAuth</string>
     <string name="settings_model_groups">Grupuri de modele</string>
     <string name="settings_model_groups_subtitle">Rezervă și echilibrarea încărcării</string>
-    <string name="settings_token_usage">Consum de tokenuri</string>
+    <string name="settings_token_usage">Activitate</string>
     <string name="settings_token_usage_subtitle">Urmărește consumul API la toți furnizorii</string>
     <string name="settings_section_appearance">Aspect</string>
     <string name="settings_appearance_subtitle">Temă, dimensiunea textului și afișare</string>
@@ -904,7 +904,7 @@
     <string name="storage_clear_confirm_title">Golești fișierele sesiunii?</string>
     <string name="storage_clear_confirm_text">Se vor șterge %1$s de fișiere. Operația nu poate fi anulată.</string>
     <string name="storage_clear_confirm_button">Golește: %1$s</string>
-    <string name="usage_title">Consum</string>
+    <string name="usage_title">Activitate</string>
     <string name="usage_section_total">Consum total</string>
     <string name="usage_label_total_input">Intrare totală (inclusiv cache)</string>
     <string name="usage_label_output">Tokenuri de ieșire</string>

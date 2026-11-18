@@ -148,7 +148,7 @@
     <string name="settings_manage_providers_subtitle">API key และการเข้าสู่ระบบด้วย OAuth</string>
     <string name="settings_model_groups">กลุ่มโมเดล</string>
     <string name="settings_model_groups_subtitle">การสำรองและการกระจายโหลด</string>
-    <string name="settings_token_usage">การใช้งานโทเค็น</string>
+    <string name="settings_token_usage">กิจกรรม</string>
     <string name="settings_token_usage_subtitle">ติดตามการใช้งาน API ของผู้ให้บริการทั้งหมด</string>
     <string name="settings_section_appearance">การแสดงผล</string>
     <string name="settings_appearance_subtitle">ธีม ขนาดตัวอักษร และการแสดงผล</string>
@@ -904,7 +904,7 @@
     <string name="storage_clear_confirm_title">ล้างไฟล์ของเซสชันหรือไม่</string>
     <string name="storage_clear_confirm_text">การกระทำนี้จะลบไฟล์ขนาด %1$s และไม่สามารถย้อนกลับได้</string>
     <string name="storage_clear_confirm_button">ล้าง %1$s</string>
-    <string name="usage_title">การใช้งาน</string>
+    <string name="usage_title">กิจกรรม</string>
     <string name="usage_section_total">การใช้งานทั้งหมด</string>
     <string name="usage_label_total_input">อินพุตทั้งหมด (รวมแคช)</string>
     <string name="usage_label_output">โทเค็นเอาต์พุต</string>

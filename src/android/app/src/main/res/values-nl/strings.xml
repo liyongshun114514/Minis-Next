@@ -160,7 +160,7 @@
     <string name="settings_manage_providers_subtitle">API-sleutels en OAuth-inloggen</string>
     <string name="settings_model_groups">Modelgroepen</string>
     <string name="settings_model_groups_subtitle">Fallback en taakverdeling</string>
-    <string name="settings_token_usage">Tokengebruik</string>
+    <string name="settings_token_usage">Activiteit</string>
     <string name="settings_token_usage_subtitle">Volg API-gebruik over providers heen</string>
     <string name="settings_section_appearance">Weergave</string>
     <string name="settings_appearance_subtitle">Thema, lettergrootte en weergave</string>
@@ -950,7 +950,7 @@
         <item quantity="one">%1$d gesprek verwijderd, %2$s vrijgemaakt</item>
         <item quantity="other">%1$d gesprekken verwijderd, %2$s vrijgemaakt</item>
     </plurals>
-    <string name="usage_title">Gebruik</string>
+    <string name="usage_title">Activiteit</string>
     <string name="usage_section_total">Totaal gebruik</string>
     <string name="usage_label_total_input">Totale invoer (incl. cache)</string>
     <string name="usage_label_output">Uitvoertokens</string>

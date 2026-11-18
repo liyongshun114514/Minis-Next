@@ -147,7 +147,7 @@
     <string name="settings_manage_providers_subtitle">API-Keys und OAuth-Anmeldung</string>
     <string name="settings_model_groups">Modellgruppen</string>
     <string name="settings_model_groups_subtitle">Fallback und Lastverteilung</string>
-    <string name="settings_token_usage">Token-Verbrauch</string>
+    <string name="settings_token_usage">Aktivität</string>
     <string name="settings_token_usage_subtitle">API-Nutzung anbieterübergreifend verfolgen</string>
     <string name="settings_section_appearance">Darstellung</string>
     <string name="settings_appearance_subtitle">Theme, Schriftgröße und Anzeige</string>
@@ -903,7 +903,7 @@
     <string name="storage_clear_confirm_title">Sitzungsdateien löschen?</string>
     <string name="storage_clear_confirm_text">Es werden %1$s an Dateien gelöscht. Diese Aktion ist nicht umkehrbar.</string>
     <string name="storage_clear_confirm_button">%1$s leeren</string>
-    <string name="usage_title">Verbrauch</string>
+    <string name="usage_title">Aktivität</string>
     <string name="usage_section_total">Gesamtverbrauch</string>
     <string name="usage_label_total_input">Gesamteingabe (inkl. Cache)</string>
     <string name="usage_label_output">Ausgabe-Token</string>

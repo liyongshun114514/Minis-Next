@@ -82,6 +82,18 @@ import com.openminis.app.ui.components.SectionTextField
 
 private const val TAG = "ProviderDetail"
 
+@Composable
+internal fun ImageEndpointLabel(label: String) {
+    Text(
+        text = label,
+        style = MiuixTheme.textStyles.body2,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProviderDetailScreen(
@@ -514,7 +526,7 @@ fun ProviderDetailScreen(
                                 }
                             },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                        ) { Text("Auto") }
+                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_auto)) }
                         SegmentedButton(
                             selected = mode == com.openminis.app.data.model.ImageEndpointMode.imagesGenerations,
                             onClick = {
@@ -529,7 +541,7 @@ fun ProviderDetailScreen(
                                 }
                             },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                        ) { Text("Images API") }
+                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_images)) }
                         SegmentedButton(
                             selected = mode == com.openminis.app.data.model.ImageEndpointMode.chatCompletions,
                             onClick = {
@@ -543,7 +555,7 @@ fun ProviderDetailScreen(
                                 }
                             },
                             shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                        ) { Text("Chat") }
+                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_chat)) }
                     }
                 }
             }

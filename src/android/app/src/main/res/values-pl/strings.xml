@@ -149,7 +149,7 @@
     <string name="settings_manage_providers_subtitle">Klucze API i logowanie OAuth</string>
     <string name="settings_model_groups">Grupy modeli</string>
     <string name="settings_model_groups_subtitle">Przełączanie awaryjne i równoważenie obciążenia</string>
-    <string name="settings_token_usage">Zużycie tokenów</string>
+    <string name="settings_token_usage">Aktywność</string>
     <string name="settings_token_usage_subtitle">Śledź zużycie API u wszystkich dostawców</string>
     <string name="settings_section_appearance">Wygląd</string>
     <string name="settings_appearance_subtitle">Motyw, rozmiar czcionki i wyświetlanie</string>
@@ -905,7 +905,7 @@
     <string name="storage_clear_confirm_title">Wyczyścić pliki sesji?</string>
     <string name="storage_clear_confirm_text">Spowoduje to usunięcie plików o rozmiarze %1$s. Tej operacji nie można cofnąć.</string>
     <string name="storage_clear_confirm_button">Wyczyść: %1$s</string>
-    <string name="usage_title">Zużycie</string>
+    <string name="usage_title">Aktywność</string>
     <string name="usage_section_total">Zużycie łączne</string>
     <string name="usage_label_total_input">Wejście łącznie (z pamięcią podręczną)</string>
     <string name="usage_label_output">Tokeny wyjściowe</string>
