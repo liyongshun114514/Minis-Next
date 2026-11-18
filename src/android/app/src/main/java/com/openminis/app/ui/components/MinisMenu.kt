@@ -1,32 +1,47 @@
 package com.openminis.app.ui.components
 
-import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.focusGroup
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.currentCompositionLocalContext
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalView
+import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.PopupLayout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
@@ -34,20 +49,26 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.openminis.app.ui.components.miuix.MenuDefaults
 import com.openminis.app.ui.components.miuix.MenuItemColors
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowListPopup
+import top.yukonga.miuix.kmp.glass.GlassPopup
+import top.yukonga.miuix.kmp.glass.GlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
+import top.yukonga.miuix.kmp.glass.GlassPopupSizing
+import top.yukonga.miuix.kmp.glass.GlassTransformPopup
 
 internal val LocalMinisMenuInteractive = staticCompositionLocalOf { true }
 
 /**
- * Shared discrete action menu. Miuix owns the spring, directional reveal, window and back gesture;
- * we keep the app's anchor offsets, content-driven width and scroll state. Keep this composed
- * when [expanded] turns false so Miuix can play the exit before disposing its window.
+ * Native glass silhouette/rebound in Miuix's same-window overlay host, outside the scene recording.
+ * Only placement is adapted. Keep this composed when [expanded] becomes false so the native
+ * component can settle its exit before [onDismissFinished]. Neither host takes the IME focus.
  */
 @Composable
 fun MinisMenu(
@@ -55,76 +76,143 @@ fun MinisMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset.Zero,
-    scrollState: ScrollState = rememberScrollState(),
     minWidth: Dp = 180.dp,
     alignEnd: Boolean = false,
     onDismissFinished: (() -> Unit)? = null,
+    glassAnchor: GlassPopupAnchor? = null,
+    anchorContent: @Composable () -> Unit = {},
+    preferAbove: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Chat can contain many offscreen menu anchors. Keep only the active/closing one mounted.
-    val keepMounted = remember { mutableStateOf(false) }
-    if (!expanded && !keepMounted.value) return
-    SideEffect { if (expanded) keepMounted.value = true }
-
+    var mounted by remember { mutableStateOf(false) }
+    if (!expanded && !mounted) return
+    SideEffect { if (expanded) mounted = true }
+    val currentExpanded by rememberUpdatedState(expanded)
+    val currentDismiss by rememberUpdatedState(onDismissRequest)
+    val currentFinished by rememberUpdatedState(onDismissFinished)
+    val finishDismiss = {
+        if (mounted && !currentExpanded) {
+            mounted = false
+            currentFinished?.invoke()
+        }
+    }
+    val sameWindow = LocalMinisGlassWindow.current === LocalView.current.rootView
+    val scene = LocalMinisGlassScene.current.takeIf { sameWindow }
+    val locals = currentCompositionLocalContext
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
-    val windowWidth = LocalWindowInfo.current.containerSize.width
+    val windowSize = LocalWindowInfo.current.containerSize
     val cutout = WindowInsets.displayCutout
+    val status = WindowInsets.statusBars
+    val navigation = WindowInsets.navigationBars
+    val ime = WindowInsets.ime
+    val safeBounds = with(density) {
+        IntRect(
+            cutout.getLeft(this, direction), maxOf(status.getTop(this), cutout.getTop(this)),
+            windowSize.width - cutout.getRight(this, direction),
+            windowSize.height - maxOf(navigation.getBottom(this), ime.getBottom(this), cutout.getBottom(this)),
+        )
+    }
     val maxWidth = with(density) {
-        val available = windowWidth - cutout.getLeft(this, direction) - cutout.getRight(this, direction)
-        if (windowWidth > 0) {
-            (available.toDp() - MinisMenuPosition.HORIZONTAL_MARGIN * 2).coerceIn(0.dp, 280.dp)
-        } else {
-            280.dp
+        (safeBounds.width.toDp() - MinisMenuPosition.HORIZONTAL_MARGIN * 2).coerceIn(0.dp, 280.dp)
+    }
+    val maxHeight = with(density) {
+        (safeBounds.height.toDp() - MinisMenuPosition.VERTICAL_MARGIN * 2).coerceIn(0.dp, GlassPopupDefaults.MaxHeight)
+    }
+    val sizing = GlassPopupSizing(
+        minWidth = minWidth.coerceIn(0.dp, maxWidth), maxWidth = maxWidth, maxHeight = maxHeight,
+        safeMargin = MinisMenuPosition.HORIZONTAL_MARGIN,
+    )
+    var parentBounds by remember { mutableStateOf<IntRect?>(null) }
+    Spacer(Modifier.onGloballyPositioned { child ->
+        child.parentLayoutCoordinates?.takeIf { it.isAttached }?.let { parent ->
+            val p = parent.positionInWindow()
+            parentBounds = IntRect(p.x.toInt(), p.y.toInt(), p.x.toInt() + parent.size.width, p.y.toInt() + parent.size.height)
         }
-    }
-    val effectiveMinWidth = minWidth.coerceAtMost(maxWidth)
-    val offsetXPx = with(density) { offset.x.roundToPx() }
-    val offsetYPx = with(density) { offset.y.roundToPx() }
-    val positionProvider = remember(alignEnd, offsetXPx, offsetYPx) {
-        MinisMenuPosition.provider(alignEnd, offsetXPx, offsetYPx)
-    }
-    WindowListPopup(
-        show = expanded,
-        // This is Miuix's initial pivot hint. The provider supplies the final, physical position.
-        alignment = if (alignEnd == (direction == LayoutDirection.Ltr)) {
-            PopupPositionProvider.Align.End
-        } else {
-            PopupPositionProvider.Align.Start
-        },
-        popupPositionProvider = positionProvider,
-        enableWindowDim = false,
-        minWidth = effectiveMinWidth,
-        onDismissRequest = { if (expanded) onDismissRequest() },
-        onDismissFinished = {
-            keepMounted.value = false
-            onDismissFinished?.invoke()
-        },
-    ) {
-        CompositionLocalProvider(LocalMinisMenuInteractive provides expanded) {
-            Column(
-                modifier = Modifier
-                    .widthIn(min = effectiveMinWidth, max = maxWidth)
-                    .then(modifier)
-                    .width(IntrinsicSize.Max)
-                    .focusGroup()
-                    .pointerInput(expanded) {
-                        if (expanded) {
-                            // Blank space within the card is not an outside tap.
-                            detectTapGestures(onTap = {})
-                        } else {
-                            // Don't activate rows or embedded switches during the exit animation.
-                            awaitPointerEventScope {
-                                while (true) {
-                                    awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+    })
+    val anchorBounds = parentBounds ?: return
+    if (windowSize == IntSize.Zero) return
+    val offsetX = with(density) { offset.x.roundToPx() }
+    val offsetY = with(density) { offset.y.roundToPx() }
+    val margin = with(density) { MinisMenuPosition.HORIZONTAL_MARGIN.roundToPx() }
+    val visuals = GlassPopupDefaults.visuals()
+    val hostContent: @Composable () -> Unit = {
+        // First compose CLOSED: native animateFloatAsState/updateTransition otherwise snaps open.
+        var show by remember { mutableStateOf(false) }
+        var panelSize by remember { mutableStateOf(IntSize.Zero) }
+        LaunchedEffect(expanded) {
+            if (expanded) {
+                withFrameNanos { }
+                show = true
+            } else {
+                show = false
+                // A rapid open/close can finish before native content was ever composed.
+                if (panelSize == IntSize.Zero) finishDismiss()
+            }
+        }
+        val requestDismiss = { if (currentExpanded) currentDismiss() }
+        Box(Modifier.fillMaxSize()) {
+            val rows: @Composable ColumnScope.() -> Unit = {
+                // Native content is removed only after its exit. Always read the latest state.
+                DisposableEffect(Unit) {
+                    onDispose { finishDismiss() }
+                }
+                CompositionLocalProvider(LocalMinisMenuInteractive provides expanded) {
+                    Column(
+                        Modifier.onSizeChanged { panelSize = it }
+                            .then(modifier).focusGroup()
+                            .pointerInput(expanded) {
+                                if (expanded) detectTapGestures(onTap = {})
+                                else awaitPointerEventScope {
+                                    while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
                                 }
                             }
-                        }
-                    }
-                    .verticalScroll(scrollState),
-                content = content,
-            )
+                            .padding(vertical = GlassPopupDefaults.ContentPaddingVertical),
+                        content = content,
+                    )
+                }
+            }
+            if (glassAnchor != null) {
+                GlassTransformPopup(
+                    show = show, onDismissRequest = requestDismiss, anchor = glassAnchor,
+                    backdrop = scene, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
+                    contentPadding = PaddingValues(0.dp), content = rows,
+                )
+            } else {
+                val width = panelSize.width.coerceIn(with(density) { sizing.minWidth.roundToPx() }, with(density) { maxWidth.roundToPx() })
+                val height = panelSize.height.coerceAtMost(with(density) { maxHeight.roundToPx() })
+                val anchor = MinisMenuPosition.glassAnchor(
+                    anchorBounds, safeBounds, IntSize(width, height), alignEnd,
+                    offsetX, offsetY, margin, preferAbove, direction,
+                )
+                GlassPopup(
+                    show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
+                    backdrop = scene, sizing = sizing, visuals = visuals,
+                    contentPadding = PaddingValues(0.dp), content = rows,
+                )
+            }
         }
+    }
+    if (sameWindow) {
+        val visible = remember { mutableStateOf(true) }
+        SideEffect { visible.value = true }
+        PopupLayout(
+            visible = visible, enableWindowDim = false, enableBackHandler = false,
+            enterTransition = EnterTransition.None, exitTransition = ExitTransition.None,
+        ) {
+            // Root overlays are composed elsewhere; preserve the caller's page/session locals.
+            CompositionLocalProvider(locals, content = hostContent)
+        }
+    } else {
+        // A window dialog must not put its menu underneath itself in the activity's root host.
+        Popup(
+            popupPositionProvider = remember { object : androidx.compose.ui.window.PopupPositionProvider {
+                override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) = IntOffset.Zero
+            } },
+            onDismissRequest = { if (currentExpanded) currentDismiss() },
+            properties = PopupProperties(focusable = false, clippingEnabled = false),
+            content = hostContent,
+        )
     }
 }
 
@@ -169,6 +257,31 @@ internal object MinisMenuPosition {
             windowBounds.left + clampOrCenter(rawX - windowBounds.left, popupSize.width, windowBounds.width, marginX),
             windowBounds.top + clampOrCenter(rawY - windowBounds.top, popupSize.height, windowBounds.height, marginY),
         )
+    }
+
+    /** Translate our physical offsets to the native end-edge anchor without changing its spring. */
+    fun glassAnchor(
+        anchorBounds: IntRect,
+        windowBounds: IntRect,
+        popupSize: IntSize,
+        alignEnd: Boolean,
+        offsetX: Int,
+        offsetY: Int,
+        margin: Int,
+        preferAbove: Boolean,
+        layoutDirection: LayoutDirection,
+    ): Rect {
+        val point = if (preferAbove) {
+            val above = anchorBounds.top - popupSize.height - offsetY
+            val y = if (above >= windowBounds.top + margin) above else anchorBounds.bottom + offsetY
+            IntOffset(
+                windowBounds.left + clampOrCenter(anchorBounds.right - popupSize.width + offsetX - windowBounds.left, popupSize.width, windowBounds.width, margin),
+                windowBounds.top + clampOrCenter(y - windowBounds.top, popupSize.height, windowBounds.height, margin),
+            )
+        } else compute(anchorBounds, windowBounds, popupSize, alignEnd, offsetX, offsetY, margin, margin)
+        val edge = if (layoutDirection == LayoutDirection.Ltr) point.x + popupSize.width else point.x
+        // Give the native surface an already-clamped target; its measured size includes padding.
+        return Rect(edge.toFloat(), point.y.toFloat(), edge.toFloat(), point.y.toFloat())
     }
 
     /** Clamp into the safe area; center if the content cannot fit between the margins. */

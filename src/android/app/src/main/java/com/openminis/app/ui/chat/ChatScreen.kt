@@ -173,6 +173,9 @@ import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
@@ -3172,8 +3175,18 @@ fun ChatScreen(
                 actions = {
                     // iOS: "..." circle button → dropdown menu
                     Box {
-                        ChatGlassIconButton(backdrop = chatTopBackdrop, onClick = { showChatMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MiuixTheme.colorScheme.onSurface)
+                        val moreAnchor = rememberGlassPopupAnchor()
+                        ChatGlassIconButton(
+                            backdrop = chatTopBackdrop,
+                            onClick = { showChatMenu = true },
+                            modifier = Modifier.glassPopupAnchor(moreAnchor, cornerRadius = 24.dp, floating = true),
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                                modifier = Modifier.glassPopupAnchorContent(moreAnchor),
+                            )
                         }
                         MinisMenu(
                             expanded = showChatMenu,
@@ -3182,6 +3195,10 @@ fun ChatScreen(
                                 showChatMenu = false
                             },
                             alignEnd = true,
+                            glassAnchor = moreAnchor,
+                            anchorContent = {
+                                Icon(Icons.Default.MoreVert, contentDescription = null, tint = MiuixTheme.colorScheme.onSurface)
+                            },
                             onDismissFinished = {
                                 if (openSpeedAfterDismiss) {
                                     openSpeedAfterDismiss = false
@@ -3587,6 +3604,11 @@ fun ChatScreen(
             var workAreaHeightPx by remember(sessionId) { mutableStateOf(0) }
             // Messages + scroll-to-bottom button
             Box(modifier = Modifier.weight(1f).fillMaxWidth()
+                // Capture the complete, opaque viewport BEFORE column centering and gutters.
+                // Recording only the transparent/capped LazyColumn leaves empty side textures
+                // and causes dark seams or repeated text when the top band samples its edges.
+                .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
+                .background(ChatColors.background)
                 .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
                 var toolBarHeightPx by remember { mutableStateOf(0) }
                 var subAgentStatusExpanded by remember(sessionId) { mutableStateOf(false) }
@@ -4456,7 +4478,6 @@ fun ChatScreen(
                         .wrapContentWidth(Alignment.CenterHorizontally)
                         .widthIn(max = CHAT_MAX_CONTENT_WIDTH)
                         .padding(horizontal = 16.dp)
-                        .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
                         // [#472] A shorter / taller list (keyboard, composer)
                         // leaves a scrolled-away reader's text where it was.
                         .then(readingAnchor.viewportModifier)

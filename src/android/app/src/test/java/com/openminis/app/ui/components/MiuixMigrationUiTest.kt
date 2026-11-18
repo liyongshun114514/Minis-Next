@@ -32,6 +32,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.LooperMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -189,7 +192,7 @@ class MiuixMigrationUiTest {
         var selected = 0
         compose.setContent {
             MinisTheme {
-                Box(Modifier.fillMaxSize().padding(12.dp)) {
+                Box(Modifier.fillMaxSize().testTag("menu-page").padding(12.dp)) {
                     Box {
                         var expanded by remember { mutableStateOf(false) }
                         MinisButton(onClick = { expanded = true }) { Text("Show options") }
@@ -202,7 +205,7 @@ class MiuixMigrationUiTest {
         }
         compose.onNodeWithText("Show options").performClick()
         compose.onNodeWithText("Option").assertIsDisplayed()
-        compose.onNode(isDialog()).performTouchInput { click(bottomRight - androidx.compose.ui.geometry.Offset(4f, 4f)) }
+        compose.onNodeWithTag("menu-page").performTouchInput { click(bottomRight - androidx.compose.ui.geometry.Offset(4f, 4f)) }
         compose.onNodeWithText("Option").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(1, dismissed)
@@ -235,6 +238,80 @@ class MiuixMigrationUiTest {
             assertEquals(1, backClicks)
             assertEquals(1, moreClicks)
         }
+    }
+
+    @Test fun glassMenuCanReopenAndHandsOffToSubmenuAfterExit() {
+        var finished = 0
+        var selected = 0
+        compose.setContent {
+            MinisTheme {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+                    Box {
+                        var primary by remember { mutableStateOf(false) }
+                        var pendingSecondary by remember { mutableStateOf(false) }
+                        var secondary by remember { mutableStateOf(false) }
+                        val anchor = rememberGlassPopupAnchor()
+                        MinisGlassIconButton(
+                            backdrop = null,
+                            onClick = { primary = true },
+                            modifier = Modifier.glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
+                        ) { Text("Menu", Modifier.glassPopupAnchorContent(anchor)) }
+                        MinisMenu(
+                            expanded = primary,
+                            onDismissRequest = { primary = false },
+                            glassAnchor = anchor,
+                            anchorContent = { Text("Menu") },
+                            onDismissFinished = {
+                                finished++
+                                if (pendingSecondary) { pendingSecondary = false; secondary = true }
+                            },
+                        ) {
+                            DropdownMenuItem(text = { Text("Open secondary") }, onClick = {
+                                pendingSecondary = true
+                                primary = false
+                            })
+                        }
+                        MinisMenu(expanded = secondary, onDismissRequest = { secondary = false }) {
+                            DropdownMenuItem(text = { Text("Select secondary") }, onClick = {
+                                selected++
+                                secondary = false
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        repeat(2) {
+            compose.onNodeWithText("Menu").performClick()
+            compose.onNodeWithText("Open secondary").assertIsDisplayed().performClick()
+            compose.onNodeWithText("Open secondary").assertDoesNotExist()
+            compose.onNodeWithText("Select secondary").assertIsDisplayed().performClick()
+            compose.onNodeWithText("Select secondary").assertDoesNotExist()
+        }
+        compose.runOnIdle { assertEquals(2, finished); assertEquals(2, selected) }
+    }
+
+    @Test fun composerChoiceGlassMenuPreservesFocusedDraftAndSingleSelection() {
+        var sends = 0
+        var draft = ""
+        compose.setContent {
+            MinisTheme {
+                Column {
+                    var value by remember { mutableStateOf("") }
+                    OutlinedTextField(value, { value = it; draft = it }, modifier = Modifier.testTag("draft"))
+                    com.openminis.app.ui.chat.ComposerSendButton(canActivate = true, onSend = { sends++ })
+                }
+            }
+        }
+        compose.onNode(hasSetTextAction()).performTextInput("Unsent draft")
+        compose.onNode(hasSetTextAction()).assertIsFocused()
+        compose.onNodeWithContentDescription("Send").performTouchInput { longClick() }
+        compose.onNodeWithText(compose.activity.getString(R.string.send_return_mode_newline)).assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).assertIsFocused()
+        compose.onNodeWithText(compose.activity.getString(R.string.send_return_mode_newline)).performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.send_return_mode_newline)).assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).assertIsFocused()
+        compose.runOnIdle { assertEquals("Unsent draft", draft); assertEquals(0, sends) }
     }
 
     @Test fun providerImageEndpointLabelsFitOneLineAtLargerTextSize() {

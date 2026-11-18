@@ -97,6 +97,52 @@ class MinisMenuPositionTest {
     }
 
     @Test
+    fun `glass point anchor preserves physical placement in both text directions`() {
+        val source = IntRect(700, 200, 1000, 300)
+        for (direction in LayoutDirection.entries) {
+            val anchor = MinisMenuPosition.glassAnchor(
+                source, IntRect(0, 0, window.width, window.height), popup,
+                alignEnd = true, offsetX = -16, offsetY = 16, margin = m,
+                preferAbove = false, layoutDirection = direction,
+            )
+            val expected = pos(source, alignEnd = true, offX = -16, offY = 16)
+            val x = if (direction == LayoutDirection.Ltr) anchor.right - popup.width else anchor.left
+            assertEquals(expected.x.toFloat(), x, 0f)
+            assertEquals(expected.y.toFloat(), anchor.top, 0f)
+        }
+    }
+
+    @Test
+    fun `glass composer anchor prefers above and stays clear of IME and system insets`() {
+        val safe = IntRect(32, 96, 1020, 1200)
+        val source = IntRect(950, 1100, 1000, 1150)
+        val anchor = MinisMenuPosition.glassAnchor(
+            source, safe, popup, alignEnd = true, offsetX = 0, offsetY = 16,
+            margin = m, preferAbove = true, layoutDirection = LayoutDirection.Ltr,
+        )
+        assertEquals((safe.right - m).toFloat(), anchor.right, 0f)
+        assertEquals((source.top - popup.height - 16).toFloat(), anchor.top, 0f)
+        assertTrue(anchor.top >= safe.top + m)
+        assertTrue(anchor.top + popup.height <= safe.bottom - m)
+    }
+
+    @Test
+    fun `glass long press anchor retains finger position and flips near bottom`() {
+        val safe = IntRect(0, 96, 1080, 1920)
+        val anchor = MinisMenuPosition.glassAnchor(
+            IntRect(0, 400, 0, 400), safe, popup, alignEnd = false, offsetX = 300, offsetY = 120,
+            margin = m, preferAbove = false, layoutDirection = LayoutDirection.Ltr,
+        )
+        assertEquals(900f, anchor.right, 0f)
+        assertEquals(520f, anchor.top, 0f)
+        val flipped = MinisMenuPosition.glassAnchor(
+            IntRect(800, 1700, 801, 1701), safe, popup, alignEnd = true, offsetX = 0, offsetY = 16,
+            margin = m, preferAbove = false, layoutDirection = LayoutDirection.Ltr,
+        )
+        assertEquals((1700 - popup.height - 16).toFloat(), flipped.top, 0f)
+    }
+
+    @Test
     fun `clampOrCenter never inverts its range`() {
         assertEquals(22, MinisMenuPosition.clampOrCenter(-50, 100, 1080, 22))
         assertEquals(1080 - 22 - 100, MinisMenuPosition.clampOrCenter(5000, 100, 1080, 22))

@@ -132,6 +132,46 @@ def main() -> int:
     ok("ThinkingLevelBadge(" not in chat.replace("private fun ThinkingLevelBadge(", ""),
        "thinking badge is still called from the top bar")
 
+    # --- Glass sampling: page -> progressive band -> button; menu is a sibling ---
+    components = CHAT.parent.parent / "components"
+    band = strip_kotlin(text(components / "MinisGlassTopBar.kt"))
+    scene = strip_kotlin(text(components / "MinisGlassScene.kt"))
+    menu = strip_kotlin(text(components / "MinisMenu.kt"))
+    choices = strip_kotlin(text(CHAT.with_name("SendReturnModeMenu.kt")))
+    for path in (components / "MinisGlassTopBar.kt", components / "MinisGlassScene.kt",
+                 components / "MinisMenu.kt", CHAT.with_name("SendReturnModeMenu.kt")):
+        balanced(text(path), str(path.relative_to(ROOT)))
+    ok("ProgressiveBlur.Top.copy(curve = 0.5f)" in band
+       and "GlassTopAppBarDefaults.ProgressiveBlurRadius.value" in band,
+       "top band no longer uses the native progressive material")
+    ok("layerBackdrop(buttonBackdrop)" in band
+       and "LocalTopBarBackdrop.current ?: backdrop" in band,
+       "glass buttons must sample the rendered band, not bypass it for the raw list")
+    ok("inheritTopBarMaterial = false" in band,
+       "glass buttons must retain their floating material at zero overlap")
+    ok("GlassTopAppBarDefaults.BandOverhang" in band,
+       "progressive blur is clipped at the toolbar edge")
+    chat_code = strip_kotlin(chat)
+    capture = chat_code.index("Modifier.layerBackdrop(chatTopBackdrop)")
+    ok(chat_code.count("Modifier.layerBackdrop(chatTopBackdrop)") == 1
+       and "Modifier.weight(1f).fillMaxWidth()" in chat_code[capture - 180:capture]
+       and ".background(ChatColors.background)" in chat_code[capture:capture + 200],
+       "chat backdrop must record the full-width opaque viewport, not the inset LazyColumn")
+    ok("layerBackdrop(scene)" in scene and ".background(background)" in scene,
+       "menu scene must include an opaque full-page background")
+    ok("GlassPopup(" in menu and "GlassTransformPopup(" in menu
+       and "WindowListPopup" not in menu,
+       "shared menus must use native glass surfaces rather than a solid ListPopup")
+    ok("PopupLayout(" in menu and "CompositionLocalProvider(locals" in menu,
+       "glass menu must live outside its sampled scene while retaining caller locals")
+    ok("rememberUpdatedState(expanded)" in menu and "finishDismiss()" in menu,
+       "glass exit cleanup must read current visibility rather than capture the opening state")
+    ok("glassAnchor = moreAnchor" in chat_code and "glassPopupAnchor(moreAnchor" in chat_code,
+       "chat more menu lost its native button-to-panel transform")
+    ok("MinisMenu(" in choices and "preferAbove = true" in choices
+       and "ListPopupContent" not in choices and "Animatable(" not in choices,
+       "send/stop menus must share the glass implementation without a separate fake spring")
+
     # --- Composer: one + row carrying model + thinking --------------------
     ok("internal fun ComposerModelThinkingBar(" in extras,
        "model/thinking chips are not defined")

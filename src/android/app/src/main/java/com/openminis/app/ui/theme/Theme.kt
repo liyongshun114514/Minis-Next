@@ -64,7 +64,9 @@ fun MinisTheme(
             top.yukonga.miuix.kmp.basic.Scaffold(
                 contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
                 containerColor = colors.background,
-            ) { content() }
+            ) {
+                com.openminis.app.ui.components.MinisGlassScene(colors.background, content)
+            }
         }
     }
 }

@@ -14,17 +14,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,14 +29,11 @@ import com.openminis.app.R
 import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.ProgressiveBlur
-import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
-import top.yukonga.miuix.kmp.glass.GlassIconButton
+import com.openminis.app.ui.components.MinisGlassIconButton
+import com.openminis.app.ui.components.MinisGlassTopBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-private val SettingsBlur = ProgressiveBlur(startFraction = 0.42f, curve = 0.65f)
 
 @Composable
 internal fun SettingsGlassTopBar(
@@ -55,24 +46,12 @@ internal fun SettingsGlassTopBar(
     actions: @Composable (() -> Unit)?,
 ) {
     val colors = MiuixTheme.colorScheme
-    Box(Modifier.fillMaxWidth()) {
-        if (backdrop != null) {
-            Box(
-                Modifier.matchParentSize()
-                    .graphicsLayer { alpha = overlap() }
-                    .settingsProgressiveBlur(backdrop),
-            )
-        }
-        Box(
-            Modifier.matchParentSize().drawWithCache {
-                val tint = Brush.verticalGradient(
-                    0f to colors.surface.copy(alpha = if (backdrop == null) 1f else 0.8f),
-                    0.62f to colors.surface.copy(alpha = if (backdrop == null) 0.97f else 0.55f),
-                    1f to Color.Transparent,
-                )
-                onDrawBehind { drawRect(tint, alpha = overlap()) }
-            },
-        )
+    MinisGlassTopBar(
+        backdrop = backdrop,
+        background = colors.surface,
+        modifier = Modifier.fillMaxWidth(),
+        backgroundAlpha = overlap,
+    ) {
         Layout(
             modifier = Modifier.fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
@@ -121,23 +100,10 @@ internal fun SettingsGlassTopBar(
     }
 }
 
-// Callers supply a backdrop only on API 33+; the glass button has its own flat-fill fallback.
-private fun Modifier.settingsProgressiveBlur(backdrop: LayerBackdrop): Modifier = progressiveTextureBlur(
-    backdrop = backdrop,
-    shape = RectangleShape,
-    blurRadius = 38f,
-    gradient = SettingsBlur,
-)
-
 @Composable
 private fun SettingsGlassBackButton(backdrop: LayerBackdrop?, onBack: () -> Unit) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    GlassIconButton(
-        onClick = onBack,
-        modifier = Modifier.semantics { role = Role.Button },
-        backdrop = backdrop,
-        size = 48.dp,
-    ) {
+    MinisGlassIconButton(onClick = onBack, backdrop = backdrop) {
         Icon(
             imageVector = MiuixIcons.ChevronBackward,
             contentDescription = stringResource(R.string.settings_back),

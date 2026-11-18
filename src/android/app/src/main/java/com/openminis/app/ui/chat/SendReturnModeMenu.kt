@@ -5,22 +5,17 @@ import com.openminis.app.ui.components.DecorativeSpinner
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -35,9 +30,7 @@ import androidx.compose.material.icons.outlined.StopCircle
 import top.yukonga.miuix.kmp.basic.Icon
 import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -49,10 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -60,20 +51,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import com.openminis.app.R
 import com.openminis.app.ui.components.LocalMinisMenuInteractive
-import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.ListPopupContent
-import top.yukonga.miuix.kmp.basic.ListPopupDefaults
-import top.yukonga.miuix.kmp.basic.PopupLayoutPosition
 import com.openminis.app.ui.settings.KEY_RETURN_KEY_BEHAVIOR
 import com.openminis.app.ui.settings.getAppearancePrefs
 import com.openminis.app.ui.theme.ChatColors
@@ -321,90 +301,24 @@ private fun ComposerChoiceMenu(
     onDismissRequest: () -> Unit,
     rows: @Composable () -> Unit,
 ) {
-    val progress = remember { Animatable(0f) }
-    val alpha = remember { Animatable(0f) }
-    var mounted by remember { mutableStateOf(false) }
-    LaunchedEffect(expanded) {
-        if (expanded) {
-            mounted = true
-            launch { progress.animateTo(1f, ListPopupDefaults.FractionAnimationSpec) }
-            alpha.animateTo(1f, ListPopupDefaults.AlphaEnterAnimationSpec)
-        } else if (mounted) {
-            launch { progress.animateTo(0f, ListPopupDefaults.FractionAnimationSpec) }
-            alpha.animateTo(0f, ListPopupDefaults.AlphaExitAnimationSpec)
-            progress.snapTo(0f)
-            mounted = false
-        }
-    }
-    if (!mounted) return
-
-    val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
-    var contentSize by remember { mutableStateOf(IntSize.Zero) }
-    val origin = remember { mutableStateOf(TransformOrigin(1f, 1f)) }
-    val layoutPosition = remember {
-        mutableStateOf(PopupLayoutPosition(showBelow = false, showAbove = true, isRightAligned = true))
-    }
-    val positionProvider = remember(gapPx) {
-        object : PopupPositionProvider {
-            override fun calculatePosition(
-                anchorBounds: IntRect,
-                windowSize: IntSize,
-                layoutDirection: LayoutDirection,
-                popupContentSize: IntSize,
-            ): IntOffset {
-                val (x, y) = SendReturnMode.placement(
-                    anchorBounds.left, anchorBounds.top, anchorBounds.right, anchorBounds.bottom,
-                    windowSize.width, windowSize.height,
-                    popupContentSize.width, popupContentSize.height,
-                    gapPx,
-                )
-                val o = TransformOrigin(
-                    SendReturnMode.pivotFraction(anchorBounds.center.x, x, popupContentSize.width),
-                    SendReturnMode.pivotFraction(anchorBounds.center.y, y, popupContentSize.height),
-                )
-                if (o != origin.value) origin.value = o
-                val menuCenterY = y + popupContentSize.height / 2
-                val anchorCenterY = anchorBounds.center.y
-                layoutPosition.value = PopupLayoutPosition(
-                    showBelow = menuCenterY > anchorCenterY,
-                    showAbove = menuCenterY < anchorCenterY,
-                    isRightAligned = true,
-                )
-                return IntOffset(x, y)
-            }
-        }
-    }
-
-    // A WindowListPopup uses a focusable dialog. Reuse its official animated content instead
-    // so these two quick choosers can keep the IME open and preserve the button-center pivot.
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = { if (expanded) onDismissRequest() },
-        properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
+    com.openminis.app.ui.components.MinisMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        minWidth = 200.dp,
+        alignEnd = true,
+        preferAbove = true,
+        offset = androidx.compose.ui.unit.DpOffset(0.dp, 8.dp),
+        modifier = Modifier.selectableGroup(),
     ) {
-        ListPopupContent(
-            popupContentSize = contentSize,
-            onPopupContentSizeChange = { contentSize = it },
-            fractionProgress = { progress.value },
-            alphaProgress = { alpha.value },
-            popupLayoutPosition = layoutPosition.value,
-            localTransformOrigin = origin.value,
-            modifier = Modifier.widthIn(min = 200.dp, max = 280.dp).width(IntrinsicSize.Max),
-        ) {
-            CompositionLocalProvider(LocalMinisMenuInteractive provides expanded) {
-                Column(modifier = Modifier.padding(vertical = 6.dp).selectableGroup()) {
-                    Text(
-                        text = header,
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        modifier = Modifier
-                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
-                            .semantics { heading() },
-                    )
-                    rows()
-                }
-            }
-        }
+        Text(
+            text = header,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            modifier = Modifier
+                .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
+                .semantics { heading() },
+        )
+        rows()
     }
 }
 
