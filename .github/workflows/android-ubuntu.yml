@@ -222,7 +222,7 @@ jobs:
             --tests '*AutoCompactPrefsTest' --tests '*AutoCompactPolicyTest' --tests '*AutoCompactSettingsTest' \
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest' \
-            --tests '*MiuixMigrationUiTest' --tests '*UpdateDialogButtonPlanTest' \
+            --tests '*MiuixMigrationUiTest' --tests '*MinisMenuPositionTest' --tests '*UpdateDialogButtonPlanTest' \
             --tests '*ModelGroupReorderTest' --tests '*UsageVectorsTest' --tests '*UsageDisplayTest' \
             --tests '*RestoreStopAndScopeTest' --tests '*RestoreReportSeverityTest' \
             --tests '*ExpandHeaderNoRippleTest' --tests '*InAppThemeSourceGuardTest'

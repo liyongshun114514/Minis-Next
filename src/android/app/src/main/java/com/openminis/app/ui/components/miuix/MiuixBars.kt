@@ -1,17 +1,13 @@
 package com.openminis.app.ui.components.miuix
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import com.openminis.app.ui.components.LocalMinisMenuInteractive
+import com.openminis.app.ui.components.MinisMenu
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -69,10 +65,12 @@ fun DropdownMenuItem(
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
 ) {
     val alpha = if (enabled) 1f else 0.38f
+    val interactive = LocalMinisMenuInteractive.current
+    val currentInteractive by rememberUpdatedState(interactive)
     top.yukonga.miuix.kmp.basic.BasicComponent(
         modifier = modifier,
-        onClick = onClick,
-        enabled = enabled,
+        onClick = { if (currentInteractive) onClick() },
+        enabled = enabled && interactive,
         insideMargin = contentPadding,
         startAction = leadingIcon?.let { icon -> {
             CompositionLocalProvider(LocalContentColor provides colors.leadingIconColor.copy(alpha = alpha)) { icon() }
@@ -87,15 +85,7 @@ fun DropdownMenuItem(
 
 @Composable
 fun DropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    top.yukonga.miuix.kmp.window.WindowListPopup(
-        show = expanded,
-        onDismissRequest = onDismissRequest,
-        enableWindowDim = false,
-    ) {
-        top.yukonga.miuix.kmp.basic.ListPopupColumn {
-            Column(content = content)
-        }
-    }
+    MinisMenu(expanded = expanded, onDismissRequest = onDismissRequest, minWidth = 200.dp, content = content)
 }
 
 @Immutable

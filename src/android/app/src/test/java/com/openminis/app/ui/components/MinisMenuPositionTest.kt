@@ -1,19 +1,18 @@
 package com.openminis.app.ui.components
 
-import com.openminis.app.ProductionSources
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 
 /**
  * [T-android-menu-screen-margin] MinisMenu placement keeps an 8dp screen margin
  * (it used to sit flush against the edge), still honours alignEnd / offset /
- * flip-above, and never inverts the clamp range. [T-android-menu-shadow-clip]
- * its shadow stays inside the Popup window's 8dp reserve.
+ * flip-above, and never inverts the clamp range.
  */
 class MinisMenuPositionTest {
 
@@ -25,7 +24,9 @@ class MinisMenuPositionTest {
     private fun pos(
         anchor: IntRect, popupSize: IntSize = popup, alignEnd: Boolean = false,
         offX: Int = 0, offY: Int = 0, win: IntSize = window,
-    ): IntOffset = MinisMenuPosition.compute(anchor, win, popupSize, alignEnd, offX, offY, m, m)
+    ): IntOffset = MinisMenuPosition.compute(
+        anchor, IntRect(0, 0, win.width, win.height), popupSize, alignEnd, offX, offY, m, m,
+    )
 
     @Test
     fun `default anchors the popup's left edge on the anchor's left edge`() {
@@ -103,15 +104,16 @@ class MinisMenuPositionTest {
     }
 
     @Test
-    fun `shadow stays inside the Popup window's 8dp reserve`() {
-        val src = ProductionSources.read("ui/components/MinisMenu.kt")
-        assertFalse("no Modifier.shadow halo", src.contains(".shadow("))
-        assertFalse("no 24dp elevation left", Regex("""shadowElevation: Dp = 24\.dp""").containsMatchIn(src))
-        val default = Regex("""shadowElevation: Dp = (\d+)\.dp""").find(src)!!.groupValues[1].toInt()
-        assertTrue("default shadow $default dp <= 8dp", default <= 8)
-        assertTrue(src.contains("val MAX_POPUP_SHADOW_ELEVATION: Dp = 8.dp"))
-        assertTrue("any caller value is capped", src.contains("shadowElevation.coerceAtMost(MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION)"))
-        assertTrue("margins are 8dp", src.contains("val HORIZONTAL_MARGIN: Dp = 8.dp") && src.contains("val VERTICAL_MARGIN: Dp = 8.dp"))
-        assertTrue("provider delegates to the tested function", src.contains("MinisMenuPosition.compute("))
+    fun `Miuix provider respects status bar cutout and side insets`() {
+        val provider = MinisMenuPosition.provider(alignEnd = true, offsetX = 0, offsetY = 16)
+        val p = provider.calculatePosition(
+            anchorBounds = IntRect(1010, 50, 1060, 80),
+            windowBounds = IntRect(32, 96, 1020, 1920),
+            layoutDirection = LayoutDirection.Rtl,
+            popupContentSize = popup,
+            popupMargin = IntRect(m, m, m, m),
+            alignment = PopupPositionProvider.Align.Start,
+        )
+        assertEquals(IntOffset(1020 - m - popup.width, 96 + m), p)
     }
 }

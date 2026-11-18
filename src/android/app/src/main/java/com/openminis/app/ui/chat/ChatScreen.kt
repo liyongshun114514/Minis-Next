@@ -168,15 +168,16 @@ import top.yukonga.miuix.kmp.basic.Surface
 import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.miuix.OutlinedTextField
 import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import com.openminis.app.ui.components.miuix.LocalTextStyle
 import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -240,7 +241,6 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
@@ -1011,7 +1011,8 @@ fun ChatScreen(
     var showAttachMenu by remember { mutableStateOf(false) }
     var showComposerPermission by remember { mutableStateOf(false) }
     var showChatMenu by remember { mutableStateOf(false) }
-    // [T-speed-tier] The "Speed ›" submenu, opened from the chat menu.
+    // Don't stack two modal popup windows while the parent menu is exiting.
+    var openSpeedAfterDismiss by remember { mutableStateOf(false) }
     var showSpeedMenu by remember { mutableStateOf(false) }
     var showSkillsSheet by remember { mutableStateOf(false) }
     // [T-mcp-integration-android] MCPs-in-Session sheet visibility.
@@ -2967,15 +2968,15 @@ fun ChatScreen(
         // map (which is last-writer-wins across sessions).
         LocalMarkdownSessionId provides sessionId,
     ) {
+    val chatTopBackdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
     Scaffold(
         containerColor = ChatColors.background,
         contentWindowInsets = WindowInsets(0),
-        // [T-port-sched-pill] The top bar slot is the app bar plus, below it,
-        // the scheduled-task pill, so the list (padded by the Scaffold) starts
-        // under the pill instead of scrolling beneath it. The app bar keeps
-        // its old indentation to keep this diff small.
+        // Keep both the title bar and the task pill above the initial list content.
+        // The list uses scrollable top padding so messages can draw behind the glass.
         topBar = { Column {
-            TopAppBar(
+            ChatGlassTopBar(
+                backdrop = chatTopBackdrop,
                 title = {
                     // iOS-style centered layout: "Minis" + group row + provider·model row
                     Box(
@@ -3088,8 +3089,12 @@ fun ChatScreen(
                 navigationIcon = {
                     // [T-android-tablet-split] See `isTwoPane`.
                     if (!isTwoPane) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        ChatGlassIconButton(backdrop = chatTopBackdrop, onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.settings_back),
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
                         }
                     } else if (onToggleSidebar != null) {
                         // [T-android-tablet-sidebar-collapse] The slot the back
@@ -3145,7 +3150,8 @@ fun ChatScreen(
                         //    28dp brings its ink to ~14dp, closing most of the
                         //    optical gap. The IconButton's 48dp touch target is
                         //    unchanged, so this is purely visual weight.
-                        IconButton(
+                        ChatGlassIconButton(
+                            backdrop = chatTopBackdrop,
                             onClick = onToggleSidebar,
                             modifier = Modifier.offset(y = (-2).dp),
                         ) {
@@ -3166,12 +3172,22 @@ fun ChatScreen(
                 actions = {
                     // iOS: "..." circle button → dropdown menu
                     Box {
-                        IconButton(onClick = { showChatMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        ChatGlassIconButton(backdrop = chatTopBackdrop, onClick = { showChatMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MiuixTheme.colorScheme.onSurface)
                         }
                         MinisMenu(
                             expanded = showChatMenu,
-                            onDismissRequest = { showChatMenu = false },
+                            onDismissRequest = {
+                                openSpeedAfterDismiss = false
+                                showChatMenu = false
+                            },
+                            alignEnd = true,
+                            onDismissFinished = {
+                                if (openSpeedAfterDismiss) {
+                                    openSpeedAfterDismiss = false
+                                    showSpeedMenu = true
+                                }
+                            },
                         ) {
                             // [T-android-memory-enabled-minisconfig] Gate the
                             // "Memories in Session" item below on the session's
@@ -3394,8 +3410,8 @@ fun ChatScreen(
                                     // the tiers inside keep their names.
                                     text = { Text(stringResource(R.string.chat_menu_fast_mode_tier)) },
                                     onClick = {
+                                        openSpeedAfterDismiss = true
                                         showChatMenu = false
-                                        showSpeedMenu = true
                                     },
                                     // [T-speed-tier-icons] The entry is a
                                     // speedometer (iOS `speedometer`); the
@@ -3491,6 +3507,7 @@ fun ChatScreen(
                         MinisMenu(
                             expanded = showSpeedMenu,
                             onDismissRequest = { showSpeedMenu = false },
+                            alignEnd = true,
                         ) {
                             val currentTier by viewModel.displayedSpeedTier.collectAsState()
                             for (tier in com.openminis.app.data.SpeedTier.entries) {
@@ -3516,32 +3533,6 @@ fun ChatScreen(
                         }
                     }
                 },
-                windowInsets = WindowInsets.statusBars,
-                colors = com.openminis.app.ui.components.miuix.TopAppBarDefaults.topAppBarColors(
-                    containerColor = ChatColors.background.copy(alpha = 0.92f),
-                    scrolledContainerColor = ChatColors.background.copy(alpha = 0.92f),
-                ),
-                // [T-android-topbar-shrink] 76dp → 68dp. The earlier
-                // T-topbar-model-row-clip fix bumped 60dp → 76dp to give the
-                // 3-row title (14sp/lh17 + 12sp/lh14 + 11sp/lh13 ≈ 44sp text
-                // + 4dp+2dp+1dp vertical padding ≈ 51dp on mdpi, mid-60s on
-                // xxhdpi) room to breathe — but overshot, leaving visible
-                // dead-space below the model row. This trim pairs with the
-                // outer Column's vertical-padding drop (4dp→2dp above):
-                // budget is now ~44sp text + 2dp+2dp+1dp ≈ 49dp typical,
-                // ~58-62dp at xxhdpi 2.625× rounding. 68dp keeps a 6-10dp
-                // safety margin so the model name still fits at any
-                // user-configured font scale on xhdpi/xxhdpi without
-                // re-clipping (T-topbar-model-row-clip regression check).
-                // Model/subtitle font sizes and line heights stay untouched.
-                //
-                // [T-native-composer-title] 68dp -> 80dp: the title now
-                // reserves two 20sp lines instead of one 19sp line, and the
-                // model/thinking rows that used to sit under it moved to the
-                // composer's bottom bar. What remains is 2x20sp + one 14sp
-                // subtitle line + 4dp outer padding ≈ 58dp, leaving the same
-                // 6-10dp safety margin as before at the default font scale.
-                expandedHeight = 80.dp,
             )
             // [T-port-sched-pill-visible] The REAL session id, read when the
             // pill composes. A new chat opens as a "__new__…" draft and gets
@@ -3557,7 +3548,7 @@ fun ChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(bottom = padding.calculateBottomPadding())
                 .imePadding()
                 .onGloballyPositioned { chatPaneWidthPx = it.size.width },
         ) {
@@ -3609,7 +3600,9 @@ fun ChatScreen(
                 val statusJobs = remember(sessionId, registryJobs) {
                     subAgentStatusJobs(sessionId, registryJobs.values)
                 }
-                val workAreaHeightDp = with(density) { workAreaHeightPx.toDp() }
+                val workAreaHeightDp = with(density) {
+                    (workAreaHeightPx.toDp() - padding.calculateTopPadding()).coerceAtLeast(0.dp)
+                }
                 // T166 / T170 / T173: bottomReserve must clear the visible
                 // top of the floating tool-status overlay. Layout primitives
                 // come from FloatingToolStatusBar:
@@ -4433,16 +4426,11 @@ fun ChatScreen(
                     // bottomReserve when the toolbar is present.
                     // Tuned so the visible gap to the composer's outer edge is ~18dp.
                     //
-                    // [T-android-chat-first-message-top-padding] top reduced
-                    // 12dp → 4dp. Under reverseLayout this top padding sits at
-                    // the VISUAL top, so the first message's gap below the model
-                    // title bar was top(12) + the first bubble's own top(4) =
-                    // 16dp (≈44px @ 440dpi) — looser than needed. 4dp here +
-                    // the bubble's 4dp = 8dp (≈22px), tighter but still a clear
-                    // breath under the title bar. Bottom padding and inter-
-                    // message spacing are untouched.
+                    // Keep the 4dp gap below the header and task pill in the list's
+                    // visual top padding. Unlike outer padding, this space scrolls
+                    // away so the messages can pass behind the fixed glass header.
                     contentPadding = PaddingValues(
-                        top = 4.dp,
+                        top = padding.calculateTopPadding() + 4.dp,
                         bottom = if (bottomReserve == 0.dp) 12.dp else bottomReserve,
                     ),
                     modifier = Modifier
@@ -4468,6 +4456,7 @@ fun ChatScreen(
                         .wrapContentWidth(Alignment.CenterHorizontally)
                         .widthIn(max = CHAT_MAX_CONTENT_WIDTH)
                         .padding(horizontal = 16.dp)
+                        .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
                         // [#472] A shorter / taller list (keyboard, composer)
                         // leaves a scrolled-away reader's text where it was.
                         .then(readingAnchor.viewportModifier)
@@ -5176,7 +5165,7 @@ fun ChatScreen(
                             val origin = coords.positionInWindow()
                             androidx.compose.ui.geometry.Rect(
                                 left = origin.x,
-                                top = origin.y,
+                                top = origin.y + with(density) { padding.calculateTopPadding().toPx() },
                                 right = origin.x + coords.size.width,
                                 bottom = origin.y + coords.size.height,
                             )
@@ -8164,21 +8153,6 @@ fun ChatScreen(
                 )
             }
         }
-        // Top gradient fade: messages fade into the Scaffold background.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(6.dp)
-                .background(
-                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                            ChatColors.background,
-                            ChatColors.background.copy(alpha = 0f),
-                        ),
-                    )
-                )
-        )
         }
     }
 

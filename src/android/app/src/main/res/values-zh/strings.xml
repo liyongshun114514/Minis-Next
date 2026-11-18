@@ -2579,8 +2579,6 @@
     <string name="mcp_dcr_registration_unreadable">无法读取注册响应。</string>
     <string name="mcp_dcr_http_status">%1$s 返回了 HTTP %2$d。</string>
     <string name="mcp_dcr_unreadable">%1$s 返回的数据无法读取。</string>
-    <string name="main_nav_home">首页</string>
-    <string name="main_nav_agents">Agents</string>
     <string name="provider_image_endpoint_auto">自动</string>
     <string name="provider_image_endpoint_images">图像 API</string>
     <string name="provider_image_endpoint_chat">聊天</string>

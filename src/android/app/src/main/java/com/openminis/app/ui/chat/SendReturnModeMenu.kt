@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -26,7 +24,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardReturn
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -36,9 +33,9 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.StopCircle
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.Surface
 import com.openminis.app.ui.components.miuix.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -46,14 +43,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -73,6 +69,11 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.openminis.app.R
+import com.openminis.app.ui.components.LocalMinisMenuInteractive
+import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.ListPopupContent
+import top.yukonga.miuix.kmp.basic.ListPopupDefaults
+import top.yukonga.miuix.kmp.basic.PopupLayoutPosition
 import com.openminis.app.ui.settings.KEY_RETURN_KEY_BEHAVIOR
 import com.openminis.app.ui.settings.getAppearancePrefs
 import com.openminis.app.ui.theme.ChatColors
@@ -280,21 +281,7 @@ fun ComposerSendButton(
     }
 }
 
-/**
- * [T-send-longpress-return-mode] Popup that grows out of the Send button.
- *
- * Animation: one spring-driven `progress` 0→1 feeds scale (0.35→1) and alpha
- * through `graphicsLayer`, with `transformOrigin` computed from the real
- * placement so the pivot sits on the button's centre — the menu visibly
- * expands out of the button and collapses back into it. Unlike [MinisMenu]
- * (enter-only; the Popup unmounts instantly on dismiss) the Popup here stays
- * mounted until the reverse spring finishes, and a re-open mid-collapse simply
- * retargets the same Animatable, so it never jumps.
- *
- * Non-focusable on purpose: a focusable popup window takes input focus, which
- * hides the soft keyboard — wrong for a "quick temporary switch" while typing.
- * Outside taps still dismiss it (dismissOnClickOutside).
- */
+/** Return-key menu anchored to Send without taking focus from the composer. */
 @Composable
 private fun SendReturnModeMenu(
     expanded: Boolean,
@@ -335,22 +322,28 @@ private fun ComposerChoiceMenu(
     rows: @Composable () -> Unit,
 ) {
     val progress = remember { Animatable(0f) }
+    val alpha = remember { Animatable(0f) }
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(expanded) {
         if (expanded) {
             mounted = true
-            // Slightly under-damped → a small, lively overshoot on open.
-            progress.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 420f))
+            launch { progress.animateTo(1f, ListPopupDefaults.FractionAnimationSpec) }
+            alpha.animateTo(1f, ListPopupDefaults.AlphaEnterAnimationSpec)
         } else if (mounted) {
-            // Critically damped and stiffer → quick, clean collapse.
-            progress.animateTo(0f, spring(dampingRatio = 1f, stiffness = 900f))
+            launch { progress.animateTo(0f, ListPopupDefaults.FractionAnimationSpec) }
+            alpha.animateTo(0f, ListPopupDefaults.AlphaExitAnimationSpec)
+            progress.snapTo(0f)
             mounted = false
         }
     }
     if (!mounted) return
 
     val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+    var contentSize by remember { mutableStateOf(IntSize.Zero) }
     val origin = remember { mutableStateOf(TransformOrigin(1f, 1f)) }
+    val layoutPosition = remember {
+        mutableStateOf(PopupLayoutPosition(showBelow = false, showAbove = true, isRightAligned = true))
+    }
     val positionProvider = remember(gapPx) {
         object : PopupPositionProvider {
             override fun calculatePosition(
@@ -370,60 +363,46 @@ private fun ComposerChoiceMenu(
                     SendReturnMode.pivotFraction(anchorBounds.center.y, y, popupContentSize.height),
                 )
                 if (o != origin.value) origin.value = o
+                val menuCenterY = y + popupContentSize.height / 2
+                val anchorCenterY = anchorBounds.center.y
+                layoutPosition.value = PopupLayoutPosition(
+                    showBelow = menuCenterY > anchorCenterY,
+                    showAbove = menuCenterY < anchorCenterY,
+                    isRightAligned = true,
+                )
                 return IntOffset(x, y)
             }
         }
     }
 
+    // A WindowListPopup uses a focusable dialog. Reuse its official animated content instead
+    // so these two quick choosers can keep the IME open and preserve the button-center pivot.
     Popup(
         popupPositionProvider = positionProvider,
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (expanded) onDismissRequest() },
         properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
     ) {
-        val shape = RoundedCornerShape(20.dp)
-        // Same surface language as MinisMenu (elevated container in dark,
-        // white in light, launcher-style soft halo, hairline border), with a
-        // touch of translucency so the composer reads through the edges.
-        val container = if (ChatColors.isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color.White
-        val border = if (ChatColors.isDark) {
-            BorderStroke(0.5.dp, MiuixTheme.colorScheme.dividerLine)
-        } else {
-            BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
-        }
-        Surface(
-            modifier = Modifier
-                .graphicsLayer {
-                    val p = progress.value
-                    val s = 0.35f + 0.65f * p
-                    scaleX = s
-                    scaleY = s
-                    alpha = p.coerceIn(0f, 1f)
-                    transformOrigin = origin.value
-                }
-                .width(IntrinsicSize.Max)
-                .widthIn(min = 200.dp, max = 280.dp)
-                .shadow(
-                    elevation = 24.dp,
-                    shape = shape,
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.35f),
-                ),
-            shape = shape,
-            color = container.copy(alpha = 0.97f),
-
-            border = border,
+        ListPopupContent(
+            popupContentSize = contentSize,
+            onPopupContentSizeChange = { contentSize = it },
+            fractionProgress = { progress.value },
+            alphaProgress = { alpha.value },
+            popupLayoutPosition = layoutPosition.value,
+            localTransformOrigin = origin.value,
+            modifier = Modifier.widthIn(min = 200.dp, max = 280.dp).width(IntrinsicSize.Max),
         ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp).selectableGroup()) {
-                Text(
-                    text = header,
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    modifier = Modifier
-                        .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
-                        .semantics { heading() },
-                )
-                rows()
+            CompositionLocalProvider(LocalMinisMenuInteractive provides expanded) {
+                Column(modifier = Modifier.padding(vertical = 6.dp).selectableGroup()) {
+                    Text(
+                        text = header,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        modifier = Modifier
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
+                            .semantics { heading() },
+                    )
+                    rows()
+                }
             }
         }
     }
@@ -436,11 +415,13 @@ private fun ReturnModeRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val interactive by rememberUpdatedState(LocalMinisMenuInteractive.current)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 44.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, enabled = interactive, role = Role.RadioButton,
+                onClick = { if (interactive) onClick() })
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

@@ -2510,8 +2510,6 @@
     <string name="mcp_dcr_registration_unreadable">無法讀取註冊回應。</string>
     <string name="mcp_dcr_http_status">%1$s 回傳了 HTTP %2$d。</string>
     <string name="mcp_dcr_unreadable">%1$s 回傳的資料無法讀取。</string>
-    <string name="main_nav_home">首頁</string>
-    <string name="main_nav_agents">Agents</string>
     <string name="provider_image_endpoint_auto">自動</string>
     <string name="provider_image_endpoint_images">圖像 API</string>
     <string name="provider_image_endpoint_chat">聊天</string>

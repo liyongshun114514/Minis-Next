@@ -571,7 +571,6 @@ fun AppNavigation(
         quickActionStart != null -> quickActionStart
         else -> Routes.SESSION_LIST
     }
-    MainNavigationLayout(navController) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -1727,6 +1726,5 @@ fun AppNavigation(
                 },
             )
         }
-    }
     }
 }

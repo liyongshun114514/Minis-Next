@@ -2,21 +2,21 @@ package com.openminis.app.ui.components
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.openminis.app.ui.navigation.MainDestination
-import com.openminis.app.ui.navigation.MainNavigationLayout
 import com.openminis.app.ui.settings.ImageEndpointLabel
 import com.openminis.app.R
+import com.openminis.app.ui.chat.ChatGlassIconButton
+import com.openminis.app.ui.chat.ChatGlassTopBar
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
@@ -147,59 +147,94 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(1, backClicks) }
     }
 
-    @Test fun mainDockSwitchesTabsRestoresStateAndLeavesDetailRoutesFullScreen() {
+    @Test fun anchoredMenuScrollsAndDispatchesSelectionOnce() {
+        var selections = 0
+        var finishedDismissals = 0
         compose.setContent {
-            MinisTheme {
-                val nav = rememberNavController()
-                MainNavigationLayout(nav) {
-                    NavHost(nav, startDestination = MainDestination.Home.route) {
-                        composable(MainDestination.Home.route) { Text("Conversations page") }
-                        composable(MainDestination.Agents.route) { Text("Agents page") }
-                        composable(MainDestination.Trajectory.route) {
-                            var range by rememberSaveable { mutableStateOf("7 days") }
-                            MinisButton(onClick = { range = "30 days" }) { Text(range) }
-                        }
-                        composable(MainDestination.Settings.route) {
-                            MinisButton(onClick = { nav.navigate("sample_detail") }) { Text("Open detail") }
-                        }
-                        composable("sample_detail") {
-                            MinisButton(onClick = { nav.popBackStack() }) { Text("Close detail") }
+            MinisTheme(darkTheme = true, fontScale = 1.25f) {
+                Box(Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopEnd) {
+                    Box {
+                        var expanded by remember { mutableStateOf(false) }
+                        MinisButton(onClick = { expanded = true }) { Text("More actions") }
+                        MinisMenu(
+                            expanded = expanded,
+                            alignEnd = true,
+                            onDismissRequest = { expanded = false },
+                            onDismissFinished = { finishedDismissals++ },
+                        ) {
+                            repeat(28) { index ->
+                                DropdownMenuItem(
+                                    text = { Text("Action ${index + 1}") },
+                                    onClick = { expanded = false; selections++ },
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        fun tab(destination: MainDestination) = compose.onNodeWithText(compose.activity.getString(destination.label))
-        tab(MainDestination.Home).assertIsSelected()
-        tab(MainDestination.Trajectory).performClick().assertIsSelected()
-        compose.onNodeWithText("7 days").performClick()
-        tab(MainDestination.Agents).performClick().assertIsSelected()
-        compose.onNodeWithText("Agents page").assertIsDisplayed()
-        tab(MainDestination.Trajectory).performClick().assertIsSelected()
-        compose.onNodeWithText("30 days").assertIsDisplayed()
-        tab(MainDestination.Settings).performClick().assertIsSelected()
-        compose.onNodeWithText("Open detail").performClick()
-        tab(MainDestination.Home).assertDoesNotExist()
-        compose.onNodeWithText("Close detail").performClick()
-        tab(MainDestination.Settings).assertIsSelected()
-        tab(MainDestination.Home).performClick().assertIsSelected()
-        compose.onNodeWithText("Conversations page").assertIsDisplayed()
+        compose.onNodeWithText("More actions").performClick()
+        compose.onNodeWithText("Action 1").assertIsDisplayed()
+        compose.onNodeWithText("Action 28").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Action 28").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, selections)
+            assertEquals(1, finishedDismissals)
+        }
     }
 
-    @Config(qualifiers = "w900dp-h700dp")
-    @Test fun wideMainNavigationUsesLeadingRail() {
+    @Config(sdk = [32])
+    @Test fun dropdownDismissesOnOutsideTapWithoutActivatingAnItem() {
+        var dismissed = 0
+        var selected = 0
         compose.setContent {
             MinisTheme {
-                MainNavigationLayout(MainDestination.Home, onSelect = {}) { Text("Workspace") }
+                Box(Modifier.fillMaxSize().padding(12.dp)) {
+                    Box {
+                        var expanded by remember { mutableStateOf(false) }
+                        MinisButton(onClick = { expanded = true }) { Text("Show options") }
+                        DropdownMenu(expanded, onDismissRequest = { expanded = false; dismissed++ }) {
+                            DropdownMenuItem(text = { Text("Option") }, onClick = { selected++ })
+                        }
+                    }
+                }
             }
         }
-        val home = compose.onNodeWithText(compose.activity.getString(R.string.main_nav_home))
-        val activity = compose.onNodeWithText(compose.activity.getString(R.string.usage_title))
-        val homeBounds = home.assertIsSelected().getUnclippedBoundsInRoot()
-        val activityBounds = activity.assertIsDisplayed().getUnclippedBoundsInRoot()
-        val workspaceBounds = compose.onNodeWithText("Workspace").getUnclippedBoundsInRoot()
-        assertTrue(homeBounds.top < activityBounds.top)
-        assertTrue(homeBounds.right < workspaceBounds.left)
+        compose.onNodeWithText("Show options").performClick()
+        compose.onNodeWithText("Option").assertIsDisplayed()
+        compose.onNode(isDialog()).performTouchInput { click(bottomRight - androidx.compose.ui.geometry.Offset(4f, 4f)) }
+        compose.onNodeWithText("Option").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, dismissed)
+            assertEquals(0, selected)
+        }
+    }
+
+    @Config(sdk = [32])
+    @Test fun chatGlassFallbackKeepsBothToolbarActionsClickable() {
+        var backClicks = 0
+        var moreClicks = 0
+        compose.setContent {
+            MinisTheme(darkTheme = true) {
+                ChatGlassTopBar(
+                    backdrop = null,
+                    title = { Text("Conversation") },
+                    navigationIcon = {
+                        ChatGlassIconButton(null, { backClicks++ }) { Text("Back") }
+                    },
+                    actions = {
+                        ChatGlassIconButton(null, { moreClicks++ }) { Text("More") }
+                    },
+                )
+            }
+        }
+        compose.onNodeWithText("Conversation").assertIsDisplayed()
+        compose.onNodeWithText("Back").assertIsDisplayed().performClick()
+        compose.onNodeWithText("More").assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(1, backClicks)
+            assertEquals(1, moreClicks)
+        }
     }
 
     @Test fun providerImageEndpointLabelsFitOneLineAtLargerTextSize() {
