@@ -4,7 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.semantics.onLongClick as semanticsLongClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
@@ -143,28 +144,46 @@ internal fun MinisGlassIconButton(
     content: @Composable () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
-    var longPressed by remember { mutableStateOf(false) }
-    val longPressModifier = if (onLongClick == null || !enabled) Modifier else Modifier.pointerInput(onLongClick) {
+    // GlassIconButton owns an internal clickable. A second recognizer that only observes
+    // DOWN is cancelled by that clickable's consumption. For long-press actions claim DOWN
+    // first, then own BOTH tap and hold; the inner clickable remains the semantics action.
+    val longPressModifier = if (onLongClick == null || !enabled) Modifier else Modifier.pointerInput(onClick, onLongClick) {
         awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            longPressed = false
-            if (awaitLongPressOrCancellation(down.id) != null) {
-                longPressed = true
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onLongClick()
-                do {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    event.changes.forEach { it.consume() }
-                } while (event.changes.any { it.pressed })
+            val down = awaitFirstDown(requireUnconsumed = true, pass = PointerEventPass.Initial)
+            down.consume()
+            val released = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                waitForUpOrCancellation(pass = PointerEventPass.Initial) != null
+            }
+            when (released) {
+                true -> {
+                    currentEvent.changes.forEach { it.consume() }
+                    onClick()
+                }
+                null -> {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
+                false -> Unit // A drag/scroll cancelled the press: no action.
             }
         }
     }
     GlassIconButton(
-        onClick = { if (enabled && !longPressed) onClick(); longPressed = false },
+        onClick = { if (enabled) onClick() },
         modifier = modifier.then(if (menuMotion) Modifier.minisJellyPress(enabled) else Modifier)
             .alpha(if (enabled) 1f else 0.38f)
             .then(longPressModifier)
-            .semantics { role = Role.Button; if (!enabled) disabled() },
+            .semantics {
+                role = Role.Button
+                if (!enabled) disabled()
+                if (enabled && onLongClick != null) semanticsLongClick {
+                    onLongClick.invoke()
+                    true
+                }
+            },
         inheritTopBarMaterial = false,
         backdrop = LocalTopBarBackdrop.current ?: backdrop,
         material = GlassTopAppBarDefaults.buttonMaterial(),
