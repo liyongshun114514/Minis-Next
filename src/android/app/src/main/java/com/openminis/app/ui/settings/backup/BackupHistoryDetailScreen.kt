@@ -104,7 +104,7 @@ fun BackupHistoryDetailScreen(
         title = formatTimestamp(record.startedAt),
         onBack = onBack,
         actions = {
-            IconButton(onClick = { confirmRemove = true }) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { confirmRemove = true }) {
                 Icon(
                     Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.backup_history_remove),

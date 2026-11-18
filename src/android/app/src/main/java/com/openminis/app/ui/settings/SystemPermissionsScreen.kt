@@ -25,7 +25,7 @@ import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.RestartAlt
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -113,7 +113,7 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
             SmallTopAppBar(
                 title = stringResource(R.string.system_permissions_title),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },

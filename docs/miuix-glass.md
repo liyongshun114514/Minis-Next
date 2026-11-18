@@ -13,11 +13,23 @@ The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefault
 
 ## Menus
 
-- Discrete menus use native `GlassPopup`; chat More uses `GlassTransformPopup` with the real glass-button anchor and icon content bounds.
+- Discrete menus use native `GlassPopup`; chat More, composer +, home Terminal, scheduled More and skill menus use `GlassTransformPopup` with the actual glass-button anchor. Opening and closing share the same origin.
+- Independent icon actions use glass. Only function-menu triggers opt into `menuMotion = true` (one shared press/rebound spring). Direct navigation, add-provider/editor screens, Search, New Chat and Back do not use the spring; do not infer menu motion from an Add/More icon alone.
+- `MinisPageScaffold` records only its body for top-right actions; `SettingsScaffold` supplies its existing scroll recording. Never pass the global scene to a button already inside that scene.
 - Miuix owns the glass surface, shadow, stroke, spring, blur and content transition. `MinisMenuPosition` only translates existing physical left/right alignment, gaps and finger anchors into window coordinates.
 - The host is first composed closed so native transitions animate on first open. Keep the caller composed through exit. The final-content disposal reads **current** visibility and fires `onDismissFinished` once; the chat speed submenu opens from that callback.
 - Composer Send/Stop choosers share this implementation, prefer placement above their button, avoid the IME, and do not take keyboard focus. Their existing preference writers and dismiss-tap guards remain unchanged.
 - Preserve caller composition locals when moving menu content into the root overlay (session context, theme and interaction state).
+
+## Floating composer and settings
+
+The composer follows Eta's thin-glass proportions: a 24dp glass shape, 10dp side gutters, 12dp bottom clearance plus the live navigation inset, and a 36dp minimum text slot (up to six text lines). It samples the full-height **message-only** backdrop, with `puredThinGlass`, a small edge stroke and native regular shadow; old APIs use the same shape with an opaque fill.
+
+The message list continues behind the input overlay instead of ending at a Column sibling boundary. Its bottom content padding includes the measured composer height and visible tool/status reserve exactly once. Tool/scroll controls are lifted by that same height. User bubbles use the neutral `surfaceContainerHigh`, not a primary-blue mix.
+
+Section/dialog fields use neutral inset fills with rounded corners. Skill-import tabs use native `TabRowWithContour` (plain `TabRow` paints a rectangular bed). Choice rows clip their press indication to a 16dp shape. Sub-agent concurrency uses the same `OverlayDialog` arrangement as the wait-time selector. The System Prompt directory contains only SOUL and workspace instructions; runtime prompt assembly and stored catalog overrides are not deleted.
+
+The thinking-level selector intentionally restores the original native-Canvas particle slider, including detents, cancel-without-commit, shared fill/thumb geometry and accessible tier actions; it is no longer the generic Miuix slider. A reduced-motion setting stops the particle clock.
 
 ## Fallbacks
 

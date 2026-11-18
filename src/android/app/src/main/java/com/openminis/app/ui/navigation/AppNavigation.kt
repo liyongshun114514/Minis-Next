@@ -1451,17 +1451,13 @@ fun AppNavigation(
             }
         }
 
-        // [K-unified-prompt-workspace] System Prompt hub: identity / global
-        // SOUL, workspace instructions, and the built-in prompt catalog.
+        // System Prompt settings expose only SOUL and workspace instructions.
         composable(Routes.SOUL) {
             com.openminis.app.ui.settings.PromptSettingsScreen(
                 onBack = { navController.safePopBackStack() },
                 onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
                 onWorkspaceInstructionsClick = {
                     navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS)
-                },
-                onEditBuiltin = { promptId ->
-                    navController.safeNavigate(Routes.soulBuiltinEditor(promptId))
                 },
             )
         }

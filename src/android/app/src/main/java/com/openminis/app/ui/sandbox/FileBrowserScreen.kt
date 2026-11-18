@@ -1,5 +1,6 @@
 package com.openminis.app.ui.sandbox
 
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
@@ -48,7 +49,7 @@ import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -120,7 +121,7 @@ fun FileBrowserScreen(
             TopAppBar(
                 title = stringResource(R.string.filebrowser_title),
                 navigationIcon = {
-                    IconButton(onClick = handleBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
@@ -769,10 +770,13 @@ private fun MoreMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) {
+        val actionAnchor = top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor()
+        com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { expanded = true }, modifier = Modifier.glassPopupAnchor(actionAnchor, cornerRadius = 24.dp, floating = true)) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.filebrowser_more_action))
         }
-        com.openminis.app.ui.components.MinisMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        com.openminis.app.ui.components.MinisMenu(
+                            glassAnchor = actionAnchor,
+                            anchorContent = { Icon(Icons.Filled.MoreVert, contentDescription = null) },expanded = expanded, onDismissRequest = { expanded = false }) {
             // Display options — sort key choices first so the most
             // frequent toggle (sort) is the closest tap.
             for (key in FileSortKey.entries) {

@@ -110,6 +110,15 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisToolbarIconButton
+import com.openminis.app.ui.components.LocalPageActionBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
+import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -967,6 +976,8 @@ fun SessionListScreen(
     val scheduledBadgeCount = com.openminis.app.scheduled.ScheduledTaskStore
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
+    val homeBackdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
+    CompositionLocalProvider(LocalPageActionBackdrop provides homeBackdrop) {
     Scaffold(
         topBar = {
             RichTitleAppBar(
@@ -1052,12 +1063,20 @@ fun SessionListScreen(
                         }
                         // Shell menu (matching iOS trailing shell button: Terminal, Rootfs, Browser)
                         Box {
-                            IconButton(onClick = { showOverflowMenu = true }) {
-                                Icon(Icons.Outlined.Terminal, contentDescription = stringResource(R.string.sessionlist_shell))
+                            val terminalAnchor = rememberGlassPopupAnchor()
+                            MinisToolbarIconButton(
+                                onClick = { showOverflowMenu = true },
+                                menuMotion = true,
+                                modifier = Modifier.glassPopupAnchor(terminalAnchor, cornerRadius = 24.dp, floating = true),
+                            ) {
+                                Icon(Icons.Outlined.Terminal, contentDescription = stringResource(R.string.sessionlist_shell),
+                                    modifier = Modifier.glassPopupAnchorContent(terminalAnchor))
                             }
                             MinisMenu(
                                 expanded = showOverflowMenu,
                                 onDismissRequest = { showOverflowMenu = false },
+                                glassAnchor = terminalAnchor,
+                                anchorContent = { Icon(Icons.Outlined.Terminal, contentDescription = null) },
                                 offset = DpOffset(0.dp, 0.dp),
                             ) {
                                 if (sessions.isNotEmpty()) {
@@ -1134,7 +1153,9 @@ fun SessionListScreen(
             // onboarding flashes on top of existing user history. Mirrors
             // iOS `didInitialLoad` on ContentView. The transition is usually
             // sub-200ms, so no spinner.
-            if (isInitialLoadComplete) Column(modifier = Modifier.fillMaxSize()) {
+            if (isInitialLoadComplete) Column(modifier = Modifier.fillMaxSize()
+                .then(if (homeBackdrop != null) Modifier.layerBackdrop(homeBackdrop) else Modifier)
+                .background(MiuixTheme.colorScheme.surface)) {
                 // [T-search-folder-expand] A folder whose name matched is a result
                 // even with no member: the list shows it rather than "no results".
                 if (sessions.isEmpty() && !(searchResultsActive && folderBlocks.isNotEmpty())) {
@@ -1588,6 +1609,8 @@ fun SessionListScreen(
         }
     }
 
+    } // Home action backdrop scope
+
     // Single delete confirmation
     if (showDeleteDialog && deleteTargetId != null) {
         WindowDialog(
@@ -1935,37 +1958,13 @@ private fun DualFabRow(
                     )
                 },
         ) {
-            FloatingActionButton(
+            MinisToolbarIconButton(
                 onClick = onNewChat,
-                shape = CircleShape,
-                containerColor = minisFabColor(),
-                modifier = Modifier
-                    .size(56.dp)
-                    // [T-newchat-fab-shadow] The shadow goes FIRST, outside the clip
-                    // below: a shadow drawn after `.clip(CircleShape)` (and the FAB's
-                    // own elevation shadow, drawn inside the Surface) falls outside
-                    // the circle and was clipped away, so this button had no shadow
-                    // while the search FAB beside it did. Same shadow and elevation
-                    // as the search FAB so the pair looks alike, swapped or not.
-                    .shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.15f))
-                    // [T-android-fab-square-ripple] Clip BEFORE combinedClickable.
-                    // FloatingActionButton's own `shape = CircleShape` only bounds
-                    // the ripple it draws internally; this extra clickable layer
-                    // (added for the long-press group menu) is a separate
-                    // interaction source and draws its own indication, which
-                    // without a clip spreads to the square 56dp bounds and shows
-                    // as a grey box behind the round button. Same ordering as the
-                    // circular voice button in ChatComposerWidgets.
-                    .clip(CircleShape)
-                    .combinedClickable(
-                        onClick = onNewChat,
-                        onLongClick = {
-                            if (topGroups.isNotEmpty()) showGroupMenu = true
-                        },
-                    ),
-                shadowElevation = 4.dp,
+                size = 56.dp,
+                onLongClick = { if (topGroups.isNotEmpty()) showGroupMenu = true },
             ) {
-                Icon(Icons.Outlined.Forum, contentDescription = "New Chat", tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(Icons.Outlined.Forum, contentDescription = "New Chat",
+                    tint = MiuixTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
             }
             DropdownMenu(
                 expanded = showGroupMenu,
@@ -1992,12 +1991,9 @@ private fun DualFabRow(
                 enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.85f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.85f),
             ) {
-                FloatingActionButton(
+                MinisToolbarIconButton(
                     onClick = onSearchToggle,
-                    shape = CircleShape,
-                    // iOS: UIColor.secondarySystemBackground = #F2F2F7 (light) / #1C1C1E (dark).
-                    // ChatColors.secondaryBg already matches these values across themes.
-                    containerColor = ChatColors.secondaryBg,
+                    size = 56.dp,
                     modifier = Modifier
                         .size(56.dp)
                         .offset { IntOffset(searchDragX.roundToInt(), 0) }
@@ -2013,9 +2009,7 @@ private fun DualFabRow(
                                 onDragCancel = { searchDragX = 0f },
                                 onHorizontalDrag = { _, dragAmount -> searchDragX += dragAmount },
                             )
-                        }
-                        .shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.15f)),
-                    shadowElevation = 4.dp,
+                        },
                 ) {
                     Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.sessionlist_search_action), tint = MiuixTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
                 }

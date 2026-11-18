@@ -42,8 +42,8 @@ fun DialogTextField(
     fieldModifier: Modifier = Modifier,
 ) {
     val colors = TextFieldDefaults.textFieldColors(
-        backgroundColor = MiuixTheme.colorScheme.secondaryContainer,
-        labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSecondaryContainer,
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+        labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
         borderColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
     )
     TextField(
@@ -60,6 +60,7 @@ fun DialogTextField(
         maxLines = maxLines,
         label = placeholder.orEmpty(),
         useLabelAsPlaceholder = true,
+        cornerRadius = 12.dp,
         insideMargin = DpSize(16.dp, 10.dp),
         trailingIcon = trailingIcon,
         colors = colors,

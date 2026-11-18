@@ -27,7 +27,7 @@ import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
@@ -144,7 +144,7 @@ fun ModelGroupDetailScreen(
             TopAppBar(
                 title = group.name,
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.model_group_detail_back))
                     }
                 },
@@ -346,7 +346,7 @@ fun ModelGroupDetailScreen(
                                                             },
                                 endActions = {
                                                                 Box {
-                                                                    IconButton(onClick = { showMenu = true }) {
+                                                                    com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { showMenu = true }) {
                                                                         Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.model_group_detail_more_options))
                                                                     }
                                                                     com.openminis.app.ui.components.MinisMenu(

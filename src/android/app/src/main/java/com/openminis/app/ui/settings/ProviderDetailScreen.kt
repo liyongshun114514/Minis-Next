@@ -198,7 +198,7 @@ fun ProviderDetailScreen(
         title = instance.label,
         onBack = onBack,
         actions = {
-            IconButton(onClick = {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = {
                 AppLogger.info(TAG, "Export instance ${instance.id} (${instance.label})")
                 exportProviderInstance(exportContext, providerRepository, instance)
             }) {
@@ -211,6 +211,7 @@ fun ProviderDetailScreen(
             SettingsCardBlock {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionTextField(
+                        contentHorizontalPadding = 12.dp,
                         value = label,
                         onValueChange = { label = it },
                         modifier = Modifier.weight(1f),
@@ -314,6 +315,7 @@ fun ProviderDetailScreen(
                 // SectionTextField height shrink (~-20%).
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     SectionTextField(
+                        contentHorizontalPadding = 12.dp,
                         value = customBaseURL,
                         onValueChange = { customBaseURL = it },
                         singleLine = true,
@@ -372,6 +374,7 @@ fun ProviderDetailScreen(
                             style = MiuixTheme.textStyles.main,
                         )
                         SectionTextField(
+                        contentHorizontalPadding = 12.dp,
                             value = customUserAgent,
                             onValueChange = { customUserAgent = it },
                             singleLine = true,
@@ -1227,6 +1230,7 @@ private fun ApiKeyCredentialBlock(
 ) {
     if (isEditing) {
         SectionTextField(
+                        contentHorizontalPadding = 12.dp,
             value = editValue,
             onValueChange = onEditValueChange,
             singleLine = true,
@@ -1359,6 +1363,7 @@ private fun ManualBearerTokenSection(
 
     if (isEditing) {
         SectionTextField(
+                        contentHorizontalPadding = 12.dp,
             value = draft,
             onValueChange = { draft = it },
             singleLine = false,

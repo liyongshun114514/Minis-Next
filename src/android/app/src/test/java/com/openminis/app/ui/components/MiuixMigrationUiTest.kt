@@ -409,6 +409,131 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(labels.lastIndex, selected) }
     }
 
+    @Config(sdk = [32])
+    @Test fun glassDirectActionAndMenuHaveSeparateMotionAndDispatch() {
+        var directClicks = 0
+        var choices = 0
+        compose.setContent {
+            MinisTheme {
+                MinisPageScaffold {
+                    Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomStart) {
+                        Column {
+                            MinisToolbarIconButton(onClick = { directClicks++ }, modifier = Modifier.testTag("direct-glass")) {
+                                Text("Direct page")
+                            }
+                            Box {
+                                var show by remember { mutableStateOf(false) }
+                                val anchor = rememberGlassPopupAnchor()
+                                MinisToolbarIconButton(
+                                    onClick = { show = true },
+                                    menuMotion = true,
+                                    modifier = Modifier.testTag("function-glass")
+                                        .glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
+                                ) { Text("Plus") }
+                                MinisMenu(
+                                    expanded = show,
+                                    onDismissRequest = { show = false },
+                                    glassAnchor = anchor,
+                                    anchorContent = { Text("Plus") },
+                                ) {
+                                    DropdownMenuItem(text = { Text("Attachment action") }, onClick = { choices++; show = false })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("direct-glass").performClick()
+        repeat(2) {
+            compose.onNodeWithTag("function-glass").performClick()
+            compose.onNodeWithText("Attachment action").assertIsDisplayed().performClick()
+            compose.onNodeWithText("Attachment action").assertDoesNotExist()
+        }
+        compose.runOnIdle { assertEquals(1, directClicks); assertEquals(2, choices) }
+    }
+
+    @Config(sdk = [32])
+    @Test fun glassLongPressDoesNotAlsoNavigateAndDisabledActionDoesNothing() {
+        var taps = 0
+        var holds = 0
+        compose.setContent {
+            MinisTheme {
+                Column {
+                    MinisGlassIconButton(
+                        backdrop = null,
+                        onClick = { taps++ },
+                        onLongClick = { holds++ },
+                        modifier = Modifier.testTag("long-glass"),
+                    ) { Text("New") }
+                    MinisGlassIconButton(
+                        backdrop = null,
+                        onClick = { taps += 100 },
+                        enabled = false,
+                        modifier = Modifier.testTag("disabled-glass"),
+                    ) { Text("Disabled") }
+                }
+            }
+        }
+        compose.onNodeWithTag("long-glass").performTouchInput { longClick() }
+        compose.runOnIdle { assertEquals(1, holds); assertEquals(0, taps) }
+        compose.onNodeWithTag("long-glass").performTouchInput { click() }
+        compose.onNodeWithTag("disabled-glass").assertIsNotEnabled().performTouchInput { click() }
+        compose.runOnIdle { assertEquals(1, holds); assertEquals(1, taps) }
+    }
+
+    @Test fun settingsTrailingGlassActionsDoNotOverlap() {
+        var first = 0
+        var second = 0
+        compose.setContent {
+            MinisTheme {
+                SettingsScaffold(title = "Two actions", onBack = {}, actions = {
+                    MinisToolbarIconButton(onClick = { first++ }, modifier = Modifier.testTag("sort-action")) { Text("Sort") }
+                    MinisToolbarIconButton(onClick = { second++ }, modifier = Modifier.testTag("add-action")) { Text("Add") }
+                }) { SettingsSection { Text("Preferences") } }
+            }
+        }
+        val a = compose.onNodeWithTag("sort-action").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val b = compose.onNodeWithTag("add-action").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue("distinct right-side targets", a.right <= b.left)
+        compose.onNodeWithTag("sort-action").performClick()
+        compose.onNodeWithTag("add-action").performClick()
+        compose.runOnIdle { assertEquals(1, first); assertEquals(1, second) }
+    }
+
+    @Test fun systemPromptDirectoryExposesOnlySoulAndWorkspace() {
+        var soul = 0
+        var workspace = 0
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.settings.PromptSettingsScreen(
+                    onBack = {}, onIdentityClick = { soul++ }, onWorkspaceInstructionsClick = { workspace++ },
+                )
+            }
+        }
+        compose.onNodeWithText("SOUL").assertIsDisplayed().performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.settings_workspace_instructions))
+            .assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, soul); assertEquals(1, workspace) }
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+    }
+
+    @Test fun particleThinkingSliderRetainsAllTierLabelsAndAccessibleValue() {
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.chat.ComposerEffortSlider(
+                    levels = listOf(com.openminis.app.data.model.ThinkingLevel.OFF,
+                        com.openminis.app.data.model.ThinkingLevel.LOW,
+                        com.openminis.app.data.model.ThinkingLevel.HIGH),
+                    current = com.openminis.app.data.model.ThinkingLevel.HIGH,
+                    enabled = false,
+                    onSelect = { error("disabled slider must not commit") },
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Thinking effort: High").assertIsDisplayed()
+    }
+
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {
         var dark by mutableStateOf(false)
         var page = Color.Unspecified

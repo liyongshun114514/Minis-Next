@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +83,7 @@ internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
         secondaryText = colors.onSurfaceSecondary,
         tertiaryText = colors.onSurfaceVariantSummary,
         disabledText = colors.disabledOnSecondaryVariant,
-        userBubble = lerp(colors.surfaceContainer, colors.primary, if (darkTheme) 0.24f else 0.12f),
+        userBubble = colors.surfaceContainerHigh,
         toolBg = colors.surfaceContainer,
         toolBorder = colors.dividerLine,
         toolCapsuleBg = colors.secondaryContainer,

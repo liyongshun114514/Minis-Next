@@ -3,7 +3,7 @@ package com.openminis.app.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import top.yukonga.miuix.kmp.basic.BadgedBox
-import top.yukonga.miuix.kmp.basic.IconButton
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -37,14 +37,14 @@ fun BadgedIconButton(
     icon: @Composable () -> Unit,
 ) {
     if (badge == null) {
-        IconButton(onClick = onClick, modifier = modifier, enabled = enabled) { icon() }
+        MinisToolbarIconButton(onClick = onClick, modifier = modifier, enabled = enabled) { icon() }
         return
     }
     BadgedBox(
         badge = { Box(Modifier.offset(x = -ANCHOR_INSET, y = ANCHOR_INSET)) { badge() } },
         modifier = modifier,
     ) {
-        IconButton(onClick = onClick, enabled = enabled) { icon() }
+        MinisToolbarIconButton(onClick = onClick, enabled = enabled) { icon() }
     }
 }
 

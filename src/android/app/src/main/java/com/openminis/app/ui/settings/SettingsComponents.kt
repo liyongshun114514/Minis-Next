@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -83,15 +84,19 @@ fun SettingsScaffold(
     val fadeInDistance = with(LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
         topBar = {
-            SettingsGlassTopBar(
-                title = title,
-                backdrop = backdrop,
-                overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
-                centerTitle = centerTitle,
-                onBack = onBack,
-                navigation = navigation,
-                actions = actions,
-            )
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.openminis.app.ui.components.LocalPageActionBackdrop provides backdrop,
+            ) {
+                SettingsGlassTopBar(
+                    title = title,
+                    backdrop = backdrop,
+                    overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
+                    centerTitle = centerTitle,
+                    onBack = onBack,
+                    navigation = navigation,
+                    actions = actions,
+                )
+            }
         },
         floatingActionButton = { floatingActionButton?.invoke() },
         bottomBar = { bottomBar?.invoke() },
@@ -258,6 +263,8 @@ fun SettingsChoiceRow(
     showDivider: Boolean = true,
 ) {
     RadioButtonPreference(
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(16.dp)),
         title = title,
         selected = selected,
         onClick = onSelect,

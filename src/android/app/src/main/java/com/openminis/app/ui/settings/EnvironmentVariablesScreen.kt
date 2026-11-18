@@ -101,7 +101,7 @@ fun EnvironmentVariablesScreen(
         // T75-part1 moved Add off a FAB onto the top-bar action slot;
         // kept here for visual continuity.
         actions = {
-            IconButton(onClick = { showAddSheet = true }) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { showAddSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.env_var_add))
             }
         },

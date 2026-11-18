@@ -1,5 +1,6 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 
@@ -55,9 +56,9 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.DialogTextField
 import com.openminis.app.ui.components.safeLaunchPicker
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -162,13 +163,16 @@ fun SkillsManagementScreen(
             // (sort-key items with check marks, divider, direction toggle).
             Box {
                 var sortMenuExpanded by remember { mutableStateOf(false) }
-                IconButton(onClick = { sortMenuExpanded = true }) {
+                val actionAnchor = top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor()
+                com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { sortMenuExpanded = true }, modifier = Modifier.glassPopupAnchor(actionAnchor, cornerRadius = 24.dp, floating = true)) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
                         contentDescription = stringResource(R.string.filebrowser_sort_by),
                     )
                 }
                 com.openminis.app.ui.components.MinisMenu(
+                            glassAnchor = actionAnchor,
+                            anchorContent = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
                     expanded = sortMenuExpanded,
                     onDismissRequest = { sortMenuExpanded = false },
                 ) {
@@ -218,8 +222,30 @@ fun SkillsManagementScreen(
                     )
                 }
             }
-            IconButton(onClick = { showAddMenu = true }) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.skill_add))
+            Box {
+                val addAnchor = top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor()
+                com.openminis.app.ui.components.MinisToolbarIconButton(
+                    menuMotion = true,
+                    onClick = { showAddMenu = true },
+                    modifier = Modifier.glassPopupAnchor(addAnchor, cornerRadius = 24.dp, floating = true),
+                ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.skill_add)) }
+                com.openminis.app.ui.components.MinisMenu(
+                    expanded = showAddMenu,
+                    onDismissRequest = { showAddMenu = false },
+                    glassAnchor = addAnchor,
+                    anchorContent = { Icon(Icons.Default.Add, contentDescription = null) },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.skill_import_modal_title)) },
+                        leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
+                        onClick = { showAddMenu = false; showImportSheet = true },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.skill_minis_skills_modal)) },
+                        leadingIcon = { Icon(Icons.Outlined.Language, contentDescription = null) },
+                        onClick = { showAddMenu = false; onMinisSkillsClick() },
+                    )
+                }
             }
         },
     ) {
@@ -341,45 +367,7 @@ fun SkillsManagementScreen(
         Spacer(Modifier.height(24.dp))
     }
 
-    if (showAddMenu) {
-        WindowBottomSheet(
-            show = true,
-            insideMargin = DpSize.Zero,
-            onDismissRequest = { showAddMenu = false },
-        ) {
-            Column(modifier = Modifier.padding(bottom = 32.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showAddMenu = false
-                            showImportSheet = true
-                        }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Outlined.Description, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.skill_import_modal_title), style = MiuixTheme.textStyles.main)
-                }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showAddMenu = false
-                            onMinisSkillsClick()
-                        }
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Outlined.Language, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(R.string.skill_minis_skills_modal), style = MiuixTheme.textStyles.main)
-                }
-            }
-        }
-    }
+
 
     if (showImportSheet) {
         SkillImportSheet(
@@ -491,7 +479,12 @@ private fun SkillImportSheet(
         ) {
             Text(stringResource(R.string.skill_import_modal_title), style = MiuixTheme.textStyles.headline1)
 
-            TabRow(
+            TabRowWithContour(
+                modifier = Modifier.fillMaxWidth(),
+                colors = top.yukonga.miuix.kmp.basic.TabRowDefaults.tabRowColors(
+                    backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+                    selectedBackgroundColor = MiuixTheme.colorScheme.surfaceContainer,
+                ),
                 tabs = listOf(stringResource(R.string.skill_import_tab_url), stringResource(R.string.skill_import_tab_paste), stringResource(R.string.skill_import_tab_file)),
                 selectedTabIndex = selectedTab,
                 onTabSelected = { selectedTab = it; errorText = null },
@@ -692,7 +685,7 @@ fun SkillDetailScreen(
             TopAppBar(
                 title = skill.name,
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
@@ -701,7 +694,7 @@ fun SkillDetailScreen(
                     // hand it to the system share sheet — the round-trip
                     // partner of the existing zip import, and the Android
                     // equivalent of iOS's top-bar share button.
-                    IconButton(
+                    com.openminis.app.ui.components.MinisToolbarIconButton(
                         enabled = !isExporting,
                         onClick = {
                             isExporting = true
@@ -1238,7 +1231,7 @@ fun SkillFileViewerScreen(
             TopAppBar(
                 title = fileName,
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },

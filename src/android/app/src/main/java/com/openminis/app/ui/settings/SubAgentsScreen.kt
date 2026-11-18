@@ -95,51 +95,33 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     var agentsEnabled by remember { mutableStateOf(AgentToolSwitch.AGENTS.isEnabled(context)) }
     var concurrency by remember { mutableStateOf(AgentJobRegistry.maxConcurrentChildJobsPerParent) }
     var showConcurrency by remember { mutableStateOf(false) }
-    if (showConcurrency) {
-        WindowBottomSheet(
-            show = true,
-            insideMargin = DpSize.Zero,
-            onDismissRequest = { showConcurrency = false },
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    stringResource(R.string.sub_agents_concurrency_title),
-                    style = MiuixTheme.textStyles.title3,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-                Text(
-                    stringResource(R.string.sub_agents_concurrency_footer),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
-                SettingsSection {
-                    (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).forEach { count ->
-                        SettingsChoiceRow(
-                            title = stringResource(R.string.sub_agents_concurrency_count, count),
-                            selected = concurrency == count,
-                            onSelect = {
-                                SubAgentConcurrencyPrefs.set(context, count)
-                                concurrency = count
-                                showConcurrency = false
-                            },
-                            showDivider = count < AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS,
-                        )
-                    }
-                }
-                TextButton(
-                    onClick = { showConcurrency = false },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    text = stringResource(android.R.string.cancel),
-                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+    top.yukonga.miuix.kmp.overlay.OverlayDialog(
+        show = showConcurrency,
+        title = stringResource(R.string.sub_agents_concurrency_title),
+        onDismissRequest = { showConcurrency = false },
+    ) {
+        Column(Modifier.fillMaxWidth()
+            .heightIn(max = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.65f)
+            .verticalScroll(rememberScrollState())) {
+            (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).forEach { count ->
+                SettingsChoiceRow(
+                    title = stringResource(R.string.sub_agents_concurrency_count, count),
+                    selected = concurrency == count,
+                    onSelect = {
+                        SubAgentConcurrencyPrefs.set(context, count)
+                        concurrency = count
+                        showConcurrency = false
+                    },
+                    showDivider = false,
                 )
             }
         }
+        androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
+        TextButton(
+            text = stringResource(android.R.string.cancel),
+            onClick = { showConcurrency = false },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 
     SettingsScaffold(title = stringResource(R.string.sub_agents_title), onBack = onBack) {

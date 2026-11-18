@@ -45,7 +45,7 @@ import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -178,7 +178,7 @@ fun ModelGroupsScreen(
                 onBack = onBack,
                 navigation = null,
                 actions = {
-                    IconButton(onClick = { showNewGroupDialog = true }) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { showNewGroupDialog = true }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.model_groups_new_group))
                     }
                 },

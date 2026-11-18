@@ -98,7 +98,7 @@ fun MCPIntegrationsScreen(
         title = stringResource(R.string.mcp_title),
         onBack = onBack,
         actions = {
-            IconButton(onClick = { showAddSheet = true }) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { showAddSheet = true }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.mcp_add))
             }
         },

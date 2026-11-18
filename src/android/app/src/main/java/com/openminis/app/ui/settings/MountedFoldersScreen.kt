@@ -35,7 +35,7 @@ import com.openminis.app.ui.components.miuix.SwipeToDismissBoxValue
 import com.openminis.app.ui.components.miuix.rememberSwipeToDismissBoxState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
@@ -162,12 +162,12 @@ fun MountedFoldersScreen(
             SmallTopAppBar(
                 title = stringResource(R.string.settings_mount_external_folders),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
-                    IconButton(
+                    com.openminis.app.ui.components.MinisToolbarIconButton(
                         onClick = {
                             // On Android 10, a folder can readdir but still EACCES on
                             // write unless WRITE_EXTERNAL_STORAGE is granted at runtime

@@ -50,7 +50,7 @@ import androidx.compose.material.icons.outlined.StopCircle
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1416,7 +1416,7 @@ fun AgentTranscriptScreen(sessionId: String, onBack: () -> Unit) {
             RichTitleAppBar(
                 color = ChatColors.background,
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.helper_close), tint = ChatColors.primaryText) }
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.helper_close), tint = ChatColors.primaryText) }
                 },
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -1436,7 +1436,7 @@ fun AgentTranscriptScreen(sessionId: String, onBack: () -> Unit) {
                 },
                 actions = {
                     if (isStreaming) {
-                        IconButton(onClick = {
+                        com.openminis.app.ui.components.MinisToolbarIconButton(onClick = {
                             // [T-android-stop-sibling-subagent] Stop the whole
                             // fan-out this run belongs to, matching the card's
                             // Stop; a run with no delegating parent still stops

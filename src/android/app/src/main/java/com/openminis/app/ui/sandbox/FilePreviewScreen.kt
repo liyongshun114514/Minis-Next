@@ -54,7 +54,7 @@ import androidx.compose.material.icons.filled.Share
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -272,14 +272,14 @@ private fun FilePreviewContent(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     // T142: Share works for any file — FileProvider URI +
                     // ACTION_SEND + FLAG_GRANT_READ_URI_PERMISSION. iOS parity.
-                    IconButton(onClick = { shareFile(context, item) }) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { shareFile(context, item) }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.filepreview_share))
                     }
                     // Print: HTML renders via WebView; markdown / plain text /
@@ -290,13 +290,13 @@ private fun FilePreviewContent(
                     if (item.isHtmlFile || item.isMarkdownFile || item.isTextFile ||
                         item.isJsonFile || item.isCsvFile
                     ) {
-                        IconButton(onClick = { printFile(context, item) }) {
+                        com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { printFile(context, item) }) {
                             Icon(Icons.Default.Print, contentDescription = stringResource(R.string.action_print))
                         }
                     }
                     if (item.isImageFile) {
                         // T142 image → MediaStore Save to Gallery.
-                        IconButton(onClick = {
+                        com.openminis.app.ui.components.MinisToolbarIconButton(onClick = {
                             scope.launch {
                                 val ok = saveImageToGallery(context, item.file)
                                 Toast.makeText(
@@ -310,7 +310,7 @@ private fun FilePreviewContent(
                         }
                     } else {
                         // T144 non-image → SAF Save-As (user picks location).
-                        IconButton(onClick = { saveAsLauncher.safeLaunchPicker(item.name, context, "FilePreview") }) {
+                        com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { saveAsLauncher.safeLaunchPicker(item.name, context, "FilePreview") }) {
                             Icon(Icons.Default.Download, contentDescription = stringResource(R.string.filepreview_save_as))
                         }
                     }

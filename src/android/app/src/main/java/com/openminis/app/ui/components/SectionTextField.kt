@@ -76,8 +76,8 @@ fun SectionTextField(
     contentHorizontalPadding: Dp = 0.dp,
 ) {
     val fieldColors = TextFieldDefaults.textFieldColors(
-        backgroundColor = containerColor ?: MiuixTheme.colorScheme.secondaryContainer,
-        labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSecondaryContainer,
+        backgroundColor = containerColor ?: MiuixTheme.colorScheme.surfaceContainerHigh,
+        labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
         borderColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
     )
     val mergedTextStyle = textStyle.copy(color = MiuixTheme.colorScheme.onSurface)
@@ -130,6 +130,7 @@ fun SectionTextField(
             minLines = 1,
             label = placeholder.orEmpty(),
             useLabelAsPlaceholder = true,
+            cornerRadius = 12.dp,
             insideMargin = DpSize(contentHorizontalPadding, SectionDesign.RowVerticalPadding),
             trailingIcon = trailingIcon,
         colors = fieldColors,

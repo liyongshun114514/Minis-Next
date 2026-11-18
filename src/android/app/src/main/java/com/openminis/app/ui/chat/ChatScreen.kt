@@ -168,6 +168,13 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import com.openminis.app.ui.components.MinisGlassIconButton
+import top.yukonga.miuix.kmp.glass.glassPanel
+import top.yukonga.miuix.kmp.material.GlassDefaults
+import top.yukonga.miuix.kmp.material.GlassMaterials
+import top.yukonga.miuix.kmp.material.GlassEdgeStrokes
+import top.yukonga.miuix.kmp.material.GlassShadows
+import top.yukonga.miuix.kmp.material.GlassShape
 import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
@@ -3178,6 +3185,7 @@ fun ChatScreen(
                         ChatGlassIconButton(
                             backdrop = chatTopBackdrop,
                             onClick = { showChatMenu = true },
+                            menuMotion = true,
                             modifier = Modifier.glassPopupAnchor(moreAnchor, cornerRadius = 24.dp, floating = true),
                         ) {
                             Icon(
@@ -3568,7 +3576,10 @@ fun ChatScreen(
                 .imePadding()
                 .onGloballyPositioned { chatPaneWidthPx = it.size.width },
         ) {
-        Column(
+        // Full-height message viewport; the composer is a sibling overlay, never a clipping edge.
+        var composerHeightPx by remember(sessionId) { mutableStateOf(0) }
+        val composerHeightDp = with(LocalDensity.current) { composerHeightPx.toDp() }
+        Box(
             modifier = Modifier.fillMaxSize(),
         ) {
             // Dismiss keyboard when the USER scrolls the messages. Gated on
@@ -3602,7 +3613,7 @@ fun ChatScreen(
             // and Scaffold insets; status UI must never exceed these bounds.
             var workAreaHeightPx by remember(sessionId) { mutableStateOf(0) }
             // Messages + scroll-to-bottom button
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()
+            Box(modifier = Modifier.fillMaxSize()
                 // Capture the complete, opaque viewport BEFORE column centering and gutters.
                 // Recording only the transparent/capped LazyColumn leaves empty side textures
                 // and causes dark seams or repeated text when the top band samples its edges.
@@ -3622,7 +3633,7 @@ fun ChatScreen(
                     subAgentStatusJobs(sessionId, registryJobs.values)
                 }
                 val workAreaHeightDp = with(density) {
-                    (workAreaHeightPx.toDp() - padding.calculateTopPadding()).coerceAtLeast(0.dp)
+                    (workAreaHeightPx.toDp() - padding.calculateTopPadding() - composerHeightDp).coerceAtLeast(0.dp)
                 }
                 // T166 / T170 / T173: bottomReserve must clear the visible
                 // top of the floating tool-status overlay. Layout primitives
@@ -3746,7 +3757,7 @@ fun ChatScreen(
                         if (hasSubAgentStatus) FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT else 0.dp
                 }
                 // A modal sheet does not occupy conversation layout space.
-                val bottomReserve = if (hasSubAgentStatus) {
+                val bottomReserve = composerHeightDp + if (hasSubAgentStatus) {
                     (statusToolbarHeight + FloatingToolBarMetrics.ROW_GAP).coerceAtMost(workAreaHeightDp)
                 } else if (hasFloatingTools) {
                     FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
@@ -5187,7 +5198,7 @@ fun ChatScreen(
                                 left = origin.x,
                                 top = origin.y + with(density) { padding.calculateTopPadding().toPx() },
                                 right = origin.x + coords.size.width,
-                                bottom = origin.y + coords.size.height,
+                                bottom = origin.y + (coords.size.height - composerHeightPx).coerceAtLeast(0),
                             )
                         } else null
                     },
@@ -5303,6 +5314,7 @@ fun ChatScreen(
                             // no extra alignment is needed.
                             .widthIn(max = CHAT_MAX_CONTENT_WIDTH)
                             .fillMaxWidth()
+                            .padding(bottom = composerHeightDp)
                             .heightIn(max = workAreaHeightDp)
                             .then(Modifier.clipToBounds())
                             .onGloballyPositioned { toolBarHeightPx = it.size.height }
@@ -5412,8 +5424,8 @@ fun ChatScreen(
                 val upFabVisible = messages.isNotEmpty() && !isNearBottom.value
                 val downFabVisible =
                     userScrolledAway && contentOverflows.value && messages.isNotEmpty()
-                val scrollControlsBottom = if (hasSubAgentStatus) {
-                    maxOf(bottomReserve, if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp)
+                val scrollControlsBottom = composerHeightDp + if (hasSubAgentStatus) {
+                    maxOf(bottomReserve - composerHeightDp, if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp)
                 } else if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
                 val fabBaseDp = scrollControlsBottom
                 val fabStackTopDp = when {
@@ -5647,9 +5659,11 @@ fun ChatScreen(
                 ).dp
             }
 
-            // ─── Input area (iOS-style: rounded box with text + buttons below) ───
+            // ─── Floating glass composer, over the scrollable message viewport ───
             Column(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .onGloballyPositioned { composerHeightPx = it.size.height }
                     .fillMaxWidth()
                     // [T-android-chat-max-content-width] Same cap and centring
                     // as the message list, so the composer stays aligned with
@@ -6105,16 +6119,8 @@ fun ChatScreen(
                     }
                 }
 
-                // Input box: iOS-style floating card — no visible border, separated
-                // from the backdrop by a symmetric soft shadow painted by hand
-                // (Android's Modifier.shadow only casts downward).
-                val inputBgArgb = ChatColors.inputBg.toArgb()
-                val shadowPaint = remember(inputBgArgb) {
-                    android.graphics.Paint().apply {
-                        color = inputBgArgb
-                        isAntiAlias = true
-                    }
-                }
+                // Eta-style 24dp thin-glass surface over the message-only recording.
+                val inputShape = remember { GlassShape(ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp) }
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6246,32 +6252,20 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .drawBehind {
-                            // [T-next-composer-surface] Restore the original
-                            // 20dp corner shape, including the matching glow.
-                            val radiusPx = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp.toPx()
-                            val canvas = drawContext.canvas.nativeCanvas
-                            // Pass 1: symmetric ambient halo — small blur, low alpha.
-                            shadowPaint.setShadowLayer(
-                                6.dp.toPx(), 0f, 0f,
-                                android.graphics.Color.argb(22, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                            // Pass 2: soft downward shadow (spot light).
-                            shadowPaint.setShadowLayer(
-                                10.dp.toPx(), 0f, 3.dp.toPx(),
-                                android.graphics.Color.argb(24, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                        }
+                        .glassPanel(
+                            backdrop = chatTopBackdrop,
+                            shape = inputShape,
+                            style = GlassDefaults.style(ChatColors.isDark),
+                            material = GlassMaterials.puredThinGlass(ChatColors.isDark),
+                            stroke = GlassEdgeStrokes.forTheme(
+                                isDark = ChatColors.isDark,
+                                light = GlassEdgeStrokes.SmallLight,
+                                dark = GlassEdgeStrokes.SmallDark,
+                            ),
+                            shadow = GlassShadows.Regular,
+                            shading = false,
+                            fallback = Modifier.clip(inputShape).background(ChatColors.inputBg),
+                        )
                         // [T-android-context-usage-hint] Ambient inner glow
                         // along the card's inside edge once the context window
                         // is under pressure. Applied to the composer CARD (not
@@ -6291,7 +6285,7 @@ fun ChatScreen(
                             cornerRadius = ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp,
                             animate = !animationsDisabled(context),
                         )
-                        .padding(top = if (attachments.isNotEmpty()) 8.dp else 4.dp),
+                        .padding(top = 8.dp, bottom = 2.dp),
                 ) {
                     // T185: Move-to capsule lives INSIDE the composer card,
                     // pinned 8dp from the top-right corner, mirroring iOS
@@ -6955,7 +6949,7 @@ fun ChatScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 25.dp)
+                                .heightIn(min = 36.dp)
                                 .focusRequester(inputFocusRequester)
                                 .onFocusChanged {
                                     // [T-android-composer-placeholder-rotation]
@@ -7197,24 +7191,34 @@ fun ChatScreen(
                             // T185: 12dp horizontal lines the +/slash and
                             // mic/send icon-button column up with the
                             // attachment row + textfield + Move-to popup.
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Left: + button (iOS: 34×34 circle, secondary bg)
+                        // Expand from + and collapse back into the same measured button.
                         Box {
-                            InputCircleButton(
+                            val attachAnchor = rememberGlassPopupAnchor()
+                            MinisGlassIconButton(
+                                backdrop = chatTopBackdrop,
                                 onClick = { showAttachMenu = true },
+                                size = 34.dp,
+                                menuMotion = true,
+                                modifier = Modifier.glassPopupAnchor(attachAnchor, cornerRadius = 17.dp, floating = true),
                             ) {
                                 Icon(
                                     Icons.Default.Add,
                                     contentDescription = "Attach",
                                     tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(20.dp).glassPopupAnchorContent(attachAnchor),
                                 )
                             }
                             MinisMenu(
                                 expanded = showAttachMenu,
                                 onDismissRequest = { showAttachMenu = false },
+                                glassAnchor = attachAnchor,
+                                anchorContent = {
+                                    Icon(Icons.Default.Add, contentDescription = null,
+                                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.size(20.dp))
+                                },
                             ) {
                                 // [T-native-composer-plus-menu] Merged "+" menu:
                                 // the three native attachment actions stay first;

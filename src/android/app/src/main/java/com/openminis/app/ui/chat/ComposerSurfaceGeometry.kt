@@ -4,22 +4,22 @@ package com.openminis.app.ui.chat
  * [T-next-composer-surface] Pure geometry / inset math for the chat composer
  * (the bottom input card in [ChatScreen]).
  *
- * Retain the original 20dp corner shape and 12dp horizontal gutters.
- * The bottom safe-area clearance is 16dp (4dp more than the preceding build).
+ * Eta-inspired 24dp rounded glass card, 10dp horizontal gutters and
+ * 12dp bottom safe-area clearance.
  * A visible navigation bar contributes its inset exactly once. While the IME
  * is up, [ChatScreen]'s outer `imePadding()` already lifts the composer, so
- * only the 16dp clearance is added above the keyboard.
+ * only the 12dp clearance is added above the keyboard.
  */
 internal object ComposerSurfaceGeometry {
 
     /** Uniform corner radius of the composer card, in dp. */
-    const val CORNER_RADIUS_DP: Float = 20f
+    const val CORNER_RADIUS_DP: Float = 24f
 
-    /** Original left/right gutter, independent of the requested extra lift. */
-    const val SIDE_INSET_DP: Float = 12f
+    /** Narrow, symmetric left/right gutters matching the glass composer. */
+    const val SIDE_INSET_DP: Float = 10f
 
     /** Bottom clearance above the navigation safe area or the open keyboard. */
-    const val BOTTOM_INSET_DP: Float = 16f
+    const val BOTTOM_INSET_DP: Float = 12f
 
     /**
      * Padding below the composer card.

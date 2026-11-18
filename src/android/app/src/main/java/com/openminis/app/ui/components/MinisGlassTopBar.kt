@@ -1,6 +1,19 @@
 package com.openminis.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -32,7 +45,31 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.glass.GlassIconButton
 import top.yukonga.miuix.kmp.glass.GlassTopAppBarDefaults
 
-private val LocalTopBarBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+internal val LocalTopBarBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+
+/** Draw-only spring: never changes the hit target or measured toolbar/anchor bounds. */
+internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = composed {
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.90f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
+        label = "minisJellyPress",
+    )
+    this.pointerInput(enabled) {
+        if (!enabled) return@pointerInput
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            pressed = true
+            try {
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Final)
+                } while (event.changes.any { it.pressed })
+            } finally {
+                pressed = false
+            }
+        }
+    }.graphicsLayer { scaleX = scale; scaleY = scale }
+}
 
 /**
  * The same scene -> progressive band -> button sampling order as Miuix GlassTopAppBar,
@@ -99,15 +136,39 @@ internal fun MinisGlassIconButton(
     backdrop: Backdrop?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    enabled: Boolean = true,
+    menuMotion: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
+    var longPressed by remember { mutableStateOf(false) }
+    val longPressModifier = if (onLongClick == null || !enabled) Modifier else Modifier.pointerInput(onLongClick) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            longPressed = false
+            if (awaitLongPressOrCancellation(down.id) != null) {
+                longPressed = true
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onLongClick()
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    event.changes.forEach { it.consume() }
+                } while (event.changes.any { it.pressed })
+            }
+        }
+    }
     GlassIconButton(
-        onClick = onClick,
-        modifier = modifier.semantics { role = Role.Button },
+        onClick = { if (enabled && !longPressed) onClick(); longPressed = false },
+        modifier = modifier.then(if (menuMotion) Modifier.minisJellyPress(enabled) else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .then(longPressModifier)
+            .semantics { role = Role.Button; if (!enabled) disabled() },
         inheritTopBarMaterial = false,
         backdrop = LocalTopBarBackdrop.current ?: backdrop,
         material = GlassTopAppBarDefaults.buttonMaterial(),
-        size = 48.dp,
+        size = size,
         content = content,
     )
 }

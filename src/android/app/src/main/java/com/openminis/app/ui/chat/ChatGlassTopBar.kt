@@ -49,7 +49,8 @@ internal fun ChatGlassIconButton(
     backdrop: LayerBackdrop?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    menuMotion: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    MinisGlassIconButton(backdrop = backdrop, onClick = onClick, modifier = modifier, content = content)
+    MinisGlassIconButton(backdrop = backdrop, onClick = onClick, modifier = modifier, menuMotion = menuMotion, content = content)
 }

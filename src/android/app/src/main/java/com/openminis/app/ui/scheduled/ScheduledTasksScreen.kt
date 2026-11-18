@@ -1,5 +1,6 @@
 package com.openminis.app.ui.scheduled
 
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -33,7 +34,7 @@ import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
@@ -92,7 +93,7 @@ fun ScheduledTasksScreen(
             TopAppBar(
                 title = stringResource(R.string.scheduled_tasks_title),
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -101,13 +102,16 @@ fun ScheduledTasksScreen(
                 },
                 actions = {
                     Box {
-                        IconButton(onClick = { showMenu = true }) {
+                        val actionAnchor = top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor()
+                        com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { showMenu = true }, modifier = Modifier.glassPopupAnchor(actionAnchor, cornerRadius = 24.dp, floating = true)) {
                             Icon(
                                 Icons.Filled.MoreVert,
                                 contentDescription = stringResource(R.string.model_group_detail_more_options),
                             )
                         }
                         com.openminis.app.ui.components.MinisMenu(
+                            glassAnchor = actionAnchor,
+                            anchorContent = { Icon(Icons.Filled.MoreVert, contentDescription = null) },
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
                         ) {
@@ -128,7 +132,7 @@ fun ScheduledTasksScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { onEditTask(null) }, shape = CircleShape) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { onEditTask(null) }, size = 56.dp) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.scheduled_task_new))
             }
         },

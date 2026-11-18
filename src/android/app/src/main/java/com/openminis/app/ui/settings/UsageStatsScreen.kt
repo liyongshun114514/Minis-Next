@@ -100,7 +100,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
+import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 
@@ -299,7 +299,7 @@ private fun UsageScaffold(onBack: () -> Unit, content: @Composable ColumnScope.(
                 expandable = false,
                 color = page,
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back))
                     }
                 },

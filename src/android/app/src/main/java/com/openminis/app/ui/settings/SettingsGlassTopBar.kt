@@ -77,7 +77,10 @@ internal fun SettingsGlassTopBar(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Box(contentAlignment = Alignment.CenterEnd) { actions?.invoke() }
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                ) { actions?.invoke() }
             },
         ) { measurables, constraints ->
             val width = constraints.maxWidth

@@ -154,7 +154,7 @@ def main() -> int:
     chat_code = strip_kotlin(chat)
     capture = chat_code.index("Modifier.layerBackdrop(chatTopBackdrop)")
     ok(chat_code.count("Modifier.layerBackdrop(chatTopBackdrop)") == 1
-       and "Modifier.weight(1f).fillMaxWidth()" in chat_code[capture - 180:capture]
+       and "Modifier.fillMaxSize()" in chat_code[capture - 180:capture]
        and ".background(ChatColors.background)" in chat_code[capture:capture + 200],
        "chat backdrop must record the full-width opaque viewport, not the inset LazyColumn")
     ok("layerBackdrop(scene)" in scene and ".background(background)" in scene,
@@ -326,15 +326,23 @@ def main() -> int:
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")
-    ok("import top.yukonga.miuix.kmp.basic.Slider" in slider_code or
-       "import top.yukonga.miuix.kmp.basic.Slider" in extras,
-       "thinking effort must use the Miuix slider")
-    ok("Slider(" in slider_code and "steps = (levels.size - 2).coerceAtLeast(0)" in slider_code,
-       "slider stops must follow the model's supported levels")
-    ok("displayName" in slider_code and "levels[selectedIndex]" in slider_code,
-       "current level must use the same display name as the composer")
-    ok("onSelect(levels[" in slider_code and "pointerInput" not in slider_code and "Canvas(" not in slider_code,
-       "native slider must commit a supported level without custom drawing or gestures")
+    ok("Canvas(" in slider_code and "ThinkingSliderGeometry.track(" in slider_code,
+       "original particle slider must share its drawing and gesture geometry")
+    ok("ComposerPortMath.nearestIndex(" in slider_code and "ComposerPortMath.detentIndex(" in slider_code,
+       "particle slider must snap only to supported levels")
+    ok("private fun ThinkingLevel.effortSliderLabel(): String = displayName" in slider_code,
+       "slider labels must match the compact composer's display names")
+    ok("onSelect(levels[requestedIndex])" in slider_code and "if (!completed)" in slider_code,
+       "slider must commit one supported level on release and none on cancellation")
+    ok("CustomAccessibilityAction" in slider_code and "progressBarRangeInfo" in slider_code,
+       "particle slider must retain accessible stepping and progress semantics")
+    ok("if (!enabled || reducedMotion) return@LaunchedEffect" in slider_code,
+       "particle clock must stop under reduced motion")
+    ok("glassAnchor = attachAnchor" in chat_code and "glassPopupAnchor(attachAnchor" in chat_code,
+       "+ menu must expand from and collapse into its actual button")
+    ok("val bottomReserve = composerHeightDp +" in chat_code and
+       ".align(Alignment.BottomCenter)" in chat_code,
+       "full-height message list must reserve the floating composer's measured height")
 
     # --- Slider math -----------------------------------------------------
     for token in (

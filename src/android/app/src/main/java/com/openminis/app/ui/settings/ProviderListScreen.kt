@@ -126,7 +126,7 @@ fun ProviderListScreen(
         title = stringResource(R.string.provider_list_providers),
         onBack = onBack,
         actions = {
-            IconButton(onClick = { showMenu = true }) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { showMenu = true }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.provider_list_add_provider))
             }
         },

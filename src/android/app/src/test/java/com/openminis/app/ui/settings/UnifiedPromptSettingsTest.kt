@@ -128,15 +128,13 @@ class UnifiedPromptSettingsTest {
     }
 
     @Test
-    fun `hub reloads override state on resume, not only on first composition`() {
-        assertTrue(hub.contains("Lifecycle.Event.ON_RESUME"))
-        assertTrue(hub.contains("overrideRevision++"))
-        assertTrue(hub.contains("remember(entries, overrideRevision)"))
-        assertTrue(hub.contains("entry.id in overriddenIds"))
-        assertFalse(
-            "a badge read only during the first composition goes stale after an edit",
-            hub.contains("PromptOverrides.overrideFor(entry.id) != null"),
-        )
+    fun `system prompt page contains only soul and workspace instructions`() {
+        assertEquals(2, Regex("SettingsRow\\(").findAll(hub).count())
+        assertTrue(hub.contains("onClick = onIdentityClick"))
+        assertTrue(hub.contains("onClick = onWorkspaceInstructionsClick"))
+        for (retired in listOf("PromptOverrides", "PromptCatalogScope", "TextField(", "onEditBuiltin", "overrideRevision")) {
+            assertFalse("catalog UI must not return: $retired", hub.contains(retired))
+        }
     }
 
     // ─── Routing / resources ────────────────────────────────────────────────
