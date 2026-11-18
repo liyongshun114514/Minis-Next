@@ -20,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHAT = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/ChatScreen.kt"
+CHAT_TOP_BAR = CHAT.with_name("ChatGlassTopBar.kt")
 CHAT_EXTRAS = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/NativeComposerExtras.kt"
 MATH = ROOT / "src/android/app/src/main/java/com/openminis/app/ui/chat/ComposerPortMath.kt"
 MATH_TEST = ROOT / "src/android/app/src/test/java/com/openminis/app/ui/chat/ComposerPortMathTest.kt"
@@ -113,7 +114,13 @@ def main() -> int:
         r"Text\(\s*text = displayTitle,.*?maxLines = 2", chat, re.S
     )
     ok(title_block is not None, "title does not reserve two lines")
-    ok("expandedHeight = 80.dp" in chat, "top bar height does not match the two-row title card")
+    if re.search(r"\bChatGlassTopBar\s*\(", strip_kotlin(chat)):
+        top_bar = strip_kotlin(text(CHAT_TOP_BAR))
+        ok(re.search(r"\bTopAppBar\s*\(.*?\bexpandedHeight\s*=\s*80\.dp\b", top_bar, re.S) is not None,
+           "glass top bar height does not match the two-row title card")
+    else:
+        ok("expandedHeight = 80.dp" in strip_kotlin(chat),
+           "top bar height does not match the two-row title card")
     ok("editingSession = viewModel.loadSessionEntity()" in chat,
        "native rename click lost")
     # The bar carries the current chat title and nothing else: the Soul/category
