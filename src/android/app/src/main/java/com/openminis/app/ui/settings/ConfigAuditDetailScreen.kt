@@ -12,9 +12,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.History
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,12 +34,15 @@ import com.openminis.app.config.audit.ConfigAuditActor
 import com.openminis.app.config.audit.ConfigAuditEntry
 import com.openminis.app.config.audit.ConfigAuditLog
 import com.openminis.app.config.audit.ConfigAuditStatus
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.fillMaxWidth
 
 /**
  * [T-config-readable] Logs → Config Changes → one record. Port of iOS
@@ -172,55 +174,67 @@ fun ConfigAuditDetailScreen(entryId: String, onBack: () -> Unit) {
         val successBody = stringResource(R.string.logs_config_revert_success_body)
         val failedTitle = stringResource(R.string.logs_config_revert_failed_title)
         val unknownErr = stringResource(R.string.logs_config_revert_unknown_error)
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmRevert = false },
-            title = { Text(stringResource(R.string.logs_config_revert_dialog_title)) },
-            text = { Text(configRevertMessage(e, localize)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    confirmRevert = false
-                    reverting = true
-                    scope.launch {
-                        // The Logs screen cannot stack the approval dialog, so
-                        // this dialog is the confirmation (same as the list).
-                        val res = withContext(Dispatchers.IO) {
-                            ConfigBridge.auditRevert(
-                                id = e.id,
-                                actorRaw = "user-revert",
-                                sessionId = null,
-                                skipConfirmation = true,
-                            )
-                        }
-                        reverting = false
-                        result = if (res.optBoolean("ok", false)) {
-                            successTitle to successBody
-                        } else {
-                            failedTitle to res.optString("reason", unknownErr)
-                        }
-                    }
-                }) {
-                    Text(stringResource(R.string.logs_config_revert), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.logs_config_revert_dialog_title),
+            summary = configRevertMessage(e, localize),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    confirmRevert = false
+                                    reverting = true
+                                    scope.launch {
+                                        // The Logs screen cannot stack the approval dialog, so
+                                        // this dialog is the confirmation (same as the list).
+                                        val res = withContext(Dispatchers.IO) {
+                                            ConfigBridge.auditRevert(
+                                                id = e.id,
+                                                actorRaw = "user-revert",
+                                                sessionId = null,
+                                                skipConfirmation = true,
+                                            )
+                                        }
+                                        reverting = false
+                                        result = if (res.optBoolean("ok", false)) {
+                                            successTitle to successBody
+                                        } else {
+                                            failedTitle to res.optString("reason", unknownErr)
+                                        }
+                                    }
+                                },
+                                    text = stringResource(R.string.logs_config_revert),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { confirmRevert = false },
+                                    text = stringResource(R.string.logs_config_dialog_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmRevert = false }) {
-                    Text(stringResource(R.string.logs_config_dialog_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     result?.let { (title, body) ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { result = null },
-            title = { Text(title) },
-            text = { Text(body) },
-            confirmButton = {
-                MinisTextButton(onClick = { result = null }) {
-                    Text(stringResource(R.string.logs_config_dialog_ok))
+            title = title,
+            summary = body,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { result = null },
+                                    text = stringResource(R.string.logs_config_dialog_ok),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 

@@ -23,10 +23,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,8 +37,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.browser.BrowserTabPool
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * [T-android-browser-download-ux] Downloads panel — Android port of iOS
@@ -59,16 +61,16 @@ fun BrowserDownloadsSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val downloads by tabPool.downloads.collectAsState()
 
     // Terminal entries stop counting toward the badge once the user has
     // actually looked at the panel.
     LaunchedEffect(Unit) { tabPool.markDownloadsSeen() }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -87,9 +89,11 @@ fun BrowserDownloadsSheet(
                     modifier = Modifier.weight(1f),
                 )
                 if (downloads.any { it.state != BrowserTabPool.DownloadState.DOWNLOADING }) {
-                    MinisTextButton(onClick = { tabPool.clearFinishedDownloads() }) {
-                        Text(stringResource(R.string.browser_downloads_clear))
-                    }
+                    TextButton(
+                        onClick = { tabPool.clearFinishedDownloads() },
+                        text = stringResource(R.string.browser_downloads_clear),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
             if (downloads.isEmpty()) {
@@ -167,9 +171,7 @@ private fun DownloadRow(
                     Spacer(Modifier.height(4.dp))
                     if (entry.totalBytes > 0) {
                         LinearProgressIndicator(
-                            progress = {
-                                (entry.bytesDone.toFloat() / entry.totalBytes).coerceIn(0f, 1f)
-                            },
+                            progress = (entry.bytesDone.toFloat() / entry.totalBytes).coerceIn(0f, 1f),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {

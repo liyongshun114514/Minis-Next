@@ -23,9 +23,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,8 +40,9 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.modelEntryPickerItems
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * T185 — full-screen picker for adding model entries to the agent-loop
@@ -85,12 +84,7 @@ fun AddAgentLoopModelsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.agent_loop_section_add_models_title),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+                title = stringResource(R.string.agent_loop_section_add_models_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -100,8 +94,12 @@ fun AddAgentLoopModelsScreen(
                     }
                 },
                 actions = {
-                    MinisTextButton(onClick = onBack) { Text(stringResource(R.string.common_cancel)) }
-                    MinisButton(
+                    TextButton(
+                        onClick = onBack,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
                         onClick = {
                             // Add in stable order so the section renders
                             // pinned items in the order the user saw them
@@ -116,13 +114,12 @@ fun AddAgentLoopModelsScreen(
                         },
                         enabled = selectedIds.isNotEmpty(),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Text(stringResource(R.string.add_models_to_group_add_count, selectedIds.size))
-                    }
+                        text = stringResource(R.string.add_models_to_group_add_count, selectedIds.size),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MiuixTheme.colorScheme.background,
-                ),
+                expandable = false,
+                color = MiuixTheme.colorScheme.background,
             )
         },
         containerColor = MiuixTheme.colorScheme.background,
@@ -180,12 +177,7 @@ fun AddAgentLoopGroupsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.agent_loop_section_add_groups_title),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+                title = stringResource(R.string.agent_loop_section_add_groups_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -195,8 +187,12 @@ fun AddAgentLoopGroupsScreen(
                     }
                 },
                 actions = {
-                    MinisTextButton(onClick = onBack) { Text(stringResource(R.string.common_cancel)) }
-                    MinisButton(
+                    TextButton(
+                        onClick = onBack,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
                         onClick = {
                             // Same stable-order add policy as the entries
                             // picker so the section ordering matches the
@@ -211,13 +207,12 @@ fun AddAgentLoopGroupsScreen(
                         },
                         enabled = selectedIds.isNotEmpty(),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Text(stringResource(R.string.add_models_to_group_add_count, selectedIds.size))
-                    }
+                        text = stringResource(R.string.add_models_to_group_add_count, selectedIds.size),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MiuixTheme.colorScheme.background,
-                ),
+                expandable = false,
+                color = MiuixTheme.colorScheme.background,
             )
         },
         containerColor = MiuixTheme.colorScheme.background,

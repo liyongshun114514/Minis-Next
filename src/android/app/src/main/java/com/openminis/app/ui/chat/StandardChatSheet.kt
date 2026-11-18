@@ -1,7 +1,8 @@
 package com.openminis.app.ui.chat
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,19 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.ModalBottomSheetProperties
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -33,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.ui.theme.ChatColors
-import kotlinx.coroutines.launch
 
 /**
  * Standardized half-screen modal sheet used by every popup launched from the
@@ -66,24 +62,22 @@ fun StandardChatSheet(
     onBack: (() -> Boolean)? = null,
     content: @Composable () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
     val sheetHeight = (configuration.screenHeightDp * heightFraction.coerceIn(0.1f, 1f)).dp
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ChatColors.background,
-        dragHandle = { CompactDragHandle() },
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = onBack == null),
+        backgroundColor = ChatColors.secondaryBg,
+        insideMargin = DpSize.Zero,
     ) {
         if (onBack != null) {
-            BackHandler {
-                if (!onBack()) {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                }
-            }
+            // Registered inside the sheet's window, after its built-in handler.
+            NavigationBackHandler(
+                state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+                isBackEnabled = true,
+                onBackCompleted = { if (!onBack()) onDismiss() },
+            )
         }
         Column(
             modifier = Modifier
@@ -100,29 +94,6 @@ fun StandardChatSheet(
                 content()
             }
         }
-    }
-}
-
-/**
- * Slim sheet drag handle (32×4 indicator pill) with 6dp top + 4dp bottom padding so the title sits closer to the top.
- */
-@Composable
-private fun CompactDragHandle() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp, bottom = 4.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(32.dp)
-                .height(4.dp)
-                .background(
-                    color = ChatColors.secondaryText.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(2.dp),
-                ),
-        )
     }
 }
 

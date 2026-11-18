@@ -2,7 +2,6 @@ package com.openminis.app.ui.settings
 
 import com.openminis.app.R
 import com.openminis.app.ui.components.DialogTextField
-import com.openminis.app.ui.components.MinisTextButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +24,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -45,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.repository.EnvVarRepository
 import com.openminis.app.deeplink.DeepLinkCoordinator
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * Environment Variables \u2014 adopts the SettingsScaffold/SettingsSection
@@ -268,15 +270,19 @@ fun EnvironmentVariablesScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { deleteEntryId = null }) {
-                Text(stringResource(R.string.common_cancel))
-            }
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = { deleteEntryId = null },
+                text = stringResource(R.string.common_cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
                 deleteEntryId?.let { envVarRepository.delete(it) }
                 deleteEntryId = null
-            }) {
-                Text(stringResource(R.string.common_delete), color = MiuixTheme.colorScheme.error)
-            }
+            },
+                text = stringResource(R.string.common_delete),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+            )
         }
     }
 }
@@ -423,10 +429,12 @@ private fun EnvVarFormSheetContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                MinisTextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-                MinisTextButton(
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.common_cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
+                TextButton(
                     onClick = {
                         val success = if (isEditing) {
                             // update() never touches the enabled state; the switch
@@ -439,9 +447,9 @@ private fun EnvVarFormSheetContent(
                         if (success) onDismiss()
                     },
                     enabled = canSave,
-                ) {
-                    Text(if (isEditing) stringResource(R.string.common_save) else stringResource(R.string.env_var_add))
-                }
+                    text = if (isEditing) stringResource(R.string.common_save) else stringResource(R.string.env_var_add),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
         }
 }

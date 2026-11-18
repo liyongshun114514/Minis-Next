@@ -38,7 +38,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -69,10 +69,12 @@ import com.openminis.app.R
 import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.data.SafMountHelper
 import com.openminis.app.ui.components.DialogTextField
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import kotlinx.coroutines.launch
 import com.openminis.app.i18n.uppercaseForDisplay
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Switch
 
 /**
  * Settings → Mount External Folders. Mirrors iOS MountedFoldersSettingsView.
@@ -333,9 +335,11 @@ fun MountedFoldersScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { addError = null }) {
-                Text(stringResource(android.R.string.ok))
-            }
+            TextButton(
+                onClick = { addError = null },
+                text = stringResource(android.R.string.ok),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 
@@ -360,10 +364,13 @@ fun MountedFoldersScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { showPickerIntro = false }) {
-                Text(stringResource(R.string.cancel))
-            }
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = { showPickerIntro = false },
+                text = stringResource(R.string.cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
                 showPickerIntro = false
                 // [T-android-mount-picker-anf] OpenDocumentTree fires
                 // ACTION_OPEN_DOCUMENT_TREE, and some OEM ROMs ship without a
@@ -378,9 +385,10 @@ fun MountedFoldersScreen(
                     "MountedFolders",
                     R.string.mount_picker_unavailable,
                 )
-            }) {
-                Text(stringResource(R.string.mount_picker_intro_continue))
-            }
+            },
+                text = stringResource(R.string.mount_picker_intro_continue),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 }
@@ -677,7 +685,7 @@ private fun AddMountSheetContent(
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                SettingsSwitch(checked = allowWrite, onCheckedChange = { allowWrite = it })
+                Switch(checked = allowWrite, onCheckedChange = { allowWrite = it })
             }
 
             Spacer(Modifier.height(20.dp))
@@ -685,16 +693,18 @@ private fun AddMountSheetContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                MinisTextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.cancel))
-                }
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
                 Spacer(Modifier.width(8.dp))
-                MinisTextButton(
+                TextButton(
                     onClick = { onConfirm(name.trim(), allowWrite) },
                     enabled = isValidMountName(name),
-                ) {
-                    Text(stringResource(R.string.mount_add_confirm))
-                }
+                    text = stringResource(R.string.mount_add_confirm),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
             Spacer(Modifier.height(20.dp))
         }

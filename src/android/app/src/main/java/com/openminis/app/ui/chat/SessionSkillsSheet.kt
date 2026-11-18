@@ -22,7 +22,7 @@ import androidx.compose.material.icons.outlined.Image
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,7 +53,10 @@ import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.settings.SettingsSection
 import com.openminis.app.ui.settings.SkillRowItem
 import com.openminis.app.ui.settings.SkillSourceUrl
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
 
 /**
  * Bottom sheet showing all skills with per-session enable/disable toggles.
@@ -208,32 +211,34 @@ fun SessionSkillsSheet(
                     Spacer(modifier = Modifier.weight(1f))
                     // Enable/Disable All operate on the FILTERED subset so a
                     // user can bulk-toggle the result of a search.
-                    MinisTextButton(
+                    TextButton(
                         onClick = {
                             for (skill in filteredSkills) {
                                 overrides[skill.id] = true
                                 skillRepository.setSessionOverride(sessionId, skill.id, true)
                             }
                         },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.session_skills_enable_all), fontSize = 12.sp)
-                    }
-                    MinisTextButton(
+                        text = stringResource(R.string.session_skills_enable_all),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(fontSize = 12.sp, fontWeight = MiuixTheme.textStyles.button.fontWeight),
+                    )
+                    TextButton(
                         onClick = {
                             for (skill in filteredSkills) {
                                 overrides[skill.id] = false
                                 skillRepository.setSessionOverride(sessionId, skill.id, false)
                             }
                         },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.session_skills_disable_all), fontSize = 12.sp)
-                    }
+                        text = stringResource(R.string.session_skills_disable_all),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(fontSize = 12.sp, fontWeight = MiuixTheme.textStyles.button.fontWeight),
+                    )
                 }
 
                 if (filteredSkills.isEmpty()) {

@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,9 +27,10 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.OffloadPermissionManager.PermissionRequest
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * Dialog shown when an ASK_ONCE tool requests permission.
@@ -65,78 +64,74 @@ fun OffloadPermissionDialog() {
         return
     }
 
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = {
-            OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION)
-        },
-        title = {
+                OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION)
+            },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                stringResource(R.string.offload_perm_dialog_title),
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        text = {
+                            stringResource(R.string.offload_perm_dialog_title),
+                            fontWeight = FontWeight.Bold,
+                        )
             Column {
-                Text(
-                    stringResource(R.string.offload_perm_dialog_intro),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    req.toolTitle,
-                    style = MiuixTheme.textStyles.headline1,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.offload_perm_dialog_tool_label, req.toolName),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    req.description,
-                    style = MiuixTheme.textStyles.body1,
-                )
-            }
-        },
-        confirmButton = {
+                            Text(
+                                stringResource(R.string.offload_perm_dialog_intro),
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                req.toolTitle,
+                                style = MiuixTheme.textStyles.headline1,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.offload_perm_dialog_tool_label, req.toolName),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                req.description,
+                                style = MiuixTheme.textStyles.body1,
+                            )
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Root requests never reach this branch; kept as a guard so a
-                // future singleUse caller cannot acquire a session grant.
-                if (!req.singleUse) MinisButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_SESSION) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.offload_perm_allow_session))
-                }
-                // Allow once — no caching; next call re-prompts.
-                MinisOutlinedButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_ONCE) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.offload_perm_allow_once))
-                }
-                // Deny in this session — refuse + remember.
-                MinisTextButton(
-                    onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MiuixTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(stringResource(R.string.offload_perm_deny_session))
-                }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // Root requests never reach this branch; kept as a guard so a
+                            // future singleUse caller cannot acquire a session grant.
+                            if (!req.singleUse) TextButton(
+                                onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_SESSION) },
+                                modifier = Modifier.fillMaxWidth(),
+                                text = stringResource(R.string.offload_perm_allow_session),
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                            )
+                            // Allow once — no caching; next call re-prompts.
+                            TextButton(
+                                onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_ONCE) },
+                                modifier = Modifier.fillMaxWidth(),
+                                text = stringResource(R.string.offload_perm_allow_once),
+                            )
+                            // Deny in this session — refuse + remember.
+                            TextButton(
+                                onClick = { OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error,
+                                ),
+                                text = stringResource(R.string.offload_perm_deny_session),
+                            )
+                        }
             }
-        },
-        dismissButton = null,
-    )
+        }
+    }
 }
 
 /**
@@ -158,77 +153,74 @@ private fun RootCommandConfirmDialog(req: PermissionRequest) {
         OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.DENY_SESSION)
     }
 
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = deny,
-        title = {
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                if (req.toolName == "android-chroot-cli") "允许本次 chroot 命令？" else "允许本次 Root 命令？",
-                fontWeight = FontWeight.Bold,
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Text(
-                    req.toolTitle,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            color = MiuixTheme.colorScheme.surfaceVariant,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            if (req.toolName == "android-chroot-cli") "允许本次 chroot 命令？" else "允许本次 Root 命令？",
+                            fontWeight = FontWeight.Bold,
                         )
-                        .padding(10.dp),
-                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
-                    maxLines = if (expanded) Int.MAX_VALUE else 3,
-                    overflow = TextOverflow.Ellipsis,
-                    onTextLayout = {
-                        if (!expanded) canExpand = canExpand || it.hasVisualOverflow
-                    },
-                )
-                if (canExpand || expanded) {
-                    MinisTextButton(
-                        onClick = { expanded = !expanded },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (expanded) "收起命令" else "展开完整命令")
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    req.description,
-                    style = MiuixTheme.textStyles.body1,
-                )
-            }
-        },
-        confirmButton = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                MinisButton(
-                    onClick = {
-                        OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_ONCE)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("仅本次允许")
-                }
-                MinisTextButton(
-                    onClick = deny,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MiuixTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text("拒绝")
-                }
+                            modifier = Modifier
+                                .heightIn(max = 360.dp)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            Text(
+                                req.toolTitle,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MiuixTheme.colorScheme.surfaceVariant,
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                                    )
+                                    .padding(10.dp),
+                                style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis,
+                                onTextLayout = {
+                                    if (!expanded) canExpand = canExpand || it.hasVisualOverflow
+                                },
+                            )
+                            if (canExpand || expanded) {
+                                TextButton(
+                                    onClick = { expanded = !expanded },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    text = if (expanded) "收起命令" else "展开完整命令",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                req.description,
+                                style = MiuixTheme.textStyles.body1,
+                            )
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    OffloadPermissionManager.respondToRequest(req, OffloadPermissionManager.Response.ALLOW_ONCE)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                text = "仅本次允许",
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                            )
+                            TextButton(
+                                onClick = deny,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error,
+                                ),
+                                text = "拒绝",
+                            )
+                        }
             }
-        },
-        dismissButton = null,
-    )
+        }
+    }
 }

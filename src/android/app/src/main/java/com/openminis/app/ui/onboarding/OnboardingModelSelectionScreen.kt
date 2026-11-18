@@ -3,8 +3,6 @@ package com.openminis.app.ui.onboarding
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,14 +23,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +52,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.repository.ProviderRepository
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * Onboarding step 2: pick 1-3 models from configured providers
@@ -159,17 +160,20 @@ fun OnboardingModelSelectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.onboarding_select_models_title)) },
+                title = stringResource(R.string.onboarding_select_models_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
-                    MinisTextButton(onClick = onBack) {
-                        Text(stringResource(R.string.common_skip))
-                    }
+                    TextButton(
+                        onClick = onBack,
+                        text = stringResource(R.string.common_skip),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -186,13 +190,13 @@ fun OnboardingModelSelectionScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
+            TextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                label = { Text(stringResource(R.string.onboarding_filter_models)) },
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(50),
+                label = stringResource(R.string.onboarding_filter_models),
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(8.dp))
@@ -292,7 +296,7 @@ fun OnboardingModelSelectionScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            MinisButton(
+            TextButton(
                 onClick = {
                     if (selected.isNotEmpty()) {
                         val group = ModelGroup(name = "Default Models")
@@ -308,9 +312,9 @@ fun OnboardingModelSelectionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-            ) {
-                Text(stringResource(R.string.onboarding_done_count, selected.size))
-            }
+                text = stringResource(R.string.onboarding_done_count, selected.size),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
         }
     }
 }
@@ -354,17 +358,21 @@ private fun ModelFetchFailure(
                 )
             }
             Spacer(Modifier.height(16.dp))
-            MinisButton(onClick = onRetry) {
-                Text(stringResource(R.string.onboarding_models_retry))
-            }
+            TextButton(
+                onClick = onRetry,
+                text = stringResource(R.string.onboarding_models_retry),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
             if (instances.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Box {
-                    MinisTextButton(onClick = {
+                    TextButton(
+                        onClick = {
                         if (instances.size == 1) onAddCustomModel(instances.first().first) else pickerOpen = true
-                    }) {
-                        Text(stringResource(R.string.onboarding_models_add_manually))
-                    }
+                    },
+                        text = stringResource(R.string.onboarding_models_add_manually),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                     DropdownMenu(expanded = pickerOpen, onDismissRequest = { pickerOpen = false }) {
                         for ((id, label) in instances) {
                             DropdownMenuItem(

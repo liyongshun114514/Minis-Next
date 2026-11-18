@@ -9,7 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
-import com.openminis.app.ui.settings.ImageEndpointLabel
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.state.ToggleableState
+import com.openminis.app.ui.settings.imageEndpointLabels
+import com.openminis.app.ui.theme.ChatColors
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import com.openminis.app.R
 import com.openminis.app.ui.chat.ChatGlassIconButton
 import com.openminis.app.ui.chat.ChatGlassTopBar
@@ -35,6 +39,17 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -48,8 +63,19 @@ class MiuixMigrationUiTest {
         compose.setContent {
             MinisTheme {
                 Column {
-                    MinisButton(onClick = { clicks++ }, modifier = Modifier.testTag("active")) { Text("Save") }
-                    MinisButton(onClick = { clicks += 100 }, enabled = false, modifier = Modifier.testTag("disabled")) { Text("Disabled") }
+                    TextButton(
+                        onClick = { clicks++ },
+                        modifier = Modifier.testTag("active"),
+                        text = "Save",
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
+                    TextButton(
+                        onClick = { clicks += 100 },
+                        enabled = false,
+                        modifier = Modifier.testTag("disabled"),
+                        text = "Disabled",
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 }
             }
         }
@@ -63,9 +89,15 @@ class MiuixMigrationUiTest {
         compose.setContent {
             MinisTheme {
                 var value by remember { mutableStateOf("") }
-                OutlinedTextField(value, { value = it; result = it }, modifier = Modifier.testTag("field"),
-                    label = { Text("API key") }, singleLine = true,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                TextField(
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    value = value,
+                    onValueChange = { value = it; result = it },
+                    label = "API key",
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier.testTag("field"),
+                )
             }
         }
         compose.onNode(hasSetTextAction()).performTextInput("secret-test-value")
@@ -77,7 +109,11 @@ class MiuixMigrationUiTest {
         compose.setContent {
             MinisTheme {
                 var value by remember { mutableStateOf(false) }
-                Checkbox(value, { value = it; checked = it }, Modifier.testTag("checkbox"))
+                Checkbox(
+                    state = if (value) ToggleableState.On else ToggleableState.Off,
+                    onClick = { value = !value; checked = value },
+                    modifier = Modifier.testTag("checkbox"),
+                )
             }
         }
         compose.onNodeWithTag("checkbox").assertIsOff().performClick().assertIsOn()
@@ -89,11 +125,22 @@ class MiuixMigrationUiTest {
         compose.setContent {
             MinisTheme {
                 var shown by remember { mutableStateOf(true) }
-                if (shown) AlertDialog(
+                if (shown) WindowDialog(
+                    show = true,
                     onDismissRequest = { shown = false },
-                    title = { Text("Miuix confirmation") }, text = { Text("Dialog body") },
-                    confirmButton = { MinisButton(onClick = { accepted = true; shown = false }) { Text("Accept") } },
-                )
+                    title = "Miuix confirmation",
+                    summary = "Dialog body",
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                                                onClick = { accepted = true; shown = false },
+                                                text = "Accept",
+                                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                                            )
+                        }
+                    }
+                }
             }
         }
         compose.onNodeWithText("Dialog body").assertIsDisplayed()
@@ -107,9 +154,17 @@ class MiuixMigrationUiTest {
         compose.setContent {
             MinisTheme {
                 var shown by remember { mutableStateOf(true) }
-                if (shown) ModalBottomSheet(onDismissRequest = { shown = false; closed = true }) {
+                if (shown) WindowBottomSheet(
+                    show = true,
+                    insideMargin = DpSize.Zero,
+                    onDismissRequest = { shown = false; closed = true },
+                ) {
                     Text("Sheet content")
-                    MinisButton(onClick = { shown = false; closed = true }) { Text("Close sheet") }
+                    TextButton(
+                        onClick = { shown = false; closed = true },
+                        text = "Close sheet",
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 }
             }
         }
@@ -158,7 +213,11 @@ class MiuixMigrationUiTest {
                 Box(Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopEnd) {
                     Box {
                         var expanded by remember { mutableStateOf(false) }
-                        MinisButton(onClick = { expanded = true }) { Text("More actions") }
+                        TextButton(
+                            onClick = { expanded = true },
+                            text = "More actions",
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
                         MinisMenu(
                             expanded = expanded,
                             alignEnd = true,
@@ -195,7 +254,11 @@ class MiuixMigrationUiTest {
                 Box(Modifier.fillMaxSize().testTag("menu-page").padding(12.dp)) {
                     Box {
                         var expanded by remember { mutableStateOf(false) }
-                        MinisButton(onClick = { expanded = true }) { Text("Show options") }
+                        TextButton(
+                            onClick = { expanded = true },
+                            text = "Show options",
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
                         DropdownMenu(expanded, onDismissRequest = { expanded = false; dismissed++ }) {
                             DropdownMenuItem(text = { Text("Option") }, onClick = { selected++ })
                         }
@@ -298,7 +361,11 @@ class MiuixMigrationUiTest {
             MinisTheme {
                 Column {
                     var value by remember { mutableStateOf("") }
-                    OutlinedTextField(value, { value = it; draft = it }, modifier = Modifier.testTag("draft"))
+                    TextField(
+                        value = value,
+                        onValueChange = { value = it; draft = it },
+                        modifier = Modifier.testTag("draft"),
+                    )
                     com.openminis.app.ui.chat.ComposerSendButton(canActivate = true, onSend = { sends++ })
                 }
             }
@@ -314,46 +381,71 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals("Unsent draft", draft); assertEquals(0, sends) }
     }
 
-    @Test fun providerImageEndpointLabelsFitOneLineAtLargerTextSize() {
+    @Test fun providerImageEndpointTabsScrollAndSelectAtLargerTextSize() {
+        var selected = 0
+        val labels = listOf(
+            R.string.provider_image_endpoint_auto,
+            R.string.provider_image_endpoint_images,
+            R.string.provider_image_endpoint_chat,
+        ).map { compose.activity.getString(it) }
         compose.setContent {
-            MinisTheme(fontScale = 1.25f) {
-                SingleChoiceSegmentedButtonRow {
-                    listOf("Auto", "Images API", "Chat").forEachIndexed { index, label ->
-                        SegmentedButton(index == 0, onClick = {}, shape = SegmentedButtonDefaults.itemShape(index, 3)) {
-                            ImageEndpointLabel(label)
-                        }
-                    }
+            MinisTheme(fontScale = 1.5f) {
+                var index by remember { mutableStateOf(0) }
+                val tabs = imageEndpointLabels()
+                Box(Modifier.width(200.dp)) {
+                    TabRowWithContour(
+                        tabs = tabs,
+                        selectedTabIndex = index,
+                        onTabSelected = { index = it; selected = it },
+                        minWidth = preferenceTabMinWidth(tabs),
+                        height = preferenceTabHeight(),
+                    )
                 }
             }
         }
-        val labels = listOf("Auto", "Images API", "Chat").map {
-            compose.onNodeWithText(it).assertIsDisplayed().getUnclippedBoundsInRoot()
-        }
-        val first = labels.first()
-        labels.drop(1).forEach { bounds ->
-            assertEquals(first.top, bounds.top)
-            assertEquals(first.bottom, bounds.bottom)
-        }
+        compose.onNodeWithText(labels.first()).assertIsSelected()
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(labels.lastIndex)
+        compose.onNodeWithText(labels.last()).assertIsDisplayed().performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals(labels.lastIndex, selected) }
     }
 
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {
         var dark by mutableStateOf(false)
-        var lightColor = androidx.compose.ui.graphics.Color.Unspecified
-        var darkColor = androidx.compose.ui.graphics.Color.Unspecified
+        var page = Color.Unspecified
+        var card = Color.Unspecified
+        var composer = Color.Unspecified
+        var field = Color.Unspecified
         var fontSize = 0f
         compose.setContent {
             MinisTheme(darkTheme = dark, fontScale = 1.25f) {
+                val colors = MiuixTheme.colorScheme
+                val pageColor = colors.surface
+                val cardColor = colors.surfaceContainer
+                val fieldColor = colors.secondaryContainer
+                val inputColor = ChatColors.inputBg
                 val nativeFontSize = MiuixTheme.textStyles.main.fontSize.value
-                SideEffect { fontSize = nativeFontSize }
-                val background = MiuixTheme.colorScheme.background
-                SideEffect { if (dark) darkColor = background else lightColor = background }
+                SideEffect {
+                    page = pageColor
+                    card = cardColor
+                    field = fieldColor
+                    composer = inputColor
+                    fontSize = nativeFontSize
+                }
                 Text("Themed content")
             }
         }
-        compose.runOnIdle { dark = true }
-        compose.waitForIdle()
+        val lightPage = compose.runOnIdle {
+            assertNotEquals(page, card)
+            assertNotEquals(page, composer)
+            assertNotEquals(card, field)
+            dark = true
+            page
+        }
         compose.runOnIdle {
-            assertNotEquals(lightColor, darkColor)
+            assertNotEquals(lightPage, page)
+            assertNotEquals(page, card)
+            assertNotEquals(page, composer)
+            assertNotEquals(card, field)
             assertEquals(21.25f, fontSize, 0.01f)
         }
     }

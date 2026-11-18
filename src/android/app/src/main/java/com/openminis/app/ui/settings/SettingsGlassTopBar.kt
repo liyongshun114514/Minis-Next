@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import com.openminis.app.ui.components.MinisGlassIconButton

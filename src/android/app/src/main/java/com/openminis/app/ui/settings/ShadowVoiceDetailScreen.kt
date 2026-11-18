@@ -14,7 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Mic
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,6 +30,7 @@ import com.openminis.app.data.model.ModelEntry
 import com.openminis.app.data.model.isVoiceInputCandidate
 import com.openminis.app.data.model.isVoiceOutputCandidate
 import com.openminis.app.data.repository.ProviderRepository
+import top.yukonga.miuix.kmp.basic.Switch
 
 /**
  * [T-android-provider-voice] Read-only detail of a shadow Voice Service —
@@ -98,7 +99,7 @@ fun ShadowVoiceDetailScreen(
                     style = MiuixTheme.textStyles.main,
                     modifier = Modifier.weight(1f),
                 )
-                SettingsSwitch(
+                Switch(
                     checked = !shadowDisabled,
                     onCheckedChange = { shown ->
                         providerRepository.setVoiceShadowDisabled(instanceId, !shown)

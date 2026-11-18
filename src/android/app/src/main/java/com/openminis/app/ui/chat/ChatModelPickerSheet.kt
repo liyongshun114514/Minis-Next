@@ -144,7 +144,6 @@ import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
@@ -152,17 +151,12 @@ import top.yukonga.miuix.kmp.basic.Surface
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.openminis.app.ui.components.rememberSheetScrollGuard
 import androidx.compose.ui.geometry.Offset
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -248,7 +242,6 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -277,7 +270,12 @@ import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
 
 @Composable
 internal fun ModelPickerSheet(
@@ -389,30 +387,10 @@ internal fun ModelPickerSheet(
         else searchResult?.sections?.map { it.key to it.entries } ?: baseSections
     val truncatedSearch = searchResult?.takeIf { query.isNotEmpty() && it.truncated }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // Match the slim drag handle used by StandardChatSheet (6dp top / 4dp
-        // bottom) so the title sits flush with the indicator instead of the
-        // Material default's ~44dp whitespace gap above it.
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 4.dp),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(4.dp)
-                        .background(
-                            color = ChatColors.secondaryText.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(2.dp),
-                        ),
-                )
-            }
-        },
     ) {
         Column(
             modifier = Modifier
@@ -443,9 +421,11 @@ internal fun ModelPickerSheet(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                    MinisTextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.model_picker_done))
-                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.model_picker_done),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
 
@@ -461,64 +441,20 @@ internal fun ModelPickerSheet(
             // top half on device. Owning contentPadding is the only way to
             // shrink the field without cutting the text; same pattern
             // SectionTextField already uses for this reason.
-            val searchInteraction = remember { MutableInteractionSource() }
-            BasicTextField(
+            TextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .height(42.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                label = stringResource(R.string.model_picker_search_placeholder),
+                useLabelAsPlaceholder = true,
                 singleLine = true,
-                textStyle = MiuixTheme.textStyles.body1.copy(
-                    color = MiuixTheme.colorScheme.onSurface,
-                ),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(MiuixTheme.colorScheme.primary),
-                interactionSource = searchInteraction,
-                decorationBox = { innerTextField ->
-                    OutlinedTextFieldDefaults.DecorationBox(
-                        value = searchText,
-                        visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
-                        innerTextField = innerTextField,
-                        placeholder = { Text(stringResource(R.string.model_picker_search_placeholder)) },
-                        label = null,
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchText.isNotEmpty()) {
-                                IconButton(onClick = { searchText = "" }) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.model_picker_search_clear),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        enabled = true,
-                        isError = false,
-                        interactionSource = searchInteraction,
-                        colors = OutlinedTextFieldDefaults.colors(),
-                        // Zero vertical: the 42dp frame plus the icons already
-                        // give the text room; any inset here re-clips it.
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                        container = {
-                            OutlinedTextFieldDefaults.Container(
-                                enabled = true,
-                                isError = false,
-                                interactionSource = searchInteraction,
-                                colors = OutlinedTextFieldDefaults.colors(),
-                                shape = RoundedCornerShape(50),
-                            )
-                        },
-                    )
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                trailingIcon = {
+                    if (searchText.isNotEmpty()) {
+                        IconButton(onClick = { searchText = "" }) {
+                            Icon(Icons.Default.Close, stringResource(R.string.model_picker_search_clear), modifier = Modifier.size(22.dp))
+                        }
+                    }
                 },
             )
 
@@ -585,7 +521,7 @@ internal fun ModelPickerSheet(
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                                 .background(
-                                    MiuixTheme.colorScheme.surfaceContainerHigh,
+                                    MiuixTheme.colorScheme.surfaceContainerHighest,
                                     RoundedCornerShape(14.dp),
                                 ),
                         ) {
@@ -618,12 +554,12 @@ internal fun ModelPickerSheet(
                                 if (onEditGroups != null) {
                                     // Text button (not a pencil icon) matching the
                                     // sheet's other text actions like "Done".
-                                    MinisTextButton(
+                                    TextButton(
                                         onClick = onEditGroups,
                                         modifier = Modifier.padding(end = 8.dp),
-                                    ) {
-                                        Text(stringResource(R.string.model_picker_groups_edit))
-                                    }
+                                        text = stringResource(R.string.model_picker_groups_edit),
+                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                    )
                                 }
                             }
                             filteredGroups.forEachIndexed { index, group ->
@@ -711,7 +647,7 @@ internal fun ModelPickerSheet(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier
                                                     .background(
-                                                        MiuixTheme.colorScheme.surfaceContainerHigh,
+                                                        MiuixTheme.colorScheme.surfaceContainerHighest,
                                                         RoundedCornerShape(8.dp),
                                                     )
                                                     .padding(horizontal = 5.dp, vertical = 1.dp),
@@ -987,7 +923,7 @@ internal fun ModelPickerSheet(
                                 modifier = Modifier
                                     .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = if (isCollapsed) 6.dp else 0.dp)
                                     .background(
-                                        MiuixTheme.colorScheme.surfaceContainerHigh,
+                                        MiuixTheme.colorScheme.surfaceContainerHighest,
                                         if (isCollapsed) RoundedCornerShape(14.dp)
                                         else RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                                     ),
@@ -1224,7 +1160,7 @@ internal fun ModelPickerSheet(
                                     modifier = Modifier
                                         .padding(start = 16.dp, end = 16.dp, bottom = if (isLastRow) 6.dp else 0.dp)
                                         .background(
-                                            MiuixTheme.colorScheme.surfaceContainerHigh,
+                                            MiuixTheme.colorScheme.surfaceContainerHighest,
                                             if (isLastRow) RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
                                             else androidx.compose.ui.graphics.RectangleShape,
                                         ),
@@ -1348,13 +1284,14 @@ internal fun ModelPickerSheet(
                 // screen.
                 val jumpTarget = pickerJumpTarget
                 if (jumpTarget != null && showJumpButton) {
-                    com.openminis.app.ui.components.miuix.SmallFloatingActionButton(
+                    FloatingActionButton(
                         onClick = { pickerScope.launch { pickerListState.animateScrollToItem(jumpTarget.first, jumpTarget.second) } },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 20.dp, bottom = 12.dp),
-                        containerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MiuixTheme.colorScheme.primary,
+                        containerColor = MiuixTheme.colorScheme.surfaceContainerHighest,
+                        minWidth = 48.dp,
+                        minHeight = 48.dp,
                     ) {
                         Icon(
                             Icons.Default.MyLocation,

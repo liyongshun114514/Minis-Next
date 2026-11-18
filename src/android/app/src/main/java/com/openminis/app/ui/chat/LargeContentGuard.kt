@@ -17,7 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.UnfoldMore
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,9 +32,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.logging.AppLogger
 import java.io.File
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * T-android-gc-storm-issue17 — render-side safe mode.
@@ -126,7 +128,7 @@ internal fun LargeContentBadge(
                 modifier = Modifier.padding(end = 8.dp),
             )
 
-            MinisTextButton(
+            Button(
                 onClick = {
                     AppLogger.info(
                         "LargeContentGuard",
@@ -135,6 +137,7 @@ internal fun LargeContentBadge(
                     onExpand()
                 },
                 modifier = Modifier.padding(0.dp),
+                colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
             ) {
                 Icon(
                     imageVector = Icons.Filled.UnfoldMore,
@@ -148,7 +151,7 @@ internal fun LargeContentBadge(
                 )
             }
 
-            MinisTextButton(
+            Button(
                 onClick = {
                     val ok = exportLargeContentToFile(context, content, stableKey)
                     Toast.makeText(
@@ -162,6 +165,7 @@ internal fun LargeContentBadge(
                     ).show()
                 },
                 modifier = Modifier.padding(0.dp),
+                colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
             ) {
                 Icon(
                     imageVector = Icons.Filled.IosShare,

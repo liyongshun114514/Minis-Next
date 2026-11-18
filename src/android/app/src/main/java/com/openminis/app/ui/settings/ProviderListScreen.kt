@@ -28,7 +28,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -52,12 +52,14 @@ import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.repository.ProviderRepository
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.SwipeRowAction
 import com.openminis.app.ui.components.SwipeRowActions
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.R
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 @Composable
 fun ProviderListScreen(
@@ -378,16 +380,19 @@ fun ProviderListScreen(
     // ProviderDetailScreen's "Delete Provider" button, so swipe-delete and
     // detail-delete cannot drift apart.
     instanceToDelete?.let { target ->
-        MinisAlertDialog(
-            onDismissRequest = { instanceToDelete = null },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.provider_detail_delete_provider),
-            text = stringResource(
+            summary = stringResource(
                 R.string.provider_detail_delete_provider_confirm,
                 target.label,
             ),
-            confirmText = stringResource(R.string.common_delete),
-            isDestructive = true,
-            onConfirm = {
+            onDismissRequest = { instanceToDelete = null },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.common_delete),
+                    onClick = {
                 providerRepository.removeInstance(target.id)
                 AppLogger.info(
                     "ProviderList",
@@ -395,7 +400,16 @@ fun ProviderListScreen(
                 )
                 instanceToDelete = null
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { instanceToDelete = null },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 

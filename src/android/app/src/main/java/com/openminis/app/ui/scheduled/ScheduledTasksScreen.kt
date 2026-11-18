@@ -35,8 +35,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,13 +52,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.R
 import com.openminis.app.scheduled.ScheduledRepeatMode
 import com.openminis.app.scheduled.ScheduledTask
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * [T-android-scheduled-tasks-design / T-android-scheduled-tasks-run-records]
@@ -88,13 +90,7 @@ fun ScheduledTasksScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.scheduled_tasks_title),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                    )
-                },
+                title = stringResource(R.string.scheduled_tasks_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -103,10 +99,6 @@ fun ScheduledTasksScreen(
                         )
                     }
                 },
-                // [T-android-sched-badge-toggle] A menu rather than a row in the
-                // list: the list holds task cards and is replaced by the empty
-                // state when there are none, so a row would vanish exactly when
-                // the count is zero.
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
@@ -123,7 +115,7 @@ fun ScheduledTasksScreen(
                                 text = { Text(stringResource(R.string.scheduled_tasks_show_home_badge)) },
                                 onClick = { vm.setShowHomeBadge(!showHomeBadge) },
                                 trailingIcon = {
-                                    SettingsSwitch(
+                                    Switch(
                                         checked = showHomeBadge,
                                         onCheckedChange = { vm.setShowHomeBadge(it) },
                                     )
@@ -132,6 +124,7 @@ fun ScheduledTasksScreen(
                         }
                     }
                 },
+                expandable = false,
             )
         },
         floatingActionButton = {
@@ -165,24 +158,30 @@ fun ScheduledTasksScreen(
 
     val toDelete = pendingDelete
     if (toDelete != null) {
-        com.openminis.app.ui.components.miuix.AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.scheduled_task_delete_title)) },
-            text = { Text(stringResource(R.string.scheduled_task_delete_body, toDelete.label)) },
-            confirmButton = {
-                com.openminis.app.ui.components.MinisTextButton(onClick = {
-                    vm.delete(toDelete.id)
-                    pendingDelete = null
-                }) {
-                    Text(stringResource(R.string.scheduled_task_delete_confirm))
+            title = stringResource(R.string.scheduled_task_delete_title),
+            summary = stringResource(R.string.scheduled_task_delete_body, toDelete.label),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    vm.delete(toDelete.id)
+                                    pendingDelete = null
+                                },
+                                    text = stringResource(R.string.scheduled_task_delete_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { pendingDelete = null },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                com.openminis.app.ui.components.MinisTextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -273,7 +272,7 @@ private fun ScheduledTaskRow(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            SettingsSwitch(checked = task.enabled, onCheckedChange = onToggle)
+            Switch(checked = task.enabled, onCheckedChange = onToggle)
         }
 
         // [T-android-scheduled-tasks-run-records] Long-press menu: Edit / Run

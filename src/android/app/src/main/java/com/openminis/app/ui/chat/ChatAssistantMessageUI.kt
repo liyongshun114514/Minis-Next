@@ -140,7 +140,6 @@ import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.settings.autoExpandThinkingEnabled
 import com.openminis.app.ui.settings.KEY_AUTO_EXPAND_THINKING
 import com.openminis.app.ui.settings.getAppearancePrefs
@@ -149,17 +148,12 @@ import com.openminis.app.ui.components.MinisMenuDivider
 import com.openminis.app.ui.util.expandToggleClickable
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -242,7 +236,6 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle

@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Security
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.RadioButton
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +28,11 @@ import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.RootAccess
 import com.openminis.app.offload.RootGrantPolicy
 import com.openminis.app.offload.RootManager
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
 
 /** A live projection of the same permission used by native Root and chroot. */
 @Composable
@@ -78,37 +81,47 @@ internal fun ComposerPermissionDialog(onDismiss: () -> Unit) {
         RootAccess.ASK_ONCE to "每次命令或新交互终端会话申请单次授权；拒绝、取消、超时均不执行。",
         RootAccess.BYPASS to "允许原生 Root 与 chroot 直接以 uid 0 执行，不再逐次弹应用确认；可随时撤销。",
     )
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text("权限") },
-        text = {
+        title = "权限",
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column {
-                Text(
-                    "与设置中的原生 Root 权限同步。真实 Root 能修改设备和数据；chroot 不是安全隔离边界。设备 su 管理器仍可单独要求授权。已启动的交互会话保留其获准范围，请先停止会话再撤销。",
-                    style = MiuixTheme.textStyles.body2,
-                )
-                descriptions.forEach { (access, description) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .clickable { selection = access }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selection == access, onClick = null)
-                        Column(Modifier.padding(start = 8.dp)) {
-                            Text(RootGrantPolicy.label(access))
-                            Text(description, style = MiuixTheme.textStyles.body2)
+                            Text(
+                                "与设置中的原生 Root 权限同步。真实 Root 能修改设备和数据；chroot 不是安全隔离边界。设备 su 管理器仍可单独要求授权。已启动的交互会话保留其获准范围，请先停止会话再撤销。",
+                                style = MiuixTheme.textStyles.body2,
+                            )
+                            descriptions.forEach { (access, description) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { selection = access }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    RadioButton(selected = selection == access, onClick = null)
+                                    Column(Modifier.padding(start = 8.dp)) {
+                                        Text(RootGrantPolicy.label(access))
+                                        Text(description, style = MiuixTheme.textStyles.body2)
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = {
+                            RootManager.setAccessLevel(selection)
+                            onDismiss()
+                        },
+                            text = "保存",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            TextButton(
+                        onClick = onDismiss,
+                        text = "取消",
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                RootManager.setAccessLevel(selection)
-                onDismiss()
-            }) { Text("保存") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
+        }
+    }
 }

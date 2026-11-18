@@ -54,10 +54,8 @@ import androidx.compose.material.icons.filled.Share
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ListItem
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,8 +89,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
+import com.openminis.app.ui.components.RichTitleAppBar
+import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.basic.BasicComponent
 
 private const val MAX_TEXT_PREVIEW_BYTES = 512_000 // 500 KB
 
@@ -257,7 +261,7 @@ private fun FilePreviewContent(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
+            RichTitleAppBar(
                 title = {
                     Text(
                         text = if (showFullPath) item.file.absolutePath else item.name,
@@ -739,9 +743,11 @@ private fun PdfOpenExternalFallback(item: FileItem, reason: String) {
                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
-            MinisTextButton(onClick = { openExternally(context, item, "application/pdf") }) {
-                Text(stringResource(R.string.filepreview_open_externally))
-            }
+            TextButton(
+                onClick = { openExternally(context, item, "application/pdf") },
+                text = stringResource(R.string.filepreview_open_externally),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
         FileMetadataBlock(item)
     }
@@ -1068,11 +1074,13 @@ private fun ApkPreview(item: FileItem) {
             // what reaches the system installer. It is offered even when the
             // manifest failed to parse: the installer does its own, stricter
             // validation and will report a bad package better than we can.
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = {
                 openExternally(context, item, "application/vnd.android.package-archive")
-            }) {
-                Text(stringResource(R.string.filepreview_apk_install))
-            }
+            },
+                text = stringResource(R.string.filepreview_apk_install),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
         FileMetadataBlock(item)
     }
@@ -1125,21 +1133,23 @@ private fun ArchivePreview(item: FileItem) {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(list.size) { i ->
                         val e = list[i]
-                        ListItem(
-                            headlineContent = {
+                        BasicComponent {
+                            Text(
+                                e.name,
+                                style = MiuixTheme.textStyles.body2.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 12.sp,
+                                ),
+                                maxLines = 1,
+                            )
+                            if (!e.isDir) {
                                 Text(
-                                    e.name,
-                                    style = MiuixTheme.textStyles.body2.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
-                                    ),
-                                    maxLines = 1,
+                                    android.text.format.Formatter.formatFileSize(null, e.size),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
-                            },
-                            supportingContent = if (e.isDir) null else {
-                                { Text(android.text.format.Formatter.formatFileSize(null, e.size)) }
-                            },
-                        )
+                            }
+                        }
                         HorizontalDivider()
                     }
                 }
@@ -1199,14 +1209,16 @@ private fun OfficeOpenExternal(item: FileItem) {
                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(16.dp))
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = {
                 val mime = MimeTypeMap.getSingleton()
                     .getMimeTypeFromExtension(item.file.extension.lowercase())
                     ?: "application/octet-stream"
                 openExternally(context, item, mime)
-            }) {
-                Text(stringResource(R.string.filepreview_open_externally))
-            }
+            },
+                text = stringResource(R.string.filepreview_open_externally),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
         FileMetadataBlock(item)
     }
@@ -1287,10 +1299,11 @@ private fun FileMetadataBlock(item: FileItem) {
     HorizontalDivider()
     val attrs = remember(item) { buildFileAttributes(item) }
     attrs.forEach { (key, value) ->
-        ListItem(
-            headlineContent = { Text(value) },
-            overlineContent = { Text(key) },
-        )
+        BasicComponent(
+        ) {
+            Text(key)
+            Text(value)
+        }
     }
 }
 

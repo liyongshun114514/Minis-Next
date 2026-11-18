@@ -41,15 +41,12 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MovieCreation
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolumeUp
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -74,8 +71,6 @@ import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.model.RoutingStrategy
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import com.openminis.app.ui.components.SwipeRowAction
@@ -85,6 +80,13 @@ import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionDivider
 import com.openminis.app.ui.components.SectionFooter
 import com.openminis.app.ui.components.SectionHeader
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 @Composable
 fun ModelGroupsScreen(
@@ -378,93 +380,93 @@ fun ModelGroupsScreen(
     // AppNavigation, mirroring how AddModelsToGroupScreen is reached.
 
     if (showNewGroupDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = {
-                showNewGroupDialog = false
-                newGroupName = ""
-            },
-            title = { Text(stringResource(R.string.model_groups_new_group)) },
-            text = {
-                Column {
-                    Text(
-                        "Enter a name for the new model group.",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newGroupName,
-                        onValueChange = { newGroupName = it },
-                        label = { Text(stringResource(R.string.model_groups_group_name)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        if (newGroupName.isNotBlank()) {
-                            val newGroup = ModelGroup(name = newGroupName.trim())
-                            providerRepository.addGroup(newGroup)
-                            // Auto-set as primary default if it's the first group
-                            if (config.modelGroups.size == 1 && config.defaultPrimaryGroupId == null) {
-                                providerRepository.defaultPrimaryGroupId = newGroup.id
-                            }
-                            newGroupName = ""
-                            showNewGroupDialog = false
-                        }
+                        showNewGroupDialog = false
+                        newGroupName = ""
                     },
-                    enabled = newGroupName.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.model_groups_create))
+            title = stringResource(R.string.model_groups_new_group),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
+                                    Text(
+                                        "Enter a name for the new model group.",
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    TextField(
+                                        value = newGroupName,
+                                        onValueChange = { newGroupName = it },
+                                        singleLine = true,
+                                        label = stringResource(R.string.model_groups_group_name),
+                                        useLabelAsPlaceholder = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                        if (newGroupName.isNotBlank()) {
+                                            val newGroup = ModelGroup(name = newGroupName.trim())
+                                            providerRepository.addGroup(newGroup)
+                                            // Auto-set as primary default if it's the first group
+                                            if (config.modelGroups.size == 1 && config.defaultPrimaryGroupId == null) {
+                                                providerRepository.defaultPrimaryGroupId = newGroup.id
+                                            }
+                                            newGroupName = ""
+                                            showNewGroupDialog = false
+                                        }
+                                    },
+                                    enabled = newGroupName.isNotBlank(),
+                                    text = stringResource(R.string.model_groups_create),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = {
+                                    showNewGroupDialog = false
+                                    newGroupName = ""
+                                },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = {
-                    showNewGroupDialog = false
-                    newGroupName = ""
-                }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // [T-android-swipe-row-actions] Swipe-delete confirmation. Same title/body
     // strings and same removeGroup() call as ModelGroupDetailScreen's Delete
     // Group button — the swipe is a shortcut to that flow, not a second one.
     groupToDelete?.let { target ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { groupToDelete = null },
-            title = { Text(stringResource(R.string.model_group_detail_delete_group)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.model_group_detail_delete_named_group_confirm,
-                        target.name,
-                    ),
-                )
-            },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        providerRepository.removeGroup(target.id)
-                        groupToDelete = null
-                    },
-                ) {
-                    Text(
-                        stringResource(R.string.common_delete),
-                        color = MiuixTheme.colorScheme.error,
-                    )
+            title = stringResource(R.string.model_group_detail_delete_group),
+            summary = stringResource(
+                                R.string.model_group_detail_delete_named_group_confirm,
+                                target.name,
+                            ),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                        providerRepository.removeGroup(target.id)
+                                        groupToDelete = null
+                                    },
+                                    text = stringResource(R.string.common_delete),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { groupToDelete = null },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { groupToDelete = null }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -648,10 +650,10 @@ private fun LazyListScope.agentLoopModelsSectionItems(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MinisOutlinedButton(
+            Button(
                 onClick = onAddModelsTap,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -661,10 +663,10 @@ private fun LazyListScope.agentLoopModelsSectionItems(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(stringResource(R.string.agent_loop_section_add_models))
             }
-            MinisOutlinedButton(
+            Button(
                 onClick = onAddGroupsTap,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Icon(
                     Icons.Default.Add,

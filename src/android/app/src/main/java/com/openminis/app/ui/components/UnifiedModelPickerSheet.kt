@@ -37,10 +37,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +64,11 @@ import com.openminis.app.data.model.SystemVoiceIds
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.speech.VoiceOutputState
 import com.openminis.app.ui.theme.ChatColors
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * [T-android-unified-model-picker] Android counterpart of iOS
@@ -161,32 +163,13 @@ fun UnifiedModelPickerSheet(
         }
     }
 
-    val cardColor = MiuixTheme.colorScheme.surfaceContainerHigh
+    val cardColor = MiuixTheme.colorScheme.surfaceContainerHighest
     val cardShape = RoundedCornerShape(14.dp)
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // Slim drag handle, same as the main picker / StandardChatSheet — the
-        // Material default puts ~44dp of whitespace above the title.
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 4.dp),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(4.dp)
-                        .background(
-                            color = ChatColors.secondaryText.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(2.dp),
-                        ),
-                )
-            }
-        },
     ) {
         // 0.9f fixed height + nav-bar inset, exactly like the main picker —
         // a content-wrapping column here let the voice pickers (whose provider
@@ -212,9 +195,11 @@ fun UnifiedModelPickerSheet(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                    MinisTextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.model_picker_done))
-                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.model_picker_done),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
 
@@ -224,62 +209,20 @@ fun UnifiedModelPickerSheet(
             // trailing ✕ clears. The previous filled-capsule stand-in had no
             // focus feedback and no clear affordance — visibly different the
             // moment the field was tapped.
-            val searchInteraction = remember { MutableInteractionSource() }
-            BasicTextField(
+            TextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .height(42.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                label = stringResource(R.string.model_picker_search_placeholder),
+                useLabelAsPlaceholder = true,
                 singleLine = true,
-                textStyle = MiuixTheme.textStyles.body1.copy(
-                    color = MiuixTheme.colorScheme.onSurface,
-                ),
-                cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
-                interactionSource = searchInteraction,
-                decorationBox = { innerTextField ->
-                    OutlinedTextFieldDefaults.DecorationBox(
-                        value = searchText,
-                        visualTransformation = VisualTransformation.None,
-                        innerTextField = innerTextField,
-                        placeholder = { Text(stringResource(R.string.model_picker_search_placeholder)) },
-                        label = null,
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchText.isNotEmpty()) {
-                                IconButton(onClick = { searchText = "" }) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.model_picker_search_clear),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        enabled = true,
-                        isError = false,
-                        interactionSource = searchInteraction,
-                        colors = OutlinedTextFieldDefaults.colors(),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                        container = {
-                            OutlinedTextFieldDefaults.Container(
-                                enabled = true,
-                                isError = false,
-                                interactionSource = searchInteraction,
-                                colors = OutlinedTextFieldDefaults.colors(),
-                                shape = RoundedCornerShape(50),
-                            )
-                        },
-                    )
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                trailingIcon = {
+                    if (searchText.isNotEmpty()) {
+                        IconButton(onClick = { searchText = "" }) {
+                            Icon(Icons.Default.Close, stringResource(R.string.model_picker_search_clear), modifier = Modifier.size(22.dp))
+                        }
+                    }
                 },
             )
 
@@ -305,12 +248,12 @@ fun UnifiedModelPickerSheet(
                             val editTrailing: (@Composable () -> Unit)? =
                                 if (onEditGroups == null) null else {
                                     {
-                                        MinisTextButton(
+                                        TextButton(
                                             onClick = onEditGroups,
                                             modifier = Modifier.padding(end = 8.dp),
-                                        ) {
-                                            Text(stringResource(R.string.model_picker_groups_edit))
-                                        }
+                                            text = stringResource(R.string.model_picker_groups_edit),
+                                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                        )
                                     }
                                 }
                             PickerSectionHeader(
@@ -370,7 +313,7 @@ fun UnifiedModelPickerSheet(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
                                                 .background(
-                                                    MiuixTheme.colorScheme.surfaceContainerHigh,
+                                                    MiuixTheme.colorScheme.surfaceContainerHighest,
                                                     RoundedCornerShape(8.dp),
                                                 )
                                                 .padding(horizontal = 5.dp, vertical = 1.dp),

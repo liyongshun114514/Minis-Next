@@ -33,9 +33,7 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +62,8 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * Bottom sheet listing all chat sessions except the current one. Tapping
@@ -105,7 +105,6 @@ fun MoveToSessionSheet(
     onSelect: (String) -> Unit,
     initialSessions: List<ChatSessionEntity> = emptyList(),
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // [T-android-moveto-perf] Paint something on the FIRST frame.
     //
@@ -154,7 +153,11 @@ fun MoveToSessionSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Text(
                 stringResource(R.string.move_to_sheet_title),

@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import top.yukonga.miuix.kmp.basic.NumberPicker
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 
 @Stable
 class TimePickerState(initialHour: Int, initialMinute: Int) {
@@ -40,7 +40,13 @@ fun rememberDatePickerState(initialSelectedDateMillis: Long?): DatePickerState =
 @Composable
 fun DatePickerDialog(onDismissRequest: () -> Unit, confirmButton: @Composable () -> Unit,
     dismissButton: @Composable () -> Unit, content: @Composable () -> Unit) =
-    AlertDialog(onDismissRequest, confirmButton, dismissButton = dismissButton, text = content)
+    top.yukonga.miuix.kmp.window.WindowDialog(show = true, onDismissRequest = onDismissRequest) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            content()
+            confirmButton()
+            dismissButton()
+        }
+    }
 @Composable
 fun DatePicker(state: DatePickerState) {
     val date = state.date

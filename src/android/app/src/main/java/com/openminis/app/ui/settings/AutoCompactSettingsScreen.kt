@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -32,8 +32,10 @@ import com.openminis.app.data.model.ProviderConfig
 import com.openminis.app.ui.chat.ModelPickerSheet
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.repository.ProviderRepository
-import com.openminis.app.ui.components.MinisTextButton
 import java.text.NumberFormat
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * Per-chat-model threshold editor and global summary-model selection.
@@ -218,7 +220,7 @@ fun AutoCompactSettingsScreen(
                 // field already IS the default, so a reset button would do
                 // nothing visible.
                 if (config.thresholdFor(editingEntryId) != null) {
-                    MinisTextButton(
+                    TextButton(
                         onClick = {
                             thresholdDraft = ""
                             thresholdError = ThresholdError.NONE
@@ -226,19 +228,21 @@ fun AutoCompactSettingsScreen(
                             showThresholdDialog = false
                         },
                         modifier = Modifier.padding(top = 4.dp),
-                    ) {
-                        Text(stringResource(R.string.auto_compact_threshold_use_default))
-                    }
+                        text = stringResource(R.string.auto_compact_threshold_use_default),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    MinisTextButton(onClick = { showThresholdDialog = false }) {
-                        Text(stringResource(R.string.common_cancel))
-                    }
-                    MinisTextButton(
+                    TextButton(
+                        onClick = { showThresholdDialog = false },
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
                         onClick = {
                             // Validation is a pure function so the failure path is
                             // testable: on invalid input the dialog stays open with
@@ -251,9 +255,9 @@ fun AutoCompactSettingsScreen(
                                 is ThresholdParseResult.Invalid -> thresholdError = parsed.error
                             }
                         },
-                    ) {
-                        Text(stringResource(R.string.common_save))
-                    }
+                        text = stringResource(R.string.common_save),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
         }

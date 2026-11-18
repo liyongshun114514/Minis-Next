@@ -1,68 +1,55 @@
 package com.openminis.app.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.ui.platform.LocalLayoutDirection
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.openminis.app.i18n.uppercaseForDisplay
-
-/**
- * Shared primitives for settings pages. Grouped-card layout (iOS inset-grouped style).
- *
- * Structure:
- *   SettingsScaffold(title, actions?) {
- *     SettingsSection(header?, footer?) { SettingsRow/SwitchRow/ValueRow(...) ... }
- *     SettingsSection(...) { ... }
- *   }
- */
-
-// ─── Scaffold ──────────────────────────────────────────────────────────────────
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.RadioButtonLocation
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SettingsScaffold(
@@ -93,7 +80,7 @@ fun SettingsScaffold(
     val scrollState = if (scrollable) rememberScrollState() else null
     val backdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
     val pageColor = MiuixTheme.colorScheme.surface
-    val fadeInDistance = with(androidx.compose.ui.platform.LocalDensity.current) { 24.dp.toPx() }
+    val fadeInDistance = with(LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
         topBar = {
             SettingsGlassTopBar(
@@ -127,69 +114,14 @@ fun SettingsScaffold(
                 .imePadding()
                 .then(if (scrollState != null) Modifier.verticalScroll(scrollState) else Modifier)
                 // Inside the scroll viewport so rows actually travel behind the glass.
-                .padding(top = padding.calculateTopPadding()),
+                .padding(top = padding.calculateTopPadding())
+                .then(if (scrollable) Modifier.padding(bottom = 16.dp) else Modifier),
             content = content,
         )
     }
 }
 
-// ─── Switch ────────────────────────────────────────────────────────────────────
-
-/**
- * [T-android-switch-row-height] A [Switch] that does not inflate the row it
- * sits in. Use this instead of Material's `Switch` inside any settings row.
- *
- * ## The problem it solves
- *
- * Compose applies `LocalMinimumInteractiveComponentSize` (48dp) to Switch, so
- * although the control DRAWS at 32dp it MEASURES at 48. Inside a row whose
- * height is `heightIn(min = 56.dp)` + 12dp vertical padding, that produced:
- *
- *     with a switch:  48 + 12 + 12  = 72dp   (heightIn never applies)
- *     without one:    30 + 12 + 12  = 54dp   -> clamped to 56dp
- *
- * Measured on a Pixel 6: switch rows rendered 190px and plain rows 147px, a
- * visible 16dp step between neighbouring rows of the same card. It read as
- * "the Encryption section has odd spacing" when in fact every switch row in
- * the app was taller than every non-switch row.
- *
- * iOS has no equivalent problem — SwiftUI's List sizes all its rows alike and
- * a Toggle does not stretch one — so this was an Android-only artefact rather
- * than an intentional difference.
- *
- * ## Why waiving the minimum is safe here
- *
- * The 48dp floor exists so a small control is still easy to hit. In these rows
- * the WHOLE ROW is clickable and at least 56dp tall, and tapping anywhere on it
- * toggles the same state, so the effective touch target grows rather than
- * shrinks. Material's own guidance allows waiving the minimum exactly when a
- * control is embedded in a larger interactive surface.
- *
- * Do NOT use this for a standalone switch that is the only touch target.
- */
-@Composable
-fun SettingsSwitch(
-    checked: Boolean,
-    onCheckedChange: ((Boolean) -> Unit)?,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    colors: top.yukonga.miuix.kmp.basic.SwitchColors = top.yukonga.miuix.kmp.basic.SwitchDefaults.switchColors(),
-) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        enabled = enabled,
-        colors = colors,
-    )
-}
-
-// ─── Section ───────────────────────────────────────────────────────────────────
-
-/**
- * A grouped section — optional small-caps header + rounded card + optional footer caption.
- * Children (SettingsRow / SettingsSwitchRow / …) appear inside the card; dividers auto-inset.
- */
+/** Page grouping only. The Miuix scaffold uses surface and Card uses surfaceContainer. */
 @Composable
 fun SettingsSection(
     header: String? = null,
@@ -197,67 +129,21 @@ fun SettingsSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // [T-android-settings-ui-md3] Section vertical rhythm normalized to the 4dp
-    // grid (fix_android_settings_ui.md #13): 24dp between sections instead of the
-    // off-grid 20dp. Applied as top padding so the first section under a TopAppBar
-    // keeps a consistent gap too.
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp),
-    ) {
-        if (header != null) {
-            Text(
-                text = header.uppercaseForDisplay(),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp,
-                // [T-android-settings-ui-md3] #5 header→card gap = 8dp (was 6dp,
-                // off-grid). Horizontal stays 32dp to align the header text with
-                // the inset card's content.
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp, bottom = 8.dp),
-            )
-        }
-        // [T-android-settings-section-symmetry] The card carries NO vertical
-        // padding of its own: rows already supply 12dp top AND bottom, so any
-        // tail here makes the gap below the content read larger than the gap
-        // above it. An unconditional 8dp bottom pad used to live on this
-        // Column to stop a trailing divider sitting flush against the rounded
-        // edge — but every section either suppresses its last divider
-        // (showDivider = false, or an `index < size - 1` guard) or follows it
-        // with more content, so nothing actually needed the clearance. The
-        // asymmetry it cost was invisible in a tall multi-row card and glaring
-        // in a single-row one ("Status / Enabled", "Voice Services", the
-        // thinking-rules note).
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-            cornerRadius = 18.dp,
-            colors = CardDefaults.defaultColors(),
-            content = content,
-        )
+    Column(modifier.fillMaxWidth().padding(top = 16.dp)) {
+        if (header != null) SmallTitle(text = header)
+        Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), content = content)
         if (footer != null) {
             Text(
                 text = footer,
                 style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                // [T-android-settings-ui-md3] #6 explanatory footer: 8dp below the
-                // card, 4dp before the next section (the parent's 24dp top padding
-                // already provides separation, so keep the footer's own bottom
-                // tight at 4dp).
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 4.dp),
-                lineHeight = 16.sp,
+                color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 8.dp, bottom = 4.dp),
             )
         }
     }
 }
 
-// ─── Row primitives ────────────────────────────────────────────────────────────
-
-/**
- * Generic row: left icon (optional colored circle) + title/subtitle + trailing slot + optional chevron.
- * Pass `showDivider = false` on the last row of a section.
- */
+/** Bind app navigation, custom trailing content and long press to native preference rows. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingsRow(
@@ -270,107 +156,53 @@ fun SettingsRow(
     showDivider: Boolean = true,
     titleColor: Color = MiuixTheme.colorScheme.onSurface,
     trailing: (@Composable () -> Unit)? = null,
-    // [T-android-settings-ui-md3] #8 single-line List Item is 56dp; a caller with
-    // two-line content (e.g. the model list: name + id) passes 72dp for the MD3
-    // double-line height. Default keeps every other row at the single-line 56dp.
     minHeight: Dp = 56.dp,
-    // Long-press on a row that is also tappable (e.g. a skill's context menu).
-    // Null keeps the plain clickable, so no other row changes.
     onLongClick: (() -> Unit)? = null,
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                // [T-android-settings-ui-md3] #1/#8 fixed List Item height so every
-                // toggle/value/nav row in a section is uniform (was content-driven
-                // → 24/54/72dp mix). heightIn(min) not height() so an unexpectedly
-                // tall row can still grow; the symmetric 12dp vertical padding (was
-                // effectively asymmetric once the 0.5dp divider was added/removed)
-                // is what made a no-subtitle last row read ~50px shorter.
-                .heightIn(min = minHeight)
-                .then(
-                    when {
-                        onClick != null && onLongClick != null ->
-                            Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                        onClick != null -> Modifier.clickable(onClick = onClick)
-                        else -> Modifier
-                    },
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            // #10 keep the trailing control (Switch/value) vertically centered
-            // against the title — already centered, kept explicit.
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (icon != null) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .background(iconColor, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
+    val leading = if (icon != null) settingsRowIcon(icon, iconColor) else null
+    val colors = BasicComponentDefaults.titleColor(color = titleColor)
+    val modifier = Modifier.heightIn(min = minHeight)
+    if (showChevron && onLongClick == null) {
+        ArrowPreference(
+            title = title,
+            summary = subtitle,
+            modifier = modifier,
+            titleColor = colors,
+            startAction = leading,
+            endActions = { trailing?.invoke() },
+            onClick = onClick,
+        )
+    } else {
+        val withLongPress = onClick != null && onLongClick != null
+        val endActions: (@Composable RowScope.() -> Unit)? = if (trailing != null || showChevron) {
+            {
+                trailing?.invoke()
+                if (showChevron) {
+                    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                     Icon(
-                        imageVector = icon,
+                        imageVector = MiuixIcons.Basic.ArrowRight,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-                Spacer(Modifier.width(14.dp))
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MiuixTheme.textStyles.main,
-                    color = titleColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        modifier = Modifier.size(10.dp, 16.dp).graphicsLayer { scaleX = if (rtl) -1f else 1f },
                     )
                 }
             }
-
-            if (trailing != null) {
-                Spacer(Modifier.width(8.dp))
-                trailing()
-            }
-
-            if (showChevron) {
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-
-        if (showDivider) {
-            val insetStart = if (icon != null) 58.dp else 14.dp
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = insetStart, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
-            )
-        }
+        } else null
+        BasicComponent(
+            title = title,
+            titleColor = colors,
+            summary = subtitle,
+            startAction = leading,
+            endActions = endActions,
+            modifier = if (withLongPress) modifier.combinedClickable(
+                onClick = requireNotNull(onClick), onLongClick = onLongClick,
+            ) else modifier,
+            onClick = if (withLongPress) null else onClick,
+        )
     }
+    if (showDivider) PreferenceDivider(hasIcon = icon != null)
 }
 
-/** Title + Switch row. */
 @Composable
 fun SettingsSwitchRow(
     title: String,
@@ -382,26 +214,17 @@ fun SettingsSwitchRow(
     enabled: Boolean = true,
     showDivider: Boolean = true,
 ) {
-    SettingsRow(
+    SwitchPreference(
         title = title,
-        subtitle = subtitle,
-        icon = icon,
-        iconColor = iconColor,
-        onClick = if (enabled) ({ onCheckedChange(!checked) }) else null,
-        showChevron = false,
-        showDivider = showDivider,
-        trailing = {
-            SettingsSwitch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled,
-                colors = top.yukonga.miuix.kmp.basic.SwitchDefaults.switchColors(),
-            )
-        },
+        summary = subtitle,
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        startAction = icon?.let { settingsRowIcon(it, iconColor) },
+        enabled = enabled,
     )
+    if (showDivider) PreferenceDivider(hasIcon = icon != null)
 }
 
-/** Title + right-aligned value text (tap opens picker/detail). */
 @Composable
 fun SettingsValueRow(
     title: String,
@@ -409,7 +232,7 @@ fun SettingsValueRow(
     subtitle: String? = null,
     icon: ImageVector? = null,
     iconColor: Color = MiuixTheme.colorScheme.primary,
-    valueColor: Color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+    valueColor: Color = MiuixTheme.colorScheme.onSurfaceSecondary,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
 ) {
@@ -419,21 +242,13 @@ fun SettingsValueRow(
         icon = icon,
         iconColor = iconColor,
         onClick = onClick,
-        showChevron = onClick != null,
         showDivider = showDivider,
         trailing = {
-            Text(
-                value,
-                style = MiuixTheme.textStyles.body2,
-                color = valueColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(value, style = MiuixTheme.textStyles.body2, color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
     )
 }
 
-/** Single-choice row (tap to select; shows check on selected). Used for radio-style lists. */
 @Composable
 fun SettingsChoiceRow(
     title: String,
@@ -442,61 +257,31 @@ fun SettingsChoiceRow(
     leading: (@Composable () -> Unit)? = null,
     showDivider: Boolean = true,
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                // [T-android-settings-ui-md3] #1 match SettingsRow's 56dp min so
-                // choice/radio rows line up with toggle/value rows in mixed lists.
-                .heightIn(min = 56.dp)
-                .clickable(onClick = onSelect)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (leading != null) {
-                leading()
-                Spacer(Modifier.width(12.dp))
-            }
-            Text(
-                title,
-                style = MiuixTheme.textStyles.main,
-                color = MiuixTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            if (selected) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Selected",
-                    tint = MiuixTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f)),
-            )
-        }
+    RadioButtonPreference(
+        title = title,
+        selected = selected,
+        onClick = onSelect,
+        startAction = leading,
+        radioButtonLocation = RadioButtonLocation.End,
+    )
+    if (showDivider) PreferenceDivider(hasIcon = leading != null)
+}
+
+private fun settingsRowIcon(icon: ImageVector, color: Color): @Composable () -> Unit = {
+    Box(Modifier.size(32.dp).background(color, RoundedCornerShape(9.dp)), contentAlignment = Alignment.Center) {
+        Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(19.dp))
     }
 }
 
-/**
- * Container for non-row content (sliders, segmented pickers, custom composables)
- * that still wants the grouped-card background.
- */
+@Composable
+private fun PreferenceDivider(hasIcon: Boolean) {
+    HorizontalDivider(Modifier.padding(start = if (hasIcon) 56.dp else 16.dp, end = 16.dp))
+}
+
 @Composable
 fun SettingsCardBlock(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .fillMaxWidth(),
-        content = content,
-    )
+    Column(modifier.fillMaxWidth().padding(16.dp), content = content)
 }

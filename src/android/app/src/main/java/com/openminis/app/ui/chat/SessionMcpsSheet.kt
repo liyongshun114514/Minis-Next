@@ -26,7 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Extension
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,10 +50,13 @@ import com.openminis.app.R
 import com.openminis.app.data.repository.MCPRepository
 import com.openminis.app.i18n.uppercaseForDisplay
 import com.openminis.app.ui.components.DialogTextField
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.settings.SettingsSection
-import com.openminis.app.ui.settings.SettingsSwitch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.Switch
 
 private const val MCP_NOTE_TRUNC = 200
 
@@ -179,22 +182,24 @@ fun SessionMcpsSheet(
                         letterSpacing = 0.5.sp,
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    MinisTextButton(
+                    TextButton(
                         onClick = { setAll(true) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.session_skills_enable_all), fontSize = 12.sp)
-                    }
-                    MinisTextButton(
+                        text = stringResource(R.string.session_skills_enable_all),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(fontSize = 12.sp, fontWeight = MiuixTheme.textStyles.button.fontWeight),
+                    )
+                    TextButton(
                         onClick = { setAll(false) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.session_skills_disable_all), fontSize = 12.sp)
-                    }
+                        text = stringResource(R.string.session_skills_disable_all),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(fontSize = 12.sp, fontWeight = MiuixTheme.textStyles.button.fontWeight),
+                    )
                 }
 
                 if (filteredServers.isEmpty()) {
@@ -221,7 +226,7 @@ fun SessionMcpsSheet(
                                 onClick = { detailId = server.id },
                                 showDivider = index < filteredServers.size - 1,
                                 trailing = {
-                                    SettingsSwitch(
+                                    Switch(
                                         checked = overrides[server.id] ?: server.enabled,
                                         onCheckedChange = { enabled ->
                                             overrides[server.id] = enabled

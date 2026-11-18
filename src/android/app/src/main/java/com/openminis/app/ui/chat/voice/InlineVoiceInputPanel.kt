@@ -33,11 +33,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.UnfoldMore
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -86,6 +85,11 @@ import androidx.compose.animation.core.spring
 import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import androidx.compose.ui.graphics.graphicsLayer
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * [T-android-voice-panel] Inline voice input panel — Android port of iOS
@@ -645,37 +649,43 @@ internal fun InlineVoiceInputPanel(
             // correction runs regardless: consent governs whether we STORE the
             // learning data, not whether the feature works.
             if (showCorrectionConsent) {
-                com.openminis.app.ui.components.miuix.AlertDialog(
+                WindowDialog(
+                    show = true,
                     onDismissRequest = {
-                        // Dismissing without choosing is not an answer; leave
-                        // hasPrompted unset so the question can be asked again.
-                        showCorrectionConsent = false
-                    },
-                    title = { Text(stringResource(R.string.voice_correction_consent_title)) },
-                    text = { Text(stringResource(R.string.voice_correction_consent_body)) },
-                    confirmButton = {
-                        com.openminis.app.ui.components.MinisTextButton(onClick = {
-                            com.openminis.app.speech.correction.VoiceCorrectionConsent
-                                .setEnabled(panelContext, true)
-                            com.openminis.app.speech.correction.VoiceCorrectionConsent
-                                .setPrompted(panelContext, true)
-                            showCorrectionConsent = false
-                            runCorrection()
-                        }) {
-                            Text(stringResource(R.string.voice_correction_consent_enable))
+                                        // Dismissing without choosing is not an answer; leave
+                                        // hasPrompted unset so the question can be asked again.
+                                        showCorrectionConsent = false
+                                    },
+                    title = stringResource(R.string.voice_correction_consent_title),
+                    summary = stringResource(R.string.voice_correction_consent_body),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                                                    onClick = {
+                                                    com.openminis.app.speech.correction.VoiceCorrectionConsent
+                                                        .setEnabled(panelContext, true)
+                                                    com.openminis.app.speech.correction.VoiceCorrectionConsent
+                                                        .setPrompted(panelContext, true)
+                                                    showCorrectionConsent = false
+                                                    runCorrection()
+                                                },
+                                                    text = stringResource(R.string.voice_correction_consent_enable),
+                                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                                )
+                        TextButton(
+                                                    onClick = {
+                                                    com.openminis.app.speech.correction.VoiceCorrectionConsent
+                                                        .setPrompted(panelContext, true)
+                                                    showCorrectionConsent = false
+                                                    runCorrection()
+                                                },
+                                                    text = stringResource(R.string.voice_correction_consent_not_now),
+                                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                                )
                         }
-                    },
-                    dismissButton = {
-                        com.openminis.app.ui.components.MinisTextButton(onClick = {
-                            com.openminis.app.speech.correction.VoiceCorrectionConsent
-                                .setPrompted(panelContext, true)
-                            showCorrectionConsent = false
-                            runCorrection()
-                        }) {
-                            Text(stringResource(R.string.voice_correction_consent_not_now))
-                        }
-                    },
-                )
+                    }
+                }
             }
 
             // [T-android-voice-correction] Top-right slot: the AI-correction
@@ -690,7 +700,7 @@ internal fun InlineVoiceInputPanel(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = ChatColors.secondaryText,
+                            colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = ChatColors.secondaryText),
                         )
                     } else {
                         CircleIconButton(
@@ -808,29 +818,31 @@ internal fun InlineVoiceInputPanel(
         } else {
             failed.message?.takeIf { it.isNotBlank() } ?: failed.error.name
         }
-        com.openminis.app.ui.components.miuix.AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = {},
-            title = { Text(stringResource(R.string.voice_asr_failed_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.voice_asr_failed_message,
-                        kotlin.math.round(failed.seconds).toInt(),
-                        reason,
-                    ),
-                )
-            },
-            confirmButton = {
-                com.openminis.app.ui.components.MinisTextButton(onClick = { retryFailedUtterance() }) {
-                    Text(stringResource(R.string.voice_asr_retry))
+            title = stringResource(R.string.voice_asr_failed_title),
+            summary = stringResource(
+                                R.string.voice_asr_failed_message,
+                                kotlin.math.round(failed.seconds).toInt(),
+                                reason,
+                            ),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { retryFailedUtterance() },
+                                    text = stringResource(R.string.voice_asr_retry),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { VoiceSendGate.discardCurrent() },
+                                    text = stringResource(R.string.voice_asr_discard),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                com.openminis.app.ui.components.MinisTextButton(onClick = { VoiceSendGate.discardCurrent() }) {
-                    Text(stringResource(R.string.voice_asr_discard))
-                }
-            },
-        )
+            }
+        }
     }
 
     val reopenSelectorOnResume = com.openminis.app.ui.components.rememberReopenOnResume {

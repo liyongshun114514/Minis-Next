@@ -14,11 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -34,9 +32,14 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.backup.remote.RcloneChunkedUpload
 import com.openminis.app.backup.remote.RcloneRemoteStore
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
 
 /**
  * [T-backup-destination-browse] What is actually stored on one destination.
@@ -121,31 +124,30 @@ fun BackupDestinationBrowseScreen(
     }
 
     pendingDelete?.let { pkg ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.backup_dest_delete_title)) },
-            // A deleted package cannot be recovered, and this is the copy the
-            // record points at — say so before it goes.
-            text = { Text(stringResource(R.string.backup_dest_delete_note, pkg.displayName)) },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        vm.deleteServerPackage(remote, pkg)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text(
-                        stringResource(R.string.backup_dest_delete_confirm),
-                        color = MiuixTheme.colorScheme.error,
-                    )
+            title = stringResource(R.string.backup_dest_delete_title),
+            summary = stringResource(R.string.backup_dest_delete_note, pkg.displayName),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                        vm.deleteServerPackage(remote, pkg)
+                                        pendingDelete = null
+                                    },
+                                    text = stringResource(R.string.backup_dest_delete_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { pendingDelete = null },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 

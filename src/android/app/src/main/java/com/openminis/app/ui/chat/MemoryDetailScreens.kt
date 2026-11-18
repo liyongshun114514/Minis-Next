@@ -16,10 +16,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LocalTextStyle
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +31,12 @@ import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.ui.theme.ChatColors
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.i18n.uppercaseForDisplay
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.fillMaxWidth
 
 /**
  * Stateless detail body composables used by [SessionMemorySheet] when a row
@@ -70,7 +72,7 @@ fun MemoryFileViewerBody(
                 value = editedContent,
                 onValueChange = onEditedContentChange,
                 modifier = Modifier.fillMaxSize(),
-                textStyle = LocalTextStyle.current.copy(
+                textStyle = MiuixTheme.textStyles.main.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     color = ChatColors.primaryText,
@@ -142,7 +144,7 @@ fun MemoryWriteDetailBody(
                 value = editedContent,
                 onValueChange = onEditedContentChange,
                 modifier = Modifier.fillMaxSize(),
-                textStyle = LocalTextStyle.current.copy(
+                textStyle = MiuixTheme.textStyles.main.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     color = ChatColors.primaryText,
@@ -250,24 +252,27 @@ fun RevokeConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.memory_revoke_dialog_title)) },
-        text = { Text(stringResource(R.string.memory_revoke_dialog_message)) },
-        confirmButton = {
-            MinisTextButton(onClick = onConfirm) {
-                Text(
-                    stringResource(R.string.memory_action_revoke),
-                    color = MiuixTheme.colorScheme.error,
-                )
+        title = stringResource(R.string.memory_revoke_dialog_title),
+        summary = stringResource(R.string.memory_revoke_dialog_message),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = onConfirm,
+                            text = stringResource(R.string.memory_action_revoke),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
+        }
+    }
 }
 
 /**
@@ -288,11 +293,19 @@ fun MutationResultDialog(
         is MemoryRepository.EntryMutationResult.IOError ->
             ctx.getString(R.string.memory_revoke_result_io_error, result.message)
     }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        text = { Text(msg) },
-        confirmButton = {
-            MinisTextButton(onClick = onDismiss) { Text("OK") }
-        },
-    )
+        summary = msg,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = onDismiss,
+                            text = "OK",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            }
+        }
+    }
 }

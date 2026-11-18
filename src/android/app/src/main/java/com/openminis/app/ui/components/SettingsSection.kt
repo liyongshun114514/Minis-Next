@@ -6,47 +6,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
-import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.openminis.app.i18n.uppercaseForDisplay
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.SmallTitle
 
-/**
- * iOS Settings-style "inset grouped" section. Renders an uppercase
- * teal header above a 16dp rounded surface card containing the
- * caller's [content] rows. Pair with [SettingsRowDivider] between
- * rows so the dividers stop short of the card's curved edges.
- *
- * Apply this to any settings detail screen that wants the
- * SF-Symbols Settings.app look — initially adopted by
- * RootfsManagementScreen (T168).
- */
+/** Inset group for content such as the rootfs detail list. */
 @Composable
 fun SettingsSection(
     title: String,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Text(
-            text = title.uppercaseForDisplay(),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+    Column(modifier = modifier.fillMaxWidth()) {
+        SmallTitle(text = title)
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            content = content,
         )
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MiuixTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(content = content)
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
     }
 }
 

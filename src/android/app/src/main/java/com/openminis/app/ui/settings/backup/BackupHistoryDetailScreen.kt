@@ -25,11 +25,9 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Warning
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,9 +43,12 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.backup.BackupCategory
 import com.openminis.app.backup.BackupHistory
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * [T-android-backup-history-detail] One backup run, on its own screen.
@@ -237,151 +238,147 @@ fun BackupHistoryDetailScreen(
     }
 
     if (confirmRemove) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmRemove = false },
-            title = { Text(stringResource(R.string.backup_history_remove_title)) },
-            // Spell out the difference. Removing a record looks like it could
-            // delete the backup it describes; when both options are on offer,
-            // which one destroys data has to be unambiguous.
-            text = {
-                Text(
-                    stringResource(
-                        if (canDeleteFiles) R.string.backup_history_remove_choice_note
-                        else R.string.backup_history_remove_note,
-                    ),
-                )
-            },
-            confirmButton = {
-                Column {
-                    MinisTextButton(onClick = { confirmRemove = false; onRemove() }) {
-                        Text(
-                            stringResource(
-                                if (canDeleteFiles) R.string.backup_history_remove_record_only
-                                else R.string.backup_history_remove,
+            title = stringResource(R.string.backup_history_remove_title),
+            summary = stringResource(
+                                if (canDeleteFiles) R.string.backup_history_remove_choice_note
+                                else R.string.backup_history_remove_note,
                             ),
-                            color = MiuixTheme.colorScheme.error,
-                        )
-                    }
-                    if (canDeleteFiles) {
-                        MinisTextButton(
-                            onClick = { confirmRemove = false; confirmDeleteFiles = true },
-                        ) {
-                            Text(
-                                stringResource(R.string.backup_history_remove_with_files),
-                                color = MiuixTheme.colorScheme.error,
-                            )
-                        }
-                    }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column {
+                                    TextButton(
+                                        onClick = { confirmRemove = false; onRemove() },
+                                        text = stringResource(
+                                                if (canDeleteFiles) R.string.backup_history_remove_record_only
+                                                else R.string.backup_history_remove,
+                                            ),
+                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                    )
+                                    if (canDeleteFiles) {
+                                        TextButton(
+                                            onClick = { confirmRemove = false; confirmDeleteFiles = true },
+                                            text = stringResource(R.string.backup_history_remove_with_files),
+                                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                        )
+                                    }
+                                }
+                TextButton(
+                                    onClick = { confirmRemove = false },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmRemove = false }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // [T-android-backup-delete-files-feedback] Second confirmation, naming the
     // package and how many destinations lose it.
     if (confirmDeleteFiles) {
         val destCount = record.destinations.count { it.succeeded }
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmDeleteFiles = false },
-            title = { Text(stringResource(R.string.backup_delete_files_confirm_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.backup_delete_files_confirm_body,
-                        record.packageName.orEmpty(),
-                        destCount,
-                    ),
-                )
-            },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        confirmDeleteFiles = false
-                        val action = onRemoveWithFiles ?: return@MinisTextButton
-                        deletingFiles = true
-                        scope.launch {
-                            val result = action()
-                            deletingFiles = false
-                            when (result) {
-                                is BackupViewModel.DeleteWithFilesResult.Success -> {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        context.getString(
-                                            if (result.destinations > 0) {
-                                                R.string.backup_delete_files_success
-                                            } else {
-                                                R.string.backup_delete_files_success_none
-                                            },
-                                        ),
-                                        android.widget.Toast.LENGTH_LONG,
-                                    ).show()
-                                    onRemoved()
-                                }
-                                is BackupViewModel.DeleteWithFilesResult.Failed -> {
-                                    // Stay on the screen: the record is still
-                                    // there, and it is the only thing naming
-                                    // the file left behind on the remote.
-                                    deleteFailure = result.failures
-                                }
-                            }
-                        }
-                    },
-                ) {
-                    Text(
-                        stringResource(R.string.backup_delete_files_confirm_action),
-                        color = MiuixTheme.colorScheme.error,
-                    )
+            title = stringResource(R.string.backup_delete_files_confirm_title),
+            summary = stringResource(
+                                R.string.backup_delete_files_confirm_body,
+                                record.packageName.orEmpty(),
+                                destCount,
+                            ),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                        confirmDeleteFiles = false
+                                        val action = onRemoveWithFiles ?: return@TextButton
+                                        deletingFiles = true
+                                        scope.launch {
+                                            val result = action()
+                                            deletingFiles = false
+                                            when (result) {
+                                                is BackupViewModel.DeleteWithFilesResult.Success -> {
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        context.getString(
+                                                            if (result.destinations > 0) {
+                                                                R.string.backup_delete_files_success
+                                                            } else {
+                                                                R.string.backup_delete_files_success_none
+                                                            },
+                                                        ),
+                                                        android.widget.Toast.LENGTH_LONG,
+                                                    ).show()
+                                                    onRemoved()
+                                                }
+                                                is BackupViewModel.DeleteWithFilesResult.Failed -> {
+                                                    // Stay on the screen: the record is still
+                                                    // there, and it is the only thing naming
+                                                    // the file left behind on the remote.
+                                                    deleteFailure = result.failures
+                                                }
+                                            }
+                                        }
+                                    },
+                                    text = stringResource(R.string.backup_delete_files_confirm_action),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { confirmDeleteFiles = false },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmDeleteFiles = false }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // Progress. Non-dismissible on purpose — rclone is mid-delete, and a
     // second tap must not start a second run.
     if (deletingFiles) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { },
-            title = { Text(stringResource(R.string.backup_delete_files_progress)) },
-            text = {
+            title = stringResource(R.string.backup_delete_files_progress),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text(record.packageName.orEmpty())
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(record.packageName.orEmpty())
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
                 }
-            },
-            confirmButton = { },
-        )
+            }
+        }
     }
 
     // Failure, with the per-destination reason. Never silent.
     deleteFailure?.let { failures ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { deleteFailure = null },
-            title = { Text(stringResource(R.string.backup_delete_files_failed_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.backup_delete_files_failed_body,
-                        failures.joinToString("\n"),
-                    ),
-                )
-            },
-            confirmButton = {
-                MinisTextButton(onClick = { deleteFailure = null }) {
-                    Text(stringResource(R.string.ok))
+            title = stringResource(R.string.backup_delete_files_failed_title),
+            summary = stringResource(
+                                R.string.backup_delete_files_failed_body,
+                                failures.joinToString("\n"),
+                            ),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { deleteFailure = null },
+                                    text = stringResource(R.string.ok),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 

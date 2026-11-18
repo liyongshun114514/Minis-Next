@@ -141,22 +141,16 @@ import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -239,7 +233,6 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -269,7 +262,10 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.DisplayBitmapLimits
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 @Composable
 internal fun ToolDetailSheet(
@@ -282,7 +278,6 @@ internal fun ToolDetailSheet(
      *  button opens the child's full-screen transcript. */
     onOpenAgentTranscript: ((childSessionId: String) -> Unit)? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var currentIdx by remember { mutableStateOf(initialIndex.coerceIn(0, toolBlocks.lastIndex.coerceAtLeast(0))) }
     val block = toolBlocks.getOrNull(currentIdx) ?: return onDismiss()
 
@@ -291,11 +286,11 @@ internal fun ToolDetailSheet(
         block.toolStatus == ToolBlockStatus.PENDING
     val toolAccent = toolAccentColor(block.toolName)
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = null,
-        contentWindowInsets = { WindowInsets(0) },
+        dragHandleColor = Color.Transparent,
     ) {
         Column(
             modifier = Modifier
@@ -974,7 +969,7 @@ internal fun ToolDetailSheet(
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp),
                                             strokeWidth = 2.dp,
-                                            color = ChatColors.link,
+                                            colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = ChatColors.link),
                                         )
                                         Text("Loading...", fontSize = 12.sp, color = ChatColors.tertiaryText)
                                     }
@@ -1183,8 +1178,8 @@ internal fun ToolDetailSheet(
                     if (isLive) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = toolAccent,
                             strokeWidth = 2.dp,
+                            colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = toolAccent),
                         )
                     } else {
                         val (icon, tint) = when (block.toolStatus) {
@@ -1657,8 +1652,8 @@ private fun EditorCard(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = iconTint,
                         strokeWidth = 2.dp,
+                        colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = iconTint),
                     )
                 }
             }

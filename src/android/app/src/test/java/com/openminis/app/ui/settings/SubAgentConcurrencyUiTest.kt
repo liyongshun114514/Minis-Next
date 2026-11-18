@@ -6,9 +6,9 @@ import org.junit.Test
 
 class SubAgentConcurrencyUiTest {
     private val source = ProductionSources.read("ui/settings/SubAgentsScreen.kt")
-    @Test fun `concurrency uses Minis scrollable choice rows instead of crowded radio dialog`() {
+    @Test fun `concurrency uses scrollable preference rows in a Miuix sheet`() {
         val page = source.substringBefore("fun SubAgentDetailScreen")
-        assertTrue(page.contains("ModalBottomSheet(onDismissRequest"))
+        assertTrue(page.contains("WindowBottomSheet("))
         assertTrue(page.contains("verticalScroll(rememberScrollState())"))
         assertTrue(page.contains("SettingsChoiceRow("))
         assertTrue(page.contains("1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS"))

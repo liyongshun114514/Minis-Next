@@ -35,14 +35,9 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.ContentCopy
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +80,14 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 private val StatusGreen = Color(0xFF34C759)
 private val StatusRed = Color(0xFFFF3B30)
@@ -146,19 +149,18 @@ internal fun ScheduledTaskDetailSheet(
     }
 
     var confirmingCancel by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // A fixed-height sheet with the nav bar pinned above a scrolling body, as
     // ChatToolDetailUI does. Sized to its content, a long page grew to the
     // full window: the sheet slid under the status bar (the title and close
     // button collided with the clock and icons) and the nav bar scrolled away
     // with the cards. iOS pins the bar the same way.
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ChatColors.background,
-        dragHandle = null,
-        contentWindowInsets = { WindowInsets(0) },
+        backgroundColor = ChatColors.secondaryBg,
+        dragHandleColor = Color.Transparent,
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             // Nav bar: close on the left, centred title.
@@ -228,24 +230,32 @@ internal fun ScheduledTaskDetailSheet(
     }
 
     if (confirmingCancel) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmingCancel = false },
-            title = { Text(stringResource(R.string.scheduled_card_cancel_confirm_title)) },
-            text = { Text(stringResource(R.string.scheduled_card_cancel_confirm_body, name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    // Disable rather than delete, as the card does: the history
-                    // stays, and the task can be re-enabled from Settings.
-                    manager.setEnabled(marker.taskId, false)
-                    confirmingCancel = false
-                }) { Text(stringResource(R.string.scheduled_card_cancel_confirm_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmingCancel = false }) {
-                    Text(stringResource(R.string.scheduled_card_cancel_confirm_keep))
+            title = stringResource(R.string.scheduled_card_cancel_confirm_title),
+            summary = stringResource(R.string.scheduled_card_cancel_confirm_body, name),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    // Disable rather than delete, as the card does: the history
+                                    // stays, and the task can be re-enabled from Settings.
+                                    manager.setEnabled(marker.taskId, false)
+                                    confirmingCancel = false
+                                },
+                                    text = stringResource(R.string.scheduled_card_cancel_confirm_ok),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { confirmingCancel = false },
+                                    text = stringResource(R.string.scheduled_card_cancel_confirm_keep),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -402,10 +412,9 @@ private fun ProgressCard(p: ScheduledTaskDetailModel.Progress, now: Long) {
         if (total != null && total > 0) {
             val done = (p.firesSoFar.coerceAtMost(total)).toFloat() / total
             LinearProgressIndicator(
-                progress = { done },
+                progress = done,
                 modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                color = ScheduledAccent,
-                trackColor = ScheduledAccent.copy(alpha = 0.15f),
+                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = ScheduledAccent, backgroundColor = ScheduledAccent.copy(alpha = 0.15f)),
             )
         }
         val next = p.nextFireAt

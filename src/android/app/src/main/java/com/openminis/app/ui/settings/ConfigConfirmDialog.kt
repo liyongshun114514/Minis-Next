@@ -20,7 +20,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.filled.Warning
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.runtime.Composable
@@ -45,7 +45,9 @@ import com.openminis.app.config.ConfigRisk
 import com.openminis.app.config.confirm.ConfigConfirmationGate
 import com.openminis.app.config.confirm.PendingConfigChange
 import com.openminis.app.config.confirm.PendingConfigChangeItem
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Switch
 
 /**
  * Root-level confirmation dialog for every minis-config write.
@@ -143,18 +145,20 @@ private fun ConfigConfirmDialog(change: PendingConfigChange) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                MinisTextButton(onClick = { ConfigConfirmationGate.userReject() }) {
-                    Text(stringResource(R.string.config_confirm_cancel))
-                }
+                TextButton(
+                    onClick = { ConfigConfirmationGate.userReject() },
+                    text = stringResource(R.string.config_confirm_cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
                 val applyText = stringResource(
                     if (approvedCount == 0) R.string.config_confirm_reject_all else R.string.config_confirm_apply,
                 )
-                MinisTextButton(
+                TextButton(
                     onClick = { ConfigConfirmationGate.userApprove(workingItems.toList()) },
                     enabled = workingItems.isNotEmpty(),
-                ) {
-                    Text(applyText)
-                }
+                    text = applyText,
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
         }
     }
@@ -186,7 +190,7 @@ private fun ConfirmRow(
                 style = MiuixTheme.textStyles.body2,
             )
             Spacer(Modifier.weight(1f))
-            SettingsSwitch(
+            Switch(
                 checked = item.isApproved,
                 onCheckedChange = onToggle,
             )

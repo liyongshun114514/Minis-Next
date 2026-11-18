@@ -19,22 +19,15 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Psychology
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.agent.jobs.AgentJobRegistry
 import com.openminis.app.agent.jobs.SubAgentConcurrencyPrefs
 import androidx.compose.ui.text.PlatformTextStyle
-import com.openminis.app.ui.components.miuix.LocalTextStyle
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +53,19 @@ import com.openminis.app.data.model.SubAgentRoster
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.provider.effectiveMaxThinkingLevel
 import com.openminis.app.tools.AgentToolSwitch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 
 /** [T-sub-agents-v1] Sentinel id for a definition being created. */
 internal const val DRAFT_AGENT_ID = "__new__"
@@ -90,7 +96,11 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     var concurrency by remember { mutableStateOf(AgentJobRegistry.maxConcurrentChildJobsPerParent) }
     var showConcurrency by remember { mutableStateOf(false) }
     if (showConcurrency) {
-        ModalBottomSheet(onDismissRequest = { showConcurrency = false }) {
+        WindowBottomSheet(
+            show = true,
+            insideMargin = DpSize.Zero,
+            onDismissRequest = { showConcurrency = false },
+        ) {
             Column(
                 modifier = Modifier.fillMaxWidth()
                     .verticalScroll(rememberScrollState())
@@ -122,12 +132,12 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                         )
                     }
                 }
-                MinisTextButton(
+                TextButton(
                     onClick = { showConcurrency = false },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
+                    text = stringResource(android.R.string.cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
         }
     }
@@ -174,7 +184,7 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                SettingsSwitch(
+                Switch(
                     checked = agentsEnabled,
                     onCheckedChange = {
                         agentsEnabled = it
@@ -375,24 +385,26 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
         } else {
             SettingsSection(footer = error) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    OutlinedTextField(
+                    TextField(
                         value = name,
                         onValueChange = { name = it.take(SubAgentLimits.NAME_MAX_LENGTH) },
-                        label = { Text(stringResource(R.string.sub_agent_name)) },
                         singleLine = true,
-                        isError = error != null,
-                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.textFieldColors().let { if (error != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                        label = stringResource(R.string.sub_agent_name),
+                        useLabelAsPlaceholder = false,
+                        modifier = Modifier.fillMaxWidth() .semantics { if (error != null) error("Invalid value") },
                     )
                     FieldCounter(name.length, SubAgentLimits.NAME_MAX_LENGTH)
                 }
             }
             SettingsSection(footer = stringResource(R.string.sub_agent_description_footer)) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    OutlinedTextField(
+                    TextField(
                         value = description,
                         onValueChange = { description = it.take(SubAgentLimits.DESCRIPTION_MAX_LENGTH) },
-                        label = { Text(stringResource(R.string.sub_agent_description)) },
                         minLines = 2,
+                        label = stringResource(R.string.sub_agent_description),
+                        useLabelAsPlaceholder = false,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     FieldCounter(description.length, SubAgentLimits.DESCRIPTION_MAX_LENGTH)
@@ -412,11 +424,12 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
             ),
         ) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                OutlinedTextField(
+                TextField(
                     value = instructions,
                     onValueChange = { instructions = it.take(SubAgentLimits.INSTRUCTIONS_MAX_LENGTH) },
-                    label = { Text(stringResource(R.string.sub_agent_instructions)) },
                     minLines = 3,
+                    label = stringResource(R.string.sub_agent_instructions),
+                    useLabelAsPlaceholder = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FieldCounter(instructions.length, SubAgentLimits.INSTRUCTIONS_MAX_LENGTH)
@@ -521,30 +534,16 @@ fun SubAgentDetailScreen(agentId: String, onBack: () -> Unit) {
                     //
                     // SegmentedButton takes no contentPadding in this Material3
                     // version, so the width has to come from the label itself.
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        cases.forEachIndexed { idx, (level, label) ->
-                            SegmentedButton(
-                                selected = thinking == level,
-                                onClick = { thinking = level; persist() },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = idx,
-                                    count = cases.size,
-                                ),
-                                icon = {},
-                            ) {
-                                Text(
-                                    label,
-                                    // One size below labelSmall: six segments on a phone leave
-                                    // ~55dp each, and labelSmall's 11sp still made
-                                    // "Medium" the widest thing in the row.
-                                    fontSize = 10.sp,
-                                    lineHeight = 12.sp,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                )
-                            }
-                        }
-                    }
+                    val tabLabels = cases.map { (_, label) -> label }
+                    TabRowWithContour(
+                        tabs = tabLabels,
+                        selectedTabIndex = cases.indexOfFirst { (level, _) -> thinking == level }.coerceAtLeast(0),
+                        onTabSelected = { index -> thinking = cases[index].first; persist() },
+                        modifier = Modifier.fillMaxWidth(),
+                        minWidth = preferenceTabMinWidth(tabLabels),
+                        height = preferenceTabHeight(),
+                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+                    )
                 }
             }
         }
@@ -659,7 +658,7 @@ private fun SubAgentRosterRow(
                     // 10sp and the pill read as a button. lineHeight pins the
                     // box to the glyph; the padding is what remains visible.
                     lineHeight = 11.sp,
-                    style = LocalTextStyle.current.copy(
+                    style = MiuixTheme.textStyles.main.copy(
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                     ),
                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,

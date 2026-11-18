@@ -46,7 +46,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -65,6 +65,8 @@ import com.openminis.app.BuildConfig
 import com.openminis.app.KairosBrandLinks
 import com.openminis.app.R
 import com.openminis.app.ui.components.openExternalUrl
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
 fun SettingsScreen(
@@ -570,66 +572,19 @@ private fun SettingsItem(
     // [T-update-channels] A small dot before the chevron.
     badge: Boolean = false,
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    ArrowPreference(
+        title = title,
+        summary = subtitle,
+        startAction = {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MiuixTheme.colorScheme.onSurface,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
-            Spacer(Modifier.width(16.dp))
-
-            // Title + subtitle
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MiuixTheme.textStyles.main,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                }
-            }
-
-            if (badge) {
-                UpdateBadgeDot()
-                Spacer(Modifier.width(8.dp))
-            }
-
-            // Chevron
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        // Divider between items (inset to match icon alignment)
-        if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 58.dp, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f)),
-            )
-        }
-    }
+        },
+        endActions = { if (badge) UpdateBadgeDot() },
+        onClick = onClick,
+    )
+    if (showDivider) HorizontalDivider(Modifier.padding(start = 48.dp, end = 16.dp))
 }
 

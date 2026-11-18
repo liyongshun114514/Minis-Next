@@ -15,10 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,10 +40,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 
 /**
  * [#467] "Show full thinking": the whole thinking text of a finished block
@@ -114,7 +115,8 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                             color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         )
                     }
-                    MinisTextButton(onClick = {
+                    TextButton(
+                        onClick = {
                         try {
                             clipboard.setText(AnnotatedString(ThinkingChunking.copyText(content)))
                             Toast.makeText(context, R.string.terminal_copied_all, Toast.LENGTH_SHORT).show()
@@ -122,12 +124,15 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                             // A text past the Binder transaction limit cannot go to the clipboard.
                             Toast.makeText(context, R.string.thinking_full_copy_failed, Toast.LENGTH_SHORT).show()
                         }
-                    }) {
-                        Text(text = stringResource(R.string.terminal_copy_all))
-                    }
-                    MinisTextButton(onClick = onDismiss) {
-                        Text(text = stringResource(android.R.string.ok))
-                    }
+                    },
+                        text = stringResource(R.string.terminal_copy_all),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(android.R.string.ok),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
                 HorizontalDivider()
                 val list = chunks
@@ -165,9 +170,11 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                                         horizontalArrangement = Arrangement.Center,
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                                     ) {
-                                        MinisTextButton(onClick = { reveal() }) {
-                                            Text(text = stringResource(R.string.thinking_full_load_more))
-                                        }
+                                        TextButton(
+                                            onClick = { reveal() },
+                                            text = stringResource(R.string.thinking_full_load_more),
+                                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                        )
                                     }
                                 }
                             }

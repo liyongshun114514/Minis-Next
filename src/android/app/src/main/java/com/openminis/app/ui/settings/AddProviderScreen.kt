@@ -38,17 +38,11 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ListItem
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,9 +70,17 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.R
 import kotlinx.coroutines.launch
 import java.util.UUID
-import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.RowLabel
 import com.openminis.app.ui.components.SectionTextField
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 
 private enum class AddProviderStep {
     CHOOSE_TYPE,
@@ -639,18 +641,19 @@ private fun ColumnScope.ApiKeyConfigSection(
             },
         ) {
             SettingsCardBlock {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = !useResponsesAPI,
-                        onClick = { useResponsesAPI = false },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    ) { Text(stringResource(R.string.provider_detail_chat_completions)) }
-                    SegmentedButton(
-                        selected = useResponsesAPI,
-                        onClick = { useResponsesAPI = true },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    ) { Text(stringResource(R.string.provider_detail_responses_api)) }
-                }
+                val tabLabels = listOf(
+                    stringResource(R.string.provider_detail_chat_completions),
+                    stringResource(R.string.provider_detail_responses_api),
+                )
+                TabRowWithContour(
+                    tabs = tabLabels,
+                    selectedTabIndex = if (useResponsesAPI) 1 else 0,
+                    onTabSelected = { index -> useResponsesAPI = index == 1 },
+                    modifier = Modifier.fillMaxWidth(),
+                    minWidth = preferenceTabMinWidth(tabLabels),
+                    height = preferenceTabHeight(),
+                    colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+                )
             }
         }
     }
@@ -658,9 +661,9 @@ private fun ColumnScope.ApiKeyConfigSection(
     // ── Save button (outside any section — terminal action) ────────────
     Spacer(Modifier.height(20.dp))
     val saveOnce = rememberSaveOnce()
-    MinisButton(
+    TextButton(
         onClick = {
-            if (!saveOnce.claim()) return@MinisButton
+            if (!saveOnce.claim()) return@TextButton
             val trimmedBase = customBaseURL.trim()
             val instance = ProviderInstance(
                 id = UUID.randomUUID().toString(),
@@ -697,9 +700,9 @@ private fun ColumnScope.ApiKeyConfigSection(
             customBaseURL.isNotBlank() &&
                 (providerType == ProviderType.openAI || providerType == ProviderType.anthropic)
         ),
-    ) {
-        Text(stringResource(R.string.provider_list_add_provider))
-    }
+        text = stringResource(R.string.provider_list_add_provider),
+        colors = ButtonDefaults.textButtonColorsPrimary(),
+    )
 }
 
 @Composable
@@ -824,9 +827,9 @@ private fun ColumnScope.OAuthConfigSection(
         }
         Spacer(Modifier.height(20.dp))
         val saveOnce = rememberSaveOnce()
-        MinisButton(
+        TextButton(
             onClick = {
-                if (!saveOnce.claim()) return@MinisButton
+                if (!saveOnce.claim()) return@TextButton
                 val instance = ProviderInstance(
                     id = pendingInstanceId,
                     label = label.ifBlank { providerType.displayName },
@@ -844,9 +847,9 @@ private fun ColumnScope.OAuthConfigSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-        ) {
-            Text(stringResource(R.string.add_provider_save_provider))
-        }
+            text = stringResource(R.string.add_provider_save_provider),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
     } else {
         // ── Sign In ────────────────────────────────────────────────────
         SettingsSection(
@@ -975,7 +978,7 @@ private fun ColumnScope.OAuthConfigSection(
                     )
                 }
 
-                MinisButton(
+                Button(
                     onClick = {
                         // [T-copilot-disclaimer] Copilot: show the disclaimer
                         // and stop. Nothing reaches the network until the user
@@ -990,12 +993,13 @@ private fun ColumnScope.OAuthConfigSection(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isAuthenticating,
+                    colors = ButtonDefaults.buttonColorsPrimary(),
                 ) {
                     if (isAuthenticating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
-                            color = MiuixTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp,
+                            colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = MiuixTheme.colorScheme.onPrimary),
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.add_provider_signing_in))
@@ -1075,9 +1079,9 @@ private fun ColumnScope.OAuthConfigSection(
 
         Spacer(Modifier.height(20.dp))
         val saveOnce = rememberSaveOnce()
-        MinisButton(
+        TextButton(
             onClick = {
-                if (!saveOnce.claim()) return@MinisButton
+                if (!saveOnce.claim()) return@TextButton
                 val trimmedBase = customBaseURL.trim()
                 val instance = ProviderInstance(
                     id = UUID.randomUUID().toString(),
@@ -1098,9 +1102,9 @@ private fun ColumnScope.OAuthConfigSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             enabled = manualToken.isNotBlank(),
-        ) {
-            Text(stringResource(R.string.provider_list_add_provider))
-        }
+            text = stringResource(R.string.provider_list_add_provider),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
         }  // end: manual configuration, hidden for Copilot
     }
 }

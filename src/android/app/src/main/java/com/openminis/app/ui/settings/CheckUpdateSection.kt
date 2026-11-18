@@ -18,7 +18,7 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.RadioButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -61,9 +61,10 @@ import com.openminis.app.data.UpdateChecker
 import com.openminis.app.data.UpdatePolicy
 import com.openminis.app.data.UpdateStateStore
 import kotlinx.coroutines.launch
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.i18n.uppercaseForDisplay
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
  * Settings section that talks to [UpdateChecker] to surface a "Check for
@@ -259,17 +260,21 @@ fun CheckUpdateSection() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { confirmBeta = false }) {
-                Text(stringResource(R.string.cancel))
-            }
-            MinisButton(onClick = {
+            TextButton(
+                onClick = { confirmBeta = false },
+                text = stringResource(R.string.cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
                 confirmBeta = false
                 // Clears the cache; the check below then runs at once.
                 UpdateStateStore.setChannel(context, UpdatePolicy.Channel.BETA)
                 UpdateAutoChecker.maybeCheck(context, "channel")
-            }) {
-                Text(stringResource(R.string.update_channel_beta_confirm))
-            }
+            },
+                text = stringResource(R.string.update_channel_beta_confirm),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
         }
     }
 
@@ -416,33 +421,52 @@ private fun UpdateDialog(
             val compactText = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             UpdateDialogButtonRow(
                 skip = {
-                    MinisTextButton(onClick = onSkip, enabled = downloadProgress == null, contentPadding = compactText) {
-                        Text(stringResource(R.string.check_update_skip_version), textAlign = TextAlign.Center)
-                    }
+                    TextButton(
+                        onClick = onSkip,
+                        enabled = downloadProgress == null,
+                        insideMargin = compactText,
+                        text = stringResource(R.string.check_update_skip_version),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(textAlign = TextAlign.Center),
+                    )
                 },
                 // "Later" keeps the badge.
                 later = {
-                    MinisTextButton(onClick = onDismiss, enabled = downloadProgress == null, contentPadding = compactText) {
-                        Text(stringResource(R.string.check_update_later), textAlign = TextAlign.Center)
-                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = downloadProgress == null,
+                        insideMargin = compactText,
+                        text = stringResource(R.string.check_update_later),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(textAlign = TextAlign.Center),
+                    )
                 },
                 primary = {
                     val compact = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     if (needsInstallPerm) {
-                        MinisButton(onClick = onOpenSettings, contentPadding = compact) {
-                            Text(stringResource(R.string.check_update_open_install_settings), textAlign = TextAlign.Center)
-                        }
+                        TextButton(
+                            onClick = onOpenSettings,
+                            insideMargin = compact,
+                            text = stringResource(R.string.check_update_open_install_settings),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                            textStyle = MiuixTheme.textStyles.button.copy(textAlign = TextAlign.Center),
+                        )
                     } else if (!BuildConfig.IN_APP_INSTALL) {
                         // [T-update-channels] A build that may not install APKs itself
                         // (a future Play build) only points at the release.
-                        MinisButton(onClick = onOpenRelease, contentPadding = compact) {
-                            Text(stringResource(R.string.check_update_open_release), textAlign = TextAlign.Center)
-                        }
+                        TextButton(
+                            onClick = onOpenRelease,
+                            insideMargin = compact,
+                            text = stringResource(R.string.check_update_open_release),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                            textStyle = MiuixTheme.textStyles.button.copy(textAlign = TextAlign.Center),
+                        )
                     } else {
-                        MinisButton(
+                        Button(
                             onClick = onDownload,
                             enabled = downloadProgress == null,
-                            contentPadding = compact,
+                            insideMargin = compact,
+                            colors = ButtonDefaults.buttonColorsPrimary(),
                         ) {
                             if (downloadProgress != null && downloadProgress < 1f) {
                                 Row(
@@ -521,7 +545,11 @@ private fun ChannelPickerDialog(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
-                MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
         }
     }

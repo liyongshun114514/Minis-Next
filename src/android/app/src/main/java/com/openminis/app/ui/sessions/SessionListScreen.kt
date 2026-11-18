@@ -38,7 +38,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -61,7 +60,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PushPin
@@ -100,28 +98,19 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import com.openminis.app.ui.components.miuix.DropdownMenu
-import com.openminis.app.ui.components.MinisTextButton as TextButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.MinisAlertDialog
-import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionTextField
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Badge
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.FloatingActionButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -190,10 +179,22 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import androidx.compose.ui.graphics.graphicsLayer
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
+import com.openminis.app.ui.components.RichTitleAppBar
 
 // FAB color — use shared theme values
 
@@ -968,7 +969,7 @@ fun SessionListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            RichTitleAppBar(
                 title = {
                     if (isSelecting) {
                         Text(
@@ -993,9 +994,11 @@ fun SessionListScreen(
                 },
                 navigationIcon = {
                     if (isSelecting) {
-                        MinisTextButton(onClick = { viewModel.clearSelection() }) {
-                            Text(stringResource(R.string.cancel))
-                        }
+                        TextButton(
+                            onClick = { viewModel.clearSelection() },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     } else {
                         // [T-update-channels] Beta only: the update badge's
                         // third layer, derived - no state of its own.
@@ -1019,14 +1022,14 @@ fun SessionListScreen(
                         // [FIX-261025-07] Counts against the rows the list shows
                         // (search results during a search), as toggleSelectAll does.
                         val allSelected = allShownSelected(selectedIds, persistedSessions.mapTo(HashSet()) { it.id })
-                        MinisTextButton(onClick = { viewModel.toggleSelectAll() }) {
-                            Text(
-                                stringResource(
+                        TextButton(
+                            onClick = { viewModel.toggleSelectAll() },
+                            text = stringResource(
                                     if (allSelected) R.string.sessionlist_deselect_all
                                     else R.string.sessionlist_select_all
-                                )
-                            )
-                        }
+                                ),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     } else {
                         // [T-android-scheduled-tasks-design] Scheduled-tasks entry,
                         // sits to the left of the Shell button on the home toolbar.
@@ -1587,43 +1590,62 @@ fun SessionListScreen(
 
     // Single delete confirmation
     if (showDeleteDialog && deleteTargetId != null) {
-        MinisAlertDialog(
+        WindowDialog(
+            show = true,
+            title = stringResource(R.string.sessionlist_delete_one_title),
+            summary = stringResource(R.string.sessionlist_delete_message),
             onDismissRequest = {
                 showDeleteDialog = false
                 deleteTargetId = null
             },
-            title = stringResource(R.string.sessionlist_delete_one_title),
-            text = stringResource(R.string.sessionlist_delete_message),
-            confirmText = stringResource(R.string.delete),
-            isDestructive = true,
-            onConfirm = {
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.delete),
+                    onClick = {
                 deleteTargetId?.let { viewModel.deleteSession(it) }
                 showDeleteDialog = false
                 deleteTargetId = null
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = {
+                showDeleteDialog = false
+                deleteTargetId = null
+            },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     // Bulk delete confirmation
     multiExportProgress?.let { (done, total) ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = {},
-            title = { Text(stringResource(R.string.sessionlist_export)) },
-            text = {
+            title = stringResource(R.string.sessionlist_export),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.export_progress_running, done, total))
-                    if (total > 0) {
-                        LinearProgressIndicator(
-                            progress = { (done.toFloat() / total).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
+                                    Text(stringResource(R.string.export_progress_running, done, total))
+                                    if (total > 0) {
+                                        LinearProgressIndicator(
+                                            progress = (done.toFloat() / total).coerceIn(0f, 1f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    } else {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    }
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
                 }
-            },
-            confirmButton = {},
-        )
+            }
+        }
     }
     multiExportResult?.let { result ->
         SessionExportSummaryDialog(
@@ -1637,16 +1659,28 @@ fun SessionListScreen(
     }
 
     if (showBulkDeleteDialog) {
-        MinisAlertDialog(
-            onDismissRequest = { showBulkDeleteDialog = false },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.sessionlist_delete_n_title, selectedIds.size),
-            confirmText = stringResource(R.string.delete),
-            isDestructive = true,
-            onConfirm = {
+            onDismissRequest = { showBulkDeleteDialog = false },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.delete),
+                    onClick = {
                 viewModel.deleteSelected()
                 showBulkDeleteDialog = false
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { showBulkDeleteDialog = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     // ─── Session groups ────────────────────────────────────────────────────
@@ -1687,80 +1721,109 @@ fun SessionListScreen(
         // text fields, and MinisAlertDialog is a title/text/buttons component.
         // Widening it for a single caller would push layout complexity into
         // every other dialog in the app.
-        com.openminis.app.ui.components.miuix.AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { folderToRename = null },
-            title = { Text(stringResource(R.string.group_rename)) },
-            text = {
+            title = stringResource(R.string.group_rename),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column {
-                    // SectionTextField is built for settings screens: it draws
-                    // NO border and uses horizontal contentPadding = 0, because
-                    // there its parent (SettingsCardBlock) supplies both the
-                    // 16dp inset and the card surface that bounds it. A dialog
-                    // has neither, so used bare the glyphs sat flush against
-                    // the fill and the two fields read as one block. Wrap each
-                    // one the way a settings card would, plus a hairline border
-                    // so the input edge is visible on the dialog's own surface.
-                    DialogTextFieldFrame {
-                        SectionTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            placeholder = stringResource(R.string.group_name_hint),
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    DialogTextFieldFrame {
-                        SectionTextField(
-                            value = desc,
-                            onValueChange = { desc = it.take(FolderEntity.DESC_MAX_CHARS) },
-                            placeholder = stringResource(R.string.group_desc_hint),
-                        )
-                    }
+                                    // SectionTextField is built for settings screens: it draws
+                                    // NO border and uses horizontal contentPadding = 0, because
+                                    // there its parent (SettingsCardBlock) supplies both the
+                                    // 16dp inset and the card surface that bounds it. A dialog
+                                    // has neither, so used bare the glyphs sat flush against
+                                    // the fill and the two fields read as one block. Wrap each
+                                    // one the way a settings card would, plus a hairline border
+                                    // so the input edge is visible on the dialog's own surface.
+                                    DialogTextFieldFrame {
+                                        SectionTextField(
+                                            value = name,
+                                            onValueChange = { name = it },
+                                            placeholder = stringResource(R.string.group_name_hint),
+                                        )
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    DialogTextFieldFrame {
+                                        SectionTextField(
+                                            value = desc,
+                                            onValueChange = { desc = it.take(FolderEntity.DESC_MAX_CHARS) },
+                                            placeholder = stringResource(R.string.group_desc_hint),
+                                        )
+                                    }
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    viewModel.renameFolder(folder.id, name, desc)
+                                    folderToRename = null
+                                },
+                                    text = stringResource(R.string.common_save),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { folderToRename = null },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    viewModel.renameFolder(folder.id, name, desc)
-                    folderToRename = null
-                }) { Text(stringResource(R.string.common_save)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { folderToRename = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     folderToDissolve?.let { folder ->
         val count = folderMemberCounts[folder.id] ?: 0
-        MinisAlertDialog(
-            onDismissRequest = { folderToDissolve = null },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.group_dissolve_confirm_title),
-            // Spells out that nothing is deleted — dissolve is deliberately NOT
-            // styled destructive, because it touches no user data.
-            text = stringResource(R.string.group_dissolve_confirm_message, count),
-            confirmText = stringResource(R.string.group_dissolve),
-            onConfirm = {
-                viewModel.dissolveFolder(folder.id)
-                folderToDissolve = null
-            },
-        )
+            summary = stringResource(R.string.group_dissolve_confirm_message, count),
+            onDismissRequest = { folderToDissolve = null },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.group_dissolve),
+                    onClick = {
+                        viewModel.dissolveFolder(folder.id)
+                        folderToDissolve = null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { folderToDissolve = null },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     // iOS "Delete Group & N Sessions" confirmation — the one destructive
     // folder action, so isDestructive here where dissolve deliberately isn't.
     folderToDelete?.let { (folder, count) ->
-        MinisAlertDialog(
-            onDismissRequest = { folderToDelete = null },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.group_delete_confirm_title),
-            text = stringResource(R.string.group_delete_confirm_message, count),
-            confirmText = stringResource(R.string.delete),
-            isDestructive = true,
-            onConfirm = {
+            summary = stringResource(R.string.group_delete_confirm_message, count),
+            onDismissRequest = { folderToDelete = null },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.delete),
+                    onClick = {
                 viewModel.deleteFolderWithSessions(folder.id)
                 folderToDelete = null
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { folderToDelete = null },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     // Edit Title & Category sheet (matching iOS SessionEditSheet)
@@ -1980,68 +2043,48 @@ private fun DualFabRow(
             enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.85f),
             exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.85f),
         ) {
-            OutlinedTextField(
+            TextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.search_chats_placeholder)) },
                 leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                },
+                                Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                            },
                 trailingIcon = {
-                    // T46: while debounce is in flight, swap the close icon
-                    // for an indeterminate progress ring so the user sees the
-                    // search is working — avoids the stale-results-then-snap
-                    // transition on slow stores. Snaps back to the close
-                    // button as soon as results land.
-                    if (isSearching) {
-                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(end = 12.dp)
-                                .size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        IconButton(onClick = onSearchDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.sessionlist_dismiss), modifier = Modifier.size(18.dp))
-                        }
-                    }
-                },
-                // T46: full-capsule shape mirrors iOS searchable-field style
-                // (see ContentView.fabRow — `.clipShape(Capsule())` over a
-                // 56pt-tall HStack). RoundedCornerShape(50) is Compose's
-                // canonical "pill" radius — guaranteed circular ends at any
-                // height. Pair with a fixed 48dp height so the field aligns
-                // with the flanking 56dp FABs without overpowering them.
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50),
-                // T10: Material3's default OutlinedTextField containerColor is
-                // Color.Transparent, which lets the LazyColumn's session rows
-                // bleed through and overlap the typed query text. Set both
-                // focused and unfocused container colors to surfaceContainerHigh
-                // (matches the grouped-section card background already used
-                // throughout settings) so the field reads as a discrete
-                // surface above the list. Also drop both border colors —
-                // capsule shape with no outline reads more like iOS's filled
-                // search bar than the M3 outlined field default.
-                colors = com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
-                    focusedBorderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.8f),
-                    unfocusedBorderColor = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
-                ),
+                                // T46: while debounce is in flight, swap the close icon
+                                // for an indeterminate progress ring so the user sees the
+                                // search is working — avoids the stale-results-then-snap
+                                // transition on slow stores. Snaps back to the close
+                                // button as soon as results land.
+                                if (isSearching) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .padding(end = 12.dp)
+                                            .size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    IconButton(onClick = onSearchDismiss) {
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.sessionlist_dismiss), modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh, borderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.8f)),
+                label = stringResource(R.string.search_chats_placeholder),
+                useLabelAsPlaceholder = true,
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
-                    // [T-android-search-height] Left at the component's own
-                    // height. Forcing 42dp here clipped the placeholder: a
-                    // plain OutlinedTextField keeps its 16dp vertical
-                    // contentPadding no matter what the outer frame says, so
-                    // shrinking the frame cuts the text. The model picker's
-                    // field was rebuilt on BasicTextField + DecorationBox to
-                    // get around that; this one is a simpler inline field and
-                    // is not worth the same surgery for a few dp.
-                    .heightIn(min = 48.dp)
-                    .focusRequester(searchFocusRequester),
+                                .weight(1f)
+                                .padding(horizontal = 10.dp)
+                                // [T-android-search-height] Left at the component's own
+                                // height. Forcing 42dp here clipped the placeholder: a
+                                // plain OutlinedTextField keeps its 16dp vertical
+                                // contentPadding no matter what the outer frame says, so
+                                // shrinking the frame cuts the text. The model picker's
+                                // field was rebuilt on BasicTextField + DecorationBox to
+                                // get around that; this one is a simpler inline field and
+                                // is not worth the same surgery for a few dp.
+                                .heightIn(min = 48.dp)
+                                .focusRequester(searchFocusRequester),
             )
         }
 
@@ -2071,9 +2114,10 @@ private fun SelectionToolbar(
         // Export button (matching iOS: a menu of JSON / Plain Text)
         var showExportMenu by remember { mutableStateOf(false) }
         Box {
-            MinisTextButton(
+            Button(
                 onClick = { showExportMenu = true },
                 enabled = selectedCount > 0,
+                colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
@@ -2104,9 +2148,10 @@ private fun SelectionToolbar(
         }
 
         // Move to Group button
-        MinisTextButton(
+        Button(
             onClick = onMove,
             enabled = selectedCount > 0,
+            colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
@@ -2120,9 +2165,10 @@ private fun SelectionToolbar(
         }
 
         // Delete button (matching iOS)
-        MinisTextButton(
+        Button(
             onClick = onDelete,
             enabled = selectedCount > 0,
+            colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
@@ -2291,7 +2337,7 @@ private fun SessionItemContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
+                        CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
                         )
@@ -3122,7 +3168,7 @@ private fun SessionRow(
             .then(
                 if (!inFolder) {
                     Modifier
-                        .padding(horizontal = LIST_GUTTER)
+                        .padding(start = LIST_GUTTER, end = LIST_GUTTER, bottom = 4.dp)
                         .clip(RoundedCornerShape(16.dp))
                 } else {
                     Modifier
@@ -3133,7 +3179,7 @@ private fun SessionRow(
             // clip only ever shaped the ripple. Now the tint is the rounded
             // rect itself, matching the folder card's shape and leaving equal
             // gutters left and right.
-            .background(rowBackground ?: MiuixTheme.colorScheme.surface)
+            .background(rowBackground ?: MiuixTheme.colorScheme.surfaceContainer)
             .then(
                 if (onLongClick != null) {
                     Modifier
@@ -3759,9 +3805,10 @@ internal fun SessionEditSheet(
         selectedCategory = liveSession.category
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         Column(
             modifier = Modifier
@@ -3775,7 +3822,11 @@ internal fun SessionEditSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                MinisTextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(
+                    onClick = onDismiss,
+                    text = "Cancel",
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
                 Spacer(Modifier.weight(1f))
                 Text(
                     "Edit Session",
@@ -3783,20 +3834,23 @@ internal fun SessionEditSheet(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.weight(1f))
-                MinisTextButton(
+                TextButton(
                     onClick = { onSave(title.ifBlank { "New Chat" }, selectedCategory) },
-                ) { Text("Save") }
+                    text = "Save",
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             Spacer(Modifier.height(16.dp))
 
             // Title field
-            OutlinedTextField(
+            TextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                label = "Title",
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(20.dp))
@@ -3856,13 +3910,13 @@ internal fun SessionEditSheet(
             // matches iOS SessionEditSheet's dedicated section below Category.
             // Reuses SessionListViewModel.regenerateTitle; shows a spinner and
             // disables while running (regeneratingIds) to prevent double taps.
-            MinisOutlinedButton(
+            Button(
                 onClick = onRegenerate,
                 enabled = !isRegenerating,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (isRegenerating) {
-                    com.openminis.app.ui.components.miuix.CircularProgressIndicator(
+                    CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                     )
@@ -3945,23 +3999,35 @@ private fun SessionExportSummaryDialog(
             ),
         )
     }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.export_progress_done)) },
-        text = {
+        title = stringResource(R.string.export_progress_done),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((label, value) in rows) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(label, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, fontSize = 14.sp)
-                        Spacer(Modifier.width(12.dp))
-                        Text(value, fontSize = 14.sp)
-                    }
-                }
+                            for ((label, value) in rows) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(label, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, fontSize = 14.sp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(value, fontSize = 14.sp)
+                                }
+                            }
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                        onClick = onShare,
+                        text = stringResource(R.string.common_share),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+            TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
             }
-        },
-        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(R.string.common_share)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
-    )
+        }
+    }
 }
 
 /**

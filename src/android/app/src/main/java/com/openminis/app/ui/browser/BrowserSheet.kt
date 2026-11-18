@@ -42,13 +42,10 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.LocalTextStyle
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -84,6 +81,7 @@ import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import com.openminis.app.ui.components.decorativePingPong
 import androidx.compose.ui.graphics.graphicsLayer
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 
 /**
  * Bottom sheet presenting the browser tab pool with tab bar, URL bar,
@@ -254,7 +252,7 @@ fun BrowserSheet(
                             onValueChange = { urlInput = it },
                             singleLine = true,
                             enabled = !isAgentBusy,
-                            textStyle = LocalTextStyle.current.copy(
+                            textStyle = MiuixTheme.textStyles.main.copy(
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = MiuixTheme.colorScheme.onSurface,
@@ -375,7 +373,7 @@ fun BrowserSheet(
                     )
                     if (dl.progress >= 0f) {
                         LinearProgressIndicator(
-                            progress = { dl.progress },
+                            progress = dl.progress,
                             modifier = Modifier.weight(1f).height(3.dp),
                         )
                     } else {

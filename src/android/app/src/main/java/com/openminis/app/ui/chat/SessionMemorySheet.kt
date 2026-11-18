@@ -21,7 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Edit
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,7 +46,9 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * Bottom sheet showing memory state for the current session.
@@ -279,9 +281,11 @@ private fun DetailToolbar(
             }
         }
         if (showSave) {
-            MinisTextButton(onClick = onSave) {
-                Text(stringResource(R.string.memory_action_save))
-            }
+            TextButton(
+                onClick = onSave,
+                text = stringResource(R.string.memory_action_save),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
         if (showRevoke) {
             IconButton(onClick = onRevoke) {

@@ -76,9 +76,9 @@ fun SectionTextField(
     contentHorizontalPadding: Dp = 0.dp,
 ) {
     val fieldColors = TextFieldDefaults.textFieldColors(
-        backgroundColor = containerColor ?: SectionDesign.cardColor(),
+        backgroundColor = containerColor ?: MiuixTheme.colorScheme.secondaryContainer,
         labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSecondaryContainer,
-        borderColor = if (isError) MiuixTheme.colorScheme.error else Color.Transparent,
+        borderColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
     )
     val mergedTextStyle = textStyle.copy(color = MiuixTheme.colorScheme.onSurface)
 

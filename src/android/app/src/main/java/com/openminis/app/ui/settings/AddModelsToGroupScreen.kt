@@ -9,9 +9,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,8 +24,10 @@ import com.openminis.app.data.model.SystemVoiceEntries
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.PickerModalityFilter
 import com.openminis.app.ui.components.modelEntryPickerItems
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
 fun AddModelsToGroupScreen(
@@ -80,15 +79,19 @@ fun AddModelsToGroupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.model_group_detail_add_models), fontWeight = FontWeight.SemiBold) },
+                title = stringResource(R.string.model_group_detail_add_models),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.model_group_detail_back))
                     }
                 },
                 actions = {
-                    MinisTextButton(onClick = onBack) { Text(stringResource(R.string.common_cancel)) }
-                    MinisButton(
+                    TextButton(
+                        onClick = onBack,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
                         onClick = {
                             val updated = group.copy(
                                 memberEntryIds = (group.memberEntryIds + selectedIds).toMutableList()
@@ -98,13 +101,12 @@ fun AddModelsToGroupScreen(
                         },
                         enabled = selectedIds.isNotEmpty(),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Text(stringResource(R.string.add_models_to_group_add_count, selectedIds.size))
-                    }
+                        text = stringResource(R.string.add_models_to_group_add_count, selectedIds.size),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MiuixTheme.colorScheme.background,
-                ),
+                expandable = false,
+                color = MiuixTheme.colorScheme.background,
             )
         },
         containerColor = MiuixTheme.colorScheme.background,

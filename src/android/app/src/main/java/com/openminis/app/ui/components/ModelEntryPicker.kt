@@ -29,8 +29,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import androidx.compose.ui.text.font.FontWeight
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
@@ -51,6 +50,7 @@ import com.openminis.app.data.model.isVoiceInputCandidate
 import com.openminis.app.data.model.isVoiceOutputCandidate
 import com.openminis.app.data.model.hasImageInput
 import com.openminis.app.data.model.normalizeModalities
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * [T-android-provider-voice] First-class modality scoping for the shared
@@ -160,34 +160,34 @@ fun LazyListScope.modelEntryPickerItems(
     val effectiveCollapsed = if (isSearching) emptySet() else collapsedInstanceIds.value
 
     item("__search__") {
-        OutlinedTextField(
+        TextField(
             value = searchQuery.value,
             onValueChange = { searchQuery.value = it },
-            placeholder = { Text(stringResource(searchPlaceholderRes)) },
             singleLine = true,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
             leadingIcon = {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.value.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery.value = "" }) {
                         Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(clearContentDescriptionRes),
+                            Icons.Default.Search,
+                            contentDescription = null,
                             modifier = Modifier.size(18.dp),
+                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
-                    }
-                }
-            },
+                    },
+            trailingIcon = {
+                        if (searchQuery.value.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery.value = "" }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(clearContentDescriptionRes),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    },
+            label = stringResource(searchPlaceholderRes),
+            useLabelAsPlaceholder = true,
+            modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 

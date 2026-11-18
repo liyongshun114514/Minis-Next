@@ -24,14 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Inventory2
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.SheetValue
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,12 +44,17 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.backup.remote.RcloneChunkedUpload
 import com.openminis.app.backup.remote.RcloneRemoteStore
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.SwipeRowAction
 import com.openminis.app.ui.components.SwipeRowActions
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * [T-android-restore-browse] Walk a destination's folders and pick a backup.
@@ -185,59 +184,68 @@ fun RestoreBrowseScreen(
     // Size first, as on iOS: it is the fact that decides whether to proceed,
     // especially on a metered connection.
     confirming?.let { e ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirming = null },
-            title = { Text(stringResource(R.string.restore_download_title)) },
-            text = {
-                Text(stringResource(R.string.restore_download_note, e.name, humanBytes(e.size)))
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    confirming = null
-                    vm.downloadServerPackage(
-                        RcloneChunkedUpload.RemotePackage(
-                            key = e.path,
-                            displayName = e.name,
-                            size = e.size,
-                            modified = e.modified,
-                            partCount = 1,
-                        ),
-                        remote,
-                    )
-                }) { Text(stringResource(R.string.restore_download_confirm)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirming = null }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
+            title = stringResource(R.string.restore_download_title),
+            summary = stringResource(R.string.restore_download_note, e.name, humanBytes(e.size)),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    confirming = null
+                                    vm.downloadServerPackage(
+                                        RcloneChunkedUpload.RemotePackage(
+                                            key = e.path,
+                                            displayName = e.name,
+                                            size = e.size,
+                                            modified = e.modified,
+                                            partCount = 1,
+                                        ),
+                                        remote,
+                                    )
+                                },
+                                    text = stringResource(R.string.restore_download_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { confirming = null },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 
     // Names the file and its size: package names look alike, and the size is
     // the cheapest way to notice the one about to go is the big one.
     pendingDelete?.let { e ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.backup_dest_delete_title)) },
-            text = { Text(stringResource(R.string.restore_browse_delete_note, e.name, humanBytes(e.size))) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    pendingDelete = null
-                    vm.deleteBrowsedPackage(remote, e)
-                }) {
-                    Text(
-                        stringResource(R.string.backup_dest_delete_confirm),
-                        color = MiuixTheme.colorScheme.error,
-                    )
+            title = stringResource(R.string.backup_dest_delete_title),
+            summary = stringResource(R.string.restore_browse_delete_note, e.name, humanBytes(e.size)),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    pendingDelete = null
+                                    vm.deleteBrowsedPackage(remote, e)
+                                },
+                                    text = stringResource(R.string.backup_dest_delete_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { pendingDelete = null },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     transfer?.let { t -> TransferSheet(t, onCancel = vm::cancelDownload) }
@@ -382,9 +390,8 @@ private fun EntryRow(
  *
  * Non-dismissable on purpose, in all three ways it could be closed:
  *   - `onDismissRequest = {}` — scrim taps do nothing
- *   - `confirmValueChange = { it != Hidden }` — the drag handle cannot swipe
- *     it away, which `onDismissRequest` alone does NOT prevent
- *   - `dragHandle = null` — no affordance suggesting it can be
+ *   - `allowDismiss = false` blocks swipe, Back and scrim dismissal.
+ *   - The native handle is transparent while the restore is active.
  *
  * Abandoning the work stays possible; it just has to be said out loud.
  */
@@ -394,14 +401,12 @@ private fun ProgressSheet(
     onCancel: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { it != SheetValue.Hidden },
-    )
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = {},
-        sheetState = sheetState,
-        dragHandle = null,
+        allowDismiss = false,
+        dragHandleColor = Color.Transparent,
     ) {
         Column(
             Modifier
@@ -417,10 +422,11 @@ private fun ProgressSheet(
             Spacer(Modifier.height(14.dp))
             content()
             Spacer(Modifier.height(20.dp))
-            MinisOutlinedButton(
+            TextButton(
                 onClick = onCancel,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_dest_cancel)) }
+                text = stringResource(R.string.backup_dest_cancel),
+            )
         }
     }
 }
@@ -436,7 +442,7 @@ private fun TransferSheet(t: BackupViewModel.TransferInfo, onCancel: () -> Unit)
             overflow = TextOverflow.MiddleEllipsis)
         Spacer(Modifier.height(10.dp))
         LinearProgressIndicator(
-            progress = { t.fraction },
+            progress = t.fraction,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(8.dp))

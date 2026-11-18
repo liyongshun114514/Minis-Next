@@ -8,8 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,8 +28,9 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.RowLabel
 import com.openminis.app.ui.components.SectionTextField
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * Detail / edit screen for a single ModelEntry. T210: brought to iOS
@@ -122,16 +122,16 @@ fun ModelEntryDetailScreen(
         onBack = null,
         centerTitle = true,
         navigation = {
-            MinisTextButton(
+            TextButton(
                 onClick = onBack,
                 modifier = Modifier.padding(start = 8.dp),
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
-            ) { Text(stringResource(R.string.common_cancel)) }
+                text = stringResource(R.string.common_cancel),
+            )
         },
         actions = {
-            MinisButton(
+            TextButton(
                 onClick = {
                     // No baseline is computed here any more. It used to be
                     // `baseModel.effective*Modalities`, and [T-android-modality-provider-fallback]
@@ -175,7 +175,9 @@ fun ModelEntryDetailScreen(
                     onBack()
                 },
                 modifier = Modifier.padding(end = 8.dp),
-            ) { Text(stringResource(R.string.common_save)) }
+                text = stringResource(R.string.common_save),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
         },
     ) {
         // ── Identity ────────────────────────────────────────────────────

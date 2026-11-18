@@ -43,10 +43,7 @@ import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Web
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,8 +61,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.openminis.app.MinisApp
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.R
 import com.openminis.app.data.repository.WebAppShortcutRepository
@@ -74,6 +69,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 /**
  * Source of HTML bytes for the "Add to Home Screen" sheet. T-pwa-2 only
@@ -119,7 +120,6 @@ fun AddToHomeSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     // shortcutId is decided up-front so the copied attachment lives at
@@ -202,9 +202,10 @@ fun AddToHomeSheet(
         }
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -224,7 +225,7 @@ fun AddToHomeSheet(
                     text = stringResource(R.string.webapp_sheet_title_label),
                     style = MiuixTheme.textStyles.button,
                 )
-                OutlinedTextField(
+                TextField(
                     value = titleText,
                     onValueChange = { titleText = it },
                     singleLine = true,
@@ -348,17 +349,16 @@ fun AddToHomeSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                MinisOutlinedButton(
+                TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-                MinisButton(
+                    text = stringResource(android.R.string.cancel),
+                )
+                TextButton(
                     enabled = copiedFile != null && titleText.isNotBlank(),
                     modifier = Modifier.weight(1f),
                     onClick = {
-                        val target = copiedFile ?: return@MinisButton
+                        val target = copiedFile ?: return@TextButton
                         val finalTitle = titleText.trim().ifBlank {
                             fileName.removeSuffix(".html").removeSuffix(".htm")
                         }
@@ -415,9 +415,9 @@ fun AddToHomeSheet(
                             onDismiss()
                         }
                     },
-                ) {
-                    Text(stringResource(R.string.webapp_sheet_cta))
-                }
+                    text = stringResource(R.string.webapp_sheet_cta),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))

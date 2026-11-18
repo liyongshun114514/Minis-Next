@@ -2,7 +2,6 @@ package com.openminis.app.ui.settings
 
 import com.openminis.app.R
 import com.openminis.app.data.repository.AppIconRepository
-import com.openminis.app.ui.components.MinisTextButton
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -51,7 +50,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.ui.graphics.vector.ImageVector
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Slider
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,6 +74,8 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 // -- Preference Keys --
 const val PREF_APPEARANCE = "appearance_prefs"
@@ -638,16 +639,18 @@ fun AppearanceScreen(
                         .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
-                    MinisTextButton(onClick = {
+                    TextButton(
+                        onClick = {
                         chatInputLevel = 0; messageLevel = 0; appBaseLevel = 0
                         prefs.edit()
                             .putInt(KEY_FONT_CHAT_INPUT, 0)
                             .putInt(KEY_FONT_MESSAGE, 0)
                             .putInt(KEY_FONT_APP_BASE, 0)
                             .apply()
-                    }) {
-                        Text(stringResource(R.string.appearance_font_reset), color = MiuixTheme.colorScheme.error)
-                    }
+                    },
+                        text = stringResource(R.string.appearance_font_reset),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                    )
                 }
             }
         }

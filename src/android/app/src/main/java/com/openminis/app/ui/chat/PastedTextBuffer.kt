@@ -26,8 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +40,9 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * [T-android-paste-placeholder] A long block of text the user pasted, held out
@@ -496,9 +498,11 @@ private fun PastedTextPreviewDialog(
                         .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(android.R.string.ok))
-                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(android.R.string.ok),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
         }

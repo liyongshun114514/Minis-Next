@@ -22,13 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,9 +46,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.agent.SoulIcon
 import com.openminis.app.agent.SoulFile
@@ -62,6 +56,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * [K-global-prompt-only] Settings → System Prompt.
@@ -299,14 +300,15 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                 onUseDefault = { showIconMenu = false; icon = "" },
                             )
                         }
-                        OutlinedTextField(
+                        TextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text(stringResource(R.string.soul_field_name)) },
                             singleLine = true,
+                            label = stringResource(R.string.soul_field_name),
+                            useLabelAsPlaceholder = false,
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 4.dp),
+                                                        .weight(1f)
+                                                        .padding(start = 4.dp),
                         )
                     }
                 }
@@ -358,10 +360,12 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                 },
                                 modifier = Modifier.weight(1f),
                             )
-                            MinisButton(
+                            TextButton(
                                 onClick = save,
                                 enabled = loaded && isDirty && !saving,
-                            ) { Text(stringResource(R.string.soul_save)) }
+                                text = stringResource(R.string.soul_save),
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                            )
                         }
                     }
                 }
@@ -378,33 +382,49 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // Dismissing the dialog by tapping outside keeps the edits — the
     // conservative reading of an ambiguous gesture.
     if (showDiscardDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.soul_discard_confirm_title)) },
-            text = { Text(stringResource(R.string.soul_discard_confirm_body)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showDiscardDialog = false
-                    onBack()
-                }) { Text(stringResource(R.string.soul_discard_confirm)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.soul_discard_cancel))
+            title = stringResource(R.string.soul_discard_confirm_title),
+            summary = stringResource(R.string.soul_discard_confirm_body),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showDiscardDialog = false
+                                    onBack()
+                                },
+                                    text = stringResource(R.string.soul_discard_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showDiscardDialog = false },
+                                    text = stringResource(R.string.soul_discard_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 
     saveError?.let { err ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { saveError = null },
-            title = { Text(stringResource(R.string.soul_save_error_title)) },
-            text = { Text(err) },
-            confirmButton = {
-                MinisButton(onClick = { saveError = null }) { Text(stringResource(R.string.soul_ok)) }
-            },
-        )
+            title = stringResource(R.string.soul_save_error_title),
+            summary = err,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { saveError = null },
+                                    text = stringResource(R.string.soul_ok),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
+                }
+            }
+        }
     }
 
     // [T-android-soul-custom-icon] Any image size and aspect ratio is
@@ -412,14 +432,22 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
     // only remaining rejection is "the image could not be read" — nothing
     // about size can be predicted before the user picks a file.
     iconError?.let { err ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { iconError = null },
-            title = { Text(stringResource(R.string.soul_icon_error_title)) },
-            text = { Text(err) },
-            confirmButton = {
-                MinisButton(onClick = { iconError = null }) { Text(stringResource(R.string.soul_ok)) }
-            },
-        )
+            title = stringResource(R.string.soul_icon_error_title),
+            summary = err,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { iconError = null },
+                                    text = stringResource(R.string.soul_ok),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
+                }
+            }
+        }
     }
 
     if (showEmojiSheet) {
@@ -502,7 +530,11 @@ private fun SoulEmojiPickerSheet(
     onPick: (String) -> Unit,
 ) {
     var draft by remember { mutableStateOf(current) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -556,27 +588,29 @@ private fun SoulEmojiPickerSheet(
             }
 
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
+            TextField(
                 value = draft,
-                // Normalized PER KEYSTROKE rather than validated on submit:
-                // a second emoji replaces the first, and non-emoji input is
-                // dropped silently instead of being accepted then rejected.
                 onValueChange = { draft = SoulIcon.normalizeEmojiInput(it) },
-                label = { Text(stringResource(R.string.soul_icon_emoji_field)) },
                 singleLine = true,
+                label = stringResource(R.string.soul_icon_emoji_field),
+                useLabelAsPlaceholder = false,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MinisOutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.soul_cancel))
-                }
-                MinisButton(
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    text = stringResource(R.string.soul_cancel),
+                )
+                TextButton(
                     onClick = { onPick(draft) },
                     enabled = draft.isNotEmpty(),
                     modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.soul_icon_set)) }
+                    text = stringResource(R.string.soul_icon_set),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
         }
     }

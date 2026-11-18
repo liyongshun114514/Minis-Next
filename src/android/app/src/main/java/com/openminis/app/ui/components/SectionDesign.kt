@@ -6,8 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
-import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -15,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.Card
 
 /**
  * Single source of truth for Settings section-card visual rhythm.
@@ -79,22 +80,14 @@ object SectionDesign {
      *  than touching the card edge — matches iOS). */
     val DividerStartInset = 16.dp
 
-    /** Card background — match iOS pure surface (white in light, near-black in dark).
-     *  T313 follow-up: The app theme deliberately overrides Material3 semantics —
-     *  `surface` is the page-level grouped background (gray / black) while
-     *  `surfaceContainerLow` is the brighter card foreground. Using
-     *  `surfaceContainerLow` here gives us the card color iOS Settings expects. */
+    /** Raised group on a Miuix page. */
     @Composable
     @ReadOnlyComposable
     fun cardColor(): Color = MiuixTheme.colorScheme.surfaceContainer
 
-    /** Section background (the gray behind the cards) — match iOS systemGroupedBackground.
-     *  Pairs with [cardColor]: this token is the dimmer page-level surface
-     *  (`background` = light gray / near-black), so cards painted in
-     *  `surfaceContainerLow` stand out against it. */
     @Composable
     @ReadOnlyComposable
-    fun screenBackgroundColor(): Color = MiuixTheme.colorScheme.background
+    fun screenBackgroundColor(): Color = MiuixTheme.colorScheme.surface
 
     /** Inner-card divider color — match iOS systemFill α 0.3. */
     @Composable
@@ -162,18 +155,11 @@ fun SectionCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(
-        color = SectionDesign.cardColor(),
-        shape = SectionDesign.CardShape,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = SectionDesign.ScreenHorizontalPadding),
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = SectionDesign.CardInnerVerticalPadding),
-            content = content,
-        )
-    }
+    Card(
+        modifier = modifier.fillMaxWidth().padding(horizontal = SectionDesign.ScreenHorizontalPadding),
+        insideMargin = PaddingValues(vertical = SectionDesign.CardInnerVerticalPadding),
+        content = content,
+    )
 }
 
 /** Divider between rows inside a [SectionCard]. */

@@ -2,7 +2,6 @@ package com.openminis.app.ui.settings
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -31,13 +30,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +53,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 private enum class HudState {
     HIDDEN, IMPORTING, SUCCESS, ERROR, HINT
@@ -96,14 +97,14 @@ fun MinisSkillsBrowserScreen(
             // bar styling (background colour + SemiBold title) so the visual
             // signature stays consistent with the rest of the settings stack.
             TopAppBar(
-                title = { Text(stringResource(R.string.skills_browser_title), fontWeight = FontWeight.SemiBold) },
+                title = stringResource(R.string.skills_browser_title),
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
-                    MinisTextButton(
+                    TextButton(
                         onClick = {
                             scope.launch {
                                 importSkillFromCurrentUrl(
@@ -118,13 +119,13 @@ fun MinisSkillsBrowserScreen(
                             }
                         },
                         enabled = hudState != HudState.IMPORTING,
-                    ) {
-                        Text(stringResource(R.string.skills_browser_import_button), style = MiuixTheme.textStyles.headline1)
-                    }
+                        text = stringResource(R.string.skills_browser_import_button),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.headline1,
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MiuixTheme.colorScheme.background,
-                ),
+                expandable = false,
+                color = MiuixTheme.colorScheme.background,
             )
         },
         containerColor = MiuixTheme.colorScheme.background,
@@ -226,8 +227,8 @@ fun MinisSkillsBrowserScreen(
                         HudState.IMPORTING -> {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
-                                color = Color.White,
                                 strokeWidth = 2.dp,
+                                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = Color.White),
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(stringResource(R.string.skills_browser_hud_importing), color = Color.White, style = MiuixTheme.textStyles.button)

@@ -13,12 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import com.openminis.app.ui.components.MinisGlassIconButton
 import com.openminis.app.ui.components.MinisGlassTopBar
+import com.openminis.app.ui.components.RichTitleAppBar
 
 /** Draws over the message viewport without sampling the title, controls, or composer. */
 @Composable
@@ -31,12 +30,12 @@ internal fun ChatGlassTopBar(
     MinisGlassTopBar(backdrop = backdrop, background = ChatColors.background) {
         // Block only the foreground bar; the fading overhang must not eat message gestures.
         Box(Modifier.fillMaxWidth().pointerInput(Unit) { detectTapGestures(onTap = {}) }) {
-            TopAppBar(
+            RichTitleAppBar(
                 title = title,
                 navigationIcon = navigationIcon,
                 actions = actions,
                 windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                color = Color.Transparent,
                 // Preserve the title/subtitle room and navigation slot used by the chat layout.
                 expandedHeight = 80.dp,
             )

@@ -21,7 +21,7 @@ class AddProviderSaveOnceTest {
     fun `every save button of the screen claims before it adds`() {
         val src = File("src/main/java/com/openminis/app/ui/settings/AddProviderScreen.kt").readText()
         val adds = Regex("providerRepository\\.addInstance\\(").findAll(src).count()
-        val claims = Regex("if \\(!saveOnce\\.claim\\(\\)\\) return@MinisButton").findAll(src).count()
+        val claims = Regex("if \\(!saveOnce\\.claim\\(\\)\\) return@TextButton").findAll(src).count()
         assertEquals("each addInstance sits behind a save claim", adds, claims)
     }
 }

@@ -1,17 +1,15 @@
 package com.openminis.app.rootbridge
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import android.graphics.Color
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import com.openminis.app.offload.ROOT_ENABLE_MESSAGE
 import com.openminis.app.offload.RootAccess
@@ -33,6 +31,15 @@ import com.openminis.app.ui.theme.MinisTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 /**
  * Native Root settings page.
@@ -66,9 +73,9 @@ class RootBridgeSettingsActivity : ComponentActivity() {
         // SideEffect below also sets the WindowInsetsController flags so the
         // two disagreeing sources can never win.
         val barStyle = if (dark) {
-            SystemBarStyle.dark(Color.TRANSPARENT)
+            SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         } else {
-            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+            SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
         }
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
         setContent {
@@ -202,19 +209,31 @@ fun RootPermissionScreen(onBack: () -> Unit) {
     }
 
     if (confirmBypass) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmBypass = false },
-            title = { Text("设为“完全允许”？") },
-            text = { Text(ROOT_ENABLE_MESSAGE) },
-            confirmButton = {
-                TextButton(onClick = {
-                    RootManager.setAccessLevel(RootAccess.BYPASS)
-                    level = RootManager.accessLevel()
-                    confirmBypass = false
-                }) { Text("完全允许") }
-            },
-            dismissButton = { TextButton(onClick = { confirmBypass = false }) { Text("取消") } },
-        )
+            title = "设为“完全允许”？",
+            summary = ROOT_ENABLE_MESSAGE,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    RootManager.setAccessLevel(RootAccess.BYPASS)
+                                    level = RootManager.accessLevel()
+                                    confirmBypass = false
+                                },
+                                    text = "完全允许",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                onClick = { confirmBypass = false },
+                                text = "取消",
+                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                            )
+                }
+            }
+        }
     }
 }
 

@@ -39,11 +39,10 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SliderDefaults
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.io.File
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 
 /**
  * Inline audio player composable for embedding in chat messages.
@@ -178,7 +178,7 @@ fun InlineAudioPlayer(
 
                     Column(modifier = Modifier.weight(1f)) {
                         LinearProgressIndicator(
-                            progress = { progress },
+                            progress = progress,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)

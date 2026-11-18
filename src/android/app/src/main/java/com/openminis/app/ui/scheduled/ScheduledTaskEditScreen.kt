@@ -22,28 +22,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import com.openminis.app.ui.components.miuix.DatePicker
 import com.openminis.app.ui.components.miuix.DatePickerDialog
-import com.openminis.app.ui.components.miuix.FilterChip
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import com.openminis.app.ui.components.miuix.TimeInput
-import com.openminis.app.ui.components.miuix.TopAppBar
 import com.openminis.app.ui.components.miuix.rememberDatePickerState
 import com.openminis.app.ui.components.miuix.rememberTimePickerState
 import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.ui.chat.localizedName
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,9 +52,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.scheduled.ScheduledRepeatMode
 import com.openminis.app.scheduled.ScheduledTargetMode
 import com.openminis.app.scheduled.ScheduledTask
@@ -73,6 +60,24 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.semantics.selected
 
 /**
  * [T-android-scheduled-tasks-design / T-android-scheduled-tasks-full]
@@ -241,15 +246,10 @@ fun ScheduledTaskEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
+                title = stringResource(
                             if (isNew) R.string.scheduled_task_new
                             else R.string.scheduled_task_edit,
                         ),
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -258,6 +258,7 @@ fun ScheduledTaskEditScreen(
                         )
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -319,58 +320,74 @@ fun ScheduledTaskEditScreen(
     if (state != null) {
         when (state.status) {
             ScheduledTasksViewModel.RunStatus.RUNNING -> {
-                AlertDialog(
+                WindowDialog(
+                    show = true,
                     onDismissRequest = { vm.clearRunNowState() },
-                    title = { Text(stringResource(R.string.scheduled_task_run_now_starting)) },
-                    text = {
+                    title = stringResource(R.string.scheduled_task_run_now_starting),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text(stringResource(R.string.scheduled_task_run_now_starting_body))
+                                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                                    Spacer(Modifier.width(12.dp))
+                                                    Text(stringResource(R.string.scheduled_task_run_now_starting_body))
+                                                }
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                                                    onClick = { vm.clearRunNowState() },
+                                                    text = stringResource(R.string.scheduled_task_run_now_dismiss),
+                                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                                )
                         }
-                    },
-                    confirmButton = {
-                        MinisTextButton(onClick = { vm.clearRunNowState() }) {
-                            Text(stringResource(R.string.scheduled_task_run_now_dismiss))
-                        }
-                    },
-                )
+                    }
+                }
             }
             ScheduledTasksViewModel.RunStatus.STARTED -> {
-                AlertDialog(
+                WindowDialog(
+                    show = true,
                     onDismissRequest = { vm.clearRunNowState() },
-                    title = { Text(stringResource(R.string.scheduled_task_run_now_started)) },
-                    text = { Text(stringResource(R.string.scheduled_task_run_now_started_body)) },
-                    confirmButton = {
-                        val sid = state.sessionId
-                        if (sid != null) {
-                            MinisTextButton(onClick = { vm.clearRunNowState(); onOpenSession(sid) }) {
-                                Text(stringResource(R.string.scheduled_task_run_now_open_session))
-                            }
-                        } else {
-                            MinisTextButton(onClick = { vm.clearRunNowState() }) {
-                                Text(stringResource(R.string.ok))
-                            }
+                    title = stringResource(R.string.scheduled_task_run_now_started),
+                    summary = stringResource(R.string.scheduled_task_run_now_started_body),
+                ) {
+                    val sessionId = state.sessionId
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(
+                                if (sessionId == null) R.string.ok else R.string.scheduled_task_run_now_open_session,
+                            ),
+                            onClick = {
+                                vm.clearRunNowState()
+                                if (sessionId != null) onOpenSession(sessionId)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
+                        if (sessionId != null) {
+                            TextButton(
+                                text = stringResource(R.string.scheduled_task_run_now_dismiss),
+                                onClick = { vm.clearRunNowState() },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
-                    },
-                    dismissButton = if (state.sessionId != null) {
-                        { MinisTextButton(onClick = { vm.clearRunNowState() }) {
-                            Text(stringResource(R.string.scheduled_task_run_now_dismiss))
-                        } }
-                    } else null,
-                )
+                    }
+                }
             }
             ScheduledTasksViewModel.RunStatus.FAILED -> {
-                AlertDialog(
+                WindowDialog(
+                    show = true,
                     onDismissRequest = { vm.clearRunNowState() },
-                    title = { Text(stringResource(R.string.scheduled_task_run_now_failed)) },
-                    text = { Text(stringResource(R.string.scheduled_task_run_now_failed_body)) },
-                    confirmButton = {
-                        MinisTextButton(onClick = { vm.clearRunNowState() }) {
-                            Text(stringResource(R.string.ok))
+                    title = stringResource(R.string.scheduled_task_run_now_failed),
+                    summary = stringResource(R.string.scheduled_task_run_now_failed_body),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                                                    onClick = { vm.clearRunNowState() },
+                                                    text = stringResource(R.string.ok),
+                                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                                )
                         }
-                    },
-                )
+                    }
+                }
             }
         }
     }
@@ -424,11 +441,12 @@ private fun EditFormBody(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        OutlinedTextField(
+        TextField(
             value = label,
             onValueChange = onLabelChange,
-            label = { Text(stringResource(R.string.scheduled_task_field_label)) },
             singleLine = true,
+            label = stringResource(R.string.scheduled_task_field_label),
+            useLabelAsPlaceholder = false,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -442,15 +460,16 @@ private fun EditFormBody(
                 TargetKind.RERUN to R.string.scheduled_task_target_rerun,
                 TargetKind.AGENT to R.string.scheduled_task_target_agent,
             )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                targetOpts.forEachIndexed { idx, (kind, resId) ->
-                    SegmentedButton(
-                        selected = targetKind == kind,
-                        onClick = { onTargetKindChange(kind) },
-                        shape = SegmentedButtonDefaults.itemShape(idx, targetOpts.size),
-                    ) { Text(stringResource(resId), fontSize = 13.sp) }
-                }
-            }
+            val tabLabels = targetOpts.map { (_, resId) -> stringResource(resId) }
+            TabRowWithContour(
+                tabs = tabLabels,
+                selectedTabIndex = targetOpts.indexOfFirst { (kind, _) -> targetKind == kind }.coerceAtLeast(0),
+                onTabSelected = { index -> onTargetKindChange(targetOpts[index].first) },
+                modifier = Modifier.fillMaxWidth(),
+                minWidth = preferenceTabMinWidth(tabLabels),
+                height = preferenceTabHeight(),
+                colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+            )
             if (targetKind != TargetKind.NEW) {
                 Spacer(Modifier.height(8.dp))
                 PickerRow(
@@ -504,19 +523,21 @@ private fun EditFormBody(
                 ScheduledRepeatMode.WEEKDAYS to R.string.scheduled_task_repeat_weekdays,
                 ScheduledRepeatMode.CUSTOM to R.string.scheduled_task_repeat_custom,
             )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { idx, (mode, resId) ->
-                    SegmentedButton(
-                        selected = repeatMode == mode,
-                        onClick = { onRepeatModeChange(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(idx, options.size),
-                    ) { Text(stringResource(resId), fontSize = 13.sp) }
-                }
-            }
+            val tabLabels = options.map { (_, resId) -> stringResource(resId) }
+            TabRowWithContour(
+                tabs = tabLabels,
+                selectedTabIndex = options.indexOfFirst { (mode, _) -> repeatMode == mode }.coerceAtLeast(0),
+                onTabSelected = { index -> onRepeatModeChange(options[index].first) },
+                modifier = Modifier.fillMaxWidth(),
+                minWidth = preferenceTabMinWidth(tabLabels),
+                height = preferenceTabHeight(),
+                colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+            )
             if (repeatMode == ScheduledRepeatMode.CUSTOM) {
                 Spacer(Modifier.height(12.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     val days = listOf(
@@ -526,17 +547,20 @@ private fun EditFormBody(
                         Calendar.SUNDAY to "Sun",
                     )
                     days.forEach { (dow, name) ->
-                        FilterChip(
-                            selected = dow in customDays,
-                            onClick = {
+                        TextButton(
+    text = name,
+    onClick = {
                                 val next = customDays.toMutableSet().apply {
                                     if (dow in this) remove(dow) else add(dow)
                                 }
                                 onCustomDaysChange(next)
                             },
-                            label = { Text(name, fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                        )
+    minWidth = 40.dp,
+    minHeight = 44.dp,
+    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+    modifier = Modifier.semantics { selected = dow in customDays },
+    colors = if (dow in customDays) ButtonDefaults.textButtonColorsPrimary() else ButtonDefaults.textButtonColors(),
+)
                     }
                 }
             }
@@ -570,14 +594,17 @@ private fun EditFormBody(
 
         // ── Prompt ──
         if (needsPrompt) {
-            OutlinedTextField(
-                value = prompt,
-                onValueChange = onPromptChange,
-                label = { Text(stringResource(R.string.scheduled_task_field_prompt)) },
-                placeholder = { Text(stringResource(R.string.scheduled_task_field_prompt_hint)) },
-                minLines = 4,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = stringResource(R.string.scheduled_task_field_prompt), style = MiuixTheme.textStyles.body2)
+                TextField(
+                    value = prompt,
+                    onValueChange = onPromptChange,
+                    minLines = 4,
+                    label = stringResource(R.string.scheduled_task_field_prompt_hint),
+                    useLabelAsPlaceholder = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         } else {
             Text(
                 stringResource(R.string.scheduled_task_rerun_note),
@@ -608,20 +635,25 @@ private fun EditFormBody(
 
         HorizontalDivider()
 
-        MinisOutlinedButton(onClick = onRunNow, enabled = canRunNow, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onRunNow, enabled = canRunNow, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.scheduled_task_run_now))
         }
-        MinisButton(onClick = onSave, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.scheduled_task_save))
-        }
+        TextButton(
+            onClick = onSave,
+            enabled = canSave,
+            modifier = Modifier.fillMaxWidth(),
+            text = stringResource(R.string.scheduled_task_save),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
         if (!isNew) {
-            MinisOutlinedButton(
+            TextButton(
                 onClick = onDelete,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MiuixTheme.colorScheme.error),
+                colors = ButtonDefaults.textButtonColors(textColor = MiuixTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.scheduled_task_delete)) }
+                text = stringResource(R.string.scheduled_task_delete),
+            )
         }
     }
 
@@ -649,7 +681,11 @@ private fun EditFormBody(
         // every level and letting `setThinkingLevel` clamp at run time — it
         // already silently no-ops on a model that cannot reason — keeps the
         // editor honest about what it can and cannot know in advance.
-        ModalBottomSheet(onDismissRequest = { showThinkingPicker = false }) {
+        WindowBottomSheet(
+            show = true,
+            insideMargin = DpSize.Zero,
+            onDismissRequest = { showThinkingPicker = false },
+        ) {
             Column(modifier = Modifier.padding(bottom = 24.dp)) {
                 Text(
                     stringResource(R.string.scheduled_task_field_thinking),
@@ -766,23 +802,24 @@ private fun PickerRow(
     onClick: () -> Unit,
     onClear: (() -> Unit)? = null,
 ) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = {},
         readOnly = true,
         enabled = false,
-        label = { Text(title) },
         trailingIcon = if (onClear != null) {
-            {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(0.dp))
-                    Text("✕", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                {
+                    IconButton(onClick = onClear) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(0.dp))
+                        Text("✕", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                    }
                 }
-            }
-        } else null,
+            } else null,
+        label = title,
+        useLabelAsPlaceholder = false,
         modifier = Modifier
-            .fillMaxWidth()
-            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
+                .fillMaxWidth()
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
     )
 }
 
@@ -794,33 +831,41 @@ private fun SessionPickerDialog(
 ) {
     var sessions by remember { mutableStateOf<List<ScheduledTasksViewModel.SessionOption>?>(null) }
     LaunchedEffect(Unit) { sessions = vm.listSessions() }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.scheduled_task_pick_session)) },
-        text = {
+        title = stringResource(R.string.scheduled_task_pick_session),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val list = sessions
-            if (list == null) {
-                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (list.isEmpty()) {
-                Text(stringResource(R.string.scheduled_task_no_sessions))
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                    items(list, key = { it.id }) { s ->
-                        Column(
-                            Modifier.fillMaxWidth().clickable { onPick(s.id, s.title) }
-                                .padding(vertical = 10.dp),
-                        ) {
-                            Text(s.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (list == null) {
+                            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else if (list.isEmpty()) {
+                            Text(stringResource(R.string.scheduled_task_no_sessions))
+                        } else {
+                            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                                items(list, key = { it.id }) { s ->
+                                    Column(
+                                        Modifier.fillMaxWidth().clickable { onPick(s.id, s.title) }
+                                            .padding(vertical = 10.dp),
+                                    ) {
+                                        Text(s.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
             }
-        },
-        confirmButton = {},
-        dismissButton = { MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 @Composable
@@ -832,33 +877,41 @@ private fun MessagePickerDialog(
 ) {
     var messages by remember { mutableStateOf<List<ScheduledTasksViewModel.MessageOption>?>(null) }
     LaunchedEffect(sessionId) { messages = vm.listUserMessages(sessionId) }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.scheduled_task_pick_message)) },
-        text = {
+        title = stringResource(R.string.scheduled_task_pick_message),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val list = messages
-            if (list == null) {
-                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (list.isEmpty()) {
-                Text(stringResource(R.string.scheduled_task_no_messages_in_session))
-            } else {
-                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                    items(list, key = { it.id }) { m ->
-                        Column(
-                            Modifier.fillMaxWidth().clickable { onPick(m.id, m.preview) }
-                                .padding(vertical = 10.dp),
-                        ) {
-                            Text(m.preview, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                        if (list == null) {
+                            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else if (list.isEmpty()) {
+                            Text(stringResource(R.string.scheduled_task_no_messages_in_session))
+                        } else {
+                            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                                items(list, key = { it.id }) { m ->
+                                    Column(
+                                        Modifier.fillMaxWidth().clickable { onPick(m.id, m.preview) }
+                                            .padding(vertical = 10.dp),
+                                    ) {
+                                        Text(m.preview, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
             }
-        },
-        confirmButton = {},
-        dismissButton = { MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 @Composable
@@ -867,11 +920,19 @@ private fun DateDialog(initialMs: Long?, onDismiss: () -> Unit, onPick: (Long) -
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = {
                 state.selectedDateMillis?.let { onPick(startOfLocalDay(it)) }
-            }) { Text(stringResource(R.string.ok)) }
+            },
+                text = stringResource(R.string.ok),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         },
-        dismissButton = { MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { TextButton(
+            onClick = onDismiss,
+            text = stringResource(R.string.cancel),
+            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+        ) },
     ) {
         DatePicker(state = state)
     }

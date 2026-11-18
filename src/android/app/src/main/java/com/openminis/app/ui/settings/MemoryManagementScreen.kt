@@ -1,7 +1,6 @@
 package com.openminis.app.ui.settings
 
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +25,7 @@ import androidx.compose.material.icons.outlined.Delete
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -44,6 +43,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.ui.components.DialogTextField
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 
 /**
  * Settings-level memory file management.
@@ -144,18 +146,22 @@ fun MemoryManagementScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { deleteFileName = null }) {
-                Text(stringResource(R.string.common_cancel))
-            }
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = { deleteFileName = null },
+                text = stringResource(R.string.common_cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
                 deleteFileName?.let {
                     memoryRepository.deleteFile(it)
                     files = memoryRepository.listAllFiles()
                 }
                 deleteFileName = null
-            }) {
-                Text(stringResource(R.string.common_delete), color = MiuixTheme.colorScheme.error)
-            }
+            },
+                text = stringResource(R.string.common_delete),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+            )
         }
     }
 }
@@ -307,7 +313,8 @@ fun MemoryFileEditScreen(
         actions = {
             // [T-global-memory-save-always-visible] Always render Save —
             // no hasChanges gate (see KDoc above).
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = {
                 try {
                     memoryRepository.saveFile(fileName, content)
                     saveError = null
@@ -319,9 +326,10 @@ fun MemoryFileEditScreen(
                 } catch (e: Exception) {
                     saveError = e.message
                 }
-            }) {
-                Text("Save")
-            }
+            },
+                text = "Save",
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         },
     ) {
         Column(

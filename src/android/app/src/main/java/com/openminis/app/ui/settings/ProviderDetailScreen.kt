@@ -36,17 +36,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.BorderStroke
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,31 +64,33 @@ import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.model.ProviderType
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.util.bringIntoViewOnFocus
 import com.openminis.app.R
 import kotlinx.coroutines.launch
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisSmallButton
-import com.openminis.app.ui.components.MinisSmallOutlinedButton
-import com.openminis.app.ui.components.MinisSmallTextButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.SectionTextField
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import com.openminis.app.data.model.ImageEndpointMode
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 
 private const val TAG = "ProviderDetail"
 
 @Composable
-internal fun ImageEndpointLabel(label: String) {
-    Text(
-        text = label,
-        style = MiuixTheme.textStyles.body2,
-        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        maxLines = 1,
-        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-    )
-}
+internal fun imageEndpointLabels(): List<String> = listOf(
+    stringResource(R.string.provider_image_endpoint_auto),
+    stringResource(R.string.provider_image_endpoint_images),
+    stringResource(R.string.provider_image_endpoint_chat),
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -221,12 +219,16 @@ fun ProviderDetailScreen(
                     )
                     if (labelChanged) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        MinisSmallButton(onClick = {
+                        TextButton(
+                            onClick = {
                             providerRepository.updateInstance(instance.copy(label = label))
                             AppLogger.info(TAG, "Updated label for ${instance.id}: '$label'")
-                        }) {
-                            Text(stringResource(R.string.common_save))
-                        }
+                        },
+                            text = stringResource(R.string.common_save),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                            minHeight = 40.dp,
+                            insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        )
                     }
                 }
             }
@@ -342,7 +344,7 @@ fun ProviderDetailScreen(
                         style = MiuixTheme.textStyles.main,
                         modifier = Modifier.weight(1f),
                     )
-                    SettingsSwitch(
+                    Switch(
                         checked = appendV1Suffix,
                         onCheckedChange = { appendV1Suffix = it },
                     )
@@ -385,7 +387,7 @@ fun ProviderDetailScreen(
                 }
                 // Save action — TextButton presentation so it reads as a list
                 // row rather than a floating filled button inside the card.
-                MinisSmallTextButton(
+                TextButton(
                     onClick = {
                         providerRepository.updateInstance(
                             instance.copy(
@@ -406,9 +408,11 @@ fun ProviderDetailScreen(
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.provider_detail_save_url_settings))
-                }
+                    text = stringResource(R.string.provider_detail_save_url_settings),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    minHeight = 40.dp,
+                    insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                )
             }
         }
 
@@ -430,26 +434,24 @@ fun ProviderDetailScreen(
                 },
             ) {
                 SettingsCardBlock {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = !instance.useResponsesAPI,
-                            onClick = {
-                                if (instance.useResponsesAPI) {
-                                    providerRepository.updateInstance(instance.copy(useResponsesAPI = false))
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        ) { Text(stringResource(R.string.provider_detail_chat_completions)) }
-                        SegmentedButton(
-                            selected = instance.useResponsesAPI,
-                            onClick = {
-                                if (!instance.useResponsesAPI) {
-                                    providerRepository.updateInstance(instance.copy(useResponsesAPI = true))
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        ) { Text(stringResource(R.string.provider_detail_responses_api)) }
-                    }
+                    val tabLabels = listOf(
+                        stringResource(R.string.provider_detail_chat_completions),
+                        stringResource(R.string.provider_detail_responses_api),
+                    )
+                    TabRowWithContour(
+                        tabs = tabLabels,
+                        selectedTabIndex = if (instance.useResponsesAPI) 1 else 0,
+                        onTabSelected = { index ->
+                            val useResponses = index == 1
+                            if (instance.useResponsesAPI != useResponses) {
+                                providerRepository.updateInstance(instance.copy(useResponsesAPI = useResponses))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minWidth = preferenceTabMinWidth(tabLabels),
+                        height = preferenceTabHeight(),
+                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+                    )
                 }
             }
         }
@@ -513,50 +515,24 @@ fun ProviderDetailScreen(
                 },
             ) {
                 SettingsCardBlock {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = mode == com.openminis.app.data.model.ImageEndpointMode.auto,
-                            onClick = {
-                                if (mode != com.openminis.app.data.model.ImageEndpointMode.auto) {
-                                    providerRepository.updateInstance(
-                                        instance.copy(
-                                            imageEndpointMode = com.openminis.app.data.model.ImageEndpointMode.auto,
-                                        ),
-                                    )
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_auto)) }
-                        SegmentedButton(
-                            selected = mode == com.openminis.app.data.model.ImageEndpointMode.imagesGenerations,
-                            onClick = {
-                                if (mode != com.openminis.app.data.model.ImageEndpointMode.imagesGenerations) {
-                                    providerRepository.updateInstance(
-                                        instance.copy(
-                                            imageEndpointMode = com.openminis.app.data.model.ImageEndpointMode.imagesGenerations,
-                                            // User-forced mode supersedes any cached probe result.
-                                            imageEndpointResolved = null,
-                                        ),
-                                    )
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_images)) }
-                        SegmentedButton(
-                            selected = mode == com.openminis.app.data.model.ImageEndpointMode.chatCompletions,
-                            onClick = {
-                                if (mode != com.openminis.app.data.model.ImageEndpointMode.chatCompletions) {
-                                    providerRepository.updateInstance(
-                                        instance.copy(
-                                            imageEndpointMode = com.openminis.app.data.model.ImageEndpointMode.chatCompletions,
-                                            imageEndpointResolved = null,
-                                        ),
-                                    )
-                                }
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                        ) { ImageEndpointLabel(stringResource(R.string.provider_image_endpoint_chat)) }
-                    }
+                    val endpointLabels = imageEndpointLabels()
+                    TabRowWithContour(
+                        tabs = endpointLabels,
+                        selectedTabIndex = ImageEndpointMode.entries.indexOf(mode),
+                        onTabSelected = { index ->
+                            val endpoint = ImageEndpointMode.entries[index]
+                            if (endpoint != mode) {
+                                providerRepository.updateInstance(instance.copy(
+                                    imageEndpointMode = endpoint,
+                                    imageEndpointResolved = instance.imageEndpointResolved.takeIf { endpoint == ImageEndpointMode.auto },
+                                ))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minWidth = preferenceTabMinWidth(endpointLabels),
+                        height = preferenceTabHeight(),
+                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+                    )
                 }
             }
         }
@@ -843,33 +819,31 @@ fun ProviderDetailScreen(
         // Match iOS visual: button sits on the page background with horizontal
         // gutter padding only. The 20dp top padding mirrors SettingsSection's
         // top spacing so the rhythm against the cards above stays consistent.
-        MinisOutlinedButton(
+        TextButton(
             onClick = onAddCustomModel,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 20.dp),
-        ) {
-            Text(stringResource(R.string.provider_detail_add_custom_model))
-        }
+            text = stringResource(R.string.provider_detail_add_custom_model),
+        )
 
         // [T-android-delete-provider-button-height] The "Delete provider" button
         // uses the same default 48dp MinisButtonHeight as "Add custom model"
         // above it for visual consistency (no explicit .height override). The
         // destructive intent is conveyed by the error container color, not by a
         // taller button.
-        MinisButton(
+        TextButton(
             onClick = { showDeleteDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MiuixTheme.colorScheme.error,
+            colors = ButtonDefaults.textButtonColorsPrimary(
+                color = MiuixTheme.colorScheme.error,
             ),
-        ) {
-            Text(stringResource(R.string.provider_detail_delete_provider))
-        }
+            text = stringResource(R.string.provider_detail_delete_provider),
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
     }
@@ -878,62 +852,89 @@ fun ProviderDetailScreen(
     // must be named as such. Without this the refresh would quietly fall back
     // to the built-in list and look like it worked.
     if (refreshAuthError) {
-        MinisAlertDialog(
-            onDismissRequest = { refreshAuthError = false },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.provider_refresh_auth_failed_title),
-            text = stringResource(R.string.provider_refresh_auth_failed_body),
-            // Both buttons dismiss: this is an acknowledgement, not a choice.
-            // MinisAlertDialog always renders two, and rather than invent a
-            // second action that would only pretend to do something, the real
-            // next step ("sign in again") is stated in the body — the sign-in
-            // control is the Credential row on this same screen.
-            confirmText = stringResource(R.string.ok),
-            dismissText = stringResource(R.string.common_close),
-            onConfirm = { refreshAuthError = false },
-        )
+            summary = stringResource(R.string.provider_refresh_auth_failed_body),
+            onDismissRequest = { refreshAuthError = false },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.ok),
+                    onClick = { refreshAuthError = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
+                TextButton(
+                    text = stringResource(R.string.common_close),
+                    onClick = { refreshAuthError = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     if (showDeleteDialog) {
-        MinisAlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.provider_detail_delete_provider),
-            text = stringResource(R.string.provider_detail_delete_provider_confirm, instance.label),
-            confirmText = stringResource(R.string.common_delete),
-            isDestructive = true,
-            onConfirm = {
+            summary = stringResource(R.string.provider_detail_delete_provider_confirm, instance.label),
+            onDismissRequest = { showDeleteDialog = false },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.common_delete),
+                    onClick = {
                 deleted = true
                 providerRepository.removeInstance(instanceId)
                 AppLogger.info(TAG, "Deleted provider instance ${instance.id} (${instance.label})")
                 showDeleteDialog = false
                 onBack()
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { showDeleteDialog = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 
     // T143: per-entry delete confirmation. removeEntry also strips the entry
     // from any modelGroups it belongs to (see ProviderRepository L304-306),
     // so the StateFlow update propagates the row removal everywhere.
     entryToDelete?.let { e ->
-        MinisAlertDialog(
-            onDismissRequest = { entryToDelete = null },
+        WindowDialog(
+            show = true,
             title = stringResource(R.string.provider_detail_delete_model),
-            // [T-android-hidden-models-group] An API-listed model is only gone
-            // until the provider lists it again; say so rather than "cannot be
-            // undone". The 7-day absence grace is unchanged and does not apply
-            // here: that is for models the provider stopped listing.
-            text = stringResource(
+            summary = stringResource(
                 if (e.isCustom) R.string.provider_detail_delete_model_confirm
                 else R.string.provider_detail_delete_api_model_confirm,
                 e.model.displayName,
             ),
-            confirmText = stringResource(R.string.common_delete),
-            isDestructive = true,
-            onConfirm = {
+            onDismissRequest = { entryToDelete = null },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.common_delete),
+                    onClick = {
                 providerRepository.removeEntry(e.id)
                 AppLogger.info(TAG, "Deleted model entry ${e.id} (${e.model.displayName})")
                 entryToDelete = null
             },
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { entryToDelete = null },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 
@@ -1101,7 +1102,7 @@ private fun OAuthCredentialBlock(
     Spacer(modifier = Modifier.height(8.dp))
     // Sign Out, shared by the expired row below and the signed-in row.
     val signOutButton: @Composable () -> Unit = {
-        MinisSmallButton(
+        TextButton(
             onClick = {
                 // [T-android-openai-oauth-signout-signin-stuck] A real sign-out
                 // must clear BOTH credential stores: (1) the persisted OAuth
@@ -1118,13 +1119,14 @@ private fun OAuthCredentialBlock(
                 needsReauth = false
                 AppLogger.info(TAG, "OAuth signed out for ${instance.id} (tokens + apiKey cleared)")
             },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MiuixTheme.colorScheme.errorContainer,
-                contentColor = MiuixTheme.colorScheme.error,
+            colors = ButtonDefaults.textButtonColorsPrimary(
+                color = MiuixTheme.colorScheme.errorContainer,
+                textColor = MiuixTheme.colorScheme.error,
             ),
-        ) {
-            Text(stringResource(R.string.provider_detail_sign_out))
-        }
+            text = stringResource(R.string.provider_detail_sign_out),
+            minHeight = 40.dp,
+            insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+        )
     }
     if (displayedKey.isNotEmpty() && needsReauth) {
         Text(
@@ -1141,25 +1143,29 @@ private fun OAuthCredentialBlock(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MinisSmallButton(
+            TextButton(
                 enabled = !isAuthenticating,
                 onClick = { startSignIn() },
-            ) {
-                Text(stringResource(R.string.provider_oauth_sign_in_again))
-            }
+                text = stringResource(R.string.provider_oauth_sign_in_again),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
             signOutButton()
         }
         OAuthProgressLine(isAuthenticating = isAuthenticating, phase = oauthPhase, error = authError)
     } else if (displayedKey.isNotEmpty()) {
         signOutButton()
     } else {
-        MinisSmallButton(
+        TextButton(
             // Disabled while a sign-in runs, rather than silently ignoring taps.
             enabled = !isAuthenticating,
             onClick = { startSignIn() },
-        ) {
-            Text(stringResource(R.string.provider_detail_sign_in))
-        }
+            text = stringResource(R.string.provider_detail_sign_in),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+            minHeight = 40.dp,
+            insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+        )
         OAuthProgressLine(isAuthenticating = isAuthenticating, phase = oauthPhase, error = authError)
     }
 }
@@ -1180,7 +1186,7 @@ private fun OAuthProgressLine(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 8.dp),
         ) {
-            com.openminis.app.ui.components.miuix.CircularProgressIndicator(
+            CircularProgressIndicator(
                 modifier = Modifier.size(14.dp),
                 strokeWidth = 2.dp,
             )
@@ -1244,18 +1250,24 @@ private fun ApiKeyCredentialBlock(
             // a neutral outlined pill (onSurfaceVariant content/border), forming
             // the standard MD3 outlined-vs-filled pair with the filled Save below.
             // Previously a primary-teal text button — indistinguishable from Save.
-            MinisSmallOutlinedButton(
+            TextButton(
                 onClick = onCancelEdit,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                colors = ButtonDefaults.textButtonColors(
+                    textColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
-            ) {
-                Text(stringResource(R.string.common_cancel))
-            }
+                text = stringResource(R.string.common_cancel),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            MinisSmallButton(onClick = onSave, enabled = editValue.isNotBlank()) {
-                Text(stringResource(R.string.provider_detail_save_key))
-            }
+            TextButton(
+                onClick = onSave,
+                enabled = editValue.isNotBlank(),
+                text = stringResource(R.string.provider_detail_save_key),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
         }
     } else {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1270,9 +1282,13 @@ private fun ApiKeyCredentialBlock(
                     contentDescription = if (keyVisible) "Hide" else "Show",
                 )
             }
-            MinisSmallTextButton(onClick = onBeginEdit) {
-                Text(stringResource(R.string.common_edit))
-            }
+            TextButton(
+                onClick = onBeginEdit,
+                text = stringResource(R.string.common_edit),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
         }
     }
 }
@@ -1353,19 +1369,20 @@ private fun ManualBearerTokenSection(
         Row(modifier = Modifier.padding(top = 8.dp)) {
             // [T-android-settings-ui-md3] #4 + #12 neutral outlined Cancel (see
             // the API-key edit pair above) paired with the filled Save.
-            MinisSmallOutlinedButton(
+            TextButton(
                 onClick = {
                     isEditing = false
                     draft = ""
                 },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                colors = ButtonDefaults.textButtonColors(
+                    textColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 ),
-            ) {
-                Text(stringResource(R.string.common_cancel))
-            }
+                text = stringResource(R.string.common_cancel),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            MinisSmallButton(
+            TextButton(
                 onClick = {
                     val cleaned = draft.replace(Regex("\\s+"), "")
                     if (cleaned.isNotEmpty() && manager != null) {
@@ -1377,9 +1394,11 @@ private fun ManualBearerTokenSection(
                     }
                 },
                 enabled = draft.isNotBlank(),
-            ) {
-                Text(stringResource(R.string.provider_detail_save_token))
-            }
+                text = stringResource(R.string.provider_detail_save_token),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
         }
         return
     }
@@ -1400,33 +1419,40 @@ private fun ManualBearerTokenSection(
             )
         }
         Row(modifier = Modifier.padding(top = 8.dp)) {
-            MinisSmallOutlinedButton(onClick = {
+            TextButton(
+                onClick = {
                 draft = ""
                 isEditing = true
-            }) {
-                Text(stringResource(R.string.common_change))
-            }
+            },
+                text = stringResource(R.string.common_change),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            MinisSmallOutlinedButton(
+            TextButton(
                 onClick = {
                     manager?.deleteManualBearerToken()
                     AppLogger.info(TAG, "Manual bearer token removed for ${instance.id}")
                     reloadTick++
                 },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MiuixTheme.colorScheme.error,
+                colors = ButtonDefaults.textButtonColors(
+                    textColor = MiuixTheme.colorScheme.error,
                 ),
-            ) {
-                Text(stringResource(R.string.common_remove))
-            }
+                text = stringResource(R.string.common_remove),
+                minHeight = 40.dp,
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            )
         }
     } else {
-        MinisSmallOutlinedButton(onClick = {
+        TextButton(
+            onClick = {
             draft = ""
             isEditing = true
-        }) {
-            Text(stringResource(R.string.provider_detail_set_manual_bearer_token))
-        }
+        },
+            text = stringResource(R.string.provider_detail_set_manual_bearer_token),
+            minHeight = 40.dp,
+            insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -1518,32 +1544,38 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
         var text by remember { mutableStateOf(seconds.toString()) }
         val parsed = text.trim().toIntOrNull()
         val valid = parsed != null && parsed in setting.MIN_SECONDS..setting.MAX_SECONDS
-        com.openminis.app.ui.components.miuix.AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { customOpen = false },
-            title = { Text(stringResource(R.string.provider_detail_response_idle_timeout)) },
-            text = {
-                com.openminis.app.ui.components.miuix.OutlinedTextField(
+            title = stringResource(R.string.provider_detail_response_idle_timeout),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextField(
                     value = text,
                     onValueChange = { v -> text = v.filter { it.isDigit() }.take(4) },
                     singleLine = true,
-                    isError = !valid,
-                    label = { Text(stringResource(R.string.response_idle_timeout_seconds_field)) },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                    ),
+                                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                                                    ),
+                    colors = TextFieldDefaults.textFieldColors().let { if (!valid) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                    label = stringResource(R.string.response_idle_timeout_seconds_field),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier .semantics { if (!valid) error("Invalid value") },
                 )
-            },
-            confirmButton = {
-                com.openminis.app.ui.components.MinisTextButton(
-                    enabled = valid,
-                    onClick = { customOpen = false; parsed?.let { apply(it) } },
-                ) { Text(stringResource(R.string.save)) }
-            },
-            dismissButton = {
-                com.openminis.app.ui.components.MinisTextButton(onClick = { customOpen = false }) {
-                    Text(stringResource(R.string.cancel))
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    enabled = valid,
+                                    onClick = { customOpen = false; parsed?.let { apply(it) } },
+                                    text = stringResource(R.string.save),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { customOpen = false },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }

@@ -28,16 +28,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.RadioButton
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,15 +60,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.openminis.app.browser.SiteCookieCleaner
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.util.bringIntoViewOnFocus
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 @Composable
 fun BrowserSettingsSheet(
     tabPool: BrowserTabPool,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("browser_prefs", android.content.Context.MODE_PRIVATE) }
 
@@ -131,9 +132,10 @@ fun BrowserSettingsSheet(
         value = withContext(Dispatchers.IO) { SiteCookieCleaner.loadSection(cookieHistory.uniqueDomains()) }
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -163,7 +165,11 @@ fun BrowserSettingsSheet(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.browser_settings_done)) }
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.browser_settings_done),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -215,22 +221,25 @@ fun BrowserSettingsSheet(
             }
 
             if (selectedProfile == UserAgentProfile.CUSTOM) {
-                OutlinedTextField(
+                TextField(
                     value = customUA,
                     onValueChange = {
-                        customUA = it
-                        prefs.edit().putString("custom_user_agent", it).apply()
-                    },
-                    label = { Text(stringResource(R.string.browser_settings_custom_ua_label)) },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                        customUA = it
+                                        prefs.edit().putString("custom_user_agent", it).apply()
+                                    },
                     singleLine = false,
                     textStyle = MiuixTheme.textStyles.body2,
+                    label = stringResource(R.string.browser_settings_custom_ua_label),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
-                MinisTextButton(onClick = {
+                TextButton(
+                    onClick = {
                     tabPool.setUserAgentFromUI(UserAgentProfile.CUSTOM, customUA)
-                }) {
-                    Text(stringResource(R.string.browser_settings_apply))
-                }
+                },
+                    text = stringResource(R.string.browser_settings_apply),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -318,20 +327,17 @@ fun BrowserSettingsSheet(
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
+                TextField(
                     value = idleTimeoutText,
                     onValueChange = { new -> idleTimeoutText = new.filter { it.isDigit() }.take(3) },
-                    label = { Text(stringResource(R.string.browser_settings_minutes_label)) },
                     singleLine = true,
-                    // [T-android-browser-settings-keyboard-overlap] this
-                    // field sits near the bottom of the sheet — without
-                    // scroll-into-view it sits behind the soft keyboard
-                    // every time the user taps it.
-                    modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
                     textStyle = MiuixTheme.textStyles.body1,
+                    label = stringResource(R.string.browser_settings_minutes_label),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
                 )
                 Spacer(Modifier.size(8.dp))
-                MinisTextButton(
+                TextButton(
                     onClick = {
                         val minutes = idleTimeoutText.toIntOrNull()
                             ?: BrowserTabPool.DEFAULT_IDLE_TIMEOUT_MINUTES
@@ -339,7 +345,9 @@ fun BrowserSettingsSheet(
                         // Reflect clamping back into the field.
                         idleTimeoutText = tabPool.idleTimeoutMinutes.toString()
                     },
-                ) { Text(stringResource(R.string.browser_settings_apply)) }
+                    text = stringResource(R.string.browser_settings_apply),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -363,13 +371,14 @@ fun BrowserSettingsSheet(
             }
 
             if (allDomains.isNotEmpty()) {
-                OutlinedTextField(
+                TextField(
                     value = cookieFilterText,
                     onValueChange = { cookieFilterText = it },
-                    label = { Text(stringResource(R.string.browser_settings_filter_by_domain)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     textStyle = MiuixTheme.textStyles.body2,
+                    label = stringResource(R.string.browser_settings_filter_by_domain),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
 
@@ -433,47 +442,53 @@ fun BrowserSettingsSheet(
 
             Spacer(Modifier.height(8.dp))
 
-            MinisTextButton(
+            TextButton(
                 onClick = { showClearConfirm = true },
                 enabled = hasCookies,
-            ) {
-                Text(stringResource(R.string.browser_settings_clear_all_cookies), color = MiuixTheme.colorScheme.error)
-            }
+                text = stringResource(R.string.browser_settings_clear_all_cookies),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+            )
         }
     }
 
     if (showClearConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showClearConfirm = false },
-            title = { Text(stringResource(R.string.browser_settings_clear_all_dialog_title)) },
-            text = { Text(stringResource(R.string.browser_settings_clear_all_dialog_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showClearConfirm = false
-                    WebStorage.getInstance().deleteAllData()
-                    // [ISS-040] removeAllCookies is asynchronous: refresh the
-                    // section from its callback, not right after the call
-                    // (hasCookies() still reads true at that point). The
-                    // callback arrives on this (main) looper; launching on
-                    // Main keeps the state write there regardless.
-                    CookieManager.getInstance().removeAllCookies { removed ->
-                        CookieManager.getInstance().flush()
-                        AppLogger.info("BrowserSettings", "removeAllCookies done removed=$removed")
-                        coroutineScope.launch(Dispatchers.Main) {
-                            cookieDeleteFailed = null
-                            cookieRevision++
-                        }
-                    }
-                }) {
-                    Text(stringResource(R.string.browser_settings_clear), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.browser_settings_clear_all_dialog_title),
+            summary = stringResource(R.string.browser_settings_clear_all_dialog_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showClearConfirm = false
+                                    WebStorage.getInstance().deleteAllData()
+                                    // [ISS-040] removeAllCookies is asynchronous: refresh the
+                                    // section from its callback, not right after the call
+                                    // (hasCookies() still reads true at that point). The
+                                    // callback arrives on this (main) looper; launching on
+                                    // Main keeps the state write there regardless.
+                                    CookieManager.getInstance().removeAllCookies { removed ->
+                                        CookieManager.getInstance().flush()
+                                        AppLogger.info("BrowserSettings", "removeAllCookies done removed=$removed")
+                                        coroutineScope.launch(Dispatchers.Main) {
+                                            cookieDeleteFailed = null
+                                            cookieRevision++
+                                        }
+                                    }
+                                },
+                                    text = stringResource(R.string.browser_settings_clear),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showClearConfirm = false },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showClearConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -588,34 +603,35 @@ private fun ViewportSection(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            TextField(
                 value = widthText,
                 onValueChange = onWidthChange,
-                label = { Text("Width") },
                 singleLine = true,
-                // [T-android-browser-settings-keyboard-overlap] focus →
-                // scroll-into-view so the soft keyboard doesn't cover
-                // the Custom viewport editor.
-                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
                 textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                label = "Width",
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
             )
             Spacer(Modifier.size(8.dp))
             Text("×", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             Spacer(Modifier.size(8.dp))
-            OutlinedTextField(
+            TextField(
                 value = heightText,
                 onValueChange = onHeightChange,
-                label = { Text("Height") },
                 singleLine = true,
-                // [T-android-browser-settings-keyboard-overlap] focus →
-                // scroll-into-view; mirrors the Width field.
-                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
                 textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                label = "Height",
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
             )
             Spacer(Modifier.size(8.dp))
-            MinisTextButton(onClick = onApply) { Text(stringResource(R.string.browser_settings_apply)) }
+            TextButton(
+                onClick = onApply,
+                text = stringResource(R.string.browser_settings_apply),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
 
         // UA mismatch banner — same 768px breakpoint as iOS.

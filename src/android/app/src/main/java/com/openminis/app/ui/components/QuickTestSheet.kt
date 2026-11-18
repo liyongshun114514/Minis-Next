@@ -28,12 +28,9 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.TextFields
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -65,6 +62,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import androidx.compose.runtime.rememberCoroutineScope
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 private const val TAG = "QuickTest"
 
@@ -160,9 +163,10 @@ fun QuickTestSheet(
         runAll(scope, context, entry, providerRepository, runs)
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         Column(
             modifier = Modifier
@@ -191,9 +195,11 @@ fun QuickTestSheet(
                         contentDescription = stringResource(R.string.quicktest_run_again),
                     )
                 }
-                MinisTextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.quicktest_done))
-                }
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.quicktest_done),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             Spacer(Modifier.height(8.dp))

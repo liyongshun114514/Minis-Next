@@ -22,7 +22,7 @@ import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.Description
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,7 +106,7 @@ fun SkillRowItem(
             }
 
             Spacer(modifier = Modifier.width(12.dp))
-            SettingsSwitch(
+            Switch(
                 checked = isEnabled,
                 onCheckedChange = onToggle,
             )

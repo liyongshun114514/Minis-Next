@@ -25,11 +25,10 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material.icons.outlined.TabletAndroid
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +57,7 @@ import com.openminis.app.ui.theme.LocalChatPalette
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.File
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 
 /**
  * [T-multi-select-share] Opens straight into the rendered result: the long image is

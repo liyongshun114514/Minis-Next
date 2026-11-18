@@ -15,8 +15,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.miuix.LocalTextStyle
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -111,7 +110,7 @@ fun DocumentEditorField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    textStyle: TextStyle = LocalTextStyle.current,
+    textStyle: TextStyle = MiuixTheme.textStyles.main,
     placeholder: String? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     outlined: Boolean = false,
@@ -156,7 +155,7 @@ fun DocumentEditorField(
     } else {
         Modifier
     }
-    val mergedStyle = LocalTextStyle.current.merge(textStyle)
+    val mergedStyle = MiuixTheme.textStyles.main.merge(textStyle)
     val textColor = if (mergedStyle.color.isSpecified()) mergedStyle.color else MiuixTheme.colorScheme.onSurface
 
     Box(

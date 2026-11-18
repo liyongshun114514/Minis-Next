@@ -20,13 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.NorthWest
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,9 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openminis.app.backup.remote.RcloneBackendCatalog
@@ -54,8 +48,18 @@ import com.openminis.app.data.SafMountHelper
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import com.openminis.app.ui.settings.SettingsRow
-import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.ui.settings.SettingsSwitchRow
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 /**
  * [T-android-rclone-ui] Backup destinations — the Android peer of iOS
@@ -176,7 +180,7 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
                             detail.open(r.name)
                         },
                         trailing = {
-                            SettingsSwitch(
+                            Switch(
                                 checked = r.enabled,
                                 onCheckedChange = { vm.setEnabled(r.name, it) },
                             )
@@ -188,20 +192,23 @@ fun RcloneDestinationsScreen(onBack: () -> Unit) {
         }
 
         Column(Modifier.padding(16.dp)) {
-            MinisButton(
+            TextButton(
                 onClick = { adding = true },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_dest_add_server)) }
+                text = stringResource(R.string.backup_dest_add_server),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
 
             // [T-android-backup-local-folder] Second, equal-weight entry point:
             // a destination can be a folder on this device, not only a server.
             // Outlined rather than filled so "Add Server…" stays the primary
             // action for the remote-backup case the screen was built for.
             Spacer(Modifier.height(8.dp))
-            MinisOutlinedButton(
+            TextButton(
                 onClick = { folderPicker.safeLaunchPicker(null, context, "RcloneDestinations") },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_dest_add_local_folder)) }
+                text = stringResource(R.string.backup_dest_add_local_folder),
+            )
 
             // [T-android-backup-dest-edit] No per-destination "Remove X"
             // buttons here any more: removing lives on the detail page, behind
@@ -281,12 +288,13 @@ internal fun AddServerForm(
         )
 
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
+        TextField(
             value = displayName,
             onValueChange = { displayName = it },
-            label = { Text(stringResource(R.string.backup_dest_display_name)) },
             singleLine = true,
             enabled = !busy,
+            label = stringResource(R.string.backup_dest_display_name),
+            useLabelAsPlaceholder = false,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -301,15 +309,18 @@ internal fun AddServerForm(
         }
 
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = startPath,
-            onValueChange = { startPath = it },
-            label = { Text(stringResource(R.string.backup_dest_start_path)) },
-            placeholder = { Text(stringResource(R.string.backup_dest_start_path_hint)) },
-            singleLine = true,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = stringResource(R.string.backup_dest_start_path), style = MiuixTheme.textStyles.body2)
+            TextField(
+                value = startPath,
+                onValueChange = { startPath = it },
+                singleLine = true,
+                enabled = !busy,
+                label = stringResource(R.string.backup_dest_start_path_hint),
+                useLabelAsPlaceholder = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         // [T-android-rclone-tls-timeout] Shown ONLY after the server has been
         // refused on certificate grounds. A permanently visible "don't verify
@@ -328,7 +339,7 @@ internal fun AddServerForm(
         Spacer(Modifier.height(16.dp))
         val nameOk = displayName.trim().isNotEmpty() &&
             displayName.trim().all { it.isLetterOrDigit() || it == '-' || it == '_' }
-        MinisButton(
+        Button(
             onClick = {
                 vm.connectAndBrowse(
                     backend = backend.type,
@@ -347,14 +358,16 @@ internal fun AddServerForm(
             },
             enabled = !busy && nameOk,
             modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColorsPrimary(),
         ) {
             if (busy) {
                 // size(), not height() — see BackupAndRestoreScreen: an
                 // unconstrained width falls back to the 40.dp default and
                 // overflows the button.
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
-                    color = MiuixTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = MiuixTheme.colorScheme.onPrimary),
                 )
             } else {
                 Text(
@@ -367,11 +380,12 @@ internal fun AddServerForm(
                 )
             }
         }
-        MinisOutlinedButton(
+        TextButton(
             onClick = onCancel,
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text(stringResource(R.string.backup_dest_cancel)) }
+            text = stringResource(R.string.backup_dest_cancel),
+        )
 
         if (displayName.isNotEmpty() && !nameOk) {
             Text(
@@ -410,18 +424,22 @@ internal fun ServerFieldInput(
     },
     supportingText: String? = null,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = { Text(field.placeholder) },
-        supportingText = supportingText?.let { { Text(it) } },
-        singleLine = true,
-        enabled = enabled,
-        visualTransformation = if (field.isSecret) PasswordVisualTransformation()
-        else androidx.compose.ui.text.input.VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = label, style = MiuixTheme.textStyles.body2)
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            enabled = enabled,
+            visualTransformation = if (field.isSecret) PasswordVisualTransformation()
+                else androidx.compose.ui.text.input.VisualTransformation.None,
+            label = field.placeholder,
+            useLabelAsPlaceholder = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val support: (@Composable () -> Unit)? = supportingText?.let { { Text(it) } }
+        support?.invoke()
+    }
 }
 
 /** The self-signed certificate opt-in, offered only after a TLS refusal. */
@@ -591,7 +609,7 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
         }
 
         Spacer(Modifier.height(12.dp))
-        MinisButton(
+        TextButton(
             // savePending only invokes this on success (the catch sets _error
             // instead), so leaving the form here cannot strand a failed save
             // on a screen the user has already been navigated away from.
@@ -603,13 +621,16 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
             },
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.backup_dest_use_folder)) }
+            text = stringResource(R.string.backup_dest_use_folder),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
 
-        MinisOutlinedButton(
+        TextButton(
             onClick = { vm.cancelPending() },
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text(stringResource(R.string.backup_dest_cancel)) }
+            text = stringResource(R.string.backup_dest_cancel),
+        )
 
         error?.let {
             Text(
@@ -622,35 +643,41 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
     }
 
     if (showNewFolder) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showNewFolder = false; newFolderName = "" },
-            title = { Text(stringResource(R.string.backup_dest_new_folder_title)) },
-            text = {
-                OutlinedTextField(
+            title = stringResource(R.string.backup_dest_new_folder_title),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextField(
                     value = newFolderName,
                     onValueChange = { newFolderName = it },
-                    label = { Text(stringResource(R.string.backup_dest_folder_name)) },
                     singleLine = true,
+                    label = stringResource(R.string.backup_dest_folder_name),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier,
                 )
-            },
-            confirmButton = {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Create is always rendered (greyed when empty) — an Android
-                // AlertDialog button, unlike a SwiftUI alert action, is not
-                // omitted when disabled, so the iOS "Create button missing"
-                // trap (e747b6da1) cannot occur here.
-                MinisTextButton(
-                    onClick = {
-                        vm.createFolder(newFolderName.trim())
-                        showNewFolder = false; newFolderName = ""
-                    },
-                    enabled = newFolderName.trim().isNotEmpty(),
-                ) { Text(stringResource(R.string.backup_dest_create)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showNewFolder = false; newFolderName = "" }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
+                                // AlertDialog button, unlike a SwiftUI alert action, is not
+                                // omitted when disabled, so the iOS "Create button missing"
+                                // trap (e747b6da1) cannot occur here.
+                                TextButton(
+                                    onClick = {
+                                        vm.createFolder(newFolderName.trim())
+                                        showNewFolder = false; newFolderName = ""
+                                    },
+                                    enabled = newFolderName.trim().isNotEmpty(),
+                                    text = stringResource(R.string.backup_dest_create),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showNewFolder = false; newFolderName = "" },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }

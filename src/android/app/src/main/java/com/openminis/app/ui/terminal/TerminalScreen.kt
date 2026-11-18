@@ -38,7 +38,7 @@ import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.PauseCircle
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 import android.content.ClipData

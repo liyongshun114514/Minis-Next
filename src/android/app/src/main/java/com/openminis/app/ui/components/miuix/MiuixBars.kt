@@ -13,36 +13,6 @@ import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Immutable
-data class TopAppBarColors(val containerColor: Color)
-object TopAppBarDefaults {
-    @Composable fun topAppBarColors(containerColor: Color = MiuixTheme.colorScheme.surface,
-        scrolledContainerColor: Color = containerColor) = TopAppBarColors(containerColor)
-}
-
-/** Rich chat titles need multiple reactive lines, which SmallTopAppBar's String API cannot express. */
-@Composable
-fun TopAppBar(
-    title: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    navigationIcon: @Composable () -> Unit = {},
-    actions: @Composable RowScope.() -> Unit = {},
-    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
-    windowInsets: WindowInsets = WindowInsets.statusBars,
-    expandedHeight: androidx.compose.ui.unit.Dp = 56.dp,
-) {
-    Surface(color = colors.containerColor, modifier = modifier) {
-        Row(Modifier.fillMaxWidth().windowInsetsPadding(windowInsets).heightIn(min = expandedHeight).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            navigationIcon()
-            Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                CompositionLocalProvider(LocalTextStyle provides MiuixTheme.textStyles.title3) { title() }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, content = actions)
-        }
-    }
-}
-
-@Immutable
 data class MenuItemColors(val textColor: Color, val leadingIconColor: Color, val trailingIconColor: Color)
 object MenuDefaults {
     @Composable fun itemColors(
@@ -86,34 +56,4 @@ fun DropdownMenuItem(
 @Composable
 fun DropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     MinisMenu(expanded = expanded, onDismissRequest = onDismissRequest, minWidth = 200.dp, content = content)
-}
-
-@Immutable
-data class ListItemColors(val containerColor: Color, val headlineColor: Color)
-object ListItemDefaults {
-    @Composable fun colors(containerColor: Color = MiuixTheme.colorScheme.surface,
-        headlineColor: Color = MiuixTheme.colorScheme.onSurface) = ListItemColors(containerColor, headlineColor)
-}
-@Composable
-fun ListItem(
-    headlineContent: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    overlineContent: (@Composable () -> Unit)? = null,
-    supportingContent: (@Composable () -> Unit)? = null,
-    leadingContent: (@Composable () -> Unit)? = null,
-    trailingContent: (@Composable () -> Unit)? = null,
-    colors: ListItemColors = ListItemDefaults.colors(),
-) {
-    Surface(color = colors.containerColor, contentColor = colors.headlineColor, modifier = modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            leadingContent?.invoke()
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                overlineContent?.invoke()
-                headlineContent()
-                supportingContent?.let { CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.onSurfaceContainerVariant) { it() } }
-            }
-            trailingContent?.invoke()
-        }
-    }
 }

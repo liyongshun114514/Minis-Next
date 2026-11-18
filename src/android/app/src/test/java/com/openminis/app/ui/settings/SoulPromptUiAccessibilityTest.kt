@@ -24,15 +24,15 @@ class SoulPromptUiAccessibilityTest {
 
     @Test
     fun `name field and save button keep their labels`() {
-        assertTrue(src.contains("label = { Text(stringResource(R.string.soul_field_name)) }"))
+        assertTrue(src.contains("label = stringResource(R.string.soul_field_name)"))
         assertTrue(src.contains("R.string.soul_save"))
-        assertTrue(src.contains("MinisButton("))
+        assertTrue(src.contains("import top.yukonga.miuix.kmp.basic.TextButton"))
     }
 
     @Test
     fun `dialogs are still dismissible and the page is still scrollable`() {
         assertTrue(src.contains("SettingsScaffold("))
-        assertTrue(src.contains("AlertDialog("))
+        assertTrue(src.contains("WindowDialog("))
         assertTrue(src.contains("onDismissRequest = { saveError = null }"))
         assertTrue(src.contains("onDismissRequest = { iconError = null }"))
     }

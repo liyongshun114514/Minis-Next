@@ -142,12 +142,10 @@ import androidx.compose.material.icons.filled.Refresh
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.History
@@ -165,11 +163,8 @@ import com.openminis.app.ui.components.MenuItemIcon
 import com.openminis.app.ui.components.MinisMenuDivider
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -179,8 +174,7 @@ import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import com.openminis.app.ui.components.miuix.LocalTextStyle
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -277,7 +271,6 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -307,8 +300,14 @@ import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 // iOS ChatColors equivalent
 internal val ToolCheckColor = Color(0xFF34C759) // iOS .green
@@ -3384,7 +3383,7 @@ fun ChatScreen(
                                         MenuItemIcon(Icons.Outlined.History)
                                     },
                                     trailingIcon = {
-                                        SettingsSwitch(
+                                        Switch(
                                             checked = enhancedCacheOn,
                                             onCheckedChange = {
                                                 if (enhancedCacheOn) {
@@ -3462,7 +3461,7 @@ fun ChatScreen(
                                         MenuItemIcon(com.openminis.app.ui.components.SpeedTierIcons.BoltOutline)
                                     },
                                     trailingIcon = {
-                                        SettingsSwitch(
+                                        Switch(
                                             checked = fastModeOn,
                                             onCheckedChange = { viewModel.setFastModeEnabled(it) },
                                         )
@@ -3483,7 +3482,7 @@ fun ChatScreen(
                                     MenuItemIcon(Icons.Outlined.CloseFullscreen)
                                 },
                                 trailingIcon = {
-                                    SettingsSwitch(
+                                    Switch(
                                         checked = autoCompactOn,
                                         onCheckedChange = { viewModel.setAutoCompactEnabled(it) },
                                     )
@@ -5353,13 +5352,13 @@ fun ChatScreen(
                     }
                 }
 
-                // Same ModalBottomSheet surface/gesture/dismissal as Settings >
+                // Same WindowBottomSheet surface/gesture/dismissal as Settings >
                 // Sub-agents > concurrency, not an extra row in the transcript.
                 if (hasSubAgentStatus && subAgentStatusExpanded) {
-                    val statusSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                    ModalBottomSheet(
+                    WindowBottomSheet(
+                        show = true,
+                        insideMargin = DpSize.Zero,
                         onDismissRequest = { subAgentStatusExpanded = false },
-                        sheetState = statusSheetState,
                     ) {
                         BoxWithConstraints(Modifier.fillMaxWidth().heightIn(max = LocalConfiguration.current.screenHeightDp.dp * 0.85f)) {
                         val sheetMaxHeight = maxHeight
@@ -5520,7 +5519,7 @@ fun ChatScreen(
                 // than jumping to the oldest message.
                 if (messages.isNotEmpty() && !isNearBottom.value) {
                     val upBaseBottom = scrollControlsBottom
-                    com.openminis.app.ui.components.miuix.FilledIconButton(
+                    IconButton(
                         onClick = {
                             // [T-android-updown-fab-asymmetry] Arm the same flag a
                             // finger-drag would. The down-button is gated on
@@ -5543,10 +5542,7 @@ fun ChatScreen(
                             .padding(end = 12.dp + fabEndInset, bottom = upBaseBottom + 46.dp)
                             .shadow(4.dp, CircleShape)
                             .size(36.dp),
-                        colors = com.openminis.app.ui.components.miuix.IconButtonDefaults.filledIconButtonColors(
-                            containerColor = ChatColors.inputBg,
-                            contentColor = ChatColors.primaryText,
-                        ),
+                        backgroundColor = ChatColors.inputBg,
                     ) {
                         Icon(
                             // Matches iOS's `arrow.up.to.line` (AIChatView.swift:2501):
@@ -5562,7 +5558,7 @@ fun ChatScreen(
 
                 if (userScrolledAway && contentOverflows.value && messages.isNotEmpty()) {
                     val fabBottomPadding = scrollControlsBottom
-                    com.openminis.app.ui.components.miuix.FilledIconButton(
+                    IconButton(
                         onClick = {
                             // [T-android-scroll-fab-down-stuck] Clear the
                             // scrolled-away intent SYNCHRONOUSLY on tap — that
@@ -5595,10 +5591,7 @@ fun ChatScreen(
                             .padding(end = 12.dp + fabEndInset, bottom = fabBottomPadding)
                             .shadow(4.dp, CircleShape)
                             .size(36.dp),
-                        colors = com.openminis.app.ui.components.miuix.IconButtonDefaults.filledIconButtonColors(
-                            containerColor = ChatColors.inputBg,
-                            contentColor = ChatColors.primaryText,
-                        ),
+                        backgroundColor = ChatColors.inputBg,
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
@@ -5981,10 +5974,10 @@ fun ChatScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     if (isMentionScanning) {
-                                        com.openminis.app.ui.components.miuix.CircularProgressIndicator(
+                                        CircularProgressIndicator(
                                             modifier = Modifier.size(14.dp),
                                             strokeWidth = 1.5.dp,
-                                            color = ChatColors.secondaryText,
+                                            colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = ChatColors.secondaryText),
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
@@ -7118,110 +7111,81 @@ fun ChatScreen(
                             ),
                             interactionSource = interactionSource,
                             decorationBox = { innerTextField ->
-                                OutlinedTextFieldDefaults.DecorationBox(
-                                    value = inputText,
-                                    innerTextField = innerTextField,
-                                    enabled = true,
-                                    singleLine = false,
-                                    visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
-                                    interactionSource = interactionSource,
-                                    placeholder = {
+                                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp)) {
+                                    innerTextField()
+                                    if (inputText.isEmpty()) {
                                         // [T-android-placeholder-single-line, port iOS 19e1d61f]
-                                        // Single-line composer placeholder. The
-                                        // parenthetical "(@ to mention files)"
-                                        // is folded into the same line as
-                                        // "Message <SoulName>" at the same font
-                                        // size and color — iOS collapsed the
-                                        // two-line variant (#421/#425/#426) into
-                                        // a single hint because users read the
-                                        // smaller hint row as a separate UI
-                                        // element rather than placeholder text.
-                                        // SoulStore.cachedMetadata stays the
-                                        // source for the Soul-customized name
-                                        // so renames in Soul Settings reflect
-                                        // here live.
-                                        val soulName by com.openminis.app.agent.SoulStore
-                                            .cachedMetadata.collectAsState()
-                                        // [T-android-composer-placeholder-rotation]
-                                        // Crossfade between hints. Reduce-motion
-                                        // (animator scale 0) skips the fade and
-                                        // swaps instantly — matching the iOS
-                                        // Reduce Motion branch.
-                                        val fadeMs = if (animationsDisabled(context)) 0 else 220
-                                        // [T-android-context-usage-hint] While
-                                        // the usage line owns the label it
-                                        // replaces the rotation entry. Keyed
-                                        // on the generation (negated so it can
-                                        // never collide with a pool index), so
-                                        // the crossfade also animates the
-                                        // hand-back when the line retires.
-                                        val shownHint = usageLifecycle.hint
-                                        // [T-port-composer-hint-carousel] One
-                                        // key per (generation, page), so each
-                                        // page turn cross-fades. Usage entries
-                                        // of the focus rotation draw the same
-                                        // way, from the latest figures.
-                                        Crossfade(
-                                            targetState = shownHint?.let { -1 - (it.generation * 2 + usagePage) }
-                                                ?: placeholderIndex,
-                                            animationSpec = tween(durationMillis = fadeMs),
-                                            label = "composerPlaceholder",
-                                        ) { key ->
-                                            val poolPage = ComposerPlaceholderPool.usagePage(key, contextUsageHint)
-                                            if (key < 0 && shownHint != null) {
-                                                UsageHintPageText(
-                                                    hint = shownHint,
-                                                    page = shownHint.pages().getOrElse((-1 - key) % 2) { UsageHintPage.CONTEXT },
-                                                    fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
-                                                )
-                                            } else if (poolPage != null && contextUsageHint != null) {
-                                                UsageHintPageText(
-                                                    hint = contextUsageHint!!,
-                                                    page = poolPage,
-                                                    fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
-                                                )
-                                            } else {
-                                                Text(
-                                                    composerPlaceholderText(
-                                                        ComposerPlaceholderPool.textIndex(key),
-                                                        soulName.name,
-                                                    ),
-                                                    color = MiuixTheme.colorScheme.onSurface
-                                                        .copy(alpha = 0.25f),
-                                                    fontSize = 16.5.sp * chatInputFontScale,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                            }
-                                        }
-                                    },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color.Transparent,
-                                        unfocusedBorderColor = Color.Transparent,
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent,
-                                    ),
-                                    // T7: vertical 10dp → 7dp (≈ −15%) to slim the
-                                    // chat composer. Settings TextFields keep
-                                    // Material3 default padding — those are
-                                    // 1-shot config inputs, not the daily-
-                                    // friction surface the user wants tightened.
-                                    // T185: 12dp horizontal lines the
-                                    // typed text up with the +/slash and
-                                    // mic/send icon-button row below
-                                    // (Modifier.padding(horizontal = 12.dp)
-                                    // there) and the attachment chip row
-                                    // (also 12dp). 16dp left an unaligned
-                                    // jog where the text started further
-                                    // right than every other composer
-                                    // element.
-                                    contentPadding = PaddingValues(
-                                        horizontal = 12.dp,
-                                        vertical = 7.dp,
-                                    ),
-                                )
+                                                                                // Single-line composer placeholder. The
+                                                                                // parenthetical "(@ to mention files)"
+                                                                                // is folded into the same line as
+                                                                                // "Message <SoulName>" at the same font
+                                                                                // size and color — iOS collapsed the
+                                                                                // two-line variant (#421/#425/#426) into
+                                                                                // a single hint because users read the
+                                                                                // smaller hint row as a separate UI
+                                                                                // element rather than placeholder text.
+                                                                                // SoulStore.cachedMetadata stays the
+                                                                                // source for the Soul-customized name
+                                                                                // so renames in Soul Settings reflect
+                                                                                // here live.
+                                                                                val soulName by com.openminis.app.agent.SoulStore
+                                                                                    .cachedMetadata.collectAsState()
+                                                                                // [T-android-composer-placeholder-rotation]
+                                                                                // Crossfade between hints. Reduce-motion
+                                                                                // (animator scale 0) skips the fade and
+                                                                                // swaps instantly — matching the iOS
+                                                                                // Reduce Motion branch.
+                                                                                val fadeMs = if (animationsDisabled(context)) 0 else 220
+                                                                                // [T-android-context-usage-hint] While
+                                                                                // the usage line owns the label it
+                                                                                // replaces the rotation entry. Keyed
+                                                                                // on the generation (negated so it can
+                                                                                // never collide with a pool index), so
+                                                                                // the crossfade also animates the
+                                                                                // hand-back when the line retires.
+                                                                                val shownHint = usageLifecycle.hint
+                                                                                // [T-port-composer-hint-carousel] One
+                                                                                // key per (generation, page), so each
+                                                                                // page turn cross-fades. Usage entries
+                                                                                // of the focus rotation draw the same
+                                                                                // way, from the latest figures.
+                                                                                Crossfade(
+                                                                                    targetState = shownHint?.let { -1 - (it.generation * 2 + usagePage) }
+                                                                                        ?: placeholderIndex,
+                                                                                    animationSpec = tween(durationMillis = fadeMs),
+                                                                                    label = "composerPlaceholder",
+                                                                                ) { key ->
+                                                                                    val poolPage = ComposerPlaceholderPool.usagePage(key, contextUsageHint)
+                                                                                    if (key < 0 && shownHint != null) {
+                                                                                        UsageHintPageText(
+                                                                                            hint = shownHint,
+                                                                                            page = shownHint.pages().getOrElse((-1 - key) % 2) { UsageHintPage.CONTEXT },
+                                                                                            fontSize = 16.5.sp * chatInputFontScale,
+                                                                                            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                                                        )
+                                                                                    } else if (poolPage != null && contextUsageHint != null) {
+                                                                                        UsageHintPageText(
+                                                                                            hint = contextUsageHint!!,
+                                                                                            page = poolPage,
+                                                                                            fontSize = 16.5.sp * chatInputFontScale,
+                                                                                            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                                                        )
+                                                                                    } else {
+                                                                                        Text(
+                                                                                            composerPlaceholderText(
+                                                                                                ComposerPlaceholderPool.textIndex(key),
+                                                                                                soulName.name,
+                                                                                            ),
+                                                                                            color = MiuixTheme.colorScheme.onSurface
+                                                                                                .copy(alpha = 0.25f),
+                                                                                            fontSize = 16.5.sp * chatInputFontScale,
+                                                                                            maxLines = 1,
+                                                                                            overflow = TextOverflow.Ellipsis,
+                                                                                        )
+                                                                                    }
+                                                                                }
+                                    }
+                                }
                             },
                         )
                     }
@@ -7623,7 +7587,7 @@ fun ChatScreen(
                                     // centered, so the label occupies a
                                     // predictable box and the 6dp padding reads
                                     // evenly above and below.
-                                    style = LocalTextStyle.current.copy(
+                                    style = MiuixTheme.textStyles.main.copy(
                                         fontSize = 13.sp,
                                         lineHeight = 16.25.sp,
                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -7888,14 +7852,16 @@ fun ChatScreen(
                                 },
                             )
                             if (confirmStop) {
-                                MinisAlertDialog(
-                                    onDismissRequest = { confirmStop = false },
+                                WindowDialog(
+                                    show = true,
                                     title = stringResource(R.string.chat_stop_confirm_title),
-                                    text = stringResource(R.string.chat_stop_confirm_message),
-                                    confirmText = stringResource(R.string.chat_stop_confirm_stop),
-                                    dismissText = stringResource(R.string.chat_stop_confirm_keep_running),
-                                    isDestructive = true,
-                                    onConfirm = {
+                                    summary = stringResource(R.string.chat_stop_confirm_message),
+                                    onDismissRequest = { confirmStop = false },
+                                ) {
+                                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        TextButton(
+                                            text = stringResource(R.string.chat_stop_confirm_stop),
+                                            onClick = {
                                         confirmStop = false
                                         // The turn may have ended while the dialog
                                         // was up (and a queued prompt started).
@@ -7907,7 +7873,16 @@ fun ChatScreen(
                                             )
                                         }
                                     },
-                                )
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                                        )
+                                        TextButton(
+                                            text = stringResource(R.string.chat_stop_confirm_keep_running),
+                                            onClick = { confirmStop = false },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
                             }
                             stopChoice?.let { summary ->
                                 StopChoiceDialog(
@@ -8028,40 +8003,65 @@ fun ChatScreen(
             //                                  now on (iOS T-chat-auto-compact-opt-in)
             val showCompactBeforeSend by viewModel.showCompactBeforeSendPrompt.collectAsState()
             if (showCompactBeforeSend) {
-                MinisAlertDialog(
-                    // Back-gesture / scrim dismissal must NOT silently drop the
-                    // user's text — cancelCompactBeforeSend puts it back in the
-                    // composer.
-                    onDismissRequest = { viewModel.cancelCompactBeforeSend() },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.context_near_capacity_title),
-                    text = stringResource(R.string.context_near_capacity_message),
-                    confirmText = stringResource(R.string.context_compact_and_send),
-                    onConfirm = { viewModel.compactAndSendPending() },
-                    dismissText = stringResource(R.string.context_send_anyway),
-                    onDismiss = { viewModel.sendPendingWithoutCompacting() },
-                    neutralText = stringResource(R.string.context_compact_and_enable_auto),
-                    onNeutral = {
+                    summary = stringResource(R.string.context_near_capacity_message),
+                    // Back or tapping the scrim returns the pending text to the composer.
+                    onDismissRequest = { viewModel.cancelCompactBeforeSend() },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.context_compact_and_send),
+                            onClick = { viewModel.compactAndSendPending() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.context_compact_and_enable_auto),
+                            onClick = {
                         viewModel.compactAndSendPending(alsoEnableAutoCompact = true)
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColors(textColor = MiuixTheme.colorScheme.primary),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.context_send_anyway),
+                            onClick = { viewModel.sendPendingWithoutCompacting() },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
 
             // T137: Clear Chat confirmation. Wipes messages + agent history +
             // compact markers; the session row, workspace files, attachments,
             // and offload payloads are intentionally preserved (iOS parity).
             if (showClearChatDialog) {
-                MinisAlertDialog(
-                    onDismissRequest = { showClearChatDialog = false },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.chat_menu_clear_chat),
-                    text = stringResource(R.string.chat_clear_dialog_body),
-                    confirmText = stringResource(R.string.chat_clear_dialog_confirm),
-                    isDestructive = true,
-                    onConfirm = {
+                    summary = stringResource(R.string.chat_clear_dialog_body),
+                    onDismissRequest = { showClearChatDialog = false },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.chat_clear_dialog_confirm),
+                            onClick = {
                         viewModel.clearChat()
                         viewModel.setInputText("")
                         showClearChatDialog = false
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { showClearChatDialog = false },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
             // [T-android-delete-from-here] Confirm before truncating. The cut
             // removes the tapped message AND everything after it with no undo,
@@ -8074,38 +8074,62 @@ fun ChatScreen(
                     val idx = messages.indexOfFirst { it.id == targetId }
                     if (idx < 0) 0 else messages.size - idx
                 }
-                MinisAlertDialog(
-                    onDismissRequest = { deleteFromHereTargetId = null },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.chat_longpress_delete_from_here),
-                    text = pluralStringResource(
+                    summary = pluralStringResource(
                         R.plurals.chat_delete_from_here_dialog_body,
                         affected,
                         affected,
                     ),
-                    confirmText = stringResource(R.string.chat_delete_from_here_confirm),
-                    isDestructive = true,
-                    onConfirm = {
+                    onDismissRequest = { deleteFromHereTargetId = null },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.chat_delete_from_here_confirm),
+                            onClick = {
                         viewModel.deleteFromMessage(targetId)
                         deleteFromHereTargetId = null
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { deleteFromHereTargetId = null },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
             // [T-android-compact-above] Compaction replaces the history above
             // this point with a generated summary; the original turns stop
             // being sent to the model and there is no undo, so it confirms
             // first the way Delete From Here does.
             compactAboveTargetId?.let { targetId ->
-                MinisAlertDialog(
-                    onDismissRequest = { compactAboveTargetId = null },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.chat_longpress_compact_above),
-                    text = stringResource(R.string.chat_compact_above_dialog_body),
-                    confirmText = stringResource(R.string.chat_compact_above_confirm),
-                    isDestructive = true,
-                    onConfirm = {
+                    summary = stringResource(R.string.chat_compact_above_dialog_body),
+                    onDismissRequest = { compactAboveTargetId = null },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.chat_compact_above_confirm),
+                            onClick = {
                         viewModel.compactBefore(targetId)
                         compactAboveTargetId = null
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { compactAboveTargetId = null },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
             // [T-multi-select-share] The share picker (and, from it, the preview).
             com.openminis.app.ui.chat.share.ChatShareDebugHost(sessionId, viewModel, openSharePicker)
@@ -8145,33 +8169,58 @@ fun ChatScreen(
                     body = stringResource(R.string.chat_new_chat_stop_dialog_body),
                 )
             } else if (showNewChatStopDialog) {
-                MinisAlertDialog(
-                    onDismissRequest = { showNewChatStopDialog = false },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.chat_menu_new_chat),
-                    text = stringResource(R.string.chat_new_chat_stop_dialog_body),
-                    confirmText = stringResource(R.string.chat_new_chat_stop_dialog_confirm),
-                    isDestructive = true,
-                    onConfirm = {
+                    summary = stringResource(R.string.chat_new_chat_stop_dialog_body),
+                    onDismissRequest = { showNewChatStopDialog = false },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.chat_new_chat_stop_dialog_confirm),
+                            onClick = {
                         showNewChatStopDialog = false
                         viewModel.cancelStream()
                         onNewChat()
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { showNewChatStopDialog = false },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
             // [T-android-enhanced-cache] One-time extra-billing confirmation
             // before the first enable. Accepting records the durable ack and
             // turns the toggle on; subsequent enables skip the dialog.
             if (showEnhancedCacheDialog) {
-                MinisAlertDialog(
-                    onDismissRequest = { showEnhancedCacheDialog = false },
+                WindowDialog(
+                    show = true,
                     title = stringResource(R.string.chat_menu_enhanced_cache),
-                    text = stringResource(R.string.enhanced_cache_dialog_body),
-                    confirmText = stringResource(R.string.enhanced_cache_dialog_confirm),
-                    onConfirm = {
+                    summary = stringResource(R.string.enhanced_cache_dialog_body),
+                    onDismissRequest = { showEnhancedCacheDialog = false },
+                ) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(
+                            text = stringResource(R.string.enhanced_cache_dialog_confirm),
+                            onClick = {
                         viewModel.confirmAndEnableEnhancedCache()
                         showEnhancedCacheDialog = false
                     },
-                )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { showEnhancedCacheDialog = false },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
         }
         }
@@ -8340,18 +8389,21 @@ fun ChatScreen(
         )
 
         pendingNonTextSelection?.let { pending ->
-            MinisAlertDialog(
-                onDismissRequest = { pendingNonTextSelection = null },
+            WindowDialog(
+                show = true,
                 title = stringResource(R.string.model_picker_non_text_warning_title),
-                text = stringResource(
+                summary = stringResource(
                     R.string.model_picker_non_text_warning_body,
                     pending.modelDisplayName,
                     pending.modalityLabel,
                     pending.modalityLabel,
                 ),
-                confirmText = stringResource(R.string.model_picker_non_text_warning_use_anyway),
-                dismissText = stringResource(R.string.model_picker_non_text_warning_choose_other),
-                onConfirm = {
+                onDismissRequest = { pendingNonTextSelection = null },
+            ) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(
+                        text = stringResource(R.string.model_picker_non_text_warning_use_anyway),
+                        onClick = {
                     when (val sel = pending) {
                         is PendingNonTextSelection.Group -> viewModel.selectGroup(sel.groupId)
                         is PendingNonTextSelection.GroupEntry ->
@@ -8361,7 +8413,16 @@ fun ChatScreen(
                     pendingNonTextSelection = null
                     showModelPicker = false
                 },
-            )
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
+                    TextButton(
+                        text = stringResource(R.string.model_picker_non_text_warning_choose_other),
+                        onClick = { pendingNonTextSelection = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         }
     }
 
@@ -8581,7 +8642,11 @@ private fun ThinkingLevelSheet(
         listOf(com.openminis.app.data.model.ThinkingLevel.OFF) +
             availableLevels.filter { it != com.openminis.app.data.model.ThinkingLevel.OFF }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
             Text(
                 text = stringResource(R.string.thinking_level_sheet_title),
@@ -8621,14 +8686,14 @@ private fun ThinkingLevelSheet(
             }
             // Selecting a slider position no longer dismisses the sheet, so
             // the user can compare levels; this explicit action closes it.
-            MinisTextButton(
+            TextButton(
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.End)
                     .padding(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Text(stringResource(android.R.string.ok))
-            }
+                text = stringResource(android.R.string.ok),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 }

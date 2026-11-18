@@ -116,7 +116,7 @@ def main() -> int:
     ok(title_block is not None, "title does not reserve two lines")
     if re.search(r"\bChatGlassTopBar\s*\(", strip_kotlin(chat)):
         top_bar = strip_kotlin(text(CHAT_TOP_BAR))
-        ok(re.search(r"\bTopAppBar\s*\(.*?\bexpandedHeight\s*=\s*80\.dp\b", top_bar, re.S) is not None,
+        ok(re.search(r"\b(?:RichTitleAppBar|TopAppBar)\s*\(.*?\bexpandedHeight\s*=\s*80\.dp\b", top_bar, re.S) is not None,
            "glass top bar height does not match the two-row title card")
     else:
         ok("expandedHeight = 80.dp" in strip_kotlin(chat),
@@ -315,7 +315,6 @@ def main() -> int:
        "thinking-level state is not observed")
     ok("viewModel.modelName.collectAsState()" in chat,
        "model-name state is not observed")
-    ok("ComposerPortMath.energy(" in extras, "slider does not use the shared math")
     # Root permissions are the same persisted gate as Settings, below Add File.
     plus = chat[chat.index("// Button row below text field"):call_at]
     ok(plus.index("R.string.chat_attach_add_file") < plus.index("ComposerPermissionMenuItem(")
@@ -327,16 +326,15 @@ def main() -> int:
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")
-    ok("it.effortSliderLabel()" in extras and
-       "fun ThinkingLevel.effortSliderLabel(): String = displayName" in extras,
-       "slider modes must use the same capitalized English display names")
-    ok("ThinkingSliderGeometry.track(" in extras and "track.labelX(i)" in extras
-       and "track.tickX(i)" in extras and "track.valueForX(" in extras,
-       "drawing, labels and hit testing do not share geometry")
-    ok("snapshotFlow" in slider_code and "collectLatest" in slider_code,
-       "animation restart is not driven by state changes")
-    ok("releaseSerial += 1" in extras,
-       "same-level release cannot restart the settle animation")
+    ok("import top.yukonga.miuix.kmp.basic.Slider" in slider_code or
+       "import top.yukonga.miuix.kmp.basic.Slider" in extras,
+       "thinking effort must use the Miuix slider")
+    ok("Slider(" in slider_code and "steps = (levels.size - 2).coerceAtLeast(0)" in slider_code,
+       "slider stops must follow the model's supported levels")
+    ok("displayName" in slider_code and "levels[selectedIndex]" in slider_code,
+       "current level must use the same display name as the composer")
+    ok("onSelect(levels[" in slider_code and "pointerInput" not in slider_code and "Canvas(" not in slider_code,
+       "native slider must commit a supported level without custom drawing or gestures")
 
     # --- Slider math -----------------------------------------------------
     for token in (

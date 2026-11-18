@@ -11,8 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Restore
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,11 +30,14 @@ import com.openminis.app.agent.prompts.PromptEntry
 import com.openminis.app.agent.prompts.PromptOverrides
 import com.openminis.app.agent.prompts.PromptTemplate
 import com.openminis.app.ui.components.DocumentEditorField
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
 
 /**
  * [K-unified-prompt-workspace] Full-text editor for ONE built-in prompt.
@@ -311,10 +313,12 @@ private fun BuiltinPromptEditorContent(
                                 },
                                 modifier = Modifier.weight(1f),
                             )
-                            MinisButton(
+                            TextButton(
                                 onClick = save,
                                 enabled = loaded && isDirty && !saving,
-                            ) { Text(stringResource(R.string.common_save)) }
+                                text = stringResource(R.string.common_save),
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                            )
                         }
                     }
                 }
@@ -365,69 +369,97 @@ private fun BuiltinPromptEditorContent(
 
     // Unsaved-changes guard: dismissing by tapping outside keeps the edits.
     if (showDiscard) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showDiscard = false },
-            title = { Text(stringResource(R.string.prompt_catalog_discard_title)) },
-            text = { Text(stringResource(R.string.prompt_catalog_discard_body)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showDiscard = false
-                    onBack()
-                }) { Text(stringResource(R.string.prompt_catalog_discard_confirm)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showDiscard = false }) {
-                    Text(stringResource(R.string.prompt_catalog_discard_cancel))
+            title = stringResource(R.string.prompt_catalog_discard_title),
+            summary = stringResource(R.string.prompt_catalog_discard_body),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showDiscard = false
+                                    onBack()
+                                },
+                                    text = stringResource(R.string.prompt_catalog_discard_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showDiscard = false },
+                                    text = stringResource(R.string.prompt_catalog_discard_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 
     // Restore default is destructive (the override is deleted), so it asks
     // first even though it is reversible only by retyping the text.
     if (showResetConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showResetConfirm = false },
-            title = { Text(stringResource(R.string.prompt_catalog_editor_reset_confirm_title)) },
-            text = { Text(stringResource(R.string.prompt_catalog_editor_reset_confirm_body)) },
-            confirmButton = {
-                MinisButton(onClick = {
-                    showResetConfirm = false
-                    restoreDefault()
-                }) { Text(stringResource(R.string.prompt_catalog_editor_reset_confirm)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showResetConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
+            title = stringResource(R.string.prompt_catalog_editor_reset_confirm_title),
+            summary = stringResource(R.string.prompt_catalog_editor_reset_confirm_body),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showResetConfirm = false
+                                    restoreDefault()
+                                },
+                                    text = stringResource(R.string.prompt_catalog_editor_reset_confirm),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
+                TextButton(
+                                    onClick = { showResetConfirm = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 
     saveFailure?.let { message ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { saveFailure = null },
-            title = { Text(stringResource(R.string.prompt_catalog_editor_save_error_title)) },
-            text = { Text(message) },
-            confirmButton = {
-                MinisButton(onClick = { saveFailure = null }) {
-                    Text(stringResource(R.string.common_close))
+            title = stringResource(R.string.prompt_catalog_editor_save_error_title),
+            summary = message,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { saveFailure = null },
+                                    text = stringResource(R.string.common_close),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 
     resetFailure?.let { message ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { resetFailure = null },
-            title = { Text(stringResource(R.string.prompt_catalog_editor_reset_error_title)) },
-            text = { Text(message) },
-            confirmButton = {
-                MinisButton(onClick = { resetFailure = null }) {
-                    Text(stringResource(R.string.common_close))
+            title = stringResource(R.string.prompt_catalog_editor_reset_error_title),
+            summary = message,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { resetFailure = null },
+                                    text = stringResource(R.string.common_close),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 

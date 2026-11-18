@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,13 +25,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.provider.thinking.ThinkingRule
 import com.openminis.app.provider.thinking.ThinkingResolveContext
 import com.openminis.app.provider.thinking.ThinkingRuleResolver
 import com.openminis.app.provider.thinking.ThinkingWireFormat
 import org.json.JSONObject
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 
 /** What the section asks the editor to open with. */
 data class ThinkingRuleEditorRequest(
@@ -128,181 +133,202 @@ fun ThinkingRuleEditorDialog(
         (allModels || pattern.isNotBlank()) &&
         pathError == null && valueError == null && offValueError == null
 
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (request.isNew) R.string.thinking_rules_new_rule else R.string.thinking_rules_edit_rule,
-                ),
-            )
-        },
-        text = {
+        title = stringResource(
+                        if (request.isNew) R.string.thinking_rules_new_rule else R.string.thinking_rules_edit_rule,
+                    ),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // Name
-                OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it },
-                    label = { Text(stringResource(R.string.thinking_rules_rule_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.padding(6.dp))
-
-                // Applies to
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(stringResource(R.string.thinking_rules_all_models))
-                    SettingsSwitch(checked = allModels, onCheckedChange = { allModels = it })
-                }
-                if (!allModels) {
-                    OutlinedTextField(
-                        value = pattern,
-                        onValueChange = { pattern = it },
-                        label = { Text(stringResource(R.string.thinking_rules_model_pattern)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(R.string.thinking_rules_glob_hint),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                }
-                Spacer(Modifier.padding(6.dp))
-
-                // What to send (format picker)
-                Text(
-                    stringResource(R.string.thinking_rules_what_to_send),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-                Column {
-                    MinisTextButton(onClick = { formatMenuOpen = true }) {
-                        Text(stringResource(choice.titleRes))
-                    }
-                    DropdownMenu(expanded = formatMenuOpen, onDismissRequest = { formatMenuOpen = false }) {
-                        FormatChoice.entries.forEach { c ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(c.titleRes)) },
-                                onClick = { choice = c; formatMenuOpen = false },
-                            )
-                        }
-                    }
-                }
-                Text(
-                    stringResource(choice.explanationRes),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-
-                // Per-format fields
-                when (choice) {
-                    FormatChoice.REASONING_EFFORT, FormatChoice.REASONING_EFFORT_NESTED -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(stringResource(R.string.thinking_rules_send_off_value))
-                            SettingsSwitch(checked = sendOffValue, onCheckedChange = { sendOffValue = it })
-                        }
-                        if (sendOffValue) {
-                            OutlinedTextField(
-                                value = offValue,
-                                onValueChange = { offValue = it },
-                                label = { Text(stringResource(R.string.thinking_rules_off_value)) },
+                            // Name
+                            TextField(
+                                value = label,
+                                onValueChange = { label = it },
                                 singleLine = true,
+                                label = stringResource(R.string.thinking_rules_rule_name),
+                                useLabelAsPlaceholder = false,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                        }
-                    }
-                    FormatChoice.BOOLEAN_TOGGLE, FormatChoice.EXTRA_BODY_TOGGLE -> {
-                        OutlinedTextField(
-                            value = path,
-                            onValueChange = { path = it },
-                            label = { Text(stringResource(R.string.thinking_rules_field_path)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    FormatChoice.CUSTOM_PATH -> {
-                        // [GH#306] `pathError` / `valueError` below: a CustomPath rule with
-                        // a blank path or blank value used to save happily and then emit
-                        // nothing, which reads as "my rule is ignored". Validating at the
-                        // point of entry is the only place the user can still fix it.
-                        OutlinedTextField(
-                            value = path,
-                            onValueChange = { path = it },
-                            label = { Text(stringResource(R.string.thinking_rules_dotted_path)) },
-                            singleLine = true,
-                            isError = pathError != null,
-                            supportingText = pathError?.let { { Text(it) } },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = highValue,
-                            onValueChange = { highValue = it },
-                            label = { Text(stringResource(R.string.thinking_rules_value_at_high)) },
-                            singleLine = true,
-                            isError = valueError != null,
-                            supportingText = valueError?.let { { Text(it) } },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        // [GH#306] The off-value row was missing for CustomPath, so
-                        // `sendOffValue` could never become true and the rule's offValue
-                        // was unreachable from the UI — a thinking OFF tier then wrote
-                        // nothing at all, silently leaving the vendor's default in force.
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(stringResource(R.string.thinking_rules_send_off_value))
-                            SettingsSwitch(checked = sendOffValue, onCheckedChange = { sendOffValue = it })
-                        }
-                        if (sendOffValue) {
-                            OutlinedTextField(
-                                value = offValue,
-                                onValueChange = { offValue = it },
-                                label = { Text(stringResource(R.string.thinking_rules_off_value)) },
-                                singleLine = true,
-                                isError = offValueError != null,
-                                supportingText = offValueError?.let { { Text(it) } },
-                                modifier = Modifier.fillMaxWidth(),
+                            Spacer(Modifier.padding(6.dp))
+
+                            // Applies to
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(stringResource(R.string.thinking_rules_all_models))
+                                Switch(checked = allModels, onCheckedChange = { allModels = it })
+                            }
+                            if (!allModels) {
+                                TextField(
+                                    value = pattern,
+                                    onValueChange = { pattern = it },
+                                    singleLine = true,
+                                    label = stringResource(R.string.thinking_rules_model_pattern),
+                                    useLabelAsPlaceholder = false,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Text(
+                                    stringResource(R.string.thinking_rules_glob_hint),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                )
+                            }
+                            Spacer(Modifier.padding(6.dp))
+
+                            // What to send (format picker)
+                            Text(
+                                stringResource(R.string.thinking_rules_what_to_send),
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            Column {
+                                TextButton(
+                                    onClick = { formatMenuOpen = true },
+                                    text = stringResource(choice.titleRes),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                                DropdownMenu(expanded = formatMenuOpen, onDismissRequest = { formatMenuOpen = false }) {
+                                    FormatChoice.entries.forEach { c ->
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(c.titleRes)) },
+                                            onClick = { choice = c; formatMenuOpen = false },
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                stringResource(choice.explanationRes),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+
+                            // Per-format fields
+                            when (choice) {
+                                FormatChoice.REASONING_EFFORT, FormatChoice.REASONING_EFFORT_NESTED -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(stringResource(R.string.thinking_rules_send_off_value))
+                                        Switch(checked = sendOffValue, onCheckedChange = { sendOffValue = it })
+                                    }
+                                    if (sendOffValue) {
+                                        TextField(
+                                            value = offValue,
+                                            onValueChange = { offValue = it },
+                                            singleLine = true,
+                                            label = stringResource(R.string.thinking_rules_off_value),
+                                            useLabelAsPlaceholder = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                                FormatChoice.BOOLEAN_TOGGLE, FormatChoice.EXTRA_BODY_TOGGLE -> {
+                                    TextField(
+                                        value = path,
+                                        onValueChange = { path = it },
+                                        singleLine = true,
+                                        label = stringResource(R.string.thinking_rules_field_path),
+                                        useLabelAsPlaceholder = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                                FormatChoice.CUSTOM_PATH -> {
+                                    // [GH#306] `pathError` / `valueError` below: a CustomPath rule with
+                                    // a blank path or blank value used to save happily and then emit
+                                    // nothing, which reads as "my rule is ignored". Validating at the
+                                    // point of entry is the only place the user can still fix it.
+                                    Column(Modifier.fillMaxWidth() .semantics { if (pathError != null) error("Invalid value") }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        TextField(
+                                            value = path,
+                                            onValueChange = { path = it },
+                                            singleLine = true,
+                                            colors = TextFieldDefaults.textFieldColors().let { if (pathError != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                                            label = stringResource(R.string.thinking_rules_dotted_path),
+                                            useLabelAsPlaceholder = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        val support: (@Composable () -> Unit)? = pathError?.let { { Text(it) } }
+                                        support?.invoke()
+                                    }
+                                    Column(Modifier.fillMaxWidth() .semantics { if (valueError != null) error("Invalid value") }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        TextField(
+                                            value = highValue,
+                                            onValueChange = { highValue = it },
+                                            singleLine = true,
+                                            colors = TextFieldDefaults.textFieldColors().let { if (valueError != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                                            label = stringResource(R.string.thinking_rules_value_at_high),
+                                            useLabelAsPlaceholder = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        val support: (@Composable () -> Unit)? = valueError?.let { { Text(it) } }
+                                        support?.invoke()
+                                    }
+                                    // [GH#306] The off-value row was missing for CustomPath, so
+                                    // `sendOffValue` could never become true and the rule's offValue
+                                    // was unreachable from the UI — a thinking OFF tier then wrote
+                                    // nothing at all, silently leaving the vendor's default in force.
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(stringResource(R.string.thinking_rules_send_off_value))
+                                        Switch(checked = sendOffValue, onCheckedChange = { sendOffValue = it })
+                                    }
+                                    if (sendOffValue) {
+                                        Column(Modifier.fillMaxWidth() .semantics { if (offValueError != null) error("Invalid value") }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            TextField(
+                                                value = offValue,
+                                                onValueChange = { offValue = it },
+                                                singleLine = true,
+                                                colors = TextFieldDefaults.textFieldColors().let { if (offValueError != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                                                label = stringResource(R.string.thinking_rules_off_value),
+                                                useLabelAsPlaceholder = false,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                            val support: (@Composable () -> Unit)? = offValueError?.let { { Text(it) } }
+                                            support?.invoke()
+                                        }
+                                    }
+                                }
+                                else -> {}
+                            }
+
+                            // Request preview
+                            Spacer(Modifier.padding(6.dp))
+                            Text(
+                                stringResource(R.string.thinking_rules_request_preview),
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            Text(
+                                text = previewJson(buildRule()),
+                                style = MiuixTheme.textStyles.body2,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
                             )
                         }
-                    }
-                    else -> {}
-                }
-
-                // Request preview
-                Spacer(Modifier.padding(6.dp))
-                Text(
-                    stringResource(R.string.thinking_rules_request_preview),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-                Text(
-                    text = previewJson(buildRule()),
-                    style = MiuixTheme.textStyles.body2,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState()),
-                )
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = { if (isValid) onSave(buildRule()) },
+                            enabled = isValid,
+                            text = stringResource(R.string.common_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-        confirmButton = {
-            MinisTextButton(onClick = { if (isValid) onSave(buildRule()) }, enabled = isValid) {
-                Text(stringResource(R.string.common_save))
-            }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 /** The user-selectable wire formats (a subset — Gemini/Anthropic families excluded). */

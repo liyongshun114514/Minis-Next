@@ -24,18 +24,12 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Troubleshoot
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import com.openminis.app.ui.components.miuix.Checkbox
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -70,10 +64,17 @@ import com.openminis.app.network.ProxyServer
 import com.openminis.app.network.TailscaleStatus
 import com.openminis.app.network.WebViewNetworkProxy
 import com.openminis.app.ui.components.DialogTextField
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import androidx.compose.ui.state.ToggleableState
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * [FEAT-261021-04, iOS c77be4fb6] The pages of Settings > Network, each its
@@ -186,9 +187,11 @@ fun NetworkSettingsScreen(
                     icon = Icons.Outlined.Restore,
                     iconColor = Color(0xFFFF9500),
                     trailing = {
-                        MinisTextButton(onClick = { NetworkHub.resume() }) {
-                            Text(stringResource(R.string.network_turn_back_on))
-                        }
+                        TextButton(
+                            onClick = { NetworkHub.resume() },
+                            text = stringResource(R.string.network_turn_back_on),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     },
                     showDivider = false,
                 )
@@ -475,106 +478,134 @@ fun NetworkSettingsScreen(
 
     if (showHostname) {
         var draft by remember { mutableStateOf(settings.hostname) }
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showHostname = false },
-            title = { Text(stringResource(R.string.network_device_name)) },
-            text = {
+            title = stringResource(R.string.network_device_name),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 DialogTextField(value = draft, onValueChange = { draft = it }, placeholder = "minis-android")
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    NetworkHub.update { it.copy(hostname = draft.trim()) }
-                    showHostname = false
-                }) { Text(stringResource(R.string.network_save)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showHostname = false }) { Text(stringResource(R.string.network_cancel)) }
-            },
-        )
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    NetworkHub.update { it.copy(hostname = draft.trim()) }
+                                    showHostname = false
+                                },
+                                    text = stringResource(R.string.network_save),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showHostname = false },
+                                    text = stringResource(R.string.network_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 
     if (showExitNode) {
         val options = ts.peers.filter { it.exitNodeOption }
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showExitNode = false },
-            title = { Text(stringResource(R.string.network_exit_node)) },
-            text = {
+            title = stringResource(R.string.network_exit_node),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    SettingsChoiceRow(
-                        title = stringResource(R.string.network_exit_node_none),
-                        selected = settings.exitNodeIP == null,
-                        onSelect = { NetworkHub.update { it.copy(exitNodeIP = null) }; showExitNode = false },
-                    )
-                    for (p in options) {
-                        val ip = p.ips.firstOrNull { !it.contains(':') } ?: continue
-                        SettingsChoiceRow(
-                            title = if (p.online) p.displayName else stringResource(R.string.network_peer_offline, p.displayName),
-                            selected = settings.exitNodeIP == ip,
-                            onSelect = { NetworkHub.update { it.copy(exitNodeIP = ip) }; showExitNode = false },
-                        )
-                    }
+                                    SettingsChoiceRow(
+                                        title = stringResource(R.string.network_exit_node_none),
+                                        selected = settings.exitNodeIP == null,
+                                        onSelect = { NetworkHub.update { it.copy(exitNodeIP = null) }; showExitNode = false },
+                                    )
+                                    for (p in options) {
+                                        val ip = p.ips.firstOrNull { !it.contains(':') } ?: continue
+                                        SettingsChoiceRow(
+                                            title = if (p.online) p.displayName else stringResource(R.string.network_peer_offline, p.displayName),
+                                            selected = settings.exitNodeIP == ip,
+                                            onSelect = { NetworkHub.update { it.copy(exitNodeIP = ip) }; showExitNode = false },
+                                        )
+                                    }
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { showExitNode = false },
+                                    text = stringResource(R.string.network_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            confirmButton = {
-                MinisTextButton(onClick = { showExitNode = false }) { Text(stringResource(R.string.network_cancel)) }
-            },
-        )
+            }
+        }
     }
 
     if (showDevices) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showDevices = false },
-            title = { Text(stringResource(R.string.network_devices)) },
-            text = {
+            title = stringResource(R.string.network_devices),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    for (p in ts.peers) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier.size(8.dp).background(
-                                    if (p.online) Color(0xFF34C759) else MiuixTheme.colorScheme.outline,
-                                    CircleShape,
-                                ),
-                            )
-                            Spacer(Modifier.size(10.dp))
-                            Column {
-                                Text(p.displayName, style = MiuixTheme.textStyles.body1)
-                                SelectionContainer {
-                                    Text(
-                                        listOfNotNull(p.ipv4, p.os.ifEmpty { null }).joinToString(" · "),
-                                        style = MiuixTheme.textStyles.body2,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                    )
+                                    for (p in ts.peers) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                Modifier.size(8.dp).background(
+                                                    if (p.online) Color(0xFF34C759) else MiuixTheme.colorScheme.outline,
+                                                    CircleShape,
+                                                ),
+                                            )
+                                            Spacer(Modifier.size(10.dp))
+                                            Column {
+                                                Text(p.displayName, style = MiuixTheme.textStyles.body1)
+                                                SelectionContainer {
+                                                    Text(
+                                                        listOfNotNull(p.ipv4, p.os.ifEmpty { null }).joinToString(" · "),
+                                                        style = MiuixTheme.textStyles.body2,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                                    )
+                                                }
+                                            }
+                                            if (p.exitNode) {
+                                                Spacer(Modifier.weight(1f))
+                                                Text(stringResource(R.string.network_exit_node), style = MiuixTheme.textStyles.footnote2)
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                            if (p.exitNode) {
-                                Spacer(Modifier.weight(1f))
-                                Text(stringResource(R.string.network_exit_node), style = MiuixTheme.textStyles.footnote2)
-                            }
-                        }
-                    }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { showDevices = false },
+                                    text = "OK",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            confirmButton = {
-                MinisTextButton(onClick = { showDevices = false }) { Text("OK") }
-            },
-        )
+            }
+        }
     }
 
     if (confirmClear) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.network_sign_out_clear_title)) },
-            text = { Text(stringResource(R.string.network_sign_out_clear_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = { NetworkHub.clearTailscale(); confirmClear = false }) {
-                    Text(stringResource(R.string.network_sign_out_clear), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.network_sign_out_clear_title),
+            summary = stringResource(R.string.network_sign_out_clear_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { NetworkHub.clearTailscale(); confirmClear = false },
+                                    text = stringResource(R.string.network_sign_out_clear),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { confirmClear = false },
+                                    text = stringResource(R.string.network_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.network_cancel)) }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -652,25 +683,31 @@ internal fun RoutePickerDialog(
         proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
     }
     val s = NetworkSettings(proxies = proxies)
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
+        title = title,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                options.forEachIndexed { i, r ->
-                    SettingsChoiceRow(
-                        title = routeLabel(r, s),
-                        selected = r == current,
-                        onSelect = { onPick(r) },
-                        showDivider = i < options.size - 1,
-                    )
-                }
+                            options.forEachIndexed { i, r ->
+                                SettingsChoiceRow(
+                                    title = routeLabel(r, s),
+                                    selected = r == current,
+                                    onSelect = { onPick(r) },
+                                    showDivider = i < options.size - 1,
+                                )
+                            }
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.network_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-        confirmButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.network_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 /**
@@ -698,21 +735,11 @@ private fun AddProviderRoutesSheet(
         proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
     }
     val s = NetworkSettings(proxies = proxies)
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MiuixTheme.colorScheme.background,
-        // The slim handle the model picker uses (6dp / 4dp, not Material's ~22dp).
-        dragHandle = {
-            Box(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), contentAlignment = Alignment.TopCenter) {
-                Box(
-                    Modifier.width(32.dp).height(4.dp).background(
-                        MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.4f),
-                        RoundedCornerShape(2.dp),
-                    ),
-                )
-            }
-        },
+        backgroundColor = MiuixTheme.colorScheme.background,
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).navigationBarsPadding()) {
             Row(
@@ -720,10 +747,11 @@ private fun AddProviderRoutesSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    MinisTextButton(
+                    TextButton(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(contentColor = MiuixTheme.colorScheme.onSurfaceContainerVariant),
-                    ) { Text(stringResource(R.string.network_cancel)) }
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.onSurfaceContainerVariant),
+                        text = stringResource(R.string.network_cancel),
+                    )
                 }
                 Text(
                     stringResource(R.string.network_add_providers),
@@ -731,13 +759,14 @@ private fun AddProviderRoutesSheet(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                    MinisTextButton(onClick = { onAdd(selected, route) }, enabled = selected.isNotEmpty()) {
-                        Text(
-                            if (selected.isEmpty()) stringResource(R.string.network_add)
+                    TextButton(
+                        onClick = { onAdd(selected, route) },
+                        enabled = selected.isNotEmpty(),
+                        text = if (selected.isEmpty()) stringResource(R.string.network_add)
                             else stringResource(R.string.network_add) + " (${selected.size})",
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        textStyle = MiuixTheme.textStyles.button.copy(fontWeight = FontWeight.SemiBold),
+                    )
                 }
             }
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -761,8 +790,8 @@ private fun AddProviderRoutesSheet(
                             showDivider = i < candidates.size - 1,
                             trailing = {
                                 Checkbox(
-                                    checked = on,
-                                    onCheckedChange = { selected = if (it) selected + p.id else selected - p.id },
+                                    state = if (on) ToggleableState.On else ToggleableState.Off,
+                                    onClick = { selected = if (on) selected - p.id else selected + p.id },
                                 )
                             },
                         )
@@ -879,118 +908,139 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
         if (portText in listOf("", "1080", "8080", "443")) portText = ProxyServer.defaultPort(kind).toString()
     }
 
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (isNew) R.string.network_add_proxy else R.string.network_edit_proxy)) },
-        text = {
+        title = stringResource(if (isNew) R.string.network_add_proxy else R.string.network_edit_proxy),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogTextField(value = name, onValueChange = { name = it }, placeholder = stringResource(R.string.network_proxy_name))
-                Text(stringResource(R.string.network_proxy_type), style = MiuixTheme.textStyles.footnote1)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    for (k in ProxyServer.KINDS) {
-                        MinisTextButton(onClick = { kind = k }) {
-                            Text(
-                                ProxyServer.kindLabel(k),
-                                color = if (k == kind) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            )
-                        }
-                    }
-                }
-                DialogTextField(value = host, onValueChange = { host = it }, placeholder = stringResource(R.string.network_proxy_server),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
-                DialogTextField(value = portText, onValueChange = { portText = it.filter(Char::isDigit).take(5) },
-                    placeholder = stringResource(R.string.network_proxy_port),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                Text(stringResource(R.string.network_proxy_authentication), style = MiuixTheme.textStyles.footnote1)
-                DialogTextField(value = username, onValueChange = { username = it }, placeholder = stringResource(R.string.network_proxy_username))
-                DialogTextField(value = password, onValueChange = { password = it }, placeholder = stringResource(R.string.network_proxy_password),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                Text(stringResource(R.string.network_proxy_bypass), style = MiuixTheme.textStyles.footnote1)
-                DialogTextField(value = bypassText, onValueChange = { bypassText = it }, placeholder = "example.com, *.lan, 10.0.0.0/8",
-                    singleLine = false, maxLines = 4)
-                Text(stringResource(R.string.network_proxy_bypass_footer), style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MinisTextButton(enabled = valid && !testing, onClick = {
-                        testing = true
-                        testResult = null
-                        val p = edited()
-                        val pw = password
-                        scope.launch {
-                            testResult = withContext(Dispatchers.IO) {
-                                runCatching { NetworkHub.testProxy(p, pw) }.fold(
-                                    { true to okFormat.format(it.toInt()) },
-                                    { false to NetworkDiagnostics.classifyText(it.message.orEmpty()) },
+                            DialogTextField(value = name, onValueChange = { name = it }, placeholder = stringResource(R.string.network_proxy_name))
+                            Text(stringResource(R.string.network_proxy_type), style = MiuixTheme.textStyles.footnote1)
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                for (k in ProxyServer.KINDS) {
+                                    TextButton(
+                                        onClick = { kind = k },
+                                        text = ProxyServer.kindLabel(k),
+                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = if (k == kind) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceContainerVariant),
+                                    )
+                                }
+                            }
+                            DialogTextField(value = host, onValueChange = { host = it }, placeholder = stringResource(R.string.network_proxy_server),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
+                            DialogTextField(value = portText, onValueChange = { portText = it.filter(Char::isDigit).take(5) },
+                                placeholder = stringResource(R.string.network_proxy_port),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            Text(stringResource(R.string.network_proxy_authentication), style = MiuixTheme.textStyles.footnote1)
+                            DialogTextField(value = username, onValueChange = { username = it }, placeholder = stringResource(R.string.network_proxy_username))
+                            DialogTextField(value = password, onValueChange = { password = it }, placeholder = stringResource(R.string.network_proxy_password),
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                            Text(stringResource(R.string.network_proxy_bypass), style = MiuixTheme.textStyles.footnote1)
+                            DialogTextField(value = bypassText, onValueChange = { bypassText = it }, placeholder = "example.com, *.lan, 10.0.0.0/8",
+                                singleLine = false, maxLines = 4)
+                            Text(stringResource(R.string.network_proxy_bypass_footer), style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(
+                                    enabled = valid && !testing, onClick = {
+                                    testing = true
+                                    testResult = null
+                                    val p = edited()
+                                    val pw = password
+                                    scope.launch {
+                                        testResult = withContext(Dispatchers.IO) {
+                                            runCatching { NetworkHub.testProxy(p, pw) }.fold(
+                                                { true to okFormat.format(it.toInt()) },
+                                                { false to NetworkDiagnostics.classifyText(it.message.orEmpty()) },
+                                            )
+                                        }
+                                        testing = false
+                                    }
+                                },
+                                    text = stringResource(R.string.network_proxy_test),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                                if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            }
+                            testResult?.let { (ok, msg) ->
+                                Text(msg, style = MiuixTheme.textStyles.body2,
+                                    color = if (ok) Color(0xFF34C759) else MiuixTheme.colorScheme.error)
+                            }
+                            // [FEAT-261021-05] Opened from the "keeps failing" banner: say
+                            // why, and let the user stop using it without deleting it.
+                            val failure = NetworkAlertCenter.failing.collectAsState().value[NetworkAlertEvent.Subject.Proxy(proxy.id)]
+                            if (!isNew && failure != null) {
+                                val inUse = NetworkHub.proxyInUse(proxy.id, NetworkHub.settings.collectAsState().value)
+                                NetworkFailureNote(failure)
+                                if (inUse) {
+                                    TextButton(
+                                        onClick = { NetworkHub.stopUsingProxy(proxy.id); onDismiss() },
+                                        text = stringResource(R.string.network_stop_using_proxy),
+                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                    )
+                                }
+                                Text(
+                                    stringResource(if (inUse) R.string.network_stop_using_proxy_footer else R.string.network_proxy_not_in_use),
+                                    style = MiuixTheme.textStyles.body2,
+                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
                             }
-                            testing = false
+                            if (!isNew) {
+                                TextButton(
+                                    onClick = { NetworkHub.deleteProxy(proxy.id); onDismiss() },
+                                    text = stringResource(R.string.network_proxy_delete),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                            }
                         }
-                    }) { Text(stringResource(R.string.network_proxy_test)) }
-                    if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                }
-                testResult?.let { (ok, msg) ->
-                    Text(msg, style = MiuixTheme.textStyles.body2,
-                        color = if (ok) Color(0xFF34C759) else MiuixTheme.colorScheme.error)
-                }
-                // [FEAT-261021-05] Opened from the "keeps failing" banner: say
-                // why, and let the user stop using it without deleting it.
-                val failure = NetworkAlertCenter.failing.collectAsState().value[NetworkAlertEvent.Subject.Proxy(proxy.id)]
-                if (!isNew && failure != null) {
-                    val inUse = NetworkHub.proxyInUse(proxy.id, NetworkHub.settings.collectAsState().value)
-                    NetworkFailureNote(failure)
-                    if (inUse) {
-                        MinisTextButton(onClick = { NetworkHub.stopUsingProxy(proxy.id); onDismiss() }) {
-                            Text(stringResource(R.string.network_stop_using_proxy), color = MiuixTheme.colorScheme.error)
-                        }
-                    }
-                    Text(
-                        stringResource(if (inUse) R.string.network_stop_using_proxy_footer else R.string.network_proxy_not_in_use),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                }
-                if (!isNew) {
-                    MinisTextButton(onClick = { NetworkHub.deleteProxy(proxy.id); onDismiss() }) {
-                        Text(stringResource(R.string.network_proxy_delete), color = MiuixTheme.colorScheme.error)
-                    }
-                }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            enabled = valid,
+                            onClick = { NetworkHub.saveProxy(edited(), password); onDismiss() },
+                            text = stringResource(R.string.network_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.network_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-        confirmButton = {
-            MinisTextButton(enabled = valid, onClick = { NetworkHub.saveProxy(edited(), password); onDismiss() }) {
-                Text(stringResource(R.string.network_save))
-            }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.network_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 @Composable
 private fun AuthKeyDialog(onDismiss: () -> Unit) {
     var key by remember { mutableStateOf("") }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.network_auth_key)) },
-        text = {
+        title = stringResource(R.string.network_auth_key),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogTextField(value = key, onValueChange = { key = it }, placeholder = "tskey-auth-…",
-                    visualTransformation = PasswordVisualTransformation())
-                Text(stringResource(R.string.network_auth_key_footer), style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                            DialogTextField(value = key, onValueChange = { key = it }, placeholder = "tskey-auth-…",
+                                visualTransformation = PasswordVisualTransformation())
+                            Text(stringResource(R.string.network_auth_key_footer), style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            enabled = key.isNotBlank(),
+                            onClick = { NetworkHub.login(key); onDismiss() },
+                            text = stringResource(R.string.network_log_in),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.network_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-        confirmButton = {
-            MinisTextButton(enabled = key.isNotBlank(), onClick = { NetworkHub.login(key); onDismiss() }) {
-                Text(stringResource(R.string.network_log_in))
-            }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.network_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 /**

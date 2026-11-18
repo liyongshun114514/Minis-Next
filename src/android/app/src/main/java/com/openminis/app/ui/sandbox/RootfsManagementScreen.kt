@@ -2,7 +2,6 @@ package com.openminis.app.ui.sandbox
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
 import android.text.format.Formatter
 import androidx.compose.foundation.BorderStroke
@@ -34,18 +33,11 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.ListItemDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +59,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SettingsRowDivider
 import com.openminis.app.ui.components.SettingsSection
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.BasicComponent
 
 @Composable
 fun RootfsManagementScreen(
@@ -88,17 +87,18 @@ fun RootfsManagementScreen(
     // T168: iOS-style inset-grouped background. surfaceContainerLowest sits
     // a hair below `surface`, so the rounded section cards (which use
     // `surface`) read as raised pads against the page bg.
-    val groupedBg = MiuixTheme.colorScheme.background
+    val groupedBg = MiuixTheme.colorScheme.surface
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.rootfs_management_title)) },
+                title = stringResource(R.string.rootfs_management_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = groupedBg),
+                expandable = false,
+                color = groupedBg,
             )
         },
         containerColor = groupedBg,
@@ -114,95 +114,91 @@ fun RootfsManagementScreen(
 
             // --- Status section ---
             SettingsSection(title = stringResource(R.string.rootfs_status_section)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.rootfs_installed_label)) },
-                    trailingContent = {
-                        Icon(
-                            if (state.isInstalled) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
-                            contentDescription = null,
-                            tint = if (state.isInstalled)
-                                MiuixTheme.colorScheme.primary
-                            else
-                                MiuixTheme.colorScheme.error,
-                        )
-                    },
-                    colors = transparentListItemColors(),
-                )
+                BasicComponent(
+                    endActions = {
+                                        Icon(
+                                            if (state.isInstalled) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                                            contentDescription = null,
+                                            tint = if (state.isInstalled)
+                                                MiuixTheme.colorScheme.primary
+                                            else
+                                                MiuixTheme.colorScheme.error,
+                                        )
+                                    },
+                ) {
+                    Text(stringResource(R.string.rootfs_installed_label))
+                }
                 if (state.isInstalled) {
                     SettingsRowDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_size_label)) },
-                        trailingContent = {
-                            if (state.rootfsSize > 0) {
-                                Text(
-                                    Formatter.formatFileSize(context, state.rootfsSize),
-                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                )
-                            } else {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            }
-                        },
-                        colors = transparentListItemColors(),
-                    )
+                    BasicComponent(
+                        endActions = {
+                                                if (state.rootfsSize > 0) {
+                                                    Text(
+                                                        Formatter.formatFileSize(context, state.rootfsSize),
+                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                                    )
+                                                } else {
+                                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                                }
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_size_label))
+                    }
                     SettingsRowDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_path_label)) },
-                        supportingContent = {
-                            Text(
-                                state.rootfsPath,
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                maxLines = 1,
-                            )
-                        },
-                        colors = transparentListItemColors(),
-                    )
+                    BasicComponent(
+                    ) {
+                        Text(stringResource(R.string.rootfs_path_label))
+                        Text(
+                                                        state.rootfsPath,
+                                                        style = MiuixTheme.textStyles.body2,
+                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                                        maxLines = 1,
+                                                    )
+                    }
                 }
             }
 
             state.migrationError?.let { migrationError ->
                 SettingsSection(title = "Rootfs 目录迁移") {
-                    ListItem(
-                        headlineContent = { Text("迁移未完成，安装与读取已停止") },
-                        supportingContent = {
-                            Text(
-                                migrationError,
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.error,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Filled.Cancel,
-                                contentDescription = null,
-                                tint = MiuixTheme.colorScheme.error,
-                            )
-                        },
-                        colors = transparentListItemColors(),
-                    )
+                    BasicComponent(
+                        startAction = {
+                                                Icon(
+                                                    Icons.Filled.Cancel,
+                                                    contentDescription = null,
+                                                    tint = MiuixTheme.colorScheme.error,
+                                                )
+                                            },
+                    ) {
+                        Text("迁移未完成，安装与读取已停止")
+                        Text(
+                                                        migrationError,
+                                                        style = MiuixTheme.textStyles.body2,
+                                                        color = MiuixTheme.colorScheme.error,
+                                                    )
+                    }
                 }
             }
 
             if (state.isInstalled) {
                 // --- Browse section ---
                 SettingsSection(title = stringResource(R.string.rootfs_browse_section)) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_browse_files_label)) },
-                        leadingContent = {
-                            Icon(
-                                Icons.Filled.Folder,
-                                contentDescription = null,
-                                tint = MiuixTheme.colorScheme.primary,
-                            )
-                        },
-                        trailingContent = {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-                        },
+                    BasicComponent(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickableListItem(onClick = onBrowseFiles),
-                        colors = transparentListItemColors(),
-                    )
+                                                .fillMaxWidth()
+                                                .clickableListItem(onClick = onBrowseFiles),
+                        startAction = {
+                                                Icon(
+                                                    Icons.Filled.Folder,
+                                                    contentDescription = null,
+                                                    tint = MiuixTheme.colorScheme.primary,
+                                                )
+                                            },
+                        endActions = {
+                                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_browse_files_label))
+                    }
                 }
 
                 // --- Mirrors section ---
@@ -227,88 +223,83 @@ fun RootfsManagementScreen(
             // --- Actions section ---
             SettingsSection(title = stringResource(R.string.rootfs_actions_section)) {
                 if (!state.isInstalled) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_install_label)) },
-                        leadingContent = {
-                            Icon(Icons.Filled.Download, contentDescription = null)
-                        },
+                    BasicComponent(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickableListItem(
-                                enabled = !state.isProcessing && state.migrationError == null,
-                                onClick = { viewModel.install(context) },
-                            ),
-                        colors = transparentListItemColors(),
-                    )
+                                                .fillMaxWidth()
+                                                .clickableListItem(
+                                                    enabled = !state.isProcessing && state.migrationError == null,
+                                                    onClick = { viewModel.install(context) },
+                                                ),
+                        startAction = {
+                                                Icon(Icons.Filled.Download, contentDescription = null)
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_install_label))
+                    }
                 } else {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_reset_label)) },
-                        supportingContent = { Text(stringResource(R.string.rootfs_reset_description)) },
-                        leadingContent = {
-                            Icon(Icons.Filled.Refresh, contentDescription = null)
-                        },
+                    BasicComponent(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickableListItem(
-                                enabled = !state.isProcessing,
-                                onClick = { showResetDialog = true },
-                            ),
-                        colors = transparentListItemColors(),
-                    )
+                                                .fillMaxWidth()
+                                                .clickableListItem(
+                                                    enabled = !state.isProcessing,
+                                                    onClick = { showResetDialog = true },
+                                                ),
+                        startAction = {
+                                                Icon(Icons.Filled.Refresh, contentDescription = null)
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_reset_label))
+                        Text(stringResource(R.string.rootfs_reset_description))
+                    }
                     SettingsRowDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_reset_backup_label)) },
-                        supportingContent = { Text(stringResource(R.string.rootfs_reset_backup_description)) },
-                        leadingContent = {
-                            Icon(Icons.Filled.Archive, contentDescription = null)
-                        },
+                    BasicComponent(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickableListItem(
-                                enabled = !state.isProcessing,
-                                onClick = { showResetBackupDialog = true },
-                            ),
-                        colors = transparentListItemColors(),
-                    )
+                                                .fillMaxWidth()
+                                                .clickableListItem(
+                                                    enabled = !state.isProcessing,
+                                                    onClick = { showResetBackupDialog = true },
+                                                ),
+                        startAction = {
+                                                Icon(Icons.Filled.Archive, contentDescription = null)
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_reset_backup_label))
+                        Text(stringResource(R.string.rootfs_reset_backup_description))
+                    }
                 }
 
                 if (state.hasBackup) {
                     SettingsRowDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.rootfs_restore_label)) },
-                        supportingContent = { Text(stringResource(R.string.rootfs_restore_description)) },
-                        leadingContent = {
-                            Icon(Icons.Filled.Restore, contentDescription = null)
-                        },
+                    BasicComponent(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickableListItem(
-                                enabled = !state.isProcessing && state.isInstalled,
-                                onClick = { viewModel.restoreBackup(context) },
-                            ),
-                        colors = transparentListItemColors(),
-                    )
+                                                .fillMaxWidth()
+                                                .clickableListItem(
+                                                    enabled = !state.isProcessing && state.isInstalled,
+                                                    onClick = { viewModel.restoreBackup(context) },
+                                                ),
+                        startAction = {
+                                                Icon(Icons.Filled.Restore, contentDescription = null)
+                                            },
+                    ) {
+                        Text(stringResource(R.string.rootfs_restore_label))
+                        Text(stringResource(R.string.rootfs_restore_description))
+                    }
                 }
             }
 
             // --- Progress / Result ---
             if (state.isProcessing) {
                 SettingsSection(title = stringResource(R.string.rootfs_progress_section)) {
-                    ListItem(
-                        headlineContent = { Text(state.statusMessage) },
-                        supportingContent = state.installProgress?.let { p ->
-                            {
-                                LinearProgressIndicator(
-                                    progress = { p },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        },
-                        leadingContent = {
+                    BasicComponent(
+                        startAction = {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         },
-                        colors = transparentListItemColors(),
-                    )
+                    ) {
+                        Text(state.statusMessage)
+                        state.installProgress?.let { progress ->
+                            LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
                 }
             }
 
@@ -356,24 +347,30 @@ fun RootfsManagementScreen(
 
     // --- Dialogs ---
     if (showResetDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showResetDialog = false },
-            title = { Text(stringResource(R.string.rootfs_reset_confirm_title)) },
-            text = { Text(stringResource(R.string.rootfs_reset_confirm_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showResetDialog = false
-                    viewModel.resetRootfs(context, keepUserData = false)
-                }) {
-                    Text("Reset", color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.rootfs_reset_confirm_title),
+            summary = stringResource(R.string.rootfs_reset_confirm_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showResetDialog = false
+                                    viewModel.resetRootfs(context, keepUserData = false)
+                                },
+                                    text = "Reset",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showResetDialog = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showResetDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // [FEAT-261025-CHROOT] Kept as a safety net: this screen lives outside
@@ -383,26 +380,30 @@ fun RootfsManagementScreen(
     com.openminis.app.ui.chat.OffloadPermissionDialog()
 
     if (showResetBackupDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showResetBackupDialog = false },
-            title = { Text(stringResource(R.string.rootfs_reset_backup_confirm_title)) },
-            text = {
-                Text(stringResource(R.string.rootfs_reset_backup_confirm_message))
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    showResetBackupDialog = false
-                    viewModel.resetRootfs(context, keepUserData = true)
-                }) {
-                    Text(stringResource(R.string.rootfs_reset_backup_confirm_button), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.rootfs_reset_backup_confirm_title),
+            summary = stringResource(R.string.rootfs_reset_backup_confirm_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    showResetBackupDialog = false
+                                    viewModel.resetRootfs(context, keepUserData = true)
+                                },
+                                    text = stringResource(R.string.rootfs_reset_backup_confirm_button),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showResetBackupDialog = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showResetBackupDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -413,10 +414,6 @@ fun RootfsManagementScreen(
  * card edges where ListItem extends past the curve. Force the ListItem
  * container transparent so the section card alone owns the visible bg.
  */
-@Composable
-private fun transparentListItemColors() =
-    ListItemDefaults.colors(containerColor = Color.Transparent)
-
 private fun Modifier.clickableListItem(
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -537,42 +534,48 @@ private fun SandboxBackendSection() {
             }
         }
         message?.let { text ->
-            ListItem(
-                headlineContent = { Text(text, style = MiuixTheme.textStyles.body2) },
-                colors = transparentListItemColors(),
-            )
+            BasicComponent(
+            ) {
+                Text(text, style = MiuixTheme.textStyles.body2)
+            }
         }
     }
 
     if (pendingTasks.isNotEmpty()) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { pendingTasks = emptyList() },
-            title = { Text("有任务正在运行") },
-            text = {
-                Text(
-                    pendingTasks.joinToString("\n") { "• ${it.label}" } +
-                        "\n\n切换后端会中断这些任务。请选择先停止再切换，或取消。",
-                )
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    val target = pendingTarget
-                        ?: com.openminis.app.sandbox.SandboxBackendStore.selected(context).let {
-                            if (it == com.openminis.app.sandbox.SandboxBackend.PROOT) {
-                                com.openminis.app.sandbox.SandboxBackend.CHROOT
-                            } else {
-                                com.openminis.app.sandbox.SandboxBackend.PROOT
-                            }
-                        }
-                    pendingTasks = emptyList()
-                    pendingTarget = null
-                    apply(target, stopActive = true)
-                }) { Text("停止并切换", color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { pendingTasks = emptyList(); pendingTarget = null }) { Text("取消") }
-            },
-        )
+            title = "有任务正在运行",
+            summary = pendingTasks.joinToString("\n") { "• ${it.label}" } +
+                                "\n\n切换后端会中断这些任务。请选择先停止再切换，或取消。",
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    val target = pendingTarget
+                                        ?: com.openminis.app.sandbox.SandboxBackendStore.selected(context).let {
+                                            if (it == com.openminis.app.sandbox.SandboxBackend.PROOT) {
+                                                com.openminis.app.sandbox.SandboxBackend.CHROOT
+                                            } else {
+                                                com.openminis.app.sandbox.SandboxBackend.PROOT
+                                            }
+                                        }
+                                    pendingTasks = emptyList()
+                                    pendingTarget = null
+                                    apply(target, stopActive = true)
+                                },
+                                    text = "停止并切换",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { pendingTasks = emptyList(); pendingTarget = null },
+                                    text = "取消",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }
 

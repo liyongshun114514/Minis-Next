@@ -2,7 +2,6 @@ package com.openminis.app.ui.settings
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
 import android.content.Context
 import android.content.Intent
@@ -19,19 +18,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +47,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.RandomAccessFile
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * Log management screen — adopts the SettingsSection/SettingsRow toolkit
@@ -133,22 +137,18 @@ fun LogManagementScreen(
     ) {
         // Segmented selector lives outside the scrolling content so the
         // tabs stay visible as the body scrolls.
-        SingleChoiceSegmentedButtonRow(
+        val tabLabels = listOf(stringResource(R.string.log_title), stringResource(R.string.logs_tab_config_changes))
+        TabRowWithContour(
+            tabs = tabLabels,
+            selectedTabIndex = if (tab == "logs") 0 else 1,
+            onTabSelected = { index -> tab = if (index == 0) "logs" else "config-audit" },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            SegmentedButton(
-                selected = tab == "logs",
-                onClick = { tab = "logs" },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) { Text(stringResource(R.string.log_title)) }
-            SegmentedButton(
-                selected = tab == "config-audit",
-                onClick = { tab = "config-audit" },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) { Text(stringResource(R.string.logs_tab_config_changes)) }
-        }
+            minWidth = preferenceTabMinWidth(tabLabels),
+            height = preferenceTabHeight(),
+            colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+        )
 
         if (tab == "config-audit") {
             // Audit body. Owns its own scrolling.
@@ -179,27 +179,31 @@ fun LogManagementScreen(
     }
 
     if (showDeleteAllConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showDeleteAllConfirm = false },
-            title = { Text(stringResource(R.string.log_delete_confirm_title)) },
-            text = {
-                Text(stringResource(R.string.log_delete_confirm_text, Formatter.formatFileSize(context, totalSize)))
-            },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    AppLogger.clearLogs()
-                    refresh()
-                    showDeleteAllConfirm = false
-                }) {
-                    Text(stringResource(R.string.log_delete_confirm), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.log_delete_confirm_title),
+            summary = stringResource(R.string.log_delete_confirm_text, Formatter.formatFileSize(context, totalSize)),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    AppLogger.clearLogs()
+                                    refresh()
+                                    showDeleteAllConfirm = false
+                                },
+                                    text = stringResource(R.string.log_delete_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showDeleteAllConfirm = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showDeleteAllConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -475,7 +479,7 @@ fun LogDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(fileName) },
+                title = fileName,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -489,6 +493,7 @@ fun LogDetailScreen(
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.common_share))
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->

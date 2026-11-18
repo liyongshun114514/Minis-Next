@@ -25,7 +25,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -49,7 +49,9 @@ import com.openminis.app.R
 import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.ui.components.SectionTextField
 import kotlinx.coroutines.launch
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Switch
 
 /**
  * Detail/edit screen for a single mounted folder. Mirrors iOS
@@ -98,7 +100,7 @@ fun MountDetailScreen(
                     }
                 },
                 actions = {
-                    MinisTextButton(
+                    TextButton(
                         enabled = canSave,
                         onClick = {
                             scope.launch {
@@ -107,9 +109,9 @@ fun MountDetailScreen(
                                 onBack()
                             }
                         },
-                    ) {
-                        Text(stringResource(R.string.save))
-                    }
+                        text = stringResource(R.string.save),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 },
                 color = MiuixTheme.colorScheme.background,
             )
@@ -177,7 +179,7 @@ fun MountDetailScreen(
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    SettingsSwitch(
+                    Switch(
                         checked = allowWrite,
                         onCheckedChange = { allowWrite = it },
                         // Disable when the OS-level grant itself isn't writable.
@@ -217,21 +219,22 @@ fun MountDetailScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            MinisTextButton(onClick = { showUnmountConfirm = false }) {
-                Text(stringResource(R.string.cancel))
-            }
-            MinisTextButton(onClick = {
+            TextButton(
+                onClick = { showUnmountConfirm = false },
+                text = stringResource(R.string.cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
                 showUnmountConfirm = false
                 scope.launch {
                     store.remove(entry.id)
                     onBack()
                 }
-            }) {
-                Text(
-                    stringResource(R.string.mount_unmount_confirm),
-                    color = MiuixTheme.colorScheme.error,
-                )
-            }
+            },
+                text = stringResource(R.string.mount_unmount_confirm),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+            )
         }
     }
 }

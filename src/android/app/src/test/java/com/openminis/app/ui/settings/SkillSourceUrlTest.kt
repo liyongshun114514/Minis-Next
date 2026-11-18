@@ -64,8 +64,8 @@ class SkillSourceUrlTest {
     @Test
     fun `a settings row without a long-press keeps its plain clickable`() {
         assertTrue(components.contains("onLongClick: (() -> Unit)? = null,"))
-        assertTrue(components.contains("onClick != null && onLongClick != null ->"))
-        assertTrue(components.contains("onClick != null -> Modifier.clickable(onClick = onClick)"))
+        assertTrue(components.contains("val withLongPress = onClick != null && onLongClick != null"))
+        assertTrue(components.contains("onClick = if (withLongPress) null else onClick"))
     }
 
     // -- strings --

@@ -17,29 +17,6 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@Immutable
-data class IconButtonColors(val containerColor: Color, val contentColor: Color)
-object IconButtonDefaults {
-    @Composable fun filledIconButtonColors(containerColor: Color = MiuixTheme.colorScheme.secondaryContainer,
-        contentColor: Color = MiuixTheme.colorScheme.onSecondaryContainer) = IconButtonColors(containerColor, contentColor)
-}
-@Composable
-fun FilledIconButton(onClick: () -> Unit, modifier: Modifier = Modifier,
-    colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(), content: @Composable () -> Unit) {
-    IconButton(onClick = onClick, modifier = modifier, backgroundColor = colors.containerColor) {
-        CompositionLocalProvider(LocalContentColor provides colors.contentColor, content = content)
-    }
-}
-@Composable
-fun SmallFloatingActionButton(onClick: () -> Unit, modifier: Modifier = Modifier,
-    containerColor: Color = MiuixTheme.colorScheme.primary,
-    contentColor: Color = MiuixTheme.colorScheme.onPrimary, content: @Composable () -> Unit) {
-    FloatingActionButton(onClick = onClick, modifier = modifier, containerColor = containerColor,
-        minWidth = 40.dp, minHeight = 40.dp) {
-        CompositionLocalProvider(LocalContentColor provides contentColor, content = content)
-    }
-}
-
 enum class SwipeToDismissBoxValue { Settled, StartToEnd, EndToStart }
 @Stable
 class SwipeToDismissBoxState internal constructor() {

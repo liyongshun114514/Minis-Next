@@ -27,7 +27,6 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
-import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -42,7 +41,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.accessibility.AccessibilityRecoveryManager
 import com.openminis.app.accessibility.MinisAccessibilityService
 import com.openminis.app.accessibility.RestrictedSettingsManager
@@ -50,6 +48,8 @@ import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.power.PowerOptimizationManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
  * T323: surfaces OS-level permission states (Accessibility service,
@@ -344,10 +344,13 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    MinisTextButton(onClick = { showClearCorrectionConfirm = false }) {
-                        Text(stringResource(R.string.voice_correction_consent_not_now))
-                    }
-                    MinisTextButton(onClick = {
+                    TextButton(
+                        onClick = { showClearCorrectionConfirm = false },
+                        text = stringResource(R.string.voice_correction_consent_not_now),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
+                        onClick = {
                         showClearCorrectionConfirm = false
                         com.openminis.app.speech.correction.VoiceCorrection
                             .clearAllData(context)
@@ -356,12 +359,10 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                             context.getString(R.string.voice_correction_cleared),
                             Toast.LENGTH_SHORT,
                         ).show()
-                    }) {
-                        Text(
-                            stringResource(R.string.voice_correction_clear),
-                            color = MiuixTheme.colorScheme.error,
-                        )
-                    }
+                    },
+                        text = stringResource(R.string.voice_correction_clear),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                    )
                 }
             }
         }

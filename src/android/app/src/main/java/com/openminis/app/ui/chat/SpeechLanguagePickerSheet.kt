@@ -19,9 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +34,8 @@ import com.openminis.app.R
 import com.openminis.app.speech.SpeechRecognitionManager
 import com.openminis.app.ui.theme.ChatColors
 import java.util.Locale
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * Modal sheet listing the active recognizer's supported languages. Tapping a
@@ -50,7 +50,6 @@ import java.util.Locale
 fun SpeechLanguagePickerSheet(
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
     val supported by SpeechRecognitionManager.supportedLocales.collectAsState()
     val current by SpeechRecognitionManager.locale.collectAsState()
 
@@ -62,10 +61,11 @@ fun SpeechLanguagePickerSheet(
         )
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ChatColors.background,
+        backgroundColor = ChatColors.secondaryBg,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(

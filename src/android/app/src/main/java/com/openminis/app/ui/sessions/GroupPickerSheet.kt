@@ -18,11 +18,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.Warning
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,9 +34,14 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.data.db.FolderEntity
-import com.openminis.app.ui.components.MinisSmallButton
 import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.SectionTextField
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * [T-android-session-grouping] What the user chose in the group picker.
@@ -101,7 +103,6 @@ fun GroupPickerSheet(
     suggestion: SessionListViewModel.GroupSuggestion? = null,
     onSuggest: (() -> Unit)? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var newName by remember { mutableStateOf("") }
     var newDesc by remember { mutableStateOf("") }
 
@@ -132,7 +133,11 @@ fun GroupPickerSheet(
         else -> stringResource(R.string.group_picker_title_move)
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Text(
                 text = title,
@@ -265,7 +270,7 @@ fun GroupPickerSheet(
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                MinisSmallButton(
+                TextButton(
                     onClick = {
                         onChoose(
                             GroupChoice.Create(
@@ -277,7 +282,11 @@ fun GroupPickerSheet(
                     // Disabled on duplicate: the warning row above is the way
                     // forward, so Create never produces a confusing twin.
                     enabled = trimmedName.isNotEmpty() && duplicate == null,
-                ) { Text(stringResource(R.string.group_create)) }
+                    text = stringResource(R.string.group_create),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                    minHeight = 40.dp,
+                    insideMargin = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                )
             }
 
             // ── Existing groups ────────────────────────────────────────────

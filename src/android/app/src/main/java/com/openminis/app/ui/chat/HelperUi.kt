@@ -47,14 +47,11 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.StopCircle
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -91,6 +88,7 @@ import com.openminis.app.ui.DisplayBitmapLimits
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 import com.openminis.app.ui.components.DecorativeSpinner
+import com.openminis.app.ui.components.RichTitleAppBar
 
 // [T-p2-agent-series] Dedicated rendering for a `delegate_task` (agent)
 // block — the Android port of iOS HelperBlockView.swift / HelperSheet.swift
@@ -1415,8 +1413,8 @@ fun AgentTranscriptScreen(sessionId: String, onBack: () -> Unit) {
         containerColor = ChatColors.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ChatColors.background),
+            RichTitleAppBar(
+                color = ChatColors.background,
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.helper_close), tint = ChatColors.primaryText) }
                 },

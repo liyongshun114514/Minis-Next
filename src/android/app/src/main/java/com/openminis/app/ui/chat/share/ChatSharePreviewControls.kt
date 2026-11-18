@@ -29,7 +29,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Image
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue

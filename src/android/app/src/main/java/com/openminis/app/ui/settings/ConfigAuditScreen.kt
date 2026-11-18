@@ -19,11 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.History
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.AssistChip
-import com.openminis.app.ui.components.miuix.AssistChipDefaults
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,12 +42,15 @@ import com.openminis.app.config.audit.ConfigAuditEntry
 import com.openminis.app.config.audit.ConfigAuditLog
 import com.openminis.app.config.audit.ConfigAuditStatus
 import com.openminis.app.config.ConfigBridge
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /**
  * Logs → Config Changes tab. Lists every config write attempt
@@ -150,59 +150,69 @@ fun ConfigAuditScreen(
 
     // Confirm-revert dialog.
     revertCandidate?.let { entry ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { revertCandidate = null },
-            title = { Text(stringResource(R.string.logs_config_revert_dialog_title)) },
-            // [T-config-readable] Says what will be undone, in words when the
-            // row has them; older rows keep the raw key + new → old.
-            text = { Text(text = configRevertMessage(entry, localize)) },
-            confirmButton = {
+            title = stringResource(R.string.logs_config_revert_dialog_title),
+            summary = configRevertMessage(entry, localize),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val successTitle = stringResource(R.string.logs_config_revert_success_title)
-                val successBody = stringResource(R.string.logs_config_revert_success_body)
-                val failedTitle = stringResource(R.string.logs_config_revert_failed_title)
-                val unknownErr = stringResource(R.string.logs_config_revert_unknown_error)
-                MinisTextButton(onClick = {
-                    val target = entry
-                    revertCandidate = null
-                    scope.launch {
-                        val res = withContext(Dispatchers.IO) {
-                            ConfigBridge.auditRevert(
-                                id = target.id,
-                                actorRaw = "user-revert",
-                                sessionId = null,
-                                skipConfirmation = true,
-                            )
-                        }
-                        revertResult = if (res.optBoolean("ok", false)) {
-                            RevertMessage(successTitle, successBody)
-                        } else {
-                            RevertMessage(failedTitle, res.optString("reason", unknownErr))
-                        }
-                    }
-                }) {
-                    Text(stringResource(R.string.logs_config_revert), color = MiuixTheme.colorScheme.error)
+                                val successBody = stringResource(R.string.logs_config_revert_success_body)
+                                val failedTitle = stringResource(R.string.logs_config_revert_failed_title)
+                                val unknownErr = stringResource(R.string.logs_config_revert_unknown_error)
+                                TextButton(
+                                    onClick = {
+                                    val target = entry
+                                    revertCandidate = null
+                                    scope.launch {
+                                        val res = withContext(Dispatchers.IO) {
+                                            ConfigBridge.auditRevert(
+                                                id = target.id,
+                                                actorRaw = "user-revert",
+                                                sessionId = null,
+                                                skipConfirmation = true,
+                                            )
+                                        }
+                                        revertResult = if (res.optBoolean("ok", false)) {
+                                            RevertMessage(successTitle, successBody)
+                                        } else {
+                                            RevertMessage(failedTitle, res.optString("reason", unknownErr))
+                                        }
+                                    }
+                                },
+                                    text = stringResource(R.string.logs_config_revert),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { revertCandidate = null },
+                                    text = stringResource(R.string.logs_config_dialog_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { revertCandidate = null }) {
-                    Text(stringResource(R.string.logs_config_dialog_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // Result alert.
     revertResult?.let { msg ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { revertResult = null },
-            title = { Text(msg.title) },
-            text = { Text(msg.body) },
-            confirmButton = {
-                MinisTextButton(onClick = { revertResult = null }) {
-                    Text(stringResource(R.string.logs_config_dialog_ok))
+            title = msg.title,
+            summary = msg.body,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { revertResult = null },
+                                    text = stringResource(R.string.logs_config_dialog_ok),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -302,12 +312,9 @@ private fun AuditRow(
         }
         when (entry.status) {
             ConfigAuditStatus.APPLIED -> {
-                AssistChip(
+                TextButton(
+                    text = stringResource(R.string.logs_config_revert_chip),
                     onClick = onRevert,
-                    label = { Text(stringResource(R.string.logs_config_revert_chip)) },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MiuixTheme.colorScheme.surface,
-                    ),
                 )
             }
             ConfigAuditStatus.REVERTED -> {

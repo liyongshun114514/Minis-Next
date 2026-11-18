@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -27,15 +24,21 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.backup.remote.RcloneBackendCatalog
 import com.openminis.app.backup.remote.RcloneRemoteStore
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.settings.SettingsSection
 import com.openminis.app.ui.settings.SettingsSwitchRow
 import com.openminis.app.ui.settings.SettingsValueRow
 import java.text.DateFormat
 import java.util.Date
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Arrangement
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 /**
  * [T-android-backup-dest-edit] Which destination's detail page is showing,
@@ -256,68 +259,77 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
 
     if (renaming) {
         var draft by remember { mutableStateOf(r.name) }
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { renaming = false },
-            title = { Text(stringResource(R.string.backup_dest_rename_title)) },
-            text = {
+            title = stringResource(R.string.backup_dest_rename_title),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column {
-                    if (!local) {
-                        Text(
-                            stringResource(R.string.backup_dest_rename_hint),
-                            style = MiuixTheme.textStyles.body1,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        label = { Text(stringResource(R.string.backup_dest_name)) },
-                        singleLine = true,
-                    )
+                                    if (!local) {
+                                        Text(
+                                            stringResource(R.string.backup_dest_rename_hint),
+                                            style = MiuixTheme.textStyles.body1,
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                    }
+                                    TextField(
+                                        value = draft,
+                                        onValueChange = { draft = it },
+                                        singleLine = true,
+                                        label = stringResource(R.string.backup_dest_name),
+                                        useLabelAsPlaceholder = false,
+                                        modifier = Modifier,
+                                    )
+                                }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                        renaming = false
+                                        vm.rename(r.name, draft) { nav.renamed(it.name) }
+                                    },
+                                    enabled = draft.trim().isNotEmpty(),
+                                    text = stringResource(R.string.backup_dest_save),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { renaming = false },
+                                    text = stringResource(R.string.backup_dest_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            confirmButton = {
-                MinisTextButton(
-                    onClick = {
-                        renaming = false
-                        vm.rename(r.name, draft) { nav.renamed(it.name) }
-                    },
-                    enabled = draft.trim().isNotEmpty(),
-                ) { Text(stringResource(R.string.backup_dest_save)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { renaming = false }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     if (confirmRemove) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmRemove = false },
-            title = { Text(stringResource(R.string.backup_dest_remove_confirm_title)) },
-            // Say what is NOT destroyed — "remove" otherwise reads as though it
-            // deletes the backups stored there.
-            text = if (local) null else ({ Text(stringResource(R.string.backup_dest_remove_confirm_note)) }),
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    confirmRemove = false
-                    vm.remove(r.name)
-                    nav.close()
-                }) {
-                    Text(
-                        stringResource(R.string.backup_dest_remove_action),
+            title = stringResource(R.string.backup_dest_remove_confirm_title),
+            summary = if (local) null else stringResource(R.string.backup_dest_remove_confirm_note),
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.backup_dest_remove_action),
+                    onClick = {
+                        confirmRemove = false
+                        vm.remove(r.name)
+                        nav.close()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(
                         color = MiuixTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmRemove = false }) {
-                    Text(stringResource(R.string.backup_dest_cancel))
-                }
-            },
-        )
+                        textColor = MiuixTheme.colorScheme.onError,
+                    ),
+                )
+                TextButton(
+                    text = stringResource(R.string.backup_dest_cancel),
+                    onClick = { confirmRemove = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 
@@ -416,7 +428,7 @@ private fun ConnectionEditor(
         }
 
         Spacer(Modifier.height(16.dp))
-        MinisButton(
+        Button(
             onClick = {
                 vm.saveConnection(
                     name = remote.name,
@@ -432,21 +444,24 @@ private fun ConnectionEditor(
             },
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColorsPrimary(),
         ) {
             if (busy) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
-                    color = MiuixTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = MiuixTheme.colorScheme.onPrimary),
                 )
             } else {
                 Text(stringResource(R.string.backup_dest_save))
             }
         }
-        MinisOutlinedButton(
+        TextButton(
             onClick = onCancel,
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text(stringResource(R.string.backup_dest_cancel)) }
+            text = stringResource(R.string.backup_dest_cancel),
+        )
 
         error?.let {
             Text(

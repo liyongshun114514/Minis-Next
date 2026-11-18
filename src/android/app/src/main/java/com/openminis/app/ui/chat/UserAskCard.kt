@@ -35,11 +35,8 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +82,11 @@ import com.openminis.app.agent.userask.UserAskResultStatus
 import com.openminis.app.agent.userask.UserAskRisk
 import com.openminis.app.ui.theme.ChatColors
 import kotlinx.coroutines.delay
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * [T-port-user-ask] The user_ask card in the chat (iOS `UserAskCardView`, final
@@ -719,42 +721,51 @@ private fun InputDialog(
     onDismiss: () -> Unit,
 ) {
     var text by remember { mutableStateOf(initial) }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(question, maxLines = 3, overflow = TextOverflow.Ellipsis, fontSize = 15.sp) },
-        text = {
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(question, maxLines = 3, overflow = TextOverflow.Ellipsis, fontSize = 15.sp)
             Column {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = {
-                        text = it.take(UserAskParser.MAX_INPUT_LENGTH)
-                        onChange(text)
-                    },
-                    placeholder = {
-                        Text(
-                            stringResource(
-                                when (kind) {
-                                    InputKind.OTHER -> R.string.user_ask_your_answer
-                                    InputKind.NOTE -> R.string.user_ask_add_note
-                                    InputKind.DENY_REASON -> R.string.user_ask_reason
-                                },
-                            ),
-                        )
-                    },
-                    minLines = 3,
-                    maxLines = 8,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    "${text.length}/${UserAskParser.MAX_INPUT_LENGTH}",
-                    fontSize = 11.sp, color = ChatColors.tertiaryText,
-                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                )
+                            TextField(
+                                value = text,
+                                onValueChange = {
+                                                                text = it.take(UserAskParser.MAX_INPUT_LENGTH)
+                                                                onChange(text)
+                                                            },
+                                minLines = 3,
+                                maxLines = 8,
+                                label = stringResource(
+                                                                        when (kind) {
+                                                                            InputKind.OTHER -> R.string.user_ask_your_answer
+                                                                            InputKind.NOTE -> R.string.user_ask_add_note
+                                                                            InputKind.DENY_REASON -> R.string.user_ask_reason
+                                                                        },
+                                                                    ),
+                                useLabelAsPlaceholder = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "${text.length}/${UserAskParser.MAX_INPUT_LENGTH}",
+                                fontSize = 11.sp, color = ChatColors.tertiaryText,
+                                modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                            )
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                        onClick = { onDone(text) },
+                        text = stringResource(R.string.user_ask_done),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+            TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.user_ask_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
             }
-        },
-        confirmButton = { TextButton(onClick = { onDone(text) }) { Text(stringResource(R.string.user_ask_done)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.user_ask_cancel)) } },
-    )
+        }
+    }
 }
 
 // ── Resolved ──────────────────────────────────────────────────────────────

@@ -19,10 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AlarmOff
 import androidx.compose.material.icons.filled.Schedule
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +47,10 @@ import com.openminis.app.ui.theme.ChatColors
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
 
 /** [T-android-scheduled-task-card] Amber — a timer, not an agent. */
 internal val ScheduledAccent = Color(0xFFF59E0B)
@@ -189,33 +191,37 @@ internal fun ScheduledTaskCard(
     }
 
     if (confirming) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.scheduled_card_cancel_confirm_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.scheduled_card_cancel_confirm_body,
-                        marker.label.ifEmpty { marker.prompt.take(40) },
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    // Disable rather than delete: the run history stays
-                    // readable, and the task is recoverable from Settings.
-                    ScheduledTaskManager(context.applicationContext as android.app.Application)
-                        .setEnabled(marker.taskId, false)
-                    cancelled = true
-                    confirming = false
-                }) { Text(stringResource(R.string.scheduled_card_cancel_confirm_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirming = false }) {
-                    Text(stringResource(R.string.scheduled_card_cancel_confirm_keep))
+            title = stringResource(R.string.scheduled_card_cancel_confirm_title),
+            summary = stringResource(
+                                R.string.scheduled_card_cancel_confirm_body,
+                                marker.label.ifEmpty { marker.prompt.take(40) },
+                            ),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    // Disable rather than delete: the run history stays
+                                    // readable, and the task is recoverable from Settings.
+                                    ScheduledTaskManager(context.applicationContext as android.app.Application)
+                                        .setEnabled(marker.taskId, false)
+                                    cancelled = true
+                                    confirming = false
+                                },
+                                    text = stringResource(R.string.scheduled_card_cancel_confirm_ok),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { confirming = false },
+                                    text = stringResource(R.string.scheduled_card_cancel_confirm_keep),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 

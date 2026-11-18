@@ -27,12 +27,10 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.VisibilityOff
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,6 +75,11 @@ import com.openminis.app.scheduled.ScheduledTask
 import com.openminis.app.scheduled.ScheduledTaskManager
 import com.openminis.app.scheduled.ScheduledTaskMarker
 import kotlinx.coroutines.delay
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 
 /**
  * [T-port-sched-pill] Pills hidden with "Hide this countdown", per chat: the
@@ -200,21 +203,31 @@ internal fun ScheduledTaskPill(currentSessionId: () -> String) {
         )
     }
     if (confirmCancelAll) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmCancelAll = false },
-            title = { Text(stringResource(R.string.sched_pill_cancel_all_title)) },
-            text = { Text(stringResource(R.string.sched_pill_cancel_all_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmCancelAll = false
-                    val n = manager.disableAllCreatedBy(sessionId, "user cancelled all from the timer pill")
-                    AppLogger.info("SchedPill", "cancel all session=${sessionId.take(8)} cancelled=$n")
-                }) { Text(stringResource(R.string.sched_pill_cancel_all_confirm), color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmCancelAll = false }) { Text(stringResource(R.string.sched_pill_not_now)) }
-            },
-        )
+            title = stringResource(R.string.sched_pill_cancel_all_title),
+            summary = stringResource(R.string.sched_pill_cancel_all_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    confirmCancelAll = false
+                                    val n = manager.disableAllCreatedBy(sessionId, "user cancelled all from the timer pill")
+                                    AppLogger.info("SchedPill", "cancel all session=${sessionId.take(8)} cancelled=$n")
+                                },
+                                    text = stringResource(R.string.sched_pill_cancel_all_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { confirmCancelAll = false },
+                                    text = stringResource(R.string.sched_pill_not_now),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }
 

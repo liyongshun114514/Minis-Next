@@ -8,9 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import com.openminis.app.ui.components.MinisButton as Button
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +18,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.data.db.DatabaseVersionGuard
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
  * [T-android-downgrade-compat] Shown when the chat database on disk was
@@ -71,9 +72,12 @@ fun NewerDatabaseGuidanceScreen(onExit: () -> Unit) {
                         color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         textAlign = TextAlign.Center,
                     )
-                    Button(onClick = onExit, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.newer_db_exit))
-                    }
+                    TextButton(
+                        onClick = onExit,
+                        modifier = Modifier.fillMaxWidth(),
+                        text = stringResource(R.string.newer_db_exit),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
                 }
             }
         }

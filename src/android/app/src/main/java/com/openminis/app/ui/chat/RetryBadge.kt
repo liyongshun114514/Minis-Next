@@ -19,8 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.ui.theme.ChatColors
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * [T-android-retry-badge] One automatic retry of a request in the current
@@ -123,7 +124,11 @@ internal fun RetryLogSheet(records: List<RetryRecord>, onDismiss: () -> Unit) {
     val timeFormat = androidx.compose.runtime.remember {
         java.text.DateFormat.getTimeInstance(java.text.DateFormat.MEDIUM)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
             Text(stringResource(R.string.retry_sheet_title), style = MiuixTheme.textStyles.headline1)
             Spacer(Modifier.height(4.dp))

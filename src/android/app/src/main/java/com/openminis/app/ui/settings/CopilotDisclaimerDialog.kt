@@ -19,11 +19,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
  * [T-copilot-disclaimer] Risk notice shown BEFORE the GitHub Device Flow can
@@ -74,12 +75,18 @@ fun CopilotDisclaimerDialog(
                 DisclaimerBullet(stringResource(point))
             }
             Spacer(Modifier.height(4.dp))
-            MinisTextButton(onClick = onAccept, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.copilot_disclaimer_accept))
-            }
-            MinisTextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.copilot_disclaimer_cancel))
-            }
+            TextButton(
+                onClick = onAccept,
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.copilot_disclaimer_accept),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.copilot_disclaimer_cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 }

@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.openminis.app.ui.components.miuix.Checkbox
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
@@ -49,8 +48,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.BrokenImage
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -115,9 +113,12 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import java.io.File
-import com.openminis.app.ui.components.miuix.LocalTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import androidx.compose.ui.state.ToggleableState
+import top.yukonga.miuix.kmp.basic.Checkbox
 
 // ─── MinisTextKit hook ────────────────────────────────────────────────────────
 // Each markdown fragment renders inside a [MarkdownBlock] / [RenderBlock]
@@ -664,7 +665,7 @@ private fun MdText(
         // Trim(FirstLineTop + LastLineBottom) removes only the OUTER half-leadings.
         // Inter-line spacing inside a paragraph is untouched, so body text reads
         // exactly as before — this is not a density change.
-        style = LocalTextStyle.current.merge(
+        style = MiuixTheme.textStyles.main.merge(
             TextStyle(
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
@@ -2761,12 +2762,12 @@ private fun RenderBlock(block: MdBlock) {
                         verticalAlignment = if (item.children.isEmpty()) Alignment.CenterVertically else Alignment.Top,
                     ) {
                         Checkbox(
-                            checked = item.checked,
-                            onCheckedChange = null,
+                            state = if (item.checked) ToggleableState.On else ToggleableState.Off,
+                            onClick = null,
                             modifier = Modifier.size(20.dp),
                             colors = top.yukonga.miuix.kmp.basic.CheckboxDefaults.checkboxColors(
-                                checkedBackgroundColor = colors.link,
-                            ),
+                                                        checkedBackgroundColor = colors.link,
+                                                    ),
                         )
                         Spacer(Modifier.width(6.dp))
                         WithSearchPath(taskPath?.let { "$it/$j" }) {
@@ -3526,13 +3527,12 @@ private fun RenderMdAudio(block: MdBlock.Audio) {
             )
             val progress = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
             LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
+                progress = progress.coerceIn(0f, 1f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
                     .height(3.dp),
-                color = tint,
-                trackColor = tint.copy(alpha = 0.2f),
+                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = tint, backgroundColor = tint.copy(alpha = 0.2f)),
             )
             if (durationMs > 0) {
                 MdText(

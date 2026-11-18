@@ -43,8 +43,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,7 +64,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
 import com.openminis.app.MainActivity
-import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.MinisApp
 import com.openminis.app.R
 import com.openminis.app.logging.AppLogger
@@ -74,6 +72,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * T-pwa-1 (renamed Pwa → WebApp): immersive WebView host for a pinned
@@ -219,7 +220,10 @@ class WebAppActivity : ComponentActivity() {
             MinisTheme {
                 Scaffold(
                     topBar = {
-                        TopAppBar(title = { Text(stringResource(R.string.webapp_activity_label)) })
+                        TopAppBar(
+                            title = stringResource(R.string.webapp_activity_label),
+                            expandable = false,
+                        )
                     },
                 ) { padding ->
                     Box(
@@ -241,9 +245,11 @@ class WebAppActivity : ComponentActivity() {
                                     style = MiuixTheme.textStyles.body1,
                                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                                 )
-                                MinisButton(onClick = { openInMinis(sourceSessionId) }) {
-                                    Text(stringResource(R.string.webapp_open_in_minis))
-                                }
+                                TextButton(
+                                    onClick = { openInMinis(sourceSessionId) },
+                                    text = stringResource(R.string.webapp_open_in_minis),
+                                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                                )
                             }
                         }
                     }

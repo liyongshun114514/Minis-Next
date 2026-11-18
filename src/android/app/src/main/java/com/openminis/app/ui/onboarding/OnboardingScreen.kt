@@ -25,9 +25,8 @@ import androidx.compose.material.icons.filled.Check
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,8 +46,10 @@ import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.model.ProviderType
 import com.openminis.app.data.repository.ProviderRepository
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * Multi-step onboarding flow shown on first launch.
@@ -92,9 +93,12 @@ private fun WelcomeStep(onNext: () -> Unit) {
                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
             )
             Spacer(Modifier.height(48.dp))
-            MinisButton(onClick = onNext, modifier = Modifier.fillMaxWidth(0.6f)) {
-                Text(stringResource(R.string.onboarding_get_started))
-            }
+            TextButton(
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth(0.6f),
+                text = stringResource(R.string.onboarding_get_started),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
         }
     }
 }
@@ -157,17 +161,18 @@ private fun ApiKeyStep(
 
             Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
+            TextField(
                 value = apiKey,
                 onValueChange = { apiKey = it; saved = false },
-                label = { Text(stringResource(R.string.onboarding_provider_api_key_label, selectedType.displayName)) },
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                label = stringResource(R.string.onboarding_provider_api_key_label, selectedType.displayName),
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(16.dp))
 
-            MinisButton(
+            TextButton(
                 onClick = {
                     if (apiKey.isNotBlank()) {
                         val instance = ProviderInstance(
@@ -189,9 +194,9 @@ private fun ApiKeyStep(
                 },
                 enabled = apiKey.isNotBlank() && !saved,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(if (saved) R.string.onboarding_saved else R.string.onboarding_save_api_key))
-            }
+                text = stringResource(if (saved) R.string.onboarding_saved else R.string.onboarding_save_api_key),
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+            )
 
             Spacer(Modifier.weight(1f))
 
@@ -199,12 +204,17 @@ private fun ApiKeyStep(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                MinisTextButton(onClick = onSkip) {
-                    Text(stringResource(R.string.common_skip))
-                }
-                MinisButton(onClick = onNext, enabled = saved) {
-                    Text(stringResource(R.string.common_next))
-                }
+                TextButton(
+                    onClick = onSkip,
+                    text = stringResource(R.string.common_skip),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
+                TextButton(
+                    onClick = onNext,
+                    enabled = saved,
+                    text = stringResource(R.string.common_next),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
         }
     }
@@ -251,13 +261,13 @@ private fun ModelSelectionStep(
             )
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
+            TextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                label = { Text(stringResource(R.string.onboarding_search_models)) },
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(50),
+                label = stringResource(R.string.onboarding_search_models),
+                useLabelAsPlaceholder = false,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(8.dp))
@@ -335,10 +345,12 @@ private fun ModelSelectionStep(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                MinisTextButton(onClick = onComplete) {
-                    Text(stringResource(R.string.common_skip))
-                }
-                MinisButton(
+                TextButton(
+                    onClick = onComplete,
+                    text = stringResource(R.string.common_skip),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
+                TextButton(
                     onClick = {
                         // Create default model group from selections
                         if (selected.isNotEmpty()) {
@@ -352,9 +364,9 @@ private fun ModelSelectionStep(
                         onComplete()
                     },
                     enabled = selected.isNotEmpty(),
-                ) {
-                    Text(stringResource(R.string.onboarding_done_count, selected.size))
-                }
+                    text = stringResource(R.string.onboarding_done_count, selected.size),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
         }
     }

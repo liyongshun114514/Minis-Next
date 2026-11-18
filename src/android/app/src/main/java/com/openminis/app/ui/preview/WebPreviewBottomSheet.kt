@@ -38,10 +38,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +61,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.theme.ChatColors
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * Immersive 90%-tall bottom sheet that hosts a [WebViewHolder] for a
@@ -100,7 +100,6 @@ fun WebPreviewBottomSheet(
     pinSessionId: String? = null,
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val view = LocalView.current
     val darkTheme = ChatColors.isDark
 
@@ -153,19 +152,15 @@ fun WebPreviewBottomSheet(
         }
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = {
             AppLogger.info("WebPreviewSheet", "dismiss")
             onDismiss()
         },
-        sheetState = sheetState,
-        dragHandle = null,
-        containerColor = MiuixTheme.colorScheme.surface,
-        // Sheet is full-height so the scrim region above the sheet collapses
-        // to nothing — avoids the grey scrim band above the sheet top.
-        // Zero content insets so the sheet's surface paints all the way under
-        // the status bar; toolbar below re-applies the status-bar inset.
-        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+        dragHandleColor = Color.Transparent,
+        backgroundColor = MiuixTheme.colorScheme.surface,
     ) {
         // ModalBottomSheet runs in its own Dialog window. The activity is
         // edge-to-edge (MainActivity.enableEdgeToEdge), but the sheet's

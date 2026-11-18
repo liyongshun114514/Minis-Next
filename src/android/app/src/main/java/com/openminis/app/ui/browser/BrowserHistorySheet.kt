@@ -20,13 +20,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +38,14 @@ import com.openminis.app.browser.BrowserHistoryStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
 
 @Composable
 fun BrowserHistorySheet(
@@ -50,7 +53,6 @@ fun BrowserHistorySheet(
     onNavigate: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var searchQuery by remember { mutableStateOf("") }
     var showClearConfirm by remember { mutableStateOf(false) }
 
@@ -59,9 +61,10 @@ fun BrowserHistorySheet(
         else mapOf("Results" to historyStore.search(searchQuery))
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
@@ -82,28 +85,30 @@ fun BrowserHistorySheet(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                MinisTextButton(
+                TextButton(
                     onClick = { showClearConfirm = true },
                     enabled = historyStore.getEntries().isNotEmpty(),
-                ) {
-                    Text(stringResource(R.string.browser_history_clear), color = MiuixTheme.colorScheme.error)
-                }
-                MinisTextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.browser_history_done))
-                }
+                    text = stringResource(R.string.browser_history_clear),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                )
+                TextButton(
+                    onClick = onDismiss,
+                    text = stringResource(R.string.browser_history_done),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             }
 
             // Search bar
-            OutlinedTextField(
+            TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text(stringResource(R.string.browser_history_search)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
                 textStyle = MiuixTheme.textStyles.body2,
+                label = stringResource(R.string.browser_history_search),
+                useLabelAsPlaceholder = true,
+                modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
             )
 
             Spacer(Modifier.height(8.dp))
@@ -189,23 +194,29 @@ fun BrowserHistorySheet(
     }
 
     if (showClearConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showClearConfirm = false },
-            title = { Text(stringResource(R.string.browser_history_clear_dialog_title)) },
-            text = { Text(stringResource(R.string.browser_history_clear_dialog_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    historyStore.clear()
-                    showClearConfirm = false
-                }) {
-                    Text(stringResource(R.string.browser_history_clear), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.browser_history_clear_dialog_title),
+            summary = stringResource(R.string.browser_history_clear_dialog_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    historyStore.clear()
+                                    showClearConfirm = false
+                                },
+                                    text = stringResource(R.string.browser_history_clear),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showClearConfirm = false },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showClearConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }

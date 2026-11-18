@@ -35,7 +35,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
@@ -387,7 +387,7 @@ private fun BgToggleRow(
             color = MiuixTheme.colorScheme.onSurface.copy(alpha = rowAlpha),
             modifier = Modifier.weight(1f),
         )
-        SettingsSwitch(
+        Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,

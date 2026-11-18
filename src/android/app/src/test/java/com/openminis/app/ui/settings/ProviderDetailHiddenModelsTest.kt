@@ -18,7 +18,7 @@ import java.io.File
 class ProviderDetailHiddenModelsTest {
 
     private val src = File("src/main/java/com/openminis/app/ui/settings/ProviderDetailScreen.kt").readText()
-    private val models = src.substringAfter("// ─── Models ───").substringBefore("MinisOutlinedButton(")
+    private val models = src.substringAfter("// ─── Models ───").substringBefore("text = stringResource(R.string.provider_detail_add_custom_model)")
 
     @Test
     fun `the main list renders visible entries and the hidden group renders hidden ones`() {

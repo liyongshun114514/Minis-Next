@@ -12,9 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
-import com.openminis.app.ui.components.miuix.AlertDialog
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,9 +37,14 @@ import com.openminis.app.offload.RootManager
 import com.openminis.app.offload.ROOT_TRI_STATE_FOOTER
 import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.ui.components.MinisMenu
-import com.openminis.app.ui.components.MinisTextButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
 
 @Composable
 fun OffloadPermissionScreen(
@@ -99,9 +103,11 @@ fun OffloadPermissionScreen(
         title = stringResource(R.string.perm_title),
         onBack = onBack,
         actions = {
-            MinisTextButton(onClick = { showResetConfirm = true }) {
-                Text(stringResource(R.string.perm_reset_all))
-            }
+            TextButton(
+                onClick = { showResetConfirm = true },
+                text = stringResource(R.string.perm_reset_all),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         },
     ) {
         // T-config: master switch for the minis-config CLI surface.
@@ -261,27 +267,33 @@ fun OffloadPermissionScreen(
     }
 
     if (showResetConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showResetConfirm = false },
-            title = { Text(stringResource(R.string.perm_reset_confirm_title)) },
-            text = { Text(stringResource(R.string.perm_reset_confirm_text)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    OffloadPermissionManager.resetAll()
-                    com.openminis.app.config.MinisConfigPermissionStore.setEnabled(true)
-                    RootManager.refresh()
-                    AppLogger.info("PermissionsScreen", "user confirmed Reset All — all tool permissions cleared, minis-config switch reset to default")
-                    showResetConfirm = false
-                }) {
-                    Text(stringResource(R.string.perm_reset_confirm))
+            title = stringResource(R.string.perm_reset_confirm_title),
+            summary = stringResource(R.string.perm_reset_confirm_text),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    OffloadPermissionManager.resetAll()
+                                    com.openminis.app.config.MinisConfigPermissionStore.setEnabled(true)
+                                    RootManager.refresh()
+                                    AppLogger.info("PermissionsScreen", "user confirmed Reset All — all tool permissions cleared, minis-config switch reset to default")
+                                    showResetConfirm = false
+                                },
+                                    text = stringResource(R.string.perm_reset_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showResetConfirm = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showResetConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 

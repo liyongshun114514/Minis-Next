@@ -4,6 +4,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
@@ -12,7 +14,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.TextStyles
 import top.yukonga.miuix.kmp.theme.defaultTextStyles
-import com.openminis.app.ui.components.miuix.LocalTextStyle
+import top.yukonga.miuix.kmp.theme.Colors
+import top.yukonga.miuix.kmp.theme.darkColorScheme
+import top.yukonga.miuix.kmp.theme.lightColorScheme
 
 @Composable
 fun minisFabColor() = MiuixTheme.colorScheme.primary
@@ -23,49 +27,17 @@ fun MinisTheme(
     fontScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    val controller = remember(darkTheme) {
-        ThemeController(colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light)
-    }
+    val controller = remember(darkTheme) { appearanceController(darkTheme) }
     val textStyles = remember(fontScale) { scaledTextStyles(fontScale) }
     MiuixTheme(controller = controller, textStyles = textStyles) {
         val colors = MiuixTheme.colorScheme
-        val base = if (darkTheme) DarkChatPalette else LightChatPalette
-        val chatPalette = base.copy(
-            background = colors.background,
-            secondaryBg = colors.surfaceContainer,
-            inputBg = colors.surfaceContainer,
-            inputIconBg = colors.secondaryContainer,
-            inputIconBorder = colors.dividerLine,
-            inputBorder = colors.dividerLine,
-            primaryText = colors.onSurface,
-            secondaryText = colors.onSurfaceContainerVariant,
-            tertiaryText = colors.onSurfaceContainerVariant.copy(alpha = 0.6f),
-            disabledText = colors.disabledOnSecondaryVariant,
-            userBubble = colors.primaryContainer,
-            toolBg = colors.surfaceContainerHigh,
-            toolBorder = colors.dividerLine,
-            toolCapsuleBg = colors.secondaryContainer,
-            separator = colors.dividerLine,
-            sendButton = colors.primary,
-            sendButtonDisabled = colors.disabledPrimaryButton,
-            inlineCodeBg = colors.secondaryContainer,
-            link = colors.primary,
-            thinking = colors.primary,
-            tableBorder = colors.dividerLine,
-            sheetHeaderBg = colors.surfaceContainer,
-            sheetHeaderBorder = colors.dividerLine,
-            fabAccent = colors.primary,
-        )
-        CompositionLocalProvider(
-            LocalChatPalette provides chatPalette,
-            LocalTextStyle provides textStyles.main,
-        ) {
+        CompositionLocalProvider(LocalChatPalette provides chatPalette(colors, darkTheme)) {
             // Root host also covers dialogs declared as siblings of a screen Scaffold.
             top.yukonga.miuix.kmp.basic.Scaffold(
                 contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
-                containerColor = colors.background,
+                containerColor = colors.surface,
             ) {
-                com.openminis.app.ui.components.MinisGlassScene(colors.background, content)
+                com.openminis.app.ui.components.MinisGlassScene(colors.surface, content)
             }
         }
     }
@@ -75,20 +47,58 @@ fun MinisTheme(
 @Composable
 fun MinisAppearance(darkTheme: Boolean, content: @Composable () -> Unit) {
     val current = MiuixTheme.textStyles
-    val controller = remember(darkTheme) {
-        ThemeController(colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light)
-    }
+    val controller = remember(darkTheme) { appearanceController(darkTheme) }
     MiuixTheme(controller = controller, textStyles = current) {
-        val colors = MiuixTheme.colorScheme
-        val palette = (if (darkTheme) DarkChatPalette else LightChatPalette).copy(
-            background = colors.background, secondaryBg = colors.surfaceContainer,
-            primaryText = colors.onSurface, secondaryText = colors.onSurfaceContainerVariant,
-            userBubble = colors.primaryContainer, link = colors.primary,
-            toolBg = colors.surfaceContainerHigh, toolCapsuleBg = colors.secondaryContainer,
-            separator = colors.dividerLine, sheetHeaderBg = colors.surfaceContainer,
+        CompositionLocalProvider(
+            LocalChatPalette provides chatPalette(MiuixTheme.colorScheme, darkTheme),
+            content = content,
         )
-        CompositionLocalProvider(LocalChatPalette provides palette, content = content)
     }
+}
+
+private fun appearanceController(darkTheme: Boolean) = ThemeController(
+    colorSchemeMode = if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+    lightColors = lightColorScheme(
+        surface = Color(0xFFF1F2F6),
+        onSurfaceContainerVariant = Color(0xFF656565),
+        onBackgroundVariant = Color(0xFF626A83),
+    ),
+    darkColors = darkColorScheme(
+        surfaceContainerHigh = Color(0xFF303030),
+        surfaceContainerHighest = Color(0xFF363636),
+        onSurfaceContainerVariant = Color(0xFFADADAD),
+        onBackgroundVariant = Color(0xFF9DA5BF),
+    ),
+)
+
+internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
+    val base = if (darkTheme) DarkChatPalette else LightChatPalette
+    return base.copy(
+        background = colors.surface,
+        secondaryBg = colors.surfaceContainer,
+        inputBg = colors.surfaceContainer,
+        inputIconBg = colors.secondaryContainer,
+        inputIconBorder = colors.dividerLine,
+        inputBorder = colors.dividerLine,
+        primaryText = colors.onSurface,
+        secondaryText = colors.onSurfaceSecondary,
+        tertiaryText = colors.onSurfaceVariantSummary,
+        disabledText = colors.disabledOnSecondaryVariant,
+        userBubble = lerp(colors.surfaceContainer, colors.primary, if (darkTheme) 0.24f else 0.12f),
+        toolBg = colors.surfaceContainer,
+        toolBorder = colors.dividerLine,
+        toolCapsuleBg = colors.secondaryContainer,
+        separator = colors.dividerLine,
+        sendButton = colors.primary,
+        sendButtonDisabled = colors.disabledPrimaryButton,
+        inlineCodeBg = colors.secondaryContainer,
+        link = colors.primary,
+        thinking = colors.primary,
+        tableBorder = colors.dividerLine,
+        sheetHeaderBg = colors.surfaceContainer,
+        sheetHeaderBorder = colors.dividerLine,
+        fabAccent = colors.primary,
+    )
 }
 
 private fun TextStyle.scale(factor: Float): TextStyle = copy(

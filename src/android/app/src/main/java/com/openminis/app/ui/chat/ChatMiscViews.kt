@@ -142,22 +142,16 @@ import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.data.FileMentionIndex
 import com.openminis.app.logging.AppLogger
-import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.components.MinisMenu
 import com.openminis.app.ui.components.MinisMenuDivider
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Surface
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -240,7 +234,6 @@ import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -269,7 +262,10 @@ import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextButton
 
 // ─── Bordered Markdown Table (iOS style: bordered cells with grid lines) ─────
 
@@ -803,9 +799,10 @@ private fun CompactSummarySheet(
             }
             if (onRevert != null) {
                 HorizontalDivider(color = ChatColors.separator)
-                MinisTextButton(
+                Button(
                     onClick = { showRevertConfirm = true },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
@@ -826,21 +823,33 @@ private fun CompactSummarySheet(
     }
 
     if (showRevertConfirm && onRevert != null) {
-        MinisAlertDialog(
-            onDismissRequest = { showRevertConfirm = false },
+        WindowDialog(
+            show = true,
             title = "Revert this compact?",
-            text = "The summary will be discarded and the messages it covered " +
+            summary = "The summary will be discarded and the messages it covered " +
                 "will become active again. This may push the conversation past " +
                 "the model's context window — if that happens, long-press a " +
                 "message to re-compact from that point.",
-            confirmText = "Revert",
-            onConfirm = {
+            onDismissRequest = { showRevertConfirm = false },
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = "Revert",
+                    onClick = {
                 showRevertConfirm = false
                 onDismiss()
                 onRevert()
             },
-            isDestructive = true,
-        )
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                )
+                TextButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = { showRevertConfirm = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 

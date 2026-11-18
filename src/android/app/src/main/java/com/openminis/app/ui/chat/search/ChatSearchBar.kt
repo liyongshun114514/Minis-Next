@@ -21,11 +21,9 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -48,6 +46,10 @@ import com.openminis.app.agent.userask.UserAskPromptText
 import com.openminis.app.ui.chat.AssistantBlock
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.chat.helperControlSummaryText
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 
 /**
  * [T-in-chat-search] The texts of rows that are worked out with Android
@@ -172,9 +174,12 @@ internal fun ChatSearchBar(controller: ChatSearchController, modifier: Modifier 
             IconButton(onClick = { controller.next() }, enabled = canStep, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_search_next))
             }
-            TextButton(onClick = { controller.deactivate() }) {
-                Text(stringResource(R.string.chat_search_done), fontWeight = FontWeight.SemiBold)
-            }
+            TextButton(
+                onClick = { controller.deactivate() },
+                text = stringResource(R.string.chat_search_done),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                textStyle = MiuixTheme.textStyles.button.copy(fontWeight = FontWeight.SemiBold),
+            )
         }
     }
 }

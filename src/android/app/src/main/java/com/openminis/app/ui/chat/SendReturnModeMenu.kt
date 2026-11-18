@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.StopCircle
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State

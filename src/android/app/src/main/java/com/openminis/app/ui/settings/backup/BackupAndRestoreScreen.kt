@@ -54,18 +54,12 @@ import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.UnfoldMore
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.theme.LocalContentColor
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -89,26 +83,34 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openminis.app.data.DeviceIdentity
-import com.openminis.app.ui.settings.SettingsSwitch
 import com.openminis.app.R
 import com.openminis.app.backup.BackupCategory
 import com.openminis.app.backup.BackupFormat
 import com.openminis.app.backup.BackupHistory
 import com.openminis.app.ui.components.MinisMenu
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.openminis.app.ui.components.MinisTextButton as TextButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import com.openminis.app.ui.theme.ChatColors
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
 
 /**
  * [T-backup-primary-action] Shared content for the two primary actions —
@@ -179,10 +181,10 @@ private fun RowScope.PrimaryActionContent(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
-                    progress = { fraction ?: 0f },
+                    progress = fraction ?: 0f,
                     modifier = Modifier.size(24.dp),
                     strokeWidth = 2.5.dp,
-                    color = LocalContentColor.current,
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = LocalContentColor.current),
                 )
                 Box(
                     Modifier
@@ -193,10 +195,10 @@ private fun RowScope.PrimaryActionContent(
             }
         } else {
             CircularProgressIndicator(
-                progress = { fraction ?: 0f },
+                progress = fraction ?: 0f,
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = LocalContentColor.current,
+                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = LocalContentColor.current),
             )
         }
     } else {
@@ -242,22 +244,18 @@ fun BackupAndRestoreScreen(
     var restorePassphrase by remember { mutableStateOf("") }
 
     SettingsScaffold(title = stringResource(R.string.backup_title), onBack = onBack) {
-        SingleChoiceSegmentedButtonRow(
+        val tabLabels = listOf(stringResource(R.string.backup_tab_backup), stringResource(R.string.backup_tab_restore))
+        TabRowWithContour(
+            tabs = tabLabels,
+            selectedTabIndex = tab,
+            onTabSelected = { tab = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            SegmentedButton(
-                selected = tab == 0,
-                onClick = { tab = 0 },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) { Text(stringResource(R.string.backup_tab_backup)) }
-            SegmentedButton(
-                selected = tab == 1,
-                onClick = { tab = 1 },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) { Text(stringResource(R.string.backup_tab_restore)) }
-        }
+            minWidth = preferenceTabMinWidth(tabLabels),
+            height = preferenceTabHeight(),
+            colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+        )
 
         // [T-restore-keep-tab-state] Only ONE tab is composed at a time, so the
         // other leaves the tree and plain `remember` state dies with it. The
@@ -434,60 +432,52 @@ private fun BackupTab(
             // compare them, so revealing only one half would defeat the point.
             var revealPassphrase by remember { mutableStateOf(false) }
             Column(Modifier.padding(16.dp)) {
-                OutlinedTextField(
+                TextField(
                     value = passphrase,
                     onValueChange = onPassphraseChange,
-                    label = { Text(stringResource(R.string.backup_passphrase)) },
                     singleLine = true,
                     enabled = !running,
-                    // [T-android-backup-passphrase-keyboard] (GH#345)
-                    // `PasswordVisualTransformation` alone only masks the
-                    // GLYPHS — the field still declares itself as ordinary
-                    // text, so the IME treats it as one: third-party keyboards
-                    // offer clipboard history and network-backed prediction,
-                    // and learn the passphrase into their personal dictionary.
-                    // KeyboardType.Password is what tells the IME this is a
-                    // secret, which is what makes a keyboard drop those
-                    // features (and what lets the system substitute its own
-                    // secure keyboard).
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     visualTransformation = if (revealPassphrase) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                                        VisualTransformation.None
+                                    } else {
+                                        PasswordVisualTransformation()
+                                    },
                     trailingIcon = {
-                        IconButton(
-                            onClick = { revealPassphrase = !revealPassphrase },
-                            enabled = !running,
-                        ) {
-                            Icon(
-                                if (revealPassphrase) Icons.Default.VisibilityOff
-                                else Icons.Default.Visibility,
-                                contentDescription = stringResource(
-                                    if (revealPassphrase) R.string.backup_hide_passphrase
-                                    else R.string.backup_show_passphrase,
-                                ),
-                            )
-                        }
-                    },
+                                        IconButton(
+                                            onClick = { revealPassphrase = !revealPassphrase },
+                                            enabled = !running,
+                                        ) {
+                                            Icon(
+                                                if (revealPassphrase) Icons.Default.VisibilityOff
+                                                else Icons.Default.Visibility,
+                                                contentDescription = stringResource(
+                                                    if (revealPassphrase) R.string.backup_hide_passphrase
+                                                    else R.string.backup_show_passphrase,
+                                                ),
+                                            )
+                                        }
+                                    },
+                    label = stringResource(R.string.backup_passphrase),
+                    useLabelAsPlaceholder = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                TextField(
                     value = confirm,
                     onValueChange = onConfirmChange,
-                    label = { Text(stringResource(R.string.backup_confirm_passphrase)) },
                     singleLine = true,
                     enabled = !running,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     visualTransformation = if (revealPassphrase) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
-                    isError = confirm.isNotEmpty() && confirm != passphrase,
-                    modifier = Modifier.fillMaxWidth(),
+                                        VisualTransformation.None
+                                    } else {
+                                        PasswordVisualTransformation()
+                                    },
+                    colors = TextFieldDefaults.textFieldColors().let { if (confirm.isNotEmpty() && confirm != passphrase) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                    label = stringResource(R.string.backup_confirm_passphrase),
+                    useLabelAsPlaceholder = false,
+                    modifier = Modifier.fillMaxWidth() .semantics { if (confirm.isNotEmpty() && confirm != passphrase) error("Invalid value") },
                 )
                 if (confirm.isNotEmpty() && confirm != passphrase) {
                     Text(
@@ -527,7 +517,7 @@ private fun BackupTab(
         // Progress belongs in the run's own entry in Backup History below,
         // which shows the live status line and the whole log; the control
         // stays a control. Same reasoning, and the same shape, as iOS.
-        MinisButton(
+        Button(
             onClick = {
                 if (running) vm.stopExport()
                 else vm.startExport(passphrase.takeIf { encrypt })
@@ -543,12 +533,12 @@ private fun BackupTab(
             // guarded against is answered in words, not by a dead button.
             enabled = running || (selected.isNotEmpty() && passphraseValid),
             colors = if (running) {
-                com.openminis.app.ui.components.MinisButtonDefaults.buttonColors(
-                    containerColor = MiuixTheme.colorScheme.error,
+                ButtonDefaults.buttonColorsPrimary(
+                    color = MiuixTheme.colorScheme.error,
                     contentColor = MiuixTheme.colorScheme.onError,
                 )
             } else {
-                com.openminis.app.ui.components.MinisButtonDefaults.buttonColors()
+                ButtonDefaults.buttonColorsPrimary()
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -1185,33 +1175,34 @@ private fun RestoreTab(
                 // treatment as the backup side — see the comment there for why
                 // the keyboard type matters beyond the masking.
                 var revealRestorePassphrase by remember { mutableStateOf(false) }
-                OutlinedTextField(
+                TextField(
                     value = passphrase,
                     onValueChange = onPassphraseChange,
-                    label = { Text(stringResource(R.string.backup_passphrase)) },
                     singleLine = true,
                     enabled = !running,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     visualTransformation = if (revealRestorePassphrase) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                                        VisualTransformation.None
+                                    } else {
+                                        PasswordVisualTransformation()
+                                    },
                     trailingIcon = {
-                        IconButton(
-                            onClick = { revealRestorePassphrase = !revealRestorePassphrase },
-                            enabled = !running,
-                        ) {
-                            Icon(
-                                if (revealRestorePassphrase) Icons.Default.VisibilityOff
-                                else Icons.Default.Visibility,
-                                contentDescription = stringResource(
-                                    if (revealRestorePassphrase) R.string.backup_hide_passphrase
-                                    else R.string.backup_show_passphrase,
-                                ),
-                            )
-                        }
-                    },
+                                        IconButton(
+                                            onClick = { revealRestorePassphrase = !revealRestorePassphrase },
+                                            enabled = !running,
+                                        ) {
+                                            Icon(
+                                                if (revealRestorePassphrase) Icons.Default.VisibilityOff
+                                                else Icons.Default.Visibility,
+                                                contentDescription = stringResource(
+                                                    if (revealRestorePassphrase) R.string.backup_hide_passphrase
+                                                    else R.string.backup_show_passphrase,
+                                                ),
+                                            )
+                                        }
+                                    },
+                    label = stringResource(R.string.backup_passphrase),
+                    useLabelAsPlaceholder = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -1242,11 +1233,12 @@ private fun RestoreTab(
                 vm.startRestore(passphrase.takeIf { p.manifest.encryption != null })
             },
         )
-        MinisOutlinedButton(
+        TextButton(
             onClick = { vm.cancelRestore(); onPassphraseChange("") },
             enabled = !running,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text(stringResource(R.string.backup_choose_different)) }
+            text = stringResource(R.string.backup_choose_different),
+        )
         error?.let {
             Text(
                 it,
@@ -1348,9 +1340,12 @@ private fun RestoreReport(
     }
 
     Column(Modifier.padding(16.dp)) {
-        MinisButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.backup_done))
-        }
+        TextButton(
+            onClick = onDone,
+            modifier = Modifier.fillMaxWidth(),
+            text = stringResource(R.string.backup_done),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
     }
 }
 
@@ -1473,7 +1468,7 @@ private fun DestinationRow(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            SettingsSwitch(checked = remote.enabled, onCheckedChange = onToggle, enabled = enabled)
+            Switch(checked = remote.enabled, onCheckedChange = onToggle, enabled = enabled)
         }
         Box(
             Modifier.fillMaxWidth().padding(start = 56.dp)
@@ -1561,7 +1556,7 @@ private fun LocalExportActions(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
     ) {
-        MinisOutlinedButton(
+        Button(
             onClick = onSave,
             enabled = !saving,
             modifier = Modifier.weight(1f),
@@ -1570,7 +1565,7 @@ private fun LocalExportActions(
             Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.backup_save_to_device))
         }
-        MinisOutlinedButton(
+        Button(
             onClick = onShare,
             modifier = Modifier.weight(1f),
         ) {
@@ -1726,37 +1721,43 @@ private fun ServerPackagePicker(
     val running by vm.isRunning.collectAsState()
     val status by vm.statusText.collectAsState()
 
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(remote.name) },
-        text = {
+        title = remote.name,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             when {
-                running -> Text(status ?: stringResource(R.string.backup_reading))
-                serverPackages.isEmpty() ->
-                    Text(stringResource(R.string.backup_server_no_packages))
-                else -> Column(Modifier.verticalScroll(rememberScrollState())) {
-                    serverPackages.forEach { pkg ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(
-                                        R.string.backup_pkg_row,
-                                        pkg.displayName,
-                                        humanBytes(pkg.size),
-                                    ),
-                                )
-                            },
-                            onClick = { vm.downloadServerPackage(pkg, remote); onDismiss() },
+                            running -> Text(status ?: stringResource(R.string.backup_reading))
+                            serverPackages.isEmpty() ->
+                                Text(stringResource(R.string.backup_server_no_packages))
+                            else -> Column(Modifier.verticalScroll(rememberScrollState())) {
+                                serverPackages.forEach { pkg ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(
+                                                    R.string.backup_pkg_row,
+                                                    pkg.displayName,
+                                                    humanBytes(pkg.size),
+                                                ),
+                                            )
+                                        },
+                                        onClick = { vm.downloadServerPackage(pkg, remote); onDismiss() },
+                                    )
+                                }
+                            }
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                         )
-                    }
-                }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.backup_dest_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -1836,7 +1837,7 @@ private fun CategorySwitchRow(
                 }
             }
             Spacer(Modifier.width(8.dp))
-            SettingsSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
         }
         if (showDivider) {
             Box(
@@ -2006,13 +2007,14 @@ private fun RestoreProgressSection(
         }
     }
 
-    MinisButton(
+    Button(
         onClick = onStart,
         // While a restore runs the button itself is inert — the only live
         // control is the stop target in the middle of the ring, so a stray tap
         // on the bar cannot start or abort anything.
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColorsPrimary(),
     ) {
         PrimaryActionContent(
             icon = Icons.Outlined.CloudDownload,
@@ -2050,28 +2052,32 @@ private fun RestoreProgressSection(
     }
 
     if (confirmStop) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmStop = false },
-            title = { Text(stringResource(R.string.restore_stop_title)) },
-            text = { Text(stringResource(R.string.restore_stop_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmStop = false
-                    vm.stopRunningRestore()
-                }) {
-                    Text(
-                        stringResource(R.string.restore_stop_confirm),
-                        // Destructive: this abandons work in progress.
+            title = stringResource(R.string.restore_stop_title),
+            summary = stringResource(R.string.restore_stop_message),
+        ) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.restore_stop_confirm),
+                    onClick = {
+                        confirmStop = false
+                        vm.stopRunningRestore()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColorsPrimary(
                         color = MiuixTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmStop = false }) {
-                    Text(stringResource(R.string.restore_stop_cancel))
-                }
-            },
-        )
+                        textColor = MiuixTheme.colorScheme.onError,
+                    ),
+                )
+                TextButton(
+                    text = stringResource(R.string.restore_stop_cancel),
+                    onClick = { confirmStop = false },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 

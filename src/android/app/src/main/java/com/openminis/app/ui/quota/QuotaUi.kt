@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember

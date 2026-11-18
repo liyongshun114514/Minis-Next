@@ -127,15 +127,16 @@ class RestoreStopAndScopeTest {
     @Test
     fun `stopping asks for confirmation before cancelling`() {
         val section = screen.substringAfter("private fun RestoreProgressSection")
-        assertTrue("no dialog", section.contains("AlertDialog("))
+        assertTrue("no dialog", section.contains("WindowDialog("))
         // The tap must only open the dialog; the cancel happens on confirm.
-        val confirm = section.substringAfter("confirmButton = {").substringBefore("dismissButton")
+        val dialog = section.substringAfter("if (confirmStop)").substringBefore("private fun ReportLine")
+        val confirm = dialog.substringAfter("TextButton(").substringBefore("TextButton(")
         assertTrue("confirm must call the ViewModel", confirm.contains("vm.stopRunningRestore()"))
         assertTrue(
             "the destructive action must be coloured as such",
             confirm.contains("MiuixTheme.colorScheme.error"),
         )
-        val dismiss = section.substringAfter("dismissButton = {")
+        val dismiss = dialog.substringAfterLast("TextButton(")
         assertTrue("dismiss must not cancel the restore", !dismiss.contains("stopRunningRestore"))
     }
 

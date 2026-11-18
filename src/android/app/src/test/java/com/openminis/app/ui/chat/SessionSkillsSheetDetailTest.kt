@@ -70,11 +70,10 @@ class SessionSkillsSheetDetailTest {
     @Test
     fun `back arrow and system back pop one page, and only off the list`() {
         assertTrue(sheet.contains("if (page == SessionSkillsPage.List) false else {\n                page = page.back()\n                true"))
-        // The sheet's built-in back-dismiss runs ahead of a BackHandler in its
-        // content, so it is switched off whenever a sheet takes back itself.
+        // Inner pages take Back through the sheet window's navigation dispatcher.
         val std = ProductionSources.read("ui/chat/StandardChatSheet.kt")
-        assertTrue(std.contains("properties = ModalBottomSheetProperties(shouldDismissOnBackPress = onBack == null),"))
-        assertTrue(std.contains("if (!onBack()) {\n                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }"))
+        assertTrue(std.contains("NavigationBackHandler("))
+        assertTrue(std.contains("onBackCompleted = { if (!onBack()) onDismiss() }"))
         assertTrue(sheet.contains("leadingAction = if (currentPage == SessionSkillsPage.List) null else {"))
         assertTrue(sheet.contains("IconButton(onClick = { page = currentPage.back() })"))
     }
@@ -109,8 +108,8 @@ class SessionSkillsSheetDetailTest {
     @Test
     fun `a skill row without a long-press keeps its plain clickable`() {
         assertTrue(row.contains("onLongClick: (() -> Unit)? = null,"))
-        assertTrue(row.contains("onClick != null && onLongClick != null ->"))
-        assertTrue(row.contains("onClick != null -> Modifier.clickable(onClick = onClick)"))
+        assertTrue(row.contains("val withLongPress = onClick != null && onLongClick != null"))
+        assertTrue(row.contains("onClick = if (withLongPress) null else onClick"))
     }
 
     @Test

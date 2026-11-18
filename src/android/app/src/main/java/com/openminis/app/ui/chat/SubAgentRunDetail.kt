@@ -33,14 +33,10 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.StopCircle
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.OutlinedTextFieldDefaults
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -76,6 +72,12 @@ import com.openminis.app.ui.components.DecorativeSpinner
 import com.openminis.app.ui.theme.ChatColors
 import org.json.JSONObject
 import java.util.Locale
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 
 /*
  * [T-subagent-detail-rich] What the sub agent detail card (HelperDetailContent,
@@ -601,17 +603,15 @@ internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (canSteer) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedTextField(
+                    TextField(
                         value = draft,
                         onValueChange = { draft = it },
-                        placeholder = { Text(stringResource(R.string.subagent_detail_steer_hint), fontSize = 13.sp) },
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = ChatColors.primaryText),
-                        minLines = 1, maxLines = 4,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = accent,
-                            unfocusedBorderColor = ChatColors.separator,
-                        ),
+                        minLines = 1,
+                        maxLines = 4,
+                        colors = TextFieldDefaults.textFieldColors(borderColor = accent),
+                        label = stringResource(R.string.subagent_detail_steer_hint),
+                        useLabelAsPlaceholder = true,
                         modifier = Modifier.weight(1f),
                     )
                     val sendLabel = stringResource(R.string.subagent_detail_send)
@@ -654,19 +654,29 @@ internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean) {
     }
 
     if (confirmStop) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmStop = false },
-            title = { Text(stringResource(R.string.subagent_detail_stop_confirm_title)) },
-            text = { Text(stringResource(R.string.subagent_detail_stop_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmStop = false
-                    stopSubAgentByUser(context, childSessionId, "user-stop-detail")
-                }) { Text(stringResource(R.string.helper_stop), color = HelperStatusRed) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmStop = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
+            title = stringResource(R.string.subagent_detail_stop_confirm_title),
+            summary = stringResource(R.string.subagent_detail_stop_confirm_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    confirmStop = false
+                                    stopSubAgentByUser(context, childSessionId, "user-stop-detail")
+                                },
+                                    text = stringResource(R.string.helper_stop),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = HelperStatusRed),
+                                )
+                TextButton(
+                                    onClick = { confirmStop = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }

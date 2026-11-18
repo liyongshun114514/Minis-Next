@@ -43,16 +43,13 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import com.openminis.app.ui.components.miuix.DropdownMenu
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -85,7 +82,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
 fun FileBrowserScreen(
@@ -116,7 +118,7 @@ fun FileBrowserScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.filebrowser_title)) },
+                title = stringResource(R.string.filebrowser_title),
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -137,6 +139,7 @@ fun FileBrowserScreen(
                         onToggleShowHidden = { viewModel.setShowHidden(!state.showHidden) },
                     )
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -215,24 +218,30 @@ fun FileBrowserScreen(
 
     // Delete confirmation
     deleteTarget?.let { item ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(R.string.filebrowser_delete_title, item.name)) },
-            text = { Text(stringResource(R.string.filebrowser_delete_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    viewModel.deleteItem(item)
-                    deleteTarget = null
-                }) {
-                    Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error)
+            title = stringResource(R.string.filebrowser_delete_title, item.name),
+            summary = stringResource(R.string.filebrowser_delete_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    viewModel.deleteItem(item)
+                                    deleteTarget = null
+                                },
+                                    text = stringResource(R.string.delete),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { deleteTarget = null },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { deleteTarget = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 
     // T-pwa-3: Add-to-Home-Screen sheet, hosted at screen scope so it
@@ -249,16 +258,23 @@ fun FileBrowserScreen(
     (state.errorMessage ?: state.refusedMountPointName?.let {
         stringResource(R.string.filebrowser_delete_mount_point_refused, it)
     })?.let { msg ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { viewModel.dismissError() },
-            title = { Text(stringResource(R.string.filebrowser_error_title)) },
-            text = { Text(msg) },
-            confirmButton = {
-                MinisTextButton(onClick = { viewModel.dismissError() }) {
-                    Text("OK")  // OK is locale-neutral
+            title = stringResource(R.string.filebrowser_error_title),
+            summary = msg,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                                    onClick = { viewModel.dismissError() },
+                                    colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
+                                ) {
+                                    Text("OK")  // OK is locale-neutral
+                                }
                 }
-            },
-        )
+            }
+        }
     }
 }
 

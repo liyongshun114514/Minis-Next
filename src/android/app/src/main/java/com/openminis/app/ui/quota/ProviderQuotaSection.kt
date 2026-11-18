@@ -23,16 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.WarningAmber
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.MinisTextButton as TextButton
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.PullToRefresh as PullToRefreshBox
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,10 +55,20 @@ import com.openminis.app.quota.QuotaState
 import com.openminis.app.quota.QuotaStore
 import com.openminis.app.quota.QuotaSubject
 import com.openminis.app.quota.QuotaSubjectID
-import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.UrlPreviewSheet
 import com.openminis.app.ui.theme.ChatColors
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 
 // [T-provider-quota] "Quota" section of the provider detail page: the upstream
 // balance / quota of this instance's account, from the vendor itself - never
@@ -223,57 +227,65 @@ private fun CustomBalanceURLDialog(initial: String, onDismiss: () -> Unit, onSav
     var text by remember(initial) { mutableStateOf(initial) }
     var error by remember { mutableStateOf<String?>(null) }
     val invalid = stringResource(R.string.quota_custom_balance_url_invalid)
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.quota_custom_balance_url_title)) },
-        text = {
+        title = stringResource(R.string.quota_custom_balance_url_title),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    stringResource(R.string.quota_custom_balance_url_description),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it; error = null },
-                    singleLine = false,
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = error != null,
-                )
-                error?.let {
-                    Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.error)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val trimmed = text.trim()
-                if (trimmed.isEmpty()) {
-                    onSave(null)
-                    return@TextButton
-                }
-                val normalized = CustomBalanceEndpoint.normalize(trimmed)
-                if (normalized == null) {
-                    error = invalid
-                } else {
-                    onSave(normalized)
-                }
-            }) { Text(stringResource(R.string.quota_custom_balance_url_save)) }
-        },
-        dismissButton = {
+                            Text(
+                                stringResource(R.string.quota_custom_balance_url_description),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                            TextField(
+                                value = text,
+                                onValueChange = { text = it; error = null },
+                                singleLine = false,
+                                minLines = 2,
+                                colors = TextFieldDefaults.textFieldColors().let { if (error != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                                modifier = Modifier.fillMaxWidth() .semantics { if (error != null) error("Invalid value") },
+                            )
+                            error?.let {
+                                Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.error)
+                            }
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = {
+                            val trimmed = text.trim()
+                            if (trimmed.isEmpty()) {
+                                onSave(null)
+                                return@TextButton
+                            }
+                            val normalized = CustomBalanceEndpoint.normalize(trimmed)
+                            if (normalized == null) {
+                                error = invalid
+                            } else {
+                                onSave(normalized)
+                            }
+                        },
+                            text = stringResource(R.string.quota_custom_balance_url_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             Row {
-                if (initial.isNotBlank()) {
-                    TextButton(onClick = { onSave(null) }) {
-                        Text(stringResource(R.string.quota_custom_balance_url_clear))
-                    }
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.quota_custom_balance_url_cancel))
-                }
+                            if (initial.isNotBlank()) {
+                                TextButton(
+                                    onClick = { onSave(null) },
+                                    text = stringResource(R.string.quota_custom_balance_url_clear),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                            }
+                            TextButton(
+                                onClick = onDismiss,
+                                text = stringResource(R.string.quota_custom_balance_url_cancel),
+                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                            )
+                        }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -461,20 +473,11 @@ fun QuotaDetailSheet(
         }
     }
 
-    ModalBottomSheet(
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = !halfHeight),
-        containerColor = MiuixTheme.colorScheme.background,
-        dragHandle = {
-            Box(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp), contentAlignment = Alignment.TopCenter) {
-                Box(
-                    Modifier
-                        .width(32.dp)
-                        .height(4.dp)
-                        .background(ChatColors.secondaryText.copy(alpha = 0.4f), RoundedCornerShape(2.dp)),
-                )
-            }
-        },
+        backgroundColor = MiuixTheme.colorScheme.background,
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).navigationBarsPadding()) {
             // Title bar: Done | label | refresh.
@@ -483,7 +486,11 @@ fun QuotaDetailSheet(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.quota_done)) }
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.quota_done),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
                 Text(
                     instance?.label ?: stringResource(R.string.quota_title),

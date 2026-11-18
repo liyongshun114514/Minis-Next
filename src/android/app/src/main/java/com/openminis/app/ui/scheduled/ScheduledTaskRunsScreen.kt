@@ -25,8 +25,7 @@ import androidx.compose.material.icons.outlined.History
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +42,7 @@ import com.openminis.app.scheduled.ScheduledRun
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.openminis.app.ui.components.RichTitleAppBar
 
 /**
  * [T-android-scheduled-tasks-run-records] Execution log for one scheduled
@@ -66,7 +66,7 @@ fun ScheduledTaskRunsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            RichTitleAppBar(
                 title = {
                     Column {
                         Text(

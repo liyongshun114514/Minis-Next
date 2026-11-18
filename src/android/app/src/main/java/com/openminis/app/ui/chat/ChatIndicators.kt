@@ -18,8 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +40,8 @@ import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import com.openminis.app.ui.components.decorativePingPong
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 
 // [T-android-split-chat] Self-contained "thinking / streaming" dot indicators
 // extracted verbatim from ChatScreen.kt. `internal` so the chat package can
@@ -142,8 +143,8 @@ internal fun CompactProgressIndicator(
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(10.dp),
-                color = fg,
                 strokeWidth = 1.5.dp,
+                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = fg),
             )
             Text(
                 text = if (progress.depth > 0) {

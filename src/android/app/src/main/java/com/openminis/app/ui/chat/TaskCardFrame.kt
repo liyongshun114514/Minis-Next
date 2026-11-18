@@ -20,8 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LocalTextStyle
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.util.expandToggleClickable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * [T-sched-card-metrics] The one set of measurements every task card in the
@@ -189,7 +189,7 @@ private fun TaskCardHeadRow(
 private fun cjkLineHeight(fontSize: TextUnit, lineHeight: TextUnit, weight: FontWeight): Dp {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val base = LocalTextStyle.current
+    val base = MiuixTheme.textStyles.main
     return remember(fontSize, lineHeight, weight, density, base) {
         val style = base.merge(TextStyle(fontSize = fontSize, lineHeight = lineHeight, fontWeight = weight))
         with(density) { measurer.measure("\u56FDAg", style, maxLines = 1).size.height.toDp() }

@@ -25,13 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExpandMore
 import top.yukonga.miuix.kmp.basic.Icon
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.MinisOutlinedButton as OutlinedButton
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +82,27 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Locale
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 
 /**
  * [T-token-attribution-snapshot] How trustworthy a row's model attribution is.
@@ -162,14 +179,14 @@ private data class SegmentColors(val input: Color, val cacheWrite: Color, val ca
 
 @Composable
 private fun segmentColors(): SegmentColors {
-    val cs = MiuixTheme.colorScheme
+    val input = if (isUsageDark()) Color(0xFF6A94CE) else Color(0xFF528AD2)
     // Cache read is the same hue as input at low emphasis: it is the cheap
     // part of the total, and the legend/values carry it for anyone who cannot
     // tell the shades apart.
     return SegmentColors(
-        input = cs.primary,
-        cacheWrite = Color(0xFF8E5CD9),
-        cacheRead = cs.primary.copy(alpha = 0.35f),
+        input = input,
+        cacheWrite = if (isUsageDark()) Color(0xFFCDE5FF) else Color(0xFF46617A),
+        cacheRead = input.copy(alpha = 0.35f),
         output = Color(0xFFF29A2E),
     )
 }
@@ -239,12 +256,12 @@ fun UsageStatsScreen(
         loading = false
     }
 
-    SettingsScaffold(title = stringResource(R.string.usage_title), onBack = onBack) {
+    UsageScaffold(onBack = onBack) {
         RangeTabs(range) { range = it }
         // Switching ranges keeps the previous content on screen under a thin
         // progress bar instead of flashing an empty page.
         Box(Modifier.fillMaxWidth().height(2.dp).padding(horizontal = 16.dp)) {
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth(), height = 2.dp)
         }
         val r = report
         when {
@@ -270,6 +287,52 @@ fun UsageStatsScreen(
     }
 }
 
+// Keep the pre-migration dashboard's static header, grouped page and type scale.
+@Composable
+private fun UsageScaffold(onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val page = if (isUsageDark()) Color.Black else Color(0xFFF2F2F7)
+    Scaffold(
+        containerColor = page,
+        topBar = {
+            TopAppBar(
+                title = stringResource(R.string.usage_title),
+                expandable = false,
+                color = page,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.settings_back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()), content = content)
+    }
+}
+
+@Composable
+private fun UsageCard(content: @Composable ColumnScope.() -> Unit) {
+    val fill = if (isUsageDark()) Color(0xFF1C1C1E) else Color.White
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 24.dp),
+        cornerRadius = 14.dp,
+        colors = CardDefaults.defaultColors(color = fill),
+        content = content,
+    )
+}
+
+@Composable
+private fun isUsageDark(): Boolean = MiuixTheme.colorScheme.surface.luminance() < 0.5f
+
+@Composable
+private fun usageSecondaryText(): Color = if (isUsageDark()) Color(0xFFBEC9C6) else Color(0xFF3F4947)
+
+@Composable
+private fun usageTextStyle(size: Int, lineHeight: Int, weight: FontWeight = FontWeight.Normal): TextStyle {
+    val scale = MiuixTheme.textStyles.main.fontSize.value / 17f
+    return MiuixTheme.textStyles.main.copy(fontSize = (size * scale).sp, lineHeight = (lineHeight * scale).sp, fontWeight = weight)
+}
+
 /** Live instances and the model -> provider-type map the builder falls back on (spec 8.1). */
 private fun liveConfig(config: ProviderConfig?): Pair<List<LiveInstance>, List<LiveModel>> {
     if (config == null) return emptyList<LiveInstance>() to emptyList()
@@ -289,16 +352,16 @@ private fun RangeTabs(selected: UsageRange, onSelect: (UsageRange) -> Unit) {
         UsageRange.LAST_30_DAYS to R.string.usage_range_30d,
         UsageRange.ALL to R.string.usage_range_all,
     )
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
-        ranges.forEachIndexed { i, (r, label) ->
-            SegmentedButton(
-                selected = r == selected,
-                onClick = { onSelect(r) },
-                shape = SegmentedButtonDefaults.itemShape(i, ranges.size),
-                icon = {},
-            ) { Text(stringResource(label), maxLines = 1) }
-        }
-    }
+    val tabLabels = ranges.map { (_, label) -> stringResource(label) }
+    TabRowWithContour(
+        tabs = tabLabels,
+        selectedTabIndex = ranges.indexOfFirst { (r, _) -> r == selected }.coerceAtLeast(0),
+        onTabSelected = { index -> onSelect(ranges[index].first) },
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+        minWidth = preferenceTabMinWidth(tabLabels),
+        height = preferenceTabHeight(),
+        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+    )
 }
 
 @Composable
@@ -312,8 +375,8 @@ private fun RangeCaption(r: UsageReport) {
     val dates = if (first == last) first.format(fmt) else "${first.format(fmt)} – ${last.format(fmt)}"
     Text(
         stringResource(R.string.usage_range_caption_fmt, dates),
-        style = MiuixTheme.textStyles.body2,
-        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+        style = usageTextStyle(12, 16),
+        color = usageSecondaryText(),
         modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
     )
 }
@@ -332,22 +395,22 @@ private fun dayFormatter(): DateTimeFormatter {
 private fun OverviewCard(r: UsageReport) {
     val t = r.totals
     val colors = segmentColors()
-    SettingsSection {
+    UsageCard {
         Column(Modifier.padding(16.dp)) {
-            Text(stringResource(R.string.usage_total_tokens), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+            Text(stringResource(R.string.usage_total_tokens), style = usageTextStyle(12, 16, FontWeight.Medium), color = usageSecondaryText())
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(UsageDisplay.tokens(t.tokens.total), fontSize = 40.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.usage_non_cached_fmt, UsageDisplay.tokens(t.tokens.nonCached)),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = usageTextStyle(14, 20),
+                    color = usageSecondaryText(),
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
             val avg = r.dailyAvg?.let { stringResource(R.string.usage_daily_avg_fmt, UsageDisplay.tokens(it.toLong())) }
             val active = stringResource(R.string.usage_active_days_fmt, r.activeDays, r.calendarDays)
-            Text(listOfNotNull(avg, active).joinToString(" · "), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+            Text(listOfNotNull(avg, active).joinToString(" · "), style = usageTextStyle(12, 16), color = usageSecondaryText())
             Spacer(Modifier.height(12.dp))
             SplitBar(t.tokens, colors)
             Spacer(Modifier.height(8.dp))
@@ -369,15 +432,15 @@ private fun OverviewCard(r: UsageReport) {
             val basis = t.cacheBasis
             val rate = t.hitRate?.takeIf { (basis ?: 0.0) >= 0.05 }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.usage_cache_hit), style = MiuixTheme.textStyles.body1)
+                Text(stringResource(R.string.usage_cache_hit), style = usageTextStyle(14, 20))
                 Spacer(Modifier.width(8.dp))
-                Text(UsageDisplay.percent(rate), style = MiuixTheme.textStyles.body1, fontWeight = FontWeight.SemiBold)
+                Text(UsageDisplay.percent(rate), style = usageTextStyle(14, 20), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 if (rate != null && basis != null && basis < 0.995) {
                     Text(
                         stringResource(R.string.usage_cache_basis_fmt, UsageDisplay.percent(basis)),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        style = usageTextStyle(12, 16),
+                        color = usageSecondaryText(),
                     )
                 }
             }
@@ -390,7 +453,7 @@ private fun SplitBar(t: Tokens, c: SegmentColors) {
     val total = t.total.toFloat()
     Canvas(
         Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))
-            .background(MiuixTheme.colorScheme.surfaceVariant),
+            .background(MiuixTheme.colorScheme.dividerLine),
     ) {
         if (total <= 0f) return@Canvas
         var x = 0f
@@ -407,7 +470,7 @@ private fun Legend(color: Color, label: String, value: Long) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(color))
         Spacer(Modifier.width(6.dp))
-        Text("$label ${UsageDisplay.tokens(value)}", style = MiuixTheme.textStyles.body2)
+        Text("$label ${UsageDisplay.tokens(value)}", style = usageTextStyle(12, 16))
     }
 }
 
@@ -448,17 +511,17 @@ private fun TrendCard(r: UsageReport) {
         UsageDisplay.tokens(peak),
         series.maxBy { it.tokens.total }.let(::fullLabel),
     )
-    SettingsSection {
+    UsageCard {
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.usage_trend), style = MiuixTheme.textStyles.subtitle, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.usage_trend), style = usageTextStyle(14, 20, FontWeight.Medium), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 val sel = selected?.let { series.getOrNull(it) }
                 Text(
                     if (sel != null) "${fullLabel(sel)} · ${UsageDisplay.tokens(sel.tokens.total)}"
                     else stringResource(R.string.usage_trend_peak_fmt, UsageDisplay.tokens(peak)),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    style = usageTextStyle(12, 16),
+                    color = usageSecondaryText(),
                 )
             }
             Spacer(Modifier.height(12.dp))
@@ -507,8 +570,8 @@ private fun TrendCard(r: UsageReport) {
                     val show = (series.lastIndex - i) % step == 0
                     Text(
                         if (show) label(b) else "",
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        style = usageTextStyle(11, 16, FontWeight.Medium),
+                        color = usageSecondaryText(),
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Visible,
@@ -525,26 +588,39 @@ private fun TrendCard(r: UsageReport) {
 
 @Composable
 private fun DimensionBar(groupBy: UsageGroupBy, merge: Boolean, onGroupBy: (UsageGroupBy) -> Unit, onMerge: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val dims = listOf(UsageGroupBy.PROVIDER to R.string.usage_dim_provider, UsageGroupBy.MODEL to R.string.usage_dim_model)
-        SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-            dims.forEachIndexed { i, (d, label) ->
-                SegmentedButton(
-                    selected = d == groupBy,
-                    onClick = { onGroupBy(d) },
-                    shape = SegmentedButtonDefaults.itemShape(i, dims.size),
-                    icon = {},
-                ) { Text(stringResource(label), maxLines = 1) }
+    val dimensions = listOf(UsageGroupBy.PROVIDER to R.string.usage_dim_provider, UsageGroupBy.MODEL to R.string.usage_dim_model)
+    val tabLabels = dimensions.map { (_, label) -> stringResource(label) }
+    val mergeLabel = stringResource(R.string.usage_merge_models)
+    val labelStyle = usageTextStyle(12, 16)
+    val labelWidth = rememberTextMeasurer().measure(mergeLabel, labelStyle, maxLines = 1).size.width
+    val tabWidth = preferenceTabMinWidth(tabLabels)
+    val mergeWidth = with(LocalDensity.current) { labelWidth.toDp() } + 76.dp
+    val modelSelected = groupBy == UsageGroupBy.MODEL
+    val tabs: @Composable (Modifier) -> Unit = { modifier ->
+        TabRowWithContour(
+            tabs = tabLabels,
+            selectedTabIndex = if (modelSelected) 1 else 0,
+            onTabSelected = { index -> onGroupBy(dimensions[index].first) },
+            modifier = modifier,
+            minWidth = tabWidth,
+            height = preferenceTabHeight(),
+            colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+        )
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 24.dp)) {
+        if (!modelSelected || maxWidth >= tabWidth * 2 + 15.dp + mergeWidth) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                tabs(Modifier.weight(1f))
+                if (modelSelected) {
+                    Text(mergeLabel, Modifier.padding(start = 12.dp, end = 8.dp), style = labelStyle, color = usageSecondaryText())
+                    Switch(checked = merge, onCheckedChange = onMerge)
+                }
             }
-        }
-        if (groupBy == UsageGroupBy.MODEL) {
-            Spacer(Modifier.width(12.dp))
-            Text(stringResource(R.string.usage_merge_models), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
-            Spacer(Modifier.width(8.dp))
-            Switch(checked = merge, onCheckedChange = onMerge)
+        } else {
+            Column {
+                tabs(Modifier)
+                SwitchPreference(title = mergeLabel, checked = merge, onCheckedChange = onMerge)
+            }
         }
     }
 }
@@ -555,7 +631,7 @@ private fun GroupList(r: UsageReport) {
     val folded = remember(r) { UsageDisplay.fold(r.groups) }
     val byModel = r.query.groupBy == UsageGroupBy.MODEL
     var otherOpen by remember(r) { mutableStateOf(false) }
-    SettingsSection(modifier = Modifier.padding(top = 0.dp)) {
+    UsageCard {
         val rows = folded.top
         rows.forEach { g -> GroupRow(g, total, byModel, merged = !r.query.exactModelId, divider = true) }
         if (folded.rest.isNotEmpty()) {
@@ -590,28 +666,28 @@ private fun GroupRow(g: UsageGroup, reportTotal: Long, byModel: Boolean, merged:
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     groupTitle(g, byModel),
-                    style = MiuixTheme.textStyles.main,
+                    style = usageTextStyle(16, 24),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Spacer(Modifier.width(6.dp))
-                Text(subtitle, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, maxLines = 1)
+                Text(subtitle, style = usageTextStyle(12, 16), color = usageSecondaryText(), maxLines = 1)
                 Spacer(Modifier.weight(1f))
-                Text(UsageDisplay.tokens(g.tokens.total), style = MiuixTheme.textStyles.main)
+                Text(UsageDisplay.tokens(g.tokens.total), style = usageTextStyle(16, 24))
                 Spacer(Modifier.width(4.dp))
-                Text(UsageDisplay.percent(share), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                Text(UsageDisplay.percent(share), style = usageTextStyle(12, 16), color = usageSecondaryText())
                 Icon(
                     if (expanded) Icons.Default.ExpandMore else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
+                    tint = usageSecondaryText().copy(alpha = 0.6f),
                 )
             }
             Spacer(Modifier.height(6.dp))
             ShareBar(share ?: 0.0)
             // The unknown-model bucket keeps its explanation (design 3.4).
             if (byModel && g.key == UsageReportBuilder.UNKNOWN_MODEL) {
-                Text(stringResource(R.string.usage_attr_unknown_session), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(stringResource(R.string.usage_attr_unknown_session), style = usageTextStyle(12, 16), color = usageSecondaryText(), modifier = Modifier.padding(top = 4.dp))
             }
         }
         AnimatedVisibility(visible = expanded) {
@@ -622,8 +698,8 @@ private fun GroupRow(g: UsageGroup, reportTotal: Long, byModel: Boolean, merged:
                 if (byModel && merged && g.rawIds.isNotEmpty()) {
                     Text(
                         stringResource(R.string.usage_raw_ids_fmt, g.rawIds.joinToString(" · ")),
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                        style = usageTextStyle(12, 16),
+                        color = usageSecondaryText(),
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
@@ -653,15 +729,15 @@ private fun OtherRow(count: Int, value: Long, reportTotal: Long, open: Boolean, 
     Column {
         Column(Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.usage_other_fmt, count), style = MiuixTheme.textStyles.main, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.usage_other_fmt, count), style = usageTextStyle(16, 24), fontWeight = FontWeight.Medium)
                 Spacer(Modifier.weight(1f))
-                Text(UsageDisplay.tokens(value), style = MiuixTheme.textStyles.main)
+                Text(UsageDisplay.tokens(value), style = usageTextStyle(16, 24))
                 Spacer(Modifier.width(4.dp))
-                Text(UsageDisplay.percent(share), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                Text(UsageDisplay.percent(share), style = usageTextStyle(12, 16), color = usageSecondaryText())
                 Icon(
                     if (open) Icons.Default.ExpandMore else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.6f),
+                    tint = usageSecondaryText().copy(alpha = 0.6f),
                 )
             }
             Spacer(Modifier.height(6.dp))
@@ -673,8 +749,8 @@ private fun OtherRow(count: Int, value: Long, reportTotal: Long, open: Boolean, 
 
 @Composable
 private fun ShareBar(share: Double) {
-    val track = MiuixTheme.colorScheme.surfaceVariant
-    val fill = MiuixTheme.colorScheme.primary
+    val track = MiuixTheme.colorScheme.dividerLine
+    val fill = segmentColors().input
     Canvas(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))) {
         drawRect(track)
         // A sliver stays visible so a <1% row does not look empty.
@@ -694,8 +770,8 @@ private fun RowDivider() {
 @Composable
 private fun DetailRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.weight(1f))
-        Text(value, style = MiuixTheme.textStyles.body2)
+        Text(label, style = usageTextStyle(12, 16), color = usageSecondaryText(), modifier = Modifier.weight(1f))
+        Text(value, style = usageTextStyle(12, 16))
     }
 }
 
@@ -703,12 +779,12 @@ private fun DetailRow(label: String, value: String) {
 
 @Composable
 private fun ColumnScope.EmptyState(message: String, onShowAll: (() -> Unit)?) {
-    SettingsSection {
+    UsageCard {
         Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(message, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+            Text(message, style = usageTextStyle(14, 20), color = usageSecondaryText())
             if (onShowAll != null) {
                 Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = onShowAll) { Text(stringResource(R.string.usage_show_all)) }
+                TextButton(onClick = onShowAll, text = stringResource(R.string.usage_show_all))
             }
         }
     }
@@ -716,11 +792,11 @@ private fun ColumnScope.EmptyState(message: String, onShowAll: (() -> Unit)?) {
 
 @Composable
 private fun ErrorState(onRetry: () -> Unit) {
-    SettingsSection {
+    UsageCard {
         Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.usage_error), style = MiuixTheme.textStyles.body1)
+            Text(stringResource(R.string.usage_error), style = usageTextStyle(14, 20))
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.usage_retry)) }
+            TextButton(onClick = onRetry, text = stringResource(R.string.usage_retry))
         }
     }
 }
@@ -729,7 +805,7 @@ private fun ErrorState(onRetry: () -> Unit) {
 private fun Footer() {
     Column(Modifier.padding(horizontal = 32.dp, vertical = 12.dp)) {
         for (note in listOf(R.string.usage_note_retained, R.string.usage_note_background)) {
-            Text(stringResource(note), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+            Text(stringResource(note), style = usageTextStyle(12, 16), color = usageSecondaryText())
         }
     }
 }

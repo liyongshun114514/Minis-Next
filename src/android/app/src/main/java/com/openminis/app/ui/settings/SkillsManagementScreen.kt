@@ -2,8 +2,6 @@ package com.openminis.app.ui.settings
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisTextButton
 
 import android.net.Uri
 import android.widget.Toast
@@ -51,23 +49,16 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Language
-import com.openminis.app.ui.components.miuix.AlertDialog
-import com.openminis.app.ui.components.MinisButtonDefaults as ButtonDefaults
-import com.openminis.app.ui.components.miuix.CircularProgressIndicator
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
 import com.openminis.app.ui.components.DialogTextField
 import com.openminis.app.ui.components.safeLaunchPicker
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TabRow
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -97,6 +88,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.openminis.app.i18n.uppercaseForDisplay
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * Inline state for the three update actions on [SkillDetailScreen]
@@ -313,7 +311,7 @@ fun SkillsManagementScreen(
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                SettingsSwitch(
+                                Switch(
                                     checked = skill.isEnabled,
                                     onCheckedChange = { skillRepository.setEnabled(skill.id, it) },
                                 )
@@ -344,7 +342,9 @@ fun SkillsManagementScreen(
     }
 
     if (showAddMenu) {
-        ModalBottomSheet(
+        WindowBottomSheet(
+            show = true,
+            insideMargin = DpSize.Zero,
             onDismissRequest = { showAddMenu = false },
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
@@ -390,20 +390,30 @@ fun SkillsManagementScreen(
 
     if (deleteSkillId != null) {
         val skill = skills.find { it.id == deleteSkillId }
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { deleteSkillId = null },
-            title = { Text("Delete ${skill?.name ?: "skill"}?") },
-            text = { Text(stringResource(R.string.skill_delete_confirm_text)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    deleteSkillId?.let { skillRepository.delete(it) }
-                    deleteSkillId = null
-                }) { Text("Delete", color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { deleteSkillId = null }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
+            title = "Delete ${skill?.name ?: "skill"}?",
+            summary = stringResource(R.string.skill_delete_confirm_text),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    deleteSkillId?.let { skillRepository.delete(it) }
+                                    deleteSkillId = null
+                                },
+                                    text = "Delete",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { deleteSkillId = null },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }
 
@@ -414,7 +424,6 @@ private fun SkillImportSheet(
     skillRepository: SkillRepository,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var urlText by remember { mutableStateOf("") }
     var pasteContent by remember { mutableStateOf("") }
@@ -468,7 +477,11 @@ private fun SkillImportSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -522,10 +535,12 @@ private fun SkillImportSheet(
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                     )
-                    MinisTextButton(
+                    TextButton(
                         onClick = { fileLauncher.safeLaunchPicker("*/*", context, "SkillsManagement") },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.skill_import_file_button)) }
+                        text = stringResource(R.string.skill_import_file_button),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
 
@@ -535,12 +550,16 @@ private fun SkillImportSheet(
 
             if (selectedTab < 2) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    MinisTextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-                    MinisTextButton(
+                    TextButton(
+                        onClick = onDismiss,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                    TextButton(
                         onClick = {
                             when (selectedTab) {
                                 0 -> {
-                                    if (urlText.isBlank()) { errorText = context.getString(R.string.skill_import_error_no_url); return@MinisTextButton }
+                                    if (urlText.isBlank()) { errorText = context.getString(R.string.skill_import_error_no_url); return@TextButton }
                                     isLoading = true
                                     scope.launch {
                                         try {
@@ -564,7 +583,9 @@ private fun SkillImportSheet(
                             }
                         },
                         enabled = when (selectedTab) { 0 -> urlText.isNotBlank() && !isLoading; 1 -> pasteContent.isNotBlank(); else -> false },
-                    ) { Text(if (isLoading) stringResource(R.string.skill_import_in_progress) else stringResource(R.string.skill_import_submit)) }
+                        text = if (isLoading) stringResource(R.string.skill_import_in_progress) else stringResource(R.string.skill_import_submit),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
         }
@@ -669,7 +690,7 @@ fun SkillDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(skill.name) },
+                title = skill.name,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -707,6 +728,7 @@ fun SkillDetailScreen(
                         )
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -901,71 +923,86 @@ fun SkillDetailScreen(
 
             // ── Delete ──
             Spacer(Modifier.height(16.dp))
-            MinisButton(
+            TextButton(
                 onClick = { showDeleteDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MiuixTheme.colorScheme.error,
+                colors = ButtonDefaults.textButtonColorsPrimary(
+                    color = MiuixTheme.colorScheme.error,
                 ),
-            ) {
-                Text(stringResource(R.string.skill_detail_delete))
-            }
+                text = stringResource(R.string.skill_detail_delete),
+            )
 
             Spacer(Modifier.height(32.dp))
         }
     }
 
     if (showDeleteDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete ${skill.name}?") },
-            text = { Text(stringResource(R.string.skill_delete_confirm_text)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    deleted = true
-                    skillRepository.delete(skill.id)
-                    showDeleteDialog = false
-                    onBack()
-                }) { Text("Delete", color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
+            title = "Delete ${skill.name}?",
+            summary = stringResource(R.string.skill_delete_confirm_text),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    deleted = true
+                                    skillRepository.delete(skill.id)
+                                    showDeleteDialog = false
+                                    onBack()
+                                },
+                                    text = "Delete",
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showDeleteDialog = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 
     // T155: rename-skill dialog. Save is disabled while the user has cleared
     // the name or hasn't actually changed it — both would no-op the
     // repository call, so removing the affordance keeps the UX honest.
     if (showEditNameDialog) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showEditNameDialog = false },
-            containerColor = MiuixTheme.colorScheme.surfaceContainerHigh,
-            title = { Text(stringResource(R.string.skill_detail_edit_name_title)) },
-            text = {
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+            title = stringResource(R.string.skill_detail_edit_name_title),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 DialogTextField(
-                    value = editName,
-                    onValueChange = { editName = it },
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
+                                    value = editName,
+                                    onValueChange = { editName = it },
+                                    singleLine = true,
+                                )
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val trimmed = editName.trim()
-                val canSave = trimmed.isNotEmpty() && trimmed != skill.name
-                MinisTextButton(
-                    onClick = {
-                        if (canSave) skillRepository.update(skill.id, name = trimmed)
-                        showEditNameDialog = false
-                    },
-                    enabled = canSave,
-                ) { Text(stringResource(R.string.skill_file_save)) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showEditNameDialog = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
+                                val canSave = trimmed.isNotEmpty() && trimmed != skill.name
+                                TextButton(
+                                    onClick = {
+                                        if (canSave) skillRepository.update(skill.id, name = trimmed)
+                                        showEditNameDialog = false
+                                    },
+                                    enabled = canSave,
+                                    text = stringResource(R.string.skill_file_save),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                TextButton(
+                                    onClick = { showEditNameDialog = false },
+                                    text = stringResource(R.string.common_cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }
 
@@ -1199,7 +1236,7 @@ fun SkillFileViewerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(fileName) },
+                title = fileName,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -1207,7 +1244,8 @@ fun SkillFileViewerScreen(
                 },
                 actions = {
                     if (isEditing) {
-                        MinisTextButton(onClick = {
+                        TextButton(
+                            onClick = {
                             if (isSkillMd) {
                                 // SKILL.md edits go through importFromContent so
                                 // YAML frontmatter changes flow back into DB metadata.
@@ -1217,14 +1255,22 @@ fun SkillFileViewerScreen(
                             }
                             isEditing = false
                             onBack()
-                        }) { Text(stringResource(R.string.skill_file_save)) }
+                        },
+                            text = stringResource(R.string.skill_file_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     } else {
-                        MinisTextButton(onClick = {
+                        TextButton(
+                            onClick = {
                             editContent = initialContent
                             isEditing = true
-                        }) { Text(stringResource(R.string.skill_file_edit)) }
+                        },
+                            text = stringResource(R.string.skill_file_edit),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->

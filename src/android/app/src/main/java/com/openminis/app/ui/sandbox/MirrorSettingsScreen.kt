@@ -3,7 +3,6 @@ package com.openminis.app.ui.sandbox
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import com.openminis.app.sandbox.SandboxDistribution
-import com.openminis.app.ui.settings.SettingsSwitch
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -37,13 +36,9 @@ import androidx.compose.material.icons.outlined.Javascript
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.ListItemDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -76,6 +71,11 @@ import okhttp3.Request
 import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.theme.LocalContentColor
 
 // ─── Data Model ──────────────────────────────────────────────────────────────
 
@@ -535,19 +535,20 @@ fun MirrorsSectionView(onNavigate: (MirrorCategory) -> Unit) {
 
     val vm = MirrorSpeedTestViewModel
 
-    ListItem(
-        headlineContent = { Text(if (vm.isTesting) stringResource(R.string.mirror_test_speed_testing) else stringResource(R.string.mirror_detect_fast_label)) },
-        leadingContent = {
-            CircleIconBadge(icon = Icons.Filled.Bolt, tint = Color(0xFFFF9500))
-        },
+    BasicComponent(
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = !vm.isTesting) { vm.runAllTests(context) },
-    )
+                .fillMaxWidth()
+                .clickable(enabled = !vm.isTesting) { vm.runAllTests(context) },
+        startAction = {
+                CircleIconBadge(icon = Icons.Filled.Bolt, tint = Color(0xFFFF9500))
+            },
+    ) {
+        Text(if (vm.isTesting) stringResource(R.string.mirror_test_speed_testing) else stringResource(R.string.mirror_detect_fast_label))
+    }
 
     if (vm.isTesting) {
         LinearProgressIndicator(
-            progress = { vm.testProgress },
+            progress = vm.testProgress,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -567,37 +568,38 @@ private fun MirrorCategoryRow(category: MirrorCategory, onClick: () -> Unit) {
     val active = vm.isActive(category)
     val fastest = vm.fastestResult(category)
 
-    ListItem(
-        headlineContent = { Text(category.displayName) },
-        leadingContent = {
-            CircleIconBadge(icon = category.icon, tint = category.iconColor)
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (active && selected != null) {
-                    Text(
-                        text = selected.name,
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIfShort(),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                }
-                if (fastest?.latencyMs != null) {
-                    LatencyBadge(fastest.latencyMs)
-                    Spacer(Modifier.width(4.dp))
-                }
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
-                )
-            }
-        },
+    BasicComponent(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    )
+        startAction = {
+                CircleIconBadge(icon = category.icon, tint = category.iconColor)
+            },
+        endActions = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (active && selected != null) {
+                        Text(
+                            text = selected.name,
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIfShort(),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    if (fastest?.latencyMs != null) {
+                        LatencyBadge(fastest.latencyMs)
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.5f),
+                    )
+                }
+            },
+    ) {
+        Text(category.displayName)
+    }
 }
 
 private fun Modifier.widthIfShort(): Modifier = this
@@ -657,12 +659,13 @@ fun MirrorCategoryDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(category.displayName) },
+                title = category.displayName,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.mirror_back))
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -682,45 +685,43 @@ fun MirrorCategoryDetailScreen(
 
             val selected = vm.selectedMirror(category)
             val useCustomEnabled = selected != null
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.mirror_use_mirror_toggle)) },
-                trailingContent = {
-                    SettingsSwitch(
-                        checked = vm.useCustomMirror[category] == true,
-                        onCheckedChange = { checked ->
-                            vm.setUseCustom(context, category, checked)
-                        },
-                        enabled = useCustomEnabled,
-                    )
-                },
-            )
+            BasicComponent(
+                endActions = {
+                                Switch(
+                                    checked = vm.useCustomMirror[category] == true,
+                                    onCheckedChange = { checked ->
+                                        vm.setUseCustom(context, category, checked)
+                                    },
+                                    enabled = useCustomEnabled,
+                                )
+                            },
+            ) {
+                Text(stringResource(R.string.mirror_use_mirror_toggle))
+            }
 
             HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
             if (vm.isActive(category) && selected != null) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            selected.name,
-                            style = MiuixTheme.textStyles.body1,
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            selected.baseURL,
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                )
+                BasicComponent(
+                ) {
+                    Text(
+                                                selected.name,
+                                                style = MiuixTheme.textStyles.body1,
+                                            )
+                    Text(
+                                                selected.baseURL,
+                                                style = MiuixTheme.textStyles.body2,
+                                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                }
             } else {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.mirror_official_default)) },
-                    colors = ListItemDefaults.colors(
-                        headlineColor = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    ),
-                )
+                BasicComponent(
+                ) {
+                    CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.onSurfaceContainerVariant) {
+                    Text(stringResource(R.string.mirror_official_default))
+                    }
+                }
             }
 
             // --- Mirrors / Results section ---
@@ -762,20 +763,21 @@ fun MirrorCategoryDetailScreen(
 
             // --- Test button ---
             HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(if (vm.isTesting) stringResource(R.string.mirror_test_speed_testing) else stringResource(R.string.mirror_test_speed_label)) },
-                leadingContent = {
-                    CircleIconBadge(icon = Icons.Filled.Bolt, tint = Color(0xFFFF9500))
-                },
+            BasicComponent(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !vm.isTesting) {
-                        scope.launch { vm.runTest(context, category) }
-                    },
-            )
+                                .fillMaxWidth()
+                                .clickable(enabled = !vm.isTesting) {
+                                    scope.launch { vm.runTest(context, category) }
+                                },
+                startAction = {
+                                CircleIconBadge(icon = Icons.Filled.Bolt, tint = Color(0xFFFF9500))
+                            },
+            ) {
+                Text(if (vm.isTesting) stringResource(R.string.mirror_test_speed_testing) else stringResource(R.string.mirror_test_speed_label))
+            }
             if (vm.isTesting) {
                 LinearProgressIndicator(
-                    progress = { vm.testProgress },
+                    progress = vm.testProgress,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),

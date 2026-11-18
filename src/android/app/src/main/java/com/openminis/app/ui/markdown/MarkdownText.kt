@@ -38,8 +38,7 @@ import androidx.compose.material.icons.filled.Videocam
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.LinearProgressIndicator
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +77,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 
 /**
  * Renders markdown text with full formatting support.
@@ -1007,13 +1008,12 @@ private fun MinisAudioBlock(block: MarkdownParser.Block.Audio) {
             )
             val progress = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
             LinearProgressIndicator(
-                progress = { progress.coerceIn(0f, 1f) },
+                progress = progress.coerceIn(0f, 1f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
                     .height(3.dp),
-                color = tint,
-                trackColor = tint.copy(alpha = 0.2f),
+                colors = ProgressIndicatorDefaults.progressIndicatorColors(foregroundColor = tint, backgroundColor = tint.copy(alpha = 0.2f)),
             )
             if (durationMs > 0) {
                 Text(

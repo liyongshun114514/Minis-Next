@@ -16,15 +16,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Description
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.TopAppBar
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,8 +37,14 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.agent.workspace.WorkspaceInstructionDiscovery
 import com.openminis.app.agent.workspace.WorkspaceInstructionStore
-import com.openminis.app.ui.components.MinisTextButton
 import java.io.File
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.window.WindowDialog
+import top.yukonga.miuix.kmp.basic.TextField
+import androidx.compose.ui.semantics.error
+import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
  * [T-workspace-instructions] Settings → Workspace Instructions.
@@ -85,7 +88,7 @@ fun WorkspaceInstructionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.workspace_instructions_title)) },
+                title = stringResource(R.string.workspace_instructions_title),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -94,6 +97,7 @@ fun WorkspaceInstructionsScreen(
                         )
                     }
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -233,16 +237,22 @@ fun WorkspaceInstructionsScreen(
         )
     }
     error?.let { message ->
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { error = null },
-            confirmButton = {
-                MinisTextButton(onClick = { error = null }) {
-                    Text(stringResource(R.string.common_close))
+            title = stringResource(R.string.workspace_instructions_title),
+            summary = message,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = { error = null },
+                                    text = stringResource(R.string.common_close),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-            title = { Text(stringResource(R.string.workspace_instructions_title)) },
-            text = { Text(message) },
-        )
+            }
+        }
     }
 }
 
@@ -323,45 +333,51 @@ private fun ScopeDialog(
 ) {
     var root by remember { mutableStateOf(initialProjectRoot) }
     var cwd by remember { mutableStateOf(initialWorkingDirectory) }
-    AlertDialog(
+    WindowDialog(
+        show = true,
         onDismissRequest = onDismiss,
-        confirmButton = {
-            MinisTextButton(onClick = { onSave(root, cwd) }) {
-                Text(stringResource(R.string.workspace_save))
-            }
-        },
-        dismissButton = {
-            MinisTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.common_cancel))
-            }
-        },
-        title = { Text(stringResource(R.string.workspace_scope_title)) },
-        text = {
+        title = stringResource(R.string.workspace_scope_title),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column {
-                OutlinedTextField(
-                    value = root,
-                    onValueChange = { root = it },
-                    label = { Text(stringResource(R.string.workspace_scope_project_root)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = cwd,
-                    onValueChange = { cwd = it },
-                    label = { Text(stringResource(R.string.workspace_scope_working_directory)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.workspace_scope_hint),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
+                            TextField(
+                                value = root,
+                                onValueChange = { root = it },
+                                singleLine = true,
+                                label = stringResource(R.string.workspace_scope_project_root),
+                                useLabelAsPlaceholder = false,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextField(
+                                value = cwd,
+                                onValueChange = { cwd = it },
+                                singleLine = true,
+                                label = stringResource(R.string.workspace_scope_working_directory),
+                                useLabelAsPlaceholder = false,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.workspace_scope_hint),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                            )
+                        }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(
+                            onClick = { onSave(root, cwd) },
+                            text = stringResource(R.string.workspace_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+            TextButton(
+                            onClick = onDismiss,
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
             }
-        },
-    )
+        }
+    }
 }
 
 /**
@@ -388,13 +404,7 @@ fun WorkspaceInstructionEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = File(linuxPath).name,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
+                title = File(linuxPath).name,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -404,7 +414,8 @@ fun WorkspaceInstructionEditorScreen(
                     }
                 },
                 actions = {
-                    MinisTextButton(onClick = {
+                    TextButton(
+                        onClick = {
                         val result = WorkspaceInstructionStore.write(context, linuxPath, content)
                         result.onSuccess {
                             error = null
@@ -413,10 +424,12 @@ fun WorkspaceInstructionEditorScreen(
                             saved = false
                             error = it.message
                         }
-                    }) {
-                        Text(stringResource(R.string.workspace_save))
-                    }
+                    },
+                        text = stringResource(R.string.workspace_save),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 },
+                expandable = false,
             )
         },
     ) { padding ->
@@ -432,14 +445,15 @@ fun WorkspaceInstructionEditorScreen(
                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
-            OutlinedTextField(
+            TextField(
                 value = content,
                 onValueChange = { content = it },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
                 textStyle = MiuixTheme.textStyles.body2,
-                placeholder = { Text(stringResource(R.string.workspace_editor_placeholder)) },
+                label = stringResource(R.string.workspace_editor_placeholder),
+                useLabelAsPlaceholder = true,
+                modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
             )
             if (saved) {
                 Text(

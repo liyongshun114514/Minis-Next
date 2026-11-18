@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import com.openminis.app.ui.components.miuix.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +20,8 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.RowLabel
 import com.openminis.app.ui.components.SectionTextField
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
  * Add Custom Model — adopts the SettingsScaffold/SettingsSection toolkit
@@ -72,7 +72,7 @@ fun AddCustomModelScreen(
         }
 
         Spacer(Modifier.height(20.dp))
-        MinisButton(
+        TextButton(
             onClick = {
                 val name = displayName.ifBlank { modelId }
                 val model = LLMModel(
@@ -92,9 +92,9 @@ fun AddCustomModelScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-        ) {
-            Text(stringResource(R.string.common_save))
-        }
+            text = stringResource(R.string.common_save),
+            colors = ButtonDefaults.textButtonColorsPrimary(),
+        )
         Spacer(Modifier.height(20.dp))
     }
 }

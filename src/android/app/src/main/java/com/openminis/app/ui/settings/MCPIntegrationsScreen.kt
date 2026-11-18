@@ -23,17 +23,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Terminal
-import com.openminis.app.ui.components.miuix.AlertDialog
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.ModalBottomSheet
-import com.openminis.app.ui.components.miuix.SegmentedButton
-import com.openminis.app.ui.components.miuix.SegmentedButtonDefaults
-import com.openminis.app.ui.components.miuix.SingleChoiceSegmentedButtonRow
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TabRow
-import com.openminis.app.ui.components.miuix.Text
-import com.openminis.app.ui.components.miuix.rememberModalBottomSheetState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,7 +49,17 @@ import com.openminis.app.mcp.oauth.MCPOAuthController
 import com.openminis.app.mcp.oauth.MCPOAuthSignInLogic
 import com.openminis.app.mcp.oauth.McpDiscoveryException
 import com.openminis.app.ui.components.DialogTextField
-import com.openminis.app.ui.components.MinisTextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.PaddingValues
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.preferenceTabHeight
+import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
 
 /**
  * MCP Integrations management screen. Mirrors [SkillsManagementScreen]:
@@ -148,7 +152,7 @@ fun MCPIntegrationsScreen(
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                SettingsSwitch(
+                                Switch(
                                     checked = server.enabled,
                                     onCheckedChange = { mcpRepository.setEnabled(server.id, it) },
                                 )
@@ -187,23 +191,33 @@ fun MCPIntegrationsScreen(
 
     if (deleteId != null) {
         val id = deleteId!!
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { deleteId = null },
-            title = { Text(stringResource(R.string.mcp_delete_title, id)) },
-            text = { Text(stringResource(R.string.mcp_delete_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    mcpRepository.delete(id)
-                    // [T-mcp-oauth-signin-android] Full cleanup, as iOS purge:
-                    // secret, tokens and the guest's token bridge.
-                    com.openminis.app.mcp.oauth.MCPOAuthController(screenContext, http = mcpOAuthHttp).purge(id)
-                    deleteId = null
-                }) { Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { deleteId = null }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+            title = stringResource(R.string.mcp_delete_title, id),
+            summary = stringResource(R.string.mcp_delete_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    mcpRepository.delete(id)
+                                    // [T-mcp-oauth-signin-android] Full cleanup, as iOS purge:
+                                    // secret, tokens and the guest's token bridge.
+                                    com.openminis.app.mcp.oauth.MCPOAuthController(screenContext, http = mcpOAuthHttp).purge(id)
+                                    deleteId = null
+                                },
+                                    text = stringResource(R.string.delete),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { deleteId = null },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 }
 
@@ -225,11 +239,14 @@ private fun MCPAddSheet(
     // [T-android-mcp-sheet-ime-occlusion] GH#44: skipPartiallyExpanded so the
     // sheet opens full-height — at half-height the soft keyboard left no room
     // for the lower form fields at all.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by remember { mutableIntStateOf(0) }
     val isEdit = editServer != null
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         // [T-android-mcp-sheet-ime-occlusion] GH#44: verticalScroll + imePadding
         // keep every field reachable while the keyboard is up — imePadding sits
         // after verticalScroll so the inset becomes scrollable bottom space the
@@ -481,23 +498,20 @@ private fun MCPFormTab(
     val isUrlTransport = transport != 2
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = transport == 0,
-                onClick = { transport = 0; errorText = null },
-                shape = SegmentedButtonDefaults.itemShape(0, 3),
-            ) { Text(stringResource(R.string.mcp_transport_http)) }
-            SegmentedButton(
-                selected = transport == 1,
-                onClick = { transport = 1; errorText = null },
-                shape = SegmentedButtonDefaults.itemShape(1, 3),
-            ) { Text(stringResource(R.string.mcp_transport_sse)) }
-            SegmentedButton(
-                selected = transport == 2,
-                onClick = { transport = 2; errorText = null },
-                shape = SegmentedButtonDefaults.itemShape(2, 3),
-            ) { Text(stringResource(R.string.mcp_transport_stdio)) }
-        }
+        val tabLabels = listOf(
+            stringResource(R.string.mcp_transport_http),
+            stringResource(R.string.mcp_transport_sse),
+            stringResource(R.string.mcp_transport_stdio),
+        )
+        TabRowWithContour(
+            tabs = tabLabels,
+            selectedTabIndex = transport,
+            onTabSelected = { index -> transport = index; errorText = null },
+            modifier = Modifier.fillMaxWidth(),
+            minWidth = preferenceTabMinWidth(tabLabels),
+            height = preferenceTabHeight(),
+            colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+        )
 
         FieldLabel(stringResource(R.string.mcp_form_name))
         DialogTextField(
@@ -519,14 +533,14 @@ private fun MCPFormTab(
                 FieldLabel(stringResource(R.string.mcp_form_url))
                 if (envVarRepository != null) {
                     Spacer(Modifier.weight(1f))
-                    MinisTextButton(
+                    TextButton(
                         onClick = { showUrlVarPicker = true },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.mcp_form_env_insert_app_var))
-                    }
+                        text = stringResource(R.string.mcp_form_env_insert_app_var),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
             DialogTextField(
@@ -539,14 +553,14 @@ private fun MCPFormTab(
                 FieldLabel(stringResource(R.string.mcp_form_headers))
                 if (envVarRepository != null) {
                     Spacer(Modifier.weight(1f))
-                    MinisTextButton(
+                    TextButton(
                         onClick = { showHeaderVarPicker = true },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.mcp_form_env_insert_app_var))
-                    }
+                        text = stringResource(R.string.mcp_form_env_insert_app_var),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
             DialogTextField(
@@ -613,17 +627,15 @@ private fun MCPFormTab(
                         },
                     )
                     Spacer(Modifier.weight(1f))
-                    MinisTextButton(
+                    TextButton(
                         enabled = MCPOAuthSignInLogic.canSignIn(name, url, oauthBusy),
                         onClick = { runBrowserSignIn() },
-                    ) {
-                        Text(
-                            stringResource(
+                        text = stringResource(
                                 if (oauthAuthorized || needsSignInAgain) R.string.mcp_signin_sign_in_again
                                 else R.string.mcp_signin_sign_in,
                             ),
-                        )
-                    }
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
                 signInPhase?.let { phase ->
                     Text(
@@ -642,18 +654,22 @@ private fun MCPFormTab(
                 if (!oauthBusy && (oauthAuthorized || needsSignInAgain || !browserOAuth?.clientId.isNullOrEmpty())) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         if (oauthAuthorized) {
-                            MinisTextButton(onClick = {
+                            TextButton(
+                                onClick = {
                                 oauthController.signOut(name.trim())
                                 oauthAuthorized = false
                                 discoveryNote = null
-                            }) {
-                                Text(stringResource(R.string.mcp_form_oauth_sign_out), color = MiuixTheme.colorScheme.error)
-                            }
+                            },
+                                text = stringResource(R.string.mcp_form_oauth_sign_out),
+                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                            )
                         }
                         Spacer(Modifier.weight(1f))
-                        MinisTextButton(onClick = { confirmResetSignIn = true }) {
-                            Text(stringResource(R.string.mcp_signin_reset), color = MiuixTheme.colorScheme.error)
-                        }
+                        TextButton(
+                            onClick = { confirmResetSignIn = true },
+                            text = stringResource(R.string.mcp_signin_reset),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
                     }
                 }
             }
@@ -704,7 +720,7 @@ private fun MCPFormTab(
                             style = MiuixTheme.textStyles.body2,
                             color = MiuixTheme.colorScheme.primary,
                         )
-                        MinisTextButton(
+                        TextButton(
                             enabled = !oauthBusy,
                             onClick = {
                                 val sid = name.trim()
@@ -713,15 +729,12 @@ private fun MCPFormTab(
                                     oauthAuthorized = false
                                 }
                             },
-                        ) {
-                            Text(
-                                stringResource(R.string.mcp_form_oauth_sign_out),
-                                color = MiuixTheme.colorScheme.error,
-                            )
-                        }
+                            text = stringResource(R.string.mcp_form_oauth_sign_out),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
                     }
                     Spacer(Modifier.weight(1f))
-                    MinisTextButton(
+                    TextButton(
                         enabled = !oauthBusy,
                         onClick = {
                             val sid = name.trim()
@@ -761,14 +774,12 @@ private fun MCPFormTab(
                                 }
                             }
                         },
-                    ) {
-                        Text(
-                            stringResource(
+                        text = stringResource(
                                 if (oauthAuthorized) R.string.mcp_form_oauth_reauthorize
                                 else R.string.mcp_form_oauth_authorize,
                             ),
-                        )
-                    }
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
             }
 
@@ -803,34 +814,31 @@ private fun MCPFormTab(
                 FieldLabel(stringResource(R.string.mcp_form_env))
                 Spacer(Modifier.weight(1f))
                 if (envVarRepository != null) {
-                    MinisTextButton(
+                    TextButton(
                         onClick = { showEnvVarPicker = true },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        insideMargin = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 8.dp, vertical = 0.dp,
                         ),
-                    ) {
-                        Text(stringResource(R.string.mcp_form_env_insert_app_var))
-                    }
+                        text = stringResource(R.string.mcp_form_env_insert_app_var),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
                 }
                 // [T-mcp-env-var-delete-confirm-android] Explicit clear/delete
                 // affordance. Non-empty → confirm dialog before wiping; empty →
                 // clears immediately (no-op confirm). Disabled while blank so the
                 // affordance reads as inert when there's nothing to delete.
-                MinisTextButton(
+                TextButton(
                     onClick = {
                         if (env.isBlank()) env = "" else showClearEnvConfirm = true
                     },
                     enabled = env.isNotBlank(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    insideMargin = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 8.dp, vertical = 0.dp,
                     ),
-                ) {
-                    Text(
-                        stringResource(R.string.mcp_form_env_clear),
-                        color = if (env.isNotBlank()) MiuixTheme.colorScheme.error
-                            else MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                }
+                    text = stringResource(R.string.mcp_form_env_clear),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = if (env.isNotBlank()) MiuixTheme.colorScheme.error
+                            else MiuixTheme.colorScheme.onSurfaceContainerVariant),
+                )
             }
             DialogTextField(
                 value = env,
@@ -910,31 +918,46 @@ private fun MCPFormTab(
         // mcpServers JSON — Copy to clipboard + Share intent. Builds from the
         // live form so it includes unsaved edits.
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            MinisTextButton(onClick = {
-                val server = buildServerFromForm() ?: return@MinisTextButton
+            TextButton(
+                onClick = {
+                val server = buildServerFromForm() ?: return@TextButton
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(mcpRepository.exportServerJSON(server)))
                 android.widget.Toast.makeText(
                     context, context.getString(R.string.mcp_export_copied), android.widget.Toast.LENGTH_SHORT,
                 ).show()
-            }) { Text(stringResource(R.string.mcp_export_copy)) }
-            MinisTextButton(onClick = {
-                val server = buildServerFromForm() ?: return@MinisTextButton
+            },
+                text = stringResource(R.string.mcp_export_copy),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
+                val server = buildServerFromForm() ?: return@TextButton
                 shareMcpServerJson(context, server.id, mcpRepository.exportServerJSON(server))
-            }) { Text(stringResource(R.string.mcp_export_share)) }
+            },
+                text = stringResource(R.string.mcp_export_share),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
 
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             // FIX 1: Delete affordance lives inside the edit sheet so a plain
             // row tap no longer means delete, without losing the delete path.
             if (isEdit) {
-                MinisTextButton(onClick = onRequestDelete) {
-                    Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error)
-                }
+                TextButton(
+                    onClick = onRequestDelete,
+                    text = stringResource(R.string.delete),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                )
             }
             Spacer(Modifier.weight(1f))
-            MinisTextButton(onClick = onDone) { Text(stringResource(R.string.cancel)) }
-            MinisTextButton(onClick = {
-                val server = buildServerFromForm() ?: return@MinisTextButton
+            TextButton(
+                onClick = onDone,
+                text = stringResource(R.string.cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
+                onClick = {
+                val server = buildServerFromForm() ?: return@TextButton
                 // [T-android-mcp-oauth] Store the client secret in the encrypted
                 // store (keyed by server id) — it never goes into servers.json.
                 // Cleared when the OAuth section is emptied.
@@ -961,26 +984,39 @@ private fun MCPFormTab(
                 }
                 if (isEdit) mcpRepository.update(server) else mcpRepository.add(server)
                 onDone()
-            }) { Text(stringResource(R.string.mcp_form_save)) }
+            },
+                text = stringResource(R.string.mcp_form_save),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 
     // [T-mcp-oauth-signin-android] "Reset Sign-In…" confirmation (iOS).
     if (confirmResetSignIn) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { confirmResetSignIn = false },
-            title = { Text(stringResource(R.string.mcp_signin_reset_title)) },
-            text = { Text(stringResource(R.string.mcp_signin_reset_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    confirmResetSignIn = false
-                    resetBrowserSignIn()
-                }) { Text(stringResource(R.string.mcp_signin_reset_confirm), color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { confirmResetSignIn = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+            title = stringResource(R.string.mcp_signin_reset_title),
+            summary = stringResource(R.string.mcp_signin_reset_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    confirmResetSignIn = false
+                                    resetBrowserSignIn()
+                                },
+                                    text = stringResource(R.string.mcp_signin_reset_confirm),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { confirmResetSignIn = false },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
+                }
+            }
+        }
     }
 
     // [T-mcp-env-var-picker-android] App env var picker. Appends a
@@ -1044,22 +1080,30 @@ private fun MCPFormTab(
     // [T-mcp-env-var-delete-confirm-android] Confirm before wiping a non-empty
     // env field. Only reachable when env was non-blank at tap time.
     if (showClearEnvConfirm) {
-        AlertDialog(
+        WindowDialog(
+            show = true,
             onDismissRequest = { showClearEnvConfirm = false },
-            title = { Text(stringResource(R.string.mcp_form_env_clear_confirm_title)) },
-            text = { Text(stringResource(R.string.mcp_form_env_clear_confirm_message)) },
-            confirmButton = {
-                MinisTextButton(onClick = {
-                    env = ""
-                    showClearEnvConfirm = false
-                }) { Text(stringResource(R.string.delete), color = MiuixTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                MinisTextButton(onClick = { showClearEnvConfirm = false }) {
-                    Text(stringResource(R.string.cancel))
+            title = stringResource(R.string.mcp_form_env_clear_confirm_title),
+            summary = stringResource(R.string.mcp_form_env_clear_confirm_message),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                                    onClick = {
+                                    env = ""
+                                    showClearEnvConfirm = false
+                                },
+                                    text = stringResource(R.string.delete),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                                )
+                TextButton(
+                                    onClick = { showClearEnvConfirm = false },
+                                    text = stringResource(R.string.cancel),
+                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                                )
                 }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -1100,7 +1144,11 @@ private fun MCPEnvVarPickerSheet(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    WindowBottomSheet(
+        show = true,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = onDismiss,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1211,15 +1259,21 @@ private fun MCPImportTab(
             Text(errorText!!, color = MiuixTheme.colorScheme.error, style = MiuixTheme.textStyles.body2)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            MinisTextButton(onClick = onDone) { Text(stringResource(R.string.cancel)) }
-            MinisTextButton(
+            TextButton(
+                onClick = onDone,
+                text = stringResource(R.string.cancel),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+            TextButton(
                 onClick = {
                     val imported = mcpRepository.importJSON(text)
                     if (imported.isEmpty()) errorText = context.getString(R.string.mcp_import_none)
                     else onDone()
                 },
                 enabled = previewCount > 0,
-            ) { Text(stringResource(R.string.mcp_import_submit)) }
+                text = stringResource(R.string.mcp_import_submit),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
         }
     }
 }

@@ -14,8 +14,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Search
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.miuix.OutlinedTextField
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +38,7 @@ import com.openminis.app.agent.prompts.PromptEntry
 import com.openminis.app.agent.prompts.PromptOverrides
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextField
 
 /**
  * [K-unified-prompt-workspace] Settings → System Prompt, hub.
@@ -176,27 +176,28 @@ fun PromptSettingsScreen(
                 .padding(horizontal = 16.dp)
                 .padding(top = 20.dp),
         ) {
-            OutlinedTextField(
+            TextField(
                 value = query,
                 onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.prompt_catalog_search_hint)) },
                 leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null)
-                },
+                                Icon(Icons.Outlined.Search, contentDescription = null)
+                            },
                 trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.prompt_catalog_search_clear),
-                            )
-                        }
-                    }
-                },
+                                if (query.isNotEmpty()) {
+                                    IconButton(onClick = { query = "" }) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = stringResource(R.string.prompt_catalog_search_clear),
+                                        )
+                                    }
+                                }
+                            },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                label = stringResource(R.string.prompt_catalog_search_hint),
+                useLabelAsPlaceholder = true,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 

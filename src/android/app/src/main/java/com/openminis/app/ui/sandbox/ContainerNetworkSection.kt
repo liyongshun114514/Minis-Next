@@ -8,12 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import com.openminis.app.ui.components.MinisButton as Button
-import com.openminis.app.ui.components.miuix.ListItem
-import com.openminis.app.ui.components.miuix.ListItemDefaults
-import com.openminis.app.ui.components.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.RadioButton
-import com.openminis.app.ui.components.miuix.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +32,14 @@ import com.openminis.app.ui.components.SettingsRowDivider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
+import top.yukonga.miuix.kmp.basic.BasicComponent
 
 /**
  * [T-container-network-dns] (OpenMinis#396) Settings > Rootfs > Container
@@ -96,33 +100,36 @@ internal fun ContainerNetworkSection() {
         if (mode == DnsMode.CUSTOM) {
             SettingsRowDivider()
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.rootfs_dns_servers)) },
-                    placeholder = { Text("223.5.5.5\n2400:3200::1", fontFamily = FontFamily.Monospace) },
-                    textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
-                    minLines = 3,
-                    isError = !parsed.isValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
-                    supportingText = {
-                        val msg = when {
-                            !parsed.isValid -> stringResource(R.string.rootfs_dns_invalid, parsed.invalid.joinToString(", "))
-                            parsed.servers.isEmpty() -> stringResource(R.string.rootfs_dns_empty)
-                            parsed.servers.size > ContainerDns.RESOLVER_MAX_SERVERS ->
-                                stringResource(R.string.rootfs_dns_too_many, ContainerDns.RESOLVER_MAX_SERVERS)
-                            else -> stringResource(R.string.rootfs_dns_servers_hint)
-                        }
-                        Text(msg)
-                    },
-                )
+                Column(Modifier.fillMaxWidth() .semantics { if (!parsed.isValid) error("Invalid value") }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = stringResource(R.string.rootfs_dns_servers), style = MiuixTheme.textStyles.body2)
+                    TextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
+                        minLines = 3,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
+                        colors = TextFieldDefaults.textFieldColors().let { if (!parsed.isValid) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
+                        label = "223.5.5.5\n2400:3200::1",
+                        useLabelAsPlaceholder = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    val msg = when {
+                                                !parsed.isValid -> stringResource(R.string.rootfs_dns_invalid, parsed.invalid.joinToString(", "))
+                                                parsed.servers.isEmpty() -> stringResource(R.string.rootfs_dns_empty)
+                                                parsed.servers.size > ContainerDns.RESOLVER_MAX_SERVERS ->
+                                                    stringResource(R.string.rootfs_dns_too_many, ContainerDns.RESOLVER_MAX_SERVERS)
+                                                else -> stringResource(R.string.rootfs_dns_servers_hint)
+                                            }
+                                            Text(msg)
+                }
                 val normalizedDraft = parsed.servers.joinToString("\n")
-                Button(
+                TextButton(
                     onClick = { persist(DnsMode.CUSTOM, draft, toast = true); draft = normalizedDraft },
                     enabled = parsed.isValid && normalizedDraft != savedServers,
                     modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                ) { Text(stringResource(R.string.rootfs_dns_save)) }
+                    text = stringResource(R.string.rootfs_dns_save),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
         }
 
@@ -141,15 +148,15 @@ internal fun ContainerNetworkSection() {
 
 @Composable
 private fun ModeRow(label: String, description: String, selected: Boolean, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(label) },
-        supportingContent = { Text(description, style = MiuixTheme.textStyles.body2) },
-        leadingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = selected, onClick = onClick)
-            }
-        },
+    BasicComponent(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    )
+        startAction = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = selected, onClick = onClick)
+                }
+            },
+    ) {
+        Text(label)
+        Text(description, style = MiuixTheme.textStyles.body2)
+    }
 }
