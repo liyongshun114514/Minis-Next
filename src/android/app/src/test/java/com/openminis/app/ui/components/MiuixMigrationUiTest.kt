@@ -511,6 +511,16 @@ class MiuixMigrationUiTest {
     }
 
     private fun verifyMountedFolderAdd() {
+        // Environment.isExternalStorageManager reads the primary volume at [0].
+        // Robolectric's default storage list is empty; model a real mounted volume
+        // instead of skipping the permission probe or mocking the screen away.
+        val storage = compose.activity.getSystemService(android.os.storage.StorageManager::class.java)
+        val external = java.io.File(compose.activity.cacheDir, "mounted-folders-external").apply { mkdirs() }
+        val volume = org.robolectric.shadows.StorageVolumeBuilder(
+            "primary", external, "Internal storage", android.os.Process.myUserHandle(),
+            android.os.Environment.MEDIA_MOUNTED,
+        ).setIsPrimary(true).setIsEmulated(true).build()
+        org.robolectric.Shadows.shadowOf(storage).addStorageVolume(volume)
         val store = com.openminis.app.data.MountedFoldersStore(compose.activity)
         compose.setContent {
             MinisTheme {
