@@ -96,7 +96,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TopAppBar
 
 /**
@@ -469,11 +469,13 @@ private fun SkillImportSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -548,7 +550,7 @@ private fun SkillImportSheet(
             if (selectedTab < 2) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(
-                        onClick = onDismiss,
+                        onClick = dismissSheet,
                         text = stringResource(R.string.common_cancel),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )
@@ -567,14 +569,14 @@ private fun SkillImportSheet(
                                             // skills like douyin-downloader non-runnable because the
                                             // sibling python scripts never made it to local storage.
                                             val result = skillRepository.importFromGitHub(urlText.trim())
-                                            if (result != null) onDismiss() else errorText = context.getString(R.string.skill_import_error_invalid)
+                                            if (result != null) dismissSheet() else errorText = context.getString(R.string.skill_import_error_invalid)
                                         } catch (e: Exception) { errorText = "Error: ${e.message}" }
                                         finally { isLoading = false }
                                     }
                                 }
                                 1 -> {
                                     val result = skillRepository.importFromContent(pasteContent)
-                                    if (result != null) onDismiss()
+                                    if (result != null) dismissSheet()
                                     else errorText = context.getString(R.string.skill_import_error_format)
                                 }
                             }

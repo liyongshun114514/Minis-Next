@@ -39,7 +39,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -303,7 +303,7 @@ fun MountedFoldersScreen(
     }
 
     val pickedUri = pendingPickedUri
-    OverlayBottomSheet(
+    MinisBottomSheet(
         show = pickedUri != null,
         title = stringResource(R.string.mount_add_dialog_title),
         onDismissRequest = { pendingPickedUri = null },

@@ -63,7 +63,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * Bottom sheet listing all chat sessions except the current one. Tapping
@@ -153,8 +153,9 @@ fun MoveToSessionSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {

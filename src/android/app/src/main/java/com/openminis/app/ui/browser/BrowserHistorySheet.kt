@@ -43,7 +43,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
 
@@ -61,11 +61,13 @@ fun BrowserHistorySheet(
         else mapOf("Results" to historyStore.search(searchQuery))
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -92,7 +94,7 @@ fun BrowserHistorySheet(
                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
                 )
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = dismissSheet,
                     text = stringResource(R.string.browser_history_done),
                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                 )

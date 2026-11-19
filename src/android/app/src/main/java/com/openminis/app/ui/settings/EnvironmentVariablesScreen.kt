@@ -25,7 +25,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -238,7 +238,7 @@ fun EnvironmentVariablesScreen(
     // and measured sheet through its slide-out; reset only after native completion.
     val editing = editEntryId?.let { id -> entries.find { it.id == id } }
     var formSession by remember { mutableStateOf(0) }
-    OverlayBottomSheet(
+    MinisBottomSheet(
         show = showAddSheet,
         title = if (editing != null) stringResource(R.string.env_var_form_edit_title) else stringResource(R.string.env_var_form_add_title),
         onDismissRequest = { showAddSheet = false },

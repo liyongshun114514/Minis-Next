@@ -200,7 +200,7 @@ class SubAgentStatusPanelTest {
         assertTrue(screen.contains("var subAgentStatusExpanded by remember(sessionId)"))
         val modal = screen.substringAfter("if (hasSubAgentStatus && subAgentStatusExpanded)")
             .substringBefore("// [T-android-tts-capsule]")
-        assertTrue(modal.contains("WindowBottomSheet("))
+        assertTrue(modal.contains("MinisBottomSheet("))
         assertTrue(modal.contains("onDismissRequest = { subAgentStatusExpanded = false }"))
         assertTrue(modal.contains("show = true"))
         assertTrue(modal.contains("BoxWithConstraints("))

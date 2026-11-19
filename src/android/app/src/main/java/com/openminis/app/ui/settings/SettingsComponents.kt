@@ -162,10 +162,20 @@ fun SettingsRow(
     onLongClick: (() -> Unit)? = null,
     menuMotion: Boolean = false,
 ) {
-    val leading = if (icon != null) settingsRowIcon(icon, iconColor) else null
+    // Keep the native row's press tint and its separator in the same resting
+    // coordinate plane. Only action content receives the native press motion.
+    val leading: (@Composable () -> Unit)? = if (icon == null) null else {
+        {
+            Box(Modifier.minisJellyPress((menuMotion || onLongClick != null) && onClick != null)) {
+                settingsRowIcon(icon, iconColor).invoke()
+            }
+        }
+    }
     val colors = BasicComponentDefaults.titleColor(color = titleColor)
     val modifier = Modifier.heightIn(min = minHeight)
-        .then(if (menuMotion || onLongClick != null) Modifier.minisJellyPress(onClick != null) else Modifier)
+    // This row is one layout child even inside a Box/menu anchor. Without
+    // an owner Column the divider becomes a sibling at y=0 in Box callers.
+    Column(Modifier.fillMaxWidth()) {
     if (showChevron && onLongClick == null) {
         ArrowPreference(
             title = title,
@@ -205,6 +215,7 @@ fun SettingsRow(
         )
     }
     if (showDivider) PreferenceDivider(hasIcon = icon != null)
+    }
 }
 
 @Composable
@@ -262,7 +273,8 @@ fun SettingsChoiceRow(
     showDivider: Boolean = true,
 ) {
     RadioButtonPreference(
-        modifier = Modifier.clip(RoundedCornerShape(16.dp)),
+        // The enclosing native Card clips the group's outside corners. Do not
+        // round every interior seam away from its divider.
         title = title,
         selected = selected,
         onClick = onSelect,

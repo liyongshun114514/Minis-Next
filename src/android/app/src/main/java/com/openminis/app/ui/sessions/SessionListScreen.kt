@@ -196,7 +196,7 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import androidx.compose.ui.semantics.error
@@ -2847,7 +2847,7 @@ internal fun FolderCard(
                 // long-press OFFSET is available for menu anchoring; the
                 // ripple is driven by hand through the InteractionSource
                 // (same pattern as SessionRow's press indication).
-                .minisJellyPress()
+                // The fixed press plane meets the member seam exactly.
                 .indication(headerPressInteractions, LocalIndication.current)
                 .pointerInput(density, headerHaptics) {
                     detectTapGestures(
@@ -2932,7 +2932,7 @@ internal fun FolderCard(
                 // group name→summary line is the same 16sp-SemiBold → 14sp-
                 // onSurfaceVariant pattern, so a wider 4dp gap here made the
                 // group header look inconsistently loose next to plain rows.
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 // User data — rendered verbatim, never a string lookup.
                 Text(
@@ -3173,7 +3173,6 @@ private fun SessionRow(
                         // Folder members: the wrapper's clip shapes the
                         // ripple to the card's segment, like the selection
                         // band (PAR-261022-02).
-                        .minisJellyPress()
                         .indication(pressInteractions, LocalIndication.current)
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -3284,7 +3283,7 @@ private fun SessionRow(
         // Title + last message (or highlighted snippet during search)
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             val titleText = session.title ?: "New Chat"
             if (searchQuery.isNotBlank()) {
@@ -3328,11 +3327,15 @@ private fun SessionRow(
             }
         }
 
-        // Relative timestamp
+        // Reserve a bounded supporting slot instead of squeezing the title/preview.
         Text(
             text = timeText,
-            fontSize = 13.sp,
-            color = MiuixTheme.colorScheme.outline,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.widthIn(max = 72.dp),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
         )
     }
 }
@@ -3792,11 +3795,13 @@ internal fun SessionEditSheet(
         selectedCategory = liveSession.category
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -3810,7 +3815,7 @@ internal fun SessionEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = dismissSheet,
                     text = "Cancel",
                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                 )

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
+import androidx.compose.foundation.withoutVisualEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
@@ -30,6 +32,10 @@ fun AlwaysStretchOverscrollBox(
     content: @Composable (OverscrollEffect?) -> Unit,
 ) {
     val effect = rememberOverscrollEffect()
+    // A single visual node owns the full-height viewport. Attaching the same
+    // effect to both this Box and LazyColumn can move its RenderNode to the
+    // short list's bounds and cut a dragged reply off mid-line.
+    val eventsOnly = remember(effect) { effect?.withoutVisualEffect() }
     val noopState = rememberScrollableState { 0f }
     val boxModifier = if (effect != null) {
         modifier
@@ -37,13 +43,13 @@ fun AlwaysStretchOverscrollBox(
             .scrollable(
                 state = noopState,
                 orientation = Orientation.Vertical,
-                overscrollEffect = effect,
+                overscrollEffect = eventsOnly,
             )
             .overscroll(effect)
     } else {
         modifier.fillMaxSize()
     }
     Box(modifier = boxModifier) {
-        content(effect)
+        content(eventsOnly)
     }
 }

@@ -64,7 +64,7 @@ import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import androidx.compose.ui.semantics.error
@@ -473,12 +473,14 @@ fun QuotaDetailSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         backgroundColor = MiuixTheme.colorScheme.background,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).navigationBarsPadding()) {
             // Title bar: Done | label | refresh.
             Row(
@@ -487,7 +489,7 @@ fun QuotaDetailSheet(
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     TextButton(
-                        onClick = onDismiss,
+                        onClick = dismissSheet,
                         text = stringResource(R.string.quota_done),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )

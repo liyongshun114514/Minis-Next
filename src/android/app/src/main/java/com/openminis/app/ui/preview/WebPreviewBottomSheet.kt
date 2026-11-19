@@ -65,7 +65,7 @@ import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * Immersive 90%-tall bottom sheet that hosts a [WebViewHolder] for a
@@ -154,8 +154,9 @@ fun WebPreviewBottomSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = {
             AppLogger.info("WebPreviewSheet", "dismiss")
@@ -164,6 +165,7 @@ fun WebPreviewBottomSheet(
         dragHandleColor = Color.Transparent,
         backgroundColor = MiuixTheme.colorScheme.surface,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         // ModalBottomSheet runs in its own Dialog window. The activity is
         // edge-to-edge (MainActivity.enableEdgeToEdge), but the sheet's
         // dialog window isn't — by default it stops at the status bar inset,
@@ -210,7 +212,7 @@ fun WebPreviewBottomSheet(
                 subtitle = displayHost,
                 isLoading = holder.isLoading,
                 desktopMode = holder.desktopMode,
-                onClose = onDismiss,
+                onClose = dismissSheet,
                 onReload = { holder.reload() },
                 onStop = { holder.stopLoading() },
                 onOpenExternal = {

@@ -54,7 +54,7 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * [T-android-restore-browse] Walk a destination's folders and pick a backup.
@@ -401,8 +401,9 @@ private fun ProgressSheet(
     onCancel: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = {},
         allowDismiss = false,

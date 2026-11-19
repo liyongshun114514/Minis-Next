@@ -1131,8 +1131,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
             .padding(vertical = 4.dp)
             .background(thinkingBlue.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
             .border(0.5.dp, thinkingBlue.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .clip(RoundedCornerShape(12.dp)),
     ) {
         Box {
             DropdownMenu(expanded = showThinkingMenu, onDismissRequest = { showThinkingMenu = false }) {
@@ -1162,7 +1161,6 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .minisJellyPress()
                 .expandToggleClickable(onLongClick = { showThinkingMenu = true }) {
                     // [T-android-thinking-collapse-latch] Record the direction,
                     // not merely that a tap happened. `overHardCap` opens the
@@ -1178,7 +1176,8 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     } else {
                         expanded = !expanded
                     }
-                },
+                }
+                .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
             if (isStreaming && block.toolStatus != ToolBlockStatus.SUCCESS) {
                 // iOS: ProgressView().controlSize(.mini) while streaming
@@ -1313,7 +1312,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
             }
             Column(
                 modifier = Modifier
-                    .padding(top = 6.dp)
+                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 12.dp)
                     .heightIn(max = 300.dp)
                     .verticalScroll(scrollState),
             ) {

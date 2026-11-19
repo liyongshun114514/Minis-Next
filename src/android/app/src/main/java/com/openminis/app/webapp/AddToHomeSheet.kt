@@ -72,7 +72,7 @@ import java.util.UUID
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
 
@@ -202,11 +202,13 @@ fun AddToHomeSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -350,7 +352,7 @@ fun AddToHomeSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = dismissSheet,
                     modifier = Modifier.weight(1f),
                     text = stringResource(android.R.string.cancel),
                 )
@@ -412,7 +414,7 @@ fun AddToHomeSheet(
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
-                            onDismiss()
+                            dismissSheet()
                         }
                     },
                     text = stringResource(R.string.webapp_sheet_cta),

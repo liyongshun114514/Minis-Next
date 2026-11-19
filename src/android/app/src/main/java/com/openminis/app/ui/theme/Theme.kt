@@ -98,6 +98,7 @@ internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
 
 private fun TextStyle.scale(factor: Float): TextStyle = copy(
     fontSize = fontSize * factor,
+    lineHeight = if (lineHeight.isSp) lineHeight * factor else lineHeight,
     textDirection = TextDirection.Content,
 )
 

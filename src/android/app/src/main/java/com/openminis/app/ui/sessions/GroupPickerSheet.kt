@@ -41,7 +41,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * [T-android-session-grouping] What the user chose in the group picker.
@@ -133,8 +133,9 @@ fun GroupPickerSheet(
         else -> stringResource(R.string.group_picker_title_move)
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {

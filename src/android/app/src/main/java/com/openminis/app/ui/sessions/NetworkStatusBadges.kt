@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -84,6 +85,7 @@ private fun Pill(icon: ImageVector, name: String, state: String, color: Color, o
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
+            .clip(CircleShape)
             .background(color.copy(alpha = 0.14f), CircleShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 9.dp, vertical = 2.dp)

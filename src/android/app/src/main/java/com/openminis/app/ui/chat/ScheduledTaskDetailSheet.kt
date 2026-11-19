@@ -87,7 +87,7 @@ import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 private val StatusGreen = Color(0xFF34C759)
 private val StatusRed = Color(0xFFFF3B30)
@@ -155,17 +155,19 @@ internal fun ScheduledTaskDetailSheet(
     // full window: the sheet slid under the status bar (the title and close
     // button collided with the clock and icons) and the nav bar scrolled away
     // with the cards. iOS pins the bar the same way.
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         backgroundColor = ChatColors.secondaryBg,
         dragHandleColor = Color.Transparent,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             // Nav bar: close on the left, centred title.
             Box(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp)) {
-                IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                IconButton(onClick = dismissSheet, modifier = Modifier.align(Alignment.CenterStart)) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.scheduled_detail_close), tint = ChatColors.primaryText)
                 }
                 Text(

@@ -31,8 +31,8 @@ object SectionDesign {
     /** External Card gutter; native Preference rows own their separate 16dp inner margin. */
     val ScreenHorizontalPadding = 12.dp
 
-    /** Card corner radius. iOS UITableViewCell rounded section uses ~10pt. */
-    val CardShape = RoundedCornerShape(12.dp)
+    /** Native Miuix Card corner dimension; segmented rows use the same radius. */
+    val CardShape = RoundedCornerShape(16.dp)
 
     /** Distance from screen top → first section header. */
     val FirstSectionTopGap = 16.dp
@@ -68,10 +68,9 @@ object SectionDesign {
     /** Vertical padding inside a row (top + bottom each). */
     val RowVerticalPadding = 10.dp
 
-    /** Vertical padding wrapping the inner Column of a [SectionCard], so the
-     *  first/last row don't hug the card's top/bottom edge. iOS Settings
-     *  reserves a small gap here even though row dividers stay flush. */
-    val CardInnerVerticalPadding = 6.dp
+    /** Preference rows own inner padding. No outside dead strip between their
+     *  press plane and the Card's first/last corner or divider seam. */
+    val CardInnerVerticalPadding = 0.dp
 
     /** Inner-card divider thickness. */
     val DividerThickness = 0.5.dp

@@ -54,7 +54,9 @@ internal fun MinisDropdownPreference(
             // BasicComponent omits clickable entirely when disabled. Keep the
             // row's identity/role and disabled state discoverable without adding
             // a second click action that could bypass its native input gate.
-            modifier = modifier.minisJellyPress(active).semantics(mergeDescendants = true) {
+            // The row's press plane stays flush with its neighbouring dividers.
+            // Only its value/action content moves; Miuix owns the full-row tint.
+            modifier = modifier.semantics(mergeDescendants = true) {
                 role = Role.DropdownList
                 if (!active) disabled()
             },
@@ -64,7 +66,10 @@ internal fun MinisDropdownPreference(
             holdDownState = mounted,
             onClick = { expanded = true; mounted = true },
             endActions = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.minisJellyPress(active),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (showValue) items.getOrNull(selectedIndex)?.let { value ->
                         Text(value, style = MiuixTheme.textStyles.body2,
                             color = colors.onSurfaceVariantActions,

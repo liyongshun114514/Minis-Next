@@ -120,8 +120,9 @@ fun WorkspaceInstructionsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickableRow { scopeDialog = true },
+                        .padding(vertical = 4.dp),
+                    onClick = { scopeDialog = true },
+                    showIndication = true,
                     colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -284,9 +285,9 @@ private fun InstructionRow(
         WorkspaceInstructionStore.resolveExisting(context, existsPath) != null
     }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickableRow(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        showIndication = true,
         colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surface),
     ) {
         Row(
@@ -320,9 +321,6 @@ private fun InstructionRow(
         }
     }
 }
-
-private fun Modifier.clickableRow(onClick: () -> Unit): Modifier =
-    this.clickable(onClick = onClick)
 
 @Composable
 private fun ScopeDialog(

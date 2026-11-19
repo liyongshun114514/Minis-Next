@@ -314,7 +314,7 @@ import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 // iOS ChatColors equivalent
 internal val ToolCheckColor = Color(0xFF34C759) // iOS .green
@@ -4466,7 +4466,10 @@ fun ChatScreen(
                         bottom = if (bottomReserve == 0.dp) 12.dp else bottomReserve,
                     ),
                     modifier = Modifier
-                        .fillMaxWidth()
+                        // Short conversations must use the full message viewport too.
+                        // A wrap-height reversed list clips a pulled-down reply at its
+                        // content-sized bottom, far above the floating composer.
+                        .fillMaxSize()
                         // [T-android-session-entering-dots] Fades the first
                         // rows in under the leaving dots; 1f at all other times.
                         .graphicsLayer { alpha = listEntryAlpha }
@@ -5364,11 +5367,12 @@ fun ChatScreen(
                     }
                 }
 
-                // Same WindowBottomSheet surface/gesture/dismissal as Settings >
+                // Same WindowBottomSheet contract, now native Miuix glass, as Settings >
                 // Sub-agents > concurrency, not an extra row in the transcript.
                 if (hasSubAgentStatus && subAgentStatusExpanded) {
-                    WindowBottomSheet(
+                    MinisBottomSheet(
                         show = true,
+        deferDismissRequest = true,
                         insideMargin = DpSize.Zero,
                         onDismissRequest = { subAgentStatusExpanded = false },
                     ) {
@@ -8663,11 +8667,13 @@ private fun ThinkingLevelSheet(
         listOf(com.openminis.app.data.model.ThinkingLevel.OFF) +
             availableLevels.filter { it != com.openminis.app.data.model.ThinkingLevel.OFF }
     }
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
             Text(
                 text = stringResource(R.string.thinking_level_sheet_title),
@@ -8708,7 +8714,7 @@ private fun ThinkingLevelSheet(
             // Selecting a slider position no longer dismisses the sheet, so
             // the user can compare levels; this explicit action closes it.
             TextButton(
-                onClick = onDismiss,
+                onClick = dismissSheet,
                 modifier = Modifier
                     .align(Alignment.End)
                     .padding(horizontal = 12.dp, vertical = 4.dp),

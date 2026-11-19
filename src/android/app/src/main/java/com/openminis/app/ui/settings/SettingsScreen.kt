@@ -47,7 +47,7 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -378,7 +378,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(24.dp))
     }
 
-    OverlayBottomSheet(
+    MinisBottomSheet(
         show = showFeedbackSheet,
         onDismissRequest = { showFeedbackSheet = false },
     ) {

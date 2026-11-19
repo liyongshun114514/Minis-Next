@@ -1,17 +1,15 @@
 package com.openminis.app.ui.util
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import top.yukonga.miuix.kmp.utils.MiuixIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -29,10 +27,10 @@ import androidx.compose.ui.unit.dp
  * measured here; the change stands on its own regardless — the expansion is
  * itself the feedback for these taps (iOS has no ripple on them either).
  *
- * Pressed feedback is a flat tint in the existing theme colour while the
- * finger is down: one draw on press and one on release, no animation. Click
- * semantics (onClick, [onClickLabel], [role]) are the same as `clickable`, so
- * TalkBack still reads the header as actionable.
+ * Press feedback uses MiuixIndication (not Material ripple), clipped to the
+ * actual header/segment shape. An enclosing Card can additionally own the
+ * group's outside corners. Click labels, roles and long-press semantics stay
+ * identical to the native Foundation input contract.
  *
  * Do NOT use this for buttons or for rows that navigate somewhere (tool pills
  * that open a detail sheet, the sub agent card): those keep their ripple.
@@ -40,19 +38,20 @@ import androidx.compose.ui.unit.dp
 fun Modifier.expandToggleClickable(
     onClickLabel: String? = null,
     role: Role? = null,
-    pressedShape: Shape = RoundedCornerShape(6.dp),
+    pressedShape: Shape = androidx.compose.ui.graphics.RectangleShape,
     /** Optional long-press (e.g. a settings shortcut menu); null keeps plain `clickable`. */
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ): Modifier = composed {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val tint = if (pressed) MiuixTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA) else Color.Transparent
-    val base = this.background(tint, pressedShape)
+    val ink = MiuixTheme.colorScheme.onSurface
+    val indication = remember(ink) { MiuixIndication(color = ink) }
+    // Shape belongs to the actual header/segment, not an unrelated tint bed.
+    val base = this.clip(pressedShape)
     if (onLongClick == null) {
         base.clickable(
             interactionSource = interaction,
-            indication = null,
+            indication = indication,
             onClickLabel = onClickLabel,
             role = role,
             onClick = onClick,
@@ -60,7 +59,7 @@ fun Modifier.expandToggleClickable(
     } else {
         base.combinedClickable(
             interactionSource = interaction,
-            indication = null,
+            indication = indication,
             onClickLabel = onClickLabel,
             role = role,
             onLongClick = onLongClick,
@@ -68,5 +67,3 @@ fun Modifier.expandToggleClickable(
         )
     }
 }
-
-private const val PRESSED_TINT_ALPHA = 0.06f

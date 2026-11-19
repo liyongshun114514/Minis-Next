@@ -74,7 +74,7 @@ import androidx.compose.ui.state.ToggleableState
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * [FEAT-261021-04, iOS c77be4fb6] The pages of Settings > Network, each its
@@ -735,12 +735,14 @@ private fun AddProviderRoutesSheet(
         proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
     }
     val s = NetworkSettings(proxies = proxies)
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         backgroundColor = MiuixTheme.colorScheme.background,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.9f).navigationBarsPadding()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -748,7 +750,7 @@ private fun AddProviderRoutesSheet(
             ) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     TextButton(
-                        onClick = onDismiss,
+                        onClick = dismissSheet,
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.onSurfaceContainerVariant),
                         text = stringResource(R.string.network_cancel),
                     )

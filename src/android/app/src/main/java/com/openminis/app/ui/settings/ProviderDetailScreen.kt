@@ -652,8 +652,8 @@ fun ProviderDetailScreen(
             // One row for both lists, so a hidden row behaves exactly like a
             // visible one apart from its dimming and menu label.
             val modelRow: @Composable (com.openminis.app.data.model.ModelEntry, Boolean) -> Unit = { entry, showRowDivider ->
-                // Drive both tap and long-press from a Box wrapper so we
-                // don't have to expand SettingsRow's signature.
+                // The native SettingsRow owns the press plane; its divider is
+                // a sibling, never part of a scaled/clickable outer wrapper.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -663,30 +663,7 @@ fun ProviderDetailScreen(
                         // wasn't enough for users to tell them apart. alpha is
                         // visual-only, so the row stays tappable to re-show the
                         // model from its detail screen.
-                        .then(if (entry.isHidden) Modifier.alpha(0.45f) else Modifier)
-                        .minisJellyPress()
-                        .combinedClickable(
-                            onClick = { onModelEntryClick(entry.id) },
-                            // [T-android-model-row-hide-action] Long-press now
-                            // opens a menu instead of going straight to delete.
-                            // Hiding was previously reachable ONLY by opening
-                            // the model's detail screen, flipping the
-                            // Visibility switch and pressing Save — five steps
-                            // for what iOS does with one tap on an eye button
-                            // in this very list (ProviderInstanceDetailView).
-                            //
-                            // A menu rather than a trailing icon button because
-                            // the row's trailing slot is a FIXED 72dp capability
-                            // -badge area, deliberately sized so the chevron
-                            // lands at the same x on every row; adding a button
-                            // there would reintroduce the ragged column that
-                            // sizing exists to prevent.
-                            //
-                            // It also fills a dead gesture: long-press used to
-                            // be null for built-in entries, so they had no
-                            // context action at all.
-                            onLongClick = { menuEntryId = entry.id },
-                        ),
+                        .then(if (entry.isHidden) Modifier.alpha(0.45f) else Modifier),
                 ) {
                     // [T-android-model-capability-output-tags]
                     // The list previously read INPUT modalities only, so a
@@ -705,10 +682,8 @@ fun ProviderDetailScreen(
                         // suffix: a hidden row now sits under the Hidden
                         // models group, which already says so.
                         subtitle = entry.model.id,
-                        // onClick = null so SettingsRow doesn't add a second
-                        // clickable that would swallow the long-press. The
-                        // wrapping Box owns both gestures.
-                        onClick = null,
+                        onClick = { onModelEntryClick(entry.id) },
+                        onLongClick = { menuEntryId = entry.id },
                         showChevron = true,
                         showDivider = showRowDivider,
                         // [T-android-settings-ui-md3] #8 two-line row (name + id)

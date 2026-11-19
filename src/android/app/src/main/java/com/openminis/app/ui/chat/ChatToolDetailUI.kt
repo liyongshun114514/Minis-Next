@@ -265,7 +265,7 @@ import com.openminis.app.ui.DisplayBitmapLimits
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 @Composable
 internal fun ToolDetailSheet(
@@ -286,12 +286,14 @@ internal fun ToolDetailSheet(
         block.toolStatus == ToolBlockStatus.PENDING
     val toolAccent = toolAccentColor(block.toolName)
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         dragHandleColor = Color.Transparent,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -313,7 +315,7 @@ internal fun ToolDetailSheet(
                         .background(ChatColors.secondaryBg, CircleShape)
                         .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
                         .clip(CircleShape)
-                        .clickable { onDismiss() },
+                        .clickable { dismissSheet() },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -405,7 +407,7 @@ internal fun ToolDetailSheet(
                                         "ChatScreen",
                                         "opening terminal with prefill: ${command.take(120)}",
                                     )
-                                    onDismiss()
+                                    dismissSheet()
                                     onOpenTerminalWithCommand(command)
                                 }
                             } else if (hasBrowserUrl) {

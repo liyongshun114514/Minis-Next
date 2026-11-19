@@ -51,8 +51,13 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 /** Observe the native clickable without adding a second click handler or a painted overlay. */
 internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = composed {
     val interactions = remember { MutableInteractionSource() }
+    this.minisPressEvents(interactions, enabled).glassPress(interactions, enabled)
+}
+
+/** Observe at the resting surface; content motion must not move its shadow/anchor. */
+private fun Modifier.minisPressEvents(interactions: MutableInteractionSource, enabled: Boolean): Modifier = composed {
     val scope = rememberCoroutineScope()
-    this.pointerInput(enabled) {
+    this.pointerInput(enabled, interactions) {
         if (!enabled) return@pointerInput
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -66,7 +71,7 @@ internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = compo
                 scope.launch { interactions.emit(PressInteraction.Cancel(press)) }
             }
         }
-    }.glassPress(interactions, enabled)
+    }
 }
 
 /** Background band and controls are siblings; the controls never sample a recorded bar. */
@@ -145,6 +150,8 @@ internal fun MinisGlassIconButton(
     val effectiveBackdrop = backdrop.takeIf { sameWindow }
     val currentClick by rememberUpdatedState(onClick)
     val currentLongClick by rememberUpdatedState(onLongClick)
+    val pressInteractions = remember { MutableInteractionSource() }
+    val pressEnabled = enabled && (menuMotion || onLongClick != null)
     // GlassIconButton owns an internal clickable. A second recognizer that only observes
     // DOWN is cancelled by that clickable's consumption. For long-press actions claim DOWN
     // first, then own BOTH tap and hold; the inner clickable remains the semantics action.
@@ -174,7 +181,11 @@ internal fun MinisGlassIconButton(
     }
     GlassIconButton(
         onClick = { if (enabled) onClick() },
-        modifier = modifier.then(if (menuMotion || onLongClick != null) Modifier.minisJellyPress(enabled) else Modifier)
+        // Keep the actual surface/anchor at resting bounds. Scaling its shadow
+        // and sampling plane creates a second material handoff on popup exit.
+        // The native morph supplies the surface motion; only the glyph presses.
+        modifier = modifier
+            .minisPressEvents(pressInteractions, pressEnabled)
             .alpha(if (enabled) 1f else 0.38f)
             .then(longPressModifier)
             .semantics {
@@ -191,6 +202,9 @@ internal fun MinisGlassIconButton(
         // Do not add a second app-owned press/dimming surface around that silhouette.
         shadow = GlassShadows.Regular,
         size = size,
-        content = content,
-    )
+    ) {
+        Box(Modifier.glassPress(pressInteractions, pressEnabled)) {
+            content()
+        }
+    }
 }

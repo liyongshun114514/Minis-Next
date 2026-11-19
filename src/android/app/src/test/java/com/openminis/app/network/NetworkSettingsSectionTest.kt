@@ -82,7 +82,7 @@ class NetworkSettingsSectionTest {
         assertFalse(dialog.contains("FollowDefault"))
         assertTrue(dialog.contains("enabled = selected.isNotEmpty()"))
         // A half-screen sheet like the model / provider pickers, not an AlertDialog.
-        assertTrue(dialog.contains("WindowBottomSheet("))
+        assertTrue(dialog.contains("MinisBottomSheet("))
         assertFalse(dialog.contains("WindowDialog("))
         assertTrue(s.contains("footer = stringResource(R.string.network_providers_unlisted_footer)"))
     }

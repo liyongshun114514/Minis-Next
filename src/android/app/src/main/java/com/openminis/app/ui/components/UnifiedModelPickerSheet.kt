@@ -67,7 +67,7 @@ import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 
 /**
@@ -166,11 +166,13 @@ fun UnifiedModelPickerSheet(
     val cardColor = MiuixTheme.colorScheme.surfaceContainerHighest
     val cardShape = RoundedCornerShape(14.dp)
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         // 0.9f fixed height + nav-bar inset, exactly like the main picker —
         // a content-wrapping column here let the voice pickers (whose provider
         // sections seed expanded) grow to cover the full screen.
@@ -196,7 +198,7 @@ fun UnifiedModelPickerSheet(
                 )
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                     TextButton(
-                        onClick = onDismiss,
+                        onClick = dismissSheet,
                         text = stringResource(R.string.model_picker_done),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )

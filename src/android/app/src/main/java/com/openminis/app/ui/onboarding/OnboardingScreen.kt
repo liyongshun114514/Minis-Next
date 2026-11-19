@@ -141,9 +141,9 @@ private fun ApiKeyStep(
                 for (type in listOf(ProviderType.anthropic, ProviderType.gemini, ProviderType.openAI, ProviderType.openRouter)) {
                     val isSelected = type == selectedType
                     Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedType = type; apiKey = ""; saved = false },
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedType = type; apiKey = ""; saved = false },
+                        showIndication = true,
                     ) {
                         Text(
                             type.displayName,

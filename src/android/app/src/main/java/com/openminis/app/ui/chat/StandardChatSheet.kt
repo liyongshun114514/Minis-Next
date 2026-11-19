@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import androidx.compose.ui.unit.DpSize
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
@@ -32,26 +32,9 @@ import com.openminis.app.R
 import com.openminis.app.ui.theme.ChatColors
 
 /**
- * Standardized half-screen modal sheet used by every popup launched from the
- * chat input "⋯" menu. Mirrors [CompactSummarySheet]: 90% screen height by
- * default, the same header row (optional leading action / centered title /
- * close button), 0.5dp separator, and a body slot that fills the rest. The
- * body stays independent — each call site supplies its own [content].
- *
- * Uses a compact custom drag handle: the Material3 default reserves ~22dp of
- * padding above and below the indicator, which produced too much whitespace
- * between the indicator and the title — this version tightens it to 6dp / 4dp.
- *
- * [heightFraction] lets a caller request a smaller detent — for example
- * [TokenUsageSheet] passes 0.5f to match iOS's `.medium` detent
- * (AIChatView.swift:508). The fraction is clamped to (0, 1] so callers can't
- * accidentally collapse the sheet to nothing.
- *
- * [onBack] lets a sheet with inner pages take system back first: return true
- * when it handled the press (e.g. popped a page), false to close the sheet as
- * usual. Needed because the sheet's own back-dismiss is registered on the
- * window at overlay priority (Android 13+), ahead of any BackHandler in
- * [content], so with it on, a BackHandler inside the sheet never runs.
+ * Native Miuix glass sheet for chat actions. The host owns the handle,
+ * scrim, gestures and safe height; callers retain their chosen content fraction.
+ * Inner-page Back is handled first; normal dismissal keeps content until exit.
  */
 @Composable
 fun StandardChatSheet(
@@ -65,18 +48,20 @@ fun StandardChatSheet(
     val configuration = LocalConfiguration.current
     val sheetHeight = (configuration.screenHeightDp * heightFraction.coerceIn(0.1f, 1f)).dp
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         onDismissRequest = onDismiss,
         backgroundColor = ChatColors.secondaryBg,
         insideMargin = DpSize.Zero,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current
         if (onBack != null) {
-            // Registered inside the sheet's window, after its built-in handler.
+            // Let an inner page handle Back first; otherwise use the sheet's native exit.
             NavigationBackHandler(
                 state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
                 isBackEnabled = true,
-                onBackCompleted = { if (!onBack()) onDismiss() },
+                onBackCompleted = { if (!onBack()) dismissSheet?.invoke() },
             )
         }
         Column(
@@ -86,7 +71,7 @@ fun StandardChatSheet(
         ) {
             StandardChatSheetHeader(
                 title = title,
-                onDismiss = onDismiss,
+                onDismiss = { dismissSheet?.invoke() },
                 leadingAction = leadingAction,
             )
             HorizontalDivider(thickness = 0.5.dp, color = ChatColors.separator)
@@ -119,14 +104,16 @@ fun StandardChatSheetHeader(
         } else {
             Spacer(modifier = Modifier.size(48.dp))
         }
-        Spacer(modifier = Modifier.weight(1f))
         Text(
             text = title,
-            fontSize = 16.sp,
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.headline1,
             fontWeight = FontWeight.SemiBold,
             color = ChatColors.primaryText,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        Spacer(modifier = Modifier.weight(1f))
         IconButton(onClick = onDismiss) {
             Icon(
                 imageVector = Icons.Default.Close,

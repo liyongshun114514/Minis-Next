@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -279,6 +280,7 @@ private fun PillCard(
                     .background(ScheduledAccent.copy(alpha = 0.06f), CircleShape)
                     .border(0.75.dp, ScheduledAccent.copy(alpha = 0.28f), CircleShape)
                     .minisJellyPress()
+                    .clip(CircleShape)
                     .combinedClickable(
                         onClick = onOpen,
                         onLongClick = {

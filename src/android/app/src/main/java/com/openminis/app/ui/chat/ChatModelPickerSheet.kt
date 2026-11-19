@@ -280,7 +280,7 @@ import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextField
@@ -1230,7 +1230,7 @@ internal fun ModelPickerSheet(
         }
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = show,
         backgroundColor = colors.surface,
         dragHandleColor = colors.onSurfaceVariantSummary,

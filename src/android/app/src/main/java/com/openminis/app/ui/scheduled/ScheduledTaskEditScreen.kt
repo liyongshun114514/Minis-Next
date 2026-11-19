@@ -72,7 +72,7 @@ import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
@@ -683,8 +683,9 @@ private fun EditFormBody(
         // every level and letting `setThinkingLevel` clamp at run time — it
         // already silently no-ops on a model that cannot reason — keeps the
         // editor honest about what it can and cannot know in advance.
-        WindowBottomSheet(
+        MinisBottomSheet(
             show = true,
+        deferDismissRequest = true,
             insideMargin = DpSize.Zero,
             onDismissRequest = { showThinkingPicker = false },
         ) {

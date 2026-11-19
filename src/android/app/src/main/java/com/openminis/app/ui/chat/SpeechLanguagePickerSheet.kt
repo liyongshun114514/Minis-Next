@@ -35,7 +35,7 @@ import com.openminis.app.speech.SpeechRecognitionManager
 import com.openminis.app.ui.theme.ChatColors
 import java.util.Locale
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * Modal sheet listing the active recognizer's supported languages. Tapping a
@@ -61,12 +61,14 @@ fun SpeechLanguagePickerSheet(
         )
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         backgroundColor = ChatColors.secondaryBg,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.speech_lang_picker_title),
@@ -91,7 +93,7 @@ fun SpeechLanguagePickerSheet(
                                 .fillMaxWidth()
                                 .clickable {
                                     SpeechRecognitionManager.selectLocale(locale)
-                                    onDismiss()
+                                    dismissSheet()
                                 }
                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,

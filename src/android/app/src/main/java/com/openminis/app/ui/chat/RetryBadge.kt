@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
@@ -36,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.ui.theme.ChatColors
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * [T-android-retry-badge] One automatic retry of a request in the current
@@ -100,6 +101,7 @@ internal fun RetryBadge(attempt: Int, maxAttempts: Int, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .padding(end = 6.dp)
+            .clip(RoundedCornerShape(50))
             .background(RetryBadgeFill, RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .clearAndSetSemantics {
@@ -124,8 +126,9 @@ internal fun RetryLogSheet(records: List<RetryRecord>, onDismiss: () -> Unit) {
     val timeFormat = androidx.compose.runtime.remember {
         java.text.DateFormat.getTimeInstance(java.text.DateFormat.MEDIUM)
     }
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {

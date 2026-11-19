@@ -88,9 +88,8 @@ fun SharedFolderDetailScreen(
             Surface(
                 color = MiuixTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onBrowseFiles),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onBrowseFiles,
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),

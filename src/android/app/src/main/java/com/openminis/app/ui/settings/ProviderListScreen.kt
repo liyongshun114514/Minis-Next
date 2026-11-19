@@ -29,7 +29,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -331,7 +331,7 @@ fun ProviderListScreen(
         Spacer(Modifier.height(80.dp))
     }
 
-    OverlayBottomSheet(
+    MinisBottomSheet(
         show = showMenu,
         onDismissRequest = { showMenu = false },
     ) {

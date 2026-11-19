@@ -59,7 +59,7 @@ import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * MCP Integrations management screen. Mirrors [SkillsManagementScreen]:
@@ -242,11 +242,13 @@ private fun MCPAddSheet(
     var selectedTab by remember { mutableIntStateOf(0) }
     val isEdit = editServer != null
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         // [T-android-mcp-sheet-ime-occlusion] GH#44: verticalScroll + imePadding
         // keep every field reachable while the keyboard is up — imePadding sits
         // after verticalScroll so the inset becomes scrollable bottom space the
@@ -279,11 +281,11 @@ private fun MCPAddSheet(
                     mcpRepository = mcpRepository,
                     envVarRepository = envVarRepository,
                     editServer = editServer,
-                    onDone = onDismiss,
+                    onDone = dismissSheet,
                     onRequestDelete = onRequestDelete,
                 )
             } else {
-                MCPImportTab(mcpRepository = mcpRepository, onDone = onDismiss)
+                MCPImportTab(mcpRepository = mcpRepository, onDone = dismissSheet)
             }
         }
     }
@@ -1144,8 +1146,9 @@ private fun MCPEnvVarPickerSheet(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {

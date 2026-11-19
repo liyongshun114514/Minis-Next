@@ -762,8 +762,8 @@ private fun AgentLoopRow(
 private fun Modifier.cardRow(isFirst: Boolean, isLast: Boolean): Modifier {
     val shape = when {
         isFirst && isLast -> SectionDesign.CardShape
-        isFirst -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-        isLast -> RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+        isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
         else -> RectangleShape
     }
     // Match SectionCard's inner Column vertical padding so first/last rows

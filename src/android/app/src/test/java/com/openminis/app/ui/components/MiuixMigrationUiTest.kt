@@ -703,7 +703,7 @@ class MiuixMigrationUiTest {
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
     }
 
-    @Test fun particleThinkingSliderRetainsAllTierLabelsAndAccessibleValue() {
+    @Test fun nativeThinkingSliderRetainsAllTierLabelsAndAccessibleValue() {
         compose.setContent {
             MinisTheme {
                 com.openminis.app.ui.chat.ComposerEffortSlider(
@@ -851,21 +851,32 @@ class MiuixMigrationUiTest {
             compose.onNodeWithTag("halo-button").performTouchInput { click() }
             compose.onNodeWithText("Close menu").assertIsDisplayed()
             compose.runOnIdle { assertTrue(scene?.recording == true) }
+            compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Close menu").performClick()
+            var samples = 0
+            for (frame in 0 until 180) {
+                compose.mainClock.advanceTimeBy(16)
+                if (compose.runOnIdle { finished <= it }) continue
+                // Sample every restored frame, not only the final idle image:
+                // the reported bug is a brief dark flash AFTER shrinking back.
+                val after = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
+                assertEquals(before.width, after.width)
+                assertEquals(before.height, after.height)
+                var changed = 0
+                for (y in 0 until before.height) for (x in 0 until before.width) {
+                    val a = before[x, y]
+                    val b = after[x, y]
+                    if (kotlin.math.abs(a.red - b.red) > 0.02f ||
+                        kotlin.math.abs(a.green - b.green) > 0.02f ||
+                        kotlin.math.abs(a.blue - b.blue) > 0.02f) changed++
+                }
+                assertTrue("no restored-frame dim halo cycle=$it frame=$frame: $changed pixels", changed <= before.width * before.height / 100)
+                if (++samples == 8) break
+            }
+            assertEquals("observe the restored button and seven following frames", 8, samples)
+            compose.mainClock.autoAdvance = true
             compose.waitForIdle()
             compose.runOnIdle { assertFalse(scene?.recording == true) }
-            val after = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
-            assertEquals(before.width, after.width)
-            assertEquals(before.height, after.height)
-            var changed = 0
-            for (y in 0 until before.height) for (x in 0 until before.width) {
-                val a = before[x, y]
-                val b = after[x, y]
-                if (kotlin.math.abs(a.red - b.red) > 0.02f ||
-                    kotlin.math.abs(a.green - b.green) > 0.02f ||
-                    kotlin.math.abs(a.blue - b.blue) > 0.02f) changed++
-            }
-            assertTrue("no retained dim halo after cycle $it: $changed pixels", changed <= before.width * before.height / 100)
         }
         compose.runOnIdle { assertEquals(3, finished) }
     }

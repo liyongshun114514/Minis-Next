@@ -22,14 +22,15 @@ class ExpandHeaderNoRippleTest {
     @Test
     fun `the helper drops the indication but keeps click semantics`() {
         val helper = src("ui/util/ExpandToggleClickable.kt")
-        assertTrue(helper.contains("indication = null,"))
-        assertTrue("pressed tint and click share one interaction source",
-            helper.contains("val pressed by interaction.collectIsPressedAsState()") &&
-                helper.contains("interactionSource = interaction,"))
+        assertTrue(helper.contains("MiuixIndication(color = ink)"))
+        assertTrue("Miuix press tint and click share one interaction source",
+            helper.contains("indication = indication,") && helper.contains("interactionSource = interaction,"))
+        assertTrue(helper.contains("this.clip(pressedShape)"))
+        assertFalse(helper.contains("this.background("))
         assertTrue("TalkBack label and role are forwarded",
             helper.contains("onClickLabel = onClickLabel,") && helper.contains("role = role,"))
-        assertTrue("pressed feedback reuses the theme, no new colour",
-            helper.contains("MiuixTheme.colorScheme.onSurface.copy(alpha = PRESSED_TINT_ALPHA)"))
+        assertTrue("native pressed feedback reuses the theme, no new colour",
+            helper.contains("val ink = MiuixTheme.colorScheme.onSurface"))
     }
 
     @Test

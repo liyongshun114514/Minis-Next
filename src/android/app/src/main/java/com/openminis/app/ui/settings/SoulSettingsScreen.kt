@@ -63,7 +63,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 
 /**
@@ -533,11 +533,13 @@ private fun SoulEmojiPickerSheet(
     onPick: (String) -> Unit,
 ) {
     var draft by remember { mutableStateOf(current) }
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -603,7 +605,7 @@ private fun SoulEmojiPickerSheet(
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = dismissSheet,
                     modifier = Modifier.weight(1f),
                     text = stringResource(R.string.soul_cancel),
                 )

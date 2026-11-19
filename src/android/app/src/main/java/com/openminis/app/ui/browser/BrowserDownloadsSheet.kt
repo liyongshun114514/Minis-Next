@@ -43,7 +43,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 /**
  * [T-android-browser-download-ux] Downloads panel — Android port of iOS
@@ -67,8 +67,9 @@ fun BrowserDownloadsSheet(
     // actually looked at the panel.
     LaunchedEffect(Unit) { tabPool.markDownloadsSeen() }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {

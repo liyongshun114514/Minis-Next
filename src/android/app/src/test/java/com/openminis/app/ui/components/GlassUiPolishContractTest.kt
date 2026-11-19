@@ -9,7 +9,9 @@ class GlassUiPolishContractTest {
     @Test fun `only function menu triggers opt into the jelly spring`() {
         val buttons = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
         assertTrue(buttons.contains("menuMotion: Boolean = false"))
-        assertTrue(buttons.contains("if (menuMotion || onLongClick != null) Modifier.minisJellyPress(enabled) else Modifier"))
+        assertTrue(buttons.contains("val pressEnabled = enabled && (menuMotion || onLongClick != null)"))
+        assertTrue(buttons.contains(".minisPressEvents(pressInteractions, pressEnabled)"))
+        assertTrue(buttons.contains("Box(Modifier.glassPress(pressInteractions, pressEnabled))"))
         assertTrue(buttons.contains(".glassPress(interactions, enabled)"))
         assertFalse(buttons.contains("animateFloatAsState("))
         assertTrue(buttons.contains("shadow = GlassShadows.Regular"))
@@ -73,7 +75,9 @@ class GlassUiPolishContractTest {
     @Test fun `settings choice press state and skill tabs have rounded silhouettes`() {
         val settings = ProductionSources.read("ui/settings/SettingsComponents.kt")
         val choices = settings.substringAfter("fun SettingsChoiceRow(")
-        assertTrue(choices.contains(".clip(RoundedCornerShape(16.dp))"))
+        assertTrue(choices.contains("RadioButtonPreference("))
+        assertFalse("group Card owns outside corners; do not round internal divider seams", choices.substringBefore("private fun settingsRowIcon").contains(".clip("))
+        assertTrue(settings.contains("Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)"))
         val skills = ProductionSources.read("ui/settings/SkillsManagementScreen.kt")
         val importer = skills.substringAfter("private fun SkillImportSheet(").substringBefore("// ───")
         assertTrue(importer.contains("TabRowWithContour("))
@@ -118,6 +122,53 @@ class GlassUiPolishContractTest {
         assertTrue(dropdown.contains("enabled = active"))
         assertTrue(dropdown.contains("LaunchedEffect(active) { if (!active) expanded = false }"))
         assertFalse("do not bypass native input gating with a second clickable", dropdown.contains(".clickable("))
+    }
+
+    @Test fun `bottom sheets share native glass and retain recording until native disposal`() {
+        val sheet = ProductionSources.read("ui/components/MinisBottomSheet.kt")
+        assertTrue(sheet.contains("GlassBottomSheet("))
+        assertTrue(sheet.contains("backdrop = scene?.backdrop"))
+        assertTrue(sheet.contains("DisposableEffect(scene)"))
+        assertTrue(sheet.contains("scene?.acquire()"))
+        assertTrue(sheet.contains("onDispose { release?.invoke() }"))
+        assertTrue(sheet.contains("CompositionLocalProvider(locals)"))
+        assertTrue(sheet.contains("if (!sameWindow)"))
+        assertTrue(sheet.contains("WindowBottomSheet("))
+        for (path in listOf("ui/chat/ChatModelPickerSheet.kt", "ui/components/UnifiedModelPickerSheet.kt",
+            "ui/chat/StandardChatSheet.kt", "ui/settings/EnvironmentVariablesScreen.kt", "ui/settings/ProviderListScreen.kt")) {
+            val source = ProductionSources.read(path)
+            assertTrue(path, source.contains("MinisBottomSheet("))
+            assertFalse(path, source.contains("import top.yukonga.miuix.kmp.window.WindowBottomSheet"))
+            assertFalse(path, source.contains("import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet"))
+        }
+    }
+
+    @Test fun `chat has one full height overscroll visual and no short list clipping edge`() {
+        val bounce = ProductionSources.read("ui/chat/AlwaysStretchOverscroll.kt")
+        assertTrue(bounce.contains("effect?.withoutVisualEffect()"))
+        assertTrue(bounce.contains("overscrollEffect = eventsOnly"))
+        assertTrue(bounce.contains(".overscroll(effect)"))
+        assertTrue(bounce.contains("content(eventsOnly)"))
+        val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
+        val list = chat.substringAfter("val perfNewestLogged").substringBefore("// [T-android-session-entering-dots] Fades")
+        assertTrue(list.contains(".fillMaxSize()"))
+        val bar = ProductionSources.read("ui/components/RichTitleAppBar.kt")
+        assertFalse("Surface clips native glass shadows at the bar edge", bar.contains("Surface(color = color)"))
+        assertTrue(bar.contains("Box(Modifier.background(color))"))
+    }
+
+    @Test fun `pressed settings rows keep separators outside their input plane`() {
+        val settings = ProductionSources.read("ui/settings/SettingsComponents.kt")
+        assertTrue(settings.contains("val modifier = Modifier.heightIn(min = minHeight)"))
+        assertTrue(settings.contains("if (showDivider) PreferenceDivider"))
+        val provider = ProductionSources.read("ui/settings/ProviderDetailScreen.kt")
+        val rows = provider.substringAfter("val modelRow:").substringBefore("// [T-android-model-row-hide-action] Row context menu")
+        assertFalse(rows.contains(".combinedClickable("))
+        assertTrue(rows.contains("onLongClick = { menuEntryId = entry.id }"))
+        val tokens = ProductionSources.read("ui/components/SectionDesign.kt")
+        assertTrue(tokens.contains("val CardInnerVerticalPadding = 0.dp"))
+        val theme = ProductionSources.read("ui/theme/Theme.kt")
+        assertTrue(theme.contains("lineHeight = if (lineHeight.isSp) lineHeight * factor else lineHeight"))
     }
 
     @Test fun `group lists render directly and toolbar actions keep separate space`() {

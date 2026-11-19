@@ -67,7 +67,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import androidx.compose.ui.unit.DpSize
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import com.openminis.app.ui.components.MinisBottomSheet
 
 private const val TAG = "QuickTest"
 
@@ -163,11 +163,13 @@ fun QuickTestSheet(
         runAll(scope, context, entry, providerRepository, runs)
     }
 
-    WindowBottomSheet(
+    MinisBottomSheet(
         show = true,
+        deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
     ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -196,7 +198,7 @@ fun QuickTestSheet(
                     )
                 }
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = dismissSheet,
                     text = stringResource(R.string.quicktest_done),
                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                 )

@@ -330,18 +330,18 @@ def main() -> int:
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")
-    ok("Canvas(" in slider_code and "ThinkingSliderGeometry.track(" in slider_code,
-       "original particle slider must share its drawing and gesture geometry")
-    ok("ComposerPortMath.nearestIndex(" in slider_code and "ComposerPortMath.detentIndex(" in slider_code,
-       "particle slider must snap only to supported levels")
+    ok("top.yukonga.miuix.kmp.basic.Slider(" in slider_code and "Canvas(" not in slider_code,
+       "effort control must use the native Miuix Slider, not a custom painted control")
+    ok("steps = (levels.size - 2).coerceAtLeast(0)" in slider_code and "coerceIn(levels.indices)" in slider_code,
+       "native slider must snap only to supported levels")
     ok("private fun ThinkingLevel.effortSliderLabel(): String = displayName" in slider_code,
        "slider labels must match the compact composer's display names")
-    ok("onSelect(levels[requestedIndex])" in slider_code and "if (!completed)" in slider_code,
+    ok("if (canChange && released) onSelect(levels[" in slider_code and "if (!released) draft = selectedIndex.toFloat()" in slider_code,
        "slider must commit one supported level on release and none on cancellation")
-    ok("CustomAccessibilityAction" in slider_code and "progressBarRangeInfo" in slider_code,
-       "particle slider must retain accessible stepping and progress semantics")
-    ok("if (!enabled || reducedMotion) return@LaunchedEffect" in slider_code,
-       "particle clock must stop under reduced motion")
+    ok("if (!pointerActive) onSelect(levels[draft.toInt()])" in slider_code and "disabled()" in slider_code,
+       "native slider must retain accessible stepping and disabled semantics")
+    ok("withFrameNanos" not in slider_code and "FlowRow(" in slider_code,
+       "native slider must not run a decorative particle clock and tier labels must wrap")
     ok("glassAnchor = attachAnchor" in chat_code and "glassPopupAnchor(attachAnchor" in chat_code,
        "+ menu must expand from and collapse into its actual button")
     ok("val bottomReserve = composerHeightDp +" in chat_code and
