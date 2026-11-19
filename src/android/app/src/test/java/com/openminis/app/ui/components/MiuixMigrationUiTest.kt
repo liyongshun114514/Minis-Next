@@ -789,6 +789,7 @@ class MiuixMigrationUiTest {
                     SettingsSection {
                         MinisDropdownPreference(
                             title = "Routing policy", items = listOf("Fallback", "Load balance"),
+                            modifier = Modifier.testTag("routing-policy"),
                             selectedIndex = index, enabled = enabled,
                             onSelectedIndexChange = { index = it; changes++ },
                         )
@@ -796,16 +797,24 @@ class MiuixMigrationUiTest {
                 }
             }
         }
-        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        val row = compose.onNodeWithTag("routing-policy")
+        row.assertIsEnabled().performClick()
         compose.onAllNodesWithText("Load balance").onFirst().assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, changes); assertEquals(1, index) }
-        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        row.performClick()
         compose.onAllNodesWithText("Fallback").onFirst().assertIsDisplayed()
         compose.runOnIdle { enabled = false }
         compose.waitForIdle()
-        compose.onNode(hasText("Routing policy") and hasClickAction()).assertIsNotEnabled()
-        compose.runOnIdle { assertEquals(1, changes); enabled = true }
-        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        // Native BasicComponent removes OnClick when disabled: identify the row
+        // by its stable tag, then assert semantics AND real pointer behavior.
+        row.assertIsDisplayed().assertIsNotEnabled().assert(hasClickAction().not())
+            .performTouchInput { click() }
+        compose.onAllNodesWithText("Fallback").assertCountEquals(0)
+        compose.runOnIdle { assertEquals(1, changes); assertEquals(1, index); enabled = true }
+        row.assertIsEnabled()
+        // Re-enabling must not reopen the menu that was cancelled by disable.
+        compose.onAllNodesWithText("Fallback").assertCountEquals(0)
+        row.performClick()
         compose.onAllNodesWithText("Fallback").onFirst().assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(2, changes); assertEquals(0, index) }
     }

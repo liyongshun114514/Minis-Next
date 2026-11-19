@@ -110,6 +110,16 @@ class GlassUiPolishContractTest {
         assertTrue(env.contains("ButtonDefaults.textButtonColorsPrimary()"))
     }
 
+    @Test fun `dropdown keeps its role and disabled state when native click is absent`() {
+        val dropdown = ProductionSources.read("ui/components/MinisDropdownPreference.kt")
+        assertTrue(dropdown.contains("semantics(mergeDescendants = true)"))
+        assertTrue(dropdown.contains("role = Role.DropdownList"))
+        assertTrue(dropdown.contains("if (!active) disabled()"))
+        assertTrue(dropdown.contains("enabled = active"))
+        assertTrue(dropdown.contains("LaunchedEffect(active) { if (!active) expanded = false }"))
+        assertFalse("do not bypass native input gating with a second clickable", dropdown.contains(".clickable("))
+    }
+
     @Test fun `group lists render directly and toolbar actions keep separate space`() {
         val palette = ProductionSources.read("ui/theme/Theme.kt")
         assertTrue(palette.contains("userBubble = colors.surfaceContainerHigh"))

@@ -13,6 +13,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
@@ -48,7 +51,13 @@ internal fun MinisDropdownPreference(
             title = title,
             summary = summary,
             startAction = startAction,
-            modifier = modifier.minisJellyPress(active),
+            // BasicComponent omits clickable entirely when disabled. Keep the
+            // row's identity/role and disabled state discoverable without adding
+            // a second click action that could bypass its native input gate.
+            modifier = modifier.minisJellyPress(active).semantics(mergeDescendants = true) {
+                role = Role.DropdownList
+                if (!active) disabled()
+            },
             insideMargin = insideMargin,
             enabled = active,
             role = Role.DropdownList,
