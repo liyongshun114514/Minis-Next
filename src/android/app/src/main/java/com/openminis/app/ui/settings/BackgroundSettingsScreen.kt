@@ -31,9 +31,6 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -137,25 +134,12 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
     val vendor = remember { PowerOptimizationManager.Vendor.current() }
     val needsOemGuidance = remember { PowerOptimizationManager.needsOemAutostartGuidance() }
 
-    Scaffold(
-        topBar = {
-            SmallTopAppBar(
-                title = stringResource(R.string.bg_section_header),
-                navigationIcon = {
-                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
+    SettingsScaffold(
+        title = stringResource(R.string.bg_section_header),
+        onBack = onBack,
+        centerTitle = true,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Spacer(Modifier.size(8.dp))
             // T180-bg-notif: Task Notifications toggle. Mirrors iOS
             // EnhancedBackgroundSettingsView's first section (the toggle
@@ -261,6 +245,8 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
                 stringResource(R.string.settings_scheduled_countdown_always),
             )
             OverlaySpinnerPreference(
+                modifier = Modifier.clip(RoundedCornerShape(18.dp))
+                    .background(MiuixTheme.colorScheme.surfaceContainer),
                 title = stringResource(R.string.settings_scheduled_countdown),
                 items = countdownLabels.map { DropdownItem(text = it) },
                 selectedIndex = scheduledCountdownLead.coerceIn(countdownLabels.indices),
@@ -359,8 +345,8 @@ private fun BgToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainer, RoundedCornerShape(18.dp))
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -407,8 +393,8 @@ private fun BgRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainer, RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

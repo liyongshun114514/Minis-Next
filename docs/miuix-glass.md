@@ -9,7 +9,9 @@ The Android UI uses Miuix `0.9.5-beta01`. Preserve these sampling boundaries whe
 - `MinisGlassIconButton` samples the second recording, with an explicitly floating button material. Do not replace it with the raw message backdrop or tie material visibility to a zero scroll offset.
 - `MinisGlassScene` records the rendered page, including its bars. `MinisMenu` is hosted **outside** that recording in the root Miuix `PopupLayout`; recording a menu inside its own backdrop creates a feedback loop.
 
-The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefaults.BandOverhang`. Only the foreground toolbar consumes toolbar taps; the fading overhang must not block messages.
+The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefaults.BandOverhang`. Its complete rendered/tinted result fades to transparent with an offscreen `DstIn` mask: a blur-radius ramp alone leaves a uniform-tint shelf at the bottom. The button recording includes this finished fade. Only the foreground toolbar consumes toolbar taps; the fading overhang must not block messages.
+
+`MinisSmallTopAppBar` deliberately shares `SettingsGlassTopBar`'s three-slot measure/place policy. Miuix 0.9.5-beta01's `SmallTopAppBarLayout` measures `actionIconsPlaceable` but never places it, hiding Mount Add / detail Save actions. Do not regress to that layout or its shadow-clipping `clipToBounds`. Reserve full action widths before ellipsizing the title; keep folder/permissions pages on the same `surface` background as the glass band.
 
 ## Menus
 
@@ -23,7 +25,7 @@ The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefault
 
 ## Floating composer and settings
 
-The composer follows Eta's thin-glass proportions: a 24dp glass shape, 10dp side gutters, 12dp bottom clearance plus the live navigation inset, and a 36dp minimum text slot (up to six text lines). It samples the full-height **message-only** backdrop, with `puredThinGlass`, a small edge stroke and native regular shadow; old APIs use the same shape with an opaque fill.
+The composer follows Eta's thin-glass proportions: a 24dp glass shape, 10dp side gutters, 12dp bottom clearance plus the live navigation inset, and a 56dp minimum editor region (up to six text lines). While the + menu is expanded, `onPanelMeasured` reports its final, safe-area-constrained height; the editor grows so the complete input card matches that height. Subtract measured attachments/controls/inner padding rather than adding the menu height to an already-sized card. Keep the bottom controls anchored and reset only after the popup's exit finishes. Send uses neutral `onSurface` with a 10%-alpha idle fill, never primary/disabled-primary blue. It samples the full-height **message-only** backdrop, with `puredThinGlass`, a small edge stroke and native regular shadow; old APIs use the same shape with an opaque fill.
 
 The message list continues behind the input overlay instead of ending at a Column sibling boundary. Its bottom content padding includes the measured composer height and visible tool/status reserve exactly once. Tool/scroll controls are lifted by that same height. User bubbles use the neutral `surfaceContainerHigh`, not a primary-blue mix.
 

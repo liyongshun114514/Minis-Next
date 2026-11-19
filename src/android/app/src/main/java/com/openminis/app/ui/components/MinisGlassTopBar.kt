@@ -24,6 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -96,6 +100,14 @@ internal fun MinisGlassTopBar(
     val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.3f))) }
     val blurColors = BlurDefaults.blurColors(blendColors = blendColors)
     val fallback = remember(background) { GlassTopAppBarDefaults.bandBrush(background) }
+    // progressiveTextureBlur also blends a uniform tint. Fade the WHOLE result,
+    // not just its blur radius, or that tint ends as a visible horizontal shelf.
+    val edgeFade = remember {
+        Brush.verticalGradient(
+            0f to Color.White, 0.38f to Color.White,
+            0.72f to Color.White.copy(alpha = 0.55f), 1f to Color.Transparent,
+        )
+    }
     Layout(
         modifier = modifier,
         content = {
@@ -103,7 +115,14 @@ internal fun MinisGlassTopBar(
                 Box(
                     Modifier.onGloballyPositioned { bandCoordinates = it }
                         .layerBackdrop(buttonBackdrop)
-                        .graphicsLayer { alpha = backgroundAlpha().coerceIn(0f, 1f) }
+                        .graphicsLayer {
+                            alpha = backgroundAlpha().coerceIn(0f, 1f)
+                            compositingStrategy = CompositingStrategy.Offscreen
+                        }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(edgeFade, blendMode = BlendMode.DstIn)
+                        }
                         .progressiveTextureBlur(
                             backdrop = backdrop,
                             shape = RectangleShape,

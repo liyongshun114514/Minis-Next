@@ -6121,6 +6121,16 @@ fun ChatScreen(
 
                 // Eta-style 24dp thin-glass surface over the message-only recording.
                 val inputShape = remember { GlassShape(ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp) }
+                var attachmentMenuHeightPx by remember(sessionId) { mutableIntStateOf(0) }
+                var inputCardHeightPx by remember(sessionId) { mutableIntStateOf(0) }
+                var editorRegionHeightPx by remember(sessionId) { mutableIntStateOf(0) }
+                val editorMinimumHeight = with(composerDensity) {
+                    ComposerSurfaceGeometry.editorMinimumHeightDp(
+                        menuHeightDp = attachmentMenuHeightPx.toDp().value,
+                        cardHeightDp = inputCardHeightPx.toDp().value,
+                        editorHeightDp = editorRegionHeightPx.toDp().value,
+                    ).dp
+                }
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6252,6 +6262,7 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
+                        .onGloballyPositioned { inputCardHeightPx = it.size.height }
                         .glassPanel(
                             backdrop = chatTopBackdrop,
                             shape = inputShape,
@@ -6584,6 +6595,8 @@ fun ChatScreen(
                     // InlineVoiceInputView). The legacy in-composer waveform
                     // branch below only serves captures started OUTSIDE the
                     // panel (none today, kept as a safety net).
+                    Box(Modifier.fillMaxWidth().heightIn(min = editorMinimumHeight)
+                        .onGloballyPositioned { editorRegionHeightPx = it.size.height }) {
                     if (com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive) {
                         // [T-readaloud-volume-bar] The read-aloud volume is no
                         // longer a standing row here: it opens above the TTS
@@ -7184,6 +7197,8 @@ fun ChatScreen(
                         )
                     }
 
+                    } // Editor region grows with the + menu; controls stay bottom-aligned.
+
                     // Button row below text field (iOS layout: + / ... mic send)
                     Row(
                         modifier = Modifier
@@ -7215,6 +7230,8 @@ fun ChatScreen(
                                 expanded = showAttachMenu,
                                 onDismissRequest = { showAttachMenu = false },
                                 glassAnchor = attachAnchor,
+                                onPanelMeasured = { attachmentMenuHeightPx = it.height },
+                                onDismissFinished = { attachmentMenuHeightPx = 0 },
                                 anchorContent = {
                                     Icon(Icons.Default.Add, contentDescription = null,
                                         tint = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.size(20.dp))

@@ -501,6 +501,99 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(1, first); assertEquals(1, second) }
     }
 
+    @Test fun mountedFolderAddRemainsVisibleAndOpensPickerIntro() {
+        verifyMountedFolderAdd()
+    }
+
+    @Config(sdk = [32])
+    @Test fun mountedFolderAddFallbackRemainsVisibleAndOpensPickerIntro() {
+        verifyMountedFolderAdd()
+    }
+
+    private fun verifyMountedFolderAdd() {
+        val store = com.openminis.app.data.MountedFoldersStore(compose.activity)
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.settings.MountedFoldersScreen(
+                    store = store, onBack = {}, onMountClick = {},
+                )
+            }
+        }
+        val add = compose.activity.getString(R.string.mount_add_dialog_title)
+        compose.onNodeWithContentDescription(add).assertIsDisplayed().assertIsEnabled()
+            .performTouchInput { click() }
+        compose.onNodeWithText(compose.activity.getString(R.string.mount_picker_intro_message))
+            .assertIsDisplayed()
+    }
+
+    @Test fun compactGlassBarKeepsLongTitleBetweenVisibleBackAndMultipleActions() {
+        var back = 0
+        var first = 0
+        var second = 0
+        compose.setContent {
+            MinisTheme(fontScale = 1.5f) {
+                MinisPageScaffold(topBar = {
+                    com.openminis.app.ui.settings.MinisSmallTopAppBar(
+                        title = "Mounted external folders and permissions",
+                        navigationIcon = {
+                            MinisToolbarIconButton(onClick = { back++ }, modifier = Modifier.testTag("compact-back")) { Text("B") }
+                        },
+                        actions = {
+                            MinisToolbarIconButton(onClick = { first++ }, modifier = Modifier.testTag("compact-add")) { Text("+") }
+                            MinisToolbarIconButton(onClick = { second++ }, modifier = Modifier.testTag("compact-sort")) { Text("S") }
+                        },
+                    )
+                }) { Text("Page body", Modifier.padding(it)) }
+            }
+        }
+        val a = compose.onNodeWithTag("compact-add").assertIsDisplayed().getUnclippedBoundsInRoot()
+        val b = compose.onNodeWithTag("compact-sort").assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue(a.right <= b.left)
+        compose.onNodeWithTag("compact-back").performTouchInput { click() }
+        compose.onNodeWithTag("compact-add").performTouchInput { click() }
+        compose.onNodeWithTag("compact-sort").performTouchInput { click() }
+        compose.runOnIdle { assertEquals(1, back); assertEquals(1, first); assertEquals(1, second) }
+    }
+
+    @Test fun attachmentPanelPublishesFinalHeightAndRestoresAnchorOnDismiss() {
+        var measuredHeight = 0
+        var dismissed = 0
+        compose.setContent {
+            MinisTheme {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
+                    Box {
+                        var expanded by remember { mutableStateOf(false) }
+                        val anchor = rememberGlassPopupAnchor()
+                        MinisGlassIconButton(
+                            backdrop = null, onClick = { expanded = true },
+                            modifier = Modifier.testTag("height-plus")
+                                .glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
+                        ) { Text("+") }
+                        MinisMenu(
+                            expanded = expanded, onDismissRequest = { expanded = false },
+                            glassAnchor = anchor, anchorContent = { Text("+") },
+                            onPanelMeasured = { measuredHeight = it.height },
+                            onDismissFinished = { dismissed++ },
+                        ) {
+                            repeat(5) { index ->
+                                DropdownMenuItem(text = { Text("Height action $index") }, onClick = { expanded = false })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        repeat(2) {
+            compose.onNodeWithTag("height-plus").assertIsDisplayed().performTouchInput { click() }
+            compose.onNodeWithText("Height action 4").assertIsDisplayed()
+            compose.runOnIdle { assertTrue("actual visible panel height", measuredHeight > 0) }
+            compose.onNodeWithText("Height action 4").performClick()
+            compose.onNodeWithText("Height action 4").assertDoesNotExist()
+            compose.onNodeWithTag("height-plus").assertIsDisplayed()
+        }
+        compose.runOnIdle { assertEquals(2, dismissed) }
+    }
+
     @Test fun systemPromptDirectoryExposesOnlySoulAndWorkspace() {
         var soul = 0
         var workspace = 0
@@ -532,6 +625,34 @@ class MiuixMigrationUiTest {
             }
         }
         compose.onNodeWithContentDescription("Thinking effort: High").assertIsDisplayed()
+    }
+
+    @Test fun composerSendPaletteIsNeutralInLightAndDark() {
+        var dark by mutableStateOf(false)
+        var active = Color.Unspecified
+        var inactive = Color.Unspecified
+        compose.setContent {
+            MinisTheme(darkTheme = dark) {
+                val palette = ChatColors
+                SideEffect { active = palette.sendButton; inactive = palette.sendButtonDisabled }
+                com.openminis.app.ui.chat.ComposerSendButton(canActivate = true, onSend = {})
+            }
+        }
+        val light = compose.runOnIdle {
+            assertEquals(active.red, active.green, 0.01f)
+            assertEquals(active.green, active.blue, 0.01f)
+            assertEquals(active.red, inactive.red, 0.01f)
+            assertEquals(0.10f, inactive.alpha, 0.01f)
+            dark = true
+            active
+        }
+        compose.runOnIdle {
+            assertNotEquals(light, active)
+            assertEquals(active.red, active.green, 0.01f)
+            assertEquals(active.green, active.blue, 0.01f)
+            assertEquals(active.red, inactive.red, 0.01f)
+            assertEquals(0.10f, inactive.alpha, 0.01f)
+        }
     }
 
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {

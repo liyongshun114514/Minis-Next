@@ -37,6 +37,37 @@ class GlassUiPolishContractTest {
         assertTrue(chat.contains("glassAnchor = attachAnchor"))
     }
 
+    @Test fun `small bars place trailing controls and keep page backgrounds consistent`() {
+        val bar = ProductionSources.read("ui/settings/SettingsGlassTopBar.kt")
+        assertTrue(bar.contains("fun MinisSmallTopAppBar("))
+        assertTrue(bar.contains("end.placeRelative(width - end.width"))
+        for (name in listOf("MountedFoldersScreen", "SharedFoldersScreen", "MountDetailScreen",
+            "SharedFolderDetailScreen", "SystemPermissionsScreen")) {
+            val page = ProductionSources.read("ui/settings/$name.kt")
+            assertTrue(name, page.contains("MinisSmallTopAppBar as SmallTopAppBar"))
+            assertFalse(name, page.contains("MiuixTheme.colorScheme.background"))
+        }
+        val background = ProductionSources.read("ui/settings/BackgroundSettingsScreen.kt")
+        assertTrue(background.contains("SettingsScaffold("))
+        assertTrue(background.contains("modifier = Modifier.clip(RoundedCornerShape(18.dp))"))
+        val glass = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
+        assertTrue(glass.contains("CompositingStrategy.Offscreen"))
+        assertTrue("fade the complete tinted result, not only the blur", glass.contains("drawRect(edgeFade, blendMode = BlendMode.DstIn)"))
+    }
+
+    @Test fun `attachment menu height drives editor while sends use only neutral colors`() {
+        val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
+        assertTrue(chat.contains("onPanelMeasured = { attachmentMenuHeightPx = it.height }"))
+        assertTrue(chat.contains("onDismissFinished = { attachmentMenuHeightPx = 0 }"))
+        assertTrue(chat.contains(".heightIn(min = editorMinimumHeight)"))
+        val menu = ProductionSources.read("ui/components/MinisMenu.kt")
+        assertTrue(menu.contains("onMeasured = { size ->"))
+        val palette = ProductionSources.read("ui/theme/Theme.kt")
+        assertTrue(palette.contains("sendButton = colors.onSurface"))
+        assertTrue(palette.contains("sendButtonDisabled = colors.onSurface.copy(alpha = 0.10f)"))
+        assertFalse(palette.contains("sendButton = colors.primary"))
+    }
+
     @Test fun `settings choice press state and skill tabs have rounded silhouettes`() {
         val settings = ProductionSources.read("ui/settings/SettingsComponents.kt")
         val choices = settings.substringAfter("fun SettingsChoiceRow(")

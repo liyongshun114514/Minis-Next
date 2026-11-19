@@ -22,7 +22,7 @@ import androidx.compose.material.icons.outlined.Folder
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -69,10 +69,10 @@ fun SharedFolderDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier

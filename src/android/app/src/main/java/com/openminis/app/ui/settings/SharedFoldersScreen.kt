@@ -21,7 +21,7 @@ import androidx.compose.material.icons.outlined.Psychology
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -60,10 +60,10 @@ fun SharedFoldersScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -73,12 +73,13 @@ fun SharedFoldersScreen(
             InfoBanner()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(SharedFolderRegistry.entries, key = { it.id }) { folder ->
                     Surface(
                         color = MiuixTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(18.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -98,7 +99,7 @@ private fun InfoBanner() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(18.dp)),
     ) {
         Text(
             text = stringResource(R.string.shared_folders_info_banner),

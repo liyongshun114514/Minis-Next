@@ -88,8 +88,9 @@ internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
         toolBorder = colors.dividerLine,
         toolCapsuleBg = colors.secondaryContainer,
         separator = colors.dividerLine,
-        sendButton = colors.primary,
-        sendButtonDisabled = colors.disabledPrimaryButton,
+        // Composer actions are neutral in both themes, never the blue primary palette.
+        sendButton = colors.onSurface,
+        sendButtonDisabled = colors.onSurface.copy(alpha = 0.10f),
         inlineCodeBg = colors.secondaryContainer,
         link = colors.primary,
         thinking = colors.primary,

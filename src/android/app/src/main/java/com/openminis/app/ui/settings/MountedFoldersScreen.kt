@@ -36,7 +36,7 @@ import com.openminis.app.ui.components.miuix.rememberSwipeToDismissBoxState
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
@@ -191,13 +191,13 @@ fun MountedFoldersScreen(
                         },
                         enabled = !isAtCapacity,
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.mount_add_dialog_title))
                     }
                 },
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -264,7 +264,7 @@ fun MountedFoldersScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(RoundedCornerShape(18.dp))
                                         .background(MiuixTheme.colorScheme.errorContainer)
                                         .padding(horizontal = 16.dp),
                                     contentAlignment = Alignment.CenterEnd,
@@ -280,7 +280,7 @@ fun MountedFoldersScreen(
                         ) {
                             Surface(
                                 color = MiuixTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(18.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 MountRow(entry = entry, onClick = { onMountClick(entry.id) })
@@ -427,7 +427,7 @@ private fun InfoBanner() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(18.dp)),
     ) {
         Text(
             text = stringResource(R.string.mount_folders_info_banner),
@@ -446,7 +446,7 @@ private fun AllFilesAccessBanner(onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .padding(bottom = 12.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {

@@ -2,6 +2,10 @@ package com.openminis.app.ui.settings
 
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.ui.graphics.Color
+import com.openminis.app.ui.components.LocalPageActionBackdrop
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,11 +48,12 @@ internal fun SettingsGlassTopBar(
     onBack: (() -> Unit)?,
     navigation: @Composable (() -> Unit)?,
     actions: @Composable (() -> Unit)?,
+    background: Color = MiuixTheme.colorScheme.surface,
 ) {
     val colors = MiuixTheme.colorScheme
     MinisGlassTopBar(
         backdrop = backdrop,
-        background = colors.surface,
+        background = background,
         modifier = Modifier.fillMaxWidth(),
         backgroundAlpha = overlap,
     ) {
@@ -85,9 +90,10 @@ internal fun SettingsGlassTopBar(
         ) { measurables, constraints ->
             val width = constraints.maxWidth
             val loose = constraints.copy(minWidth = 0, minHeight = 0)
-            val edge = loose.copy(maxWidth = width / 3)
-            val start = measurables[0].measure(edge)
-            val end = measurables[2].measure(edge)
+            val start = measurables[0].measure(loose.copy(maxWidth = width / 3))
+            // Reserve actual action widths before measuring the title. A one-third cap
+            // squeezed the second 48dp glass target on narrow screens / large fonts.
+            val end = measurables[2].measure(loose.copy(maxWidth = (width - start.width).coerceAtLeast(0)))
             val gap = 10.dp.roundToPx()
             val startSpace = if (start.width > 0) start.width + gap else 0
             val endSpace = if (end.width > 0) end.width + gap else 0
@@ -101,6 +107,36 @@ internal fun SettingsGlassTopBar(
             }
         }
     }
+}
+
+/**
+ * Miuix 0.9.5 SmallTopAppBar measures actions but never places them. Keep the
+ * native typography/buttons, using the shared glass layout that places all three slots.
+ * No clipToBounds: floating shadows and the progressive overhang must remain intact.
+ */
+@Composable
+internal fun MinisSmallTopAppBar(
+    title: String,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+    color: Color = MiuixTheme.colorScheme.surface,
+) {
+    SettingsGlassTopBar(
+        title = title,
+        backdrop = LocalPageActionBackdrop.current as? LayerBackdrop,
+        overlap = { 1f },
+        centerTitle = true,
+        onBack = null,
+        navigation = navigationIcon,
+        actions = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                content = actions,
+            )
+        },
+        background = color,
+    )
 }
 
 @Composable

@@ -82,6 +82,7 @@ fun MinisMenu(
     glassAnchor: GlassPopupAnchor? = null,
     anchorContent: @Composable () -> Unit = {},
     preferAbove: Boolean = false,
+    onPanelMeasured: ((IntSize) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
@@ -176,6 +177,9 @@ fun MinisMenu(
                 GlassTransformPopup(
                     show = show, onDismissRequest = requestDismiss, anchor = glassAnchor,
                     backdrop = scene, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
+                    onMeasured = { size ->
+                        onPanelMeasured?.invoke(IntSize(size.width.toInt(), size.height.toInt()))
+                    },
                     contentPadding = PaddingValues(0.dp), content = rows,
                 )
             } else {
