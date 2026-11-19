@@ -6962,7 +6962,7 @@ fun ChatScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 36.dp)
+                                .heightIn(min = editorMinimumHeight)
                                 .focusRequester(inputFocusRequester)
                                 .onFocusChanged {
                                     // [T-android-composer-placeholder-rotation]
