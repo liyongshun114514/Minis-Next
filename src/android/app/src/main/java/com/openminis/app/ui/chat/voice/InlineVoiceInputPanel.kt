@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat.voice
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -728,6 +730,7 @@ internal fun InlineVoiceInputPanel(
                     CircleIconButton(
                         icon = Icons.Default.Language,
                         contentDescription = stringResource(R.string.voice_panel_language),
+                        modifier = Modifier.minisJellyPress(),
                     ) { showLanguageMenu = true }
                     DropdownMenu(
                         expanded = showLanguageMenu,

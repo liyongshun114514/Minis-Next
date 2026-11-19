@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Assistant-message + tool-pill + thinking rendering
 // extracted verbatim from ChatScreen.kt: AssistantHeader, AssistantMessageView,
@@ -862,6 +864,7 @@ internal fun ToolCallPill(
                     CircleShape,
                 )
                 .border(0.5.dp, ChatColors.toolBorder, CircleShape)
+                .minisJellyPress()
                 .clip(CircleShape)
                 .combinedClickable(
                     onClick = { onOpenDetail(block.id) },
@@ -1159,6 +1162,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .minisJellyPress()
                 .expandToggleClickable(onLongClick = { showThinkingMenu = true }) {
                     // [T-android-thinking-collapse-latch] Record the direction,
                     // not merely that a tap happened. `overHardCap` opens the

@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings.backup
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -916,6 +918,7 @@ private fun MaxFileSizeRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
+                .minisJellyPress(enabled)
                 .then(if (enabled) Modifier.clickable { expanded = true } else Modifier)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

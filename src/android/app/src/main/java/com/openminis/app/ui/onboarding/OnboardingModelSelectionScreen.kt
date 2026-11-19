@@ -1,5 +1,7 @@
 package com.openminis.app.ui.onboarding
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
@@ -367,6 +369,7 @@ private fun ModelFetchFailure(
                 Spacer(Modifier.height(4.dp))
                 Box {
                     TextButton(
+                        modifier = Modifier.minisJellyPress(instances.size > 1),
                         onClick = {
                         if (instances.size == 1) onAddCustomModel(instances.first().first) else pickerOpen = true
                     },

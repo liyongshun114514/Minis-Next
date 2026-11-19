@@ -106,10 +106,10 @@ fun AddModelsToGroupScreen(
                     )
                 },
                 expandable = false,
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         // Resolved here (Composable context) — LazyListScope below can't call
         // stringResource. Localizes the injected System provider section label.

@@ -1,5 +1,8 @@
 package com.openminis.app.ui.sandbox
 
+import com.openminis.app.ui.components.minisJellyPress
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
+
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
@@ -376,6 +379,7 @@ private fun CollapsedBreadcrumbCapsule(
             isCurrent = false,
             onClick = { expanded = true },
             contentDescription = more,
+            menuMotion = true,
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             hidden.forEach { (index, name) ->
@@ -400,12 +404,14 @@ private fun BreadcrumbCapsule(
     onClick: () -> Unit,
     /** Spoken instead of [label] (the `···` capsule). */
     contentDescription: String? = null,
+    menuMotion: Boolean = false,
 ) {
     val shape = RoundedCornerShape(50)
     Box(
         modifier = Modifier
             .heightIn(min = 48.dp)
             .widthIn(min = 48.dp)
+            .then(if (menuMotion) Modifier.minisJellyPress() else Modifier)
             .clip(shape)
             .then(
                 if (isCurrent) Modifier.semantics { heading() }
@@ -482,6 +488,7 @@ private fun FileItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .minisJellyPress()
             .combinedClickable(
                 onClick = onClick,
                 // [T-android-file-context-copy-abs-path] Long-press opens the
@@ -534,6 +541,7 @@ private fun FileItemRow(
                 RowActionButton(
                     icon = Icons.Filled.MoreVert,
                     contentDescription = stringResource(R.string.filebrowser_more_action),
+                    menuMotion = true,
                     onClick = { menuExpanded = true },
                 )
                 FileRowMenu(
@@ -605,10 +613,11 @@ private fun FileIconTile(kind: FileIconKind, isSymlink: Boolean) {
 
 /** A 32 dp round button on a light fill, in a 44 dp touch target. */
 @Composable
-private fun RowActionButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+private fun RowActionButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, menuMotion: Boolean = false) {
     Box(
         modifier = Modifier
             .size(44.dp)
+            .then(if (menuMotion) Modifier.minisJellyPress() else Modifier)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
@@ -772,7 +781,8 @@ private fun MoreMenu(
     Box {
         val actionAnchor = top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor()
         com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { expanded = true }, modifier = Modifier.glassPopupAnchor(actionAnchor, cornerRadius = 24.dp, floating = true)) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.filebrowser_more_action))
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.filebrowser_more_action),
+                modifier = Modifier.glassPopupAnchorContent(actionAnchor))
         }
         com.openminis.app.ui.components.MinisMenu(
                             glassAnchor = actionAnchor,

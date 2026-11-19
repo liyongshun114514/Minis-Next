@@ -144,10 +144,11 @@ def main() -> int:
     ok(band.count(".textureBlur(") == 1 and "BlendMode.DstIn" in band,
        "the shared bar must fade one complete tinted blur layer")
     buttons = band.split("fun MinisGlassIconButton(", 1)[1]
-    ok("layerBackdrop(" not in band and "backdrop = null" in buttons,
-       "glass buttons must not sample a clipped or re-recorded bar")
-    ok("inheritTopBarMaterial = false" in buttons and "fill = MiuixTheme.colorScheme.surfaceContainer" in buttons,
-       "glass buttons must retain their uniform material at zero overlap")
+    ok("layerBackdrop(" not in band and "backdrop: Backdrop? = LocalMinisActionBackdrop.current" in buttons,
+       "glass buttons must sample the body, never a clipped or re-recorded bar")
+    ok("inheritTopBarMaterial = false" in buttons and "backdrop = effectiveBackdrop" in buttons
+       and "shadow = GlassShadows.Regular" in buttons and ".glassPress(interactions, enabled)" in band,
+       "glass buttons must keep native material, press motion and matching morph shadow")
     ok("GlassTopAppBarDefaults.BandOverhang" in band,
        "the translucent band must fade past the toolbar edge")
     chat_code = strip_kotlin(chat)
@@ -157,11 +158,11 @@ def main() -> int:
        and ".background(ChatColors.background)" in chat_code[capture:capture + 200],
        "chat backdrop must record the full-width opaque viewport, not the inset LazyColumn")
     home = strip_kotlin(text(CHAT.parent.parent / "sessions" / "SessionListScreen.kt"))
-    ok("Scaffold(" in host and "layerBackdrop(" not in host and "layerBackdrop(" not in home,
-       "root overlay and session groups must render without page-wide recording")
+    ok("Scaffold(" in host and "scene?.recording == true" in host and "layerBackdrop(" not in home,
+       "root scene recording must be leased to open menus; session groups must render directly at rest")
     ok("LocalMinisOverlayWindow.current === LocalView.current.rootView" in menu,
        "an independently hosted dialog must keep its own menu window")
-    ok("GlassPopup(" in menu and "GlassTransformPopup(" in menu
+    ok("GlassDropdownPopup(" in menu and "GlassTransformPopup(" in menu
        and "WindowListPopup" not in menu,
        "shared menus must use native glass surfaces rather than a solid ListPopup")
     ok("PopupLayout(" in menu and "CompositionLocalProvider(locals" in menu,
@@ -321,8 +322,9 @@ def main() -> int:
     plus = chat[chat.index("// Button row below text field"):call_at]
     ok(plus.index("R.string.chat_attach_add_file") < plus.index("ComposerPermissionMenuItem(")
        < plus.index("ComposerCommandMenuRows("), "permission item is not below Add File")
-    ok("ComposerPermissionDialog(onDismiss = { showComposerPermission = false })" in chat,
-       "composer permission item has no dialog")
+    ok("ComposerPermissionDialog(" in chat and "show = showComposerPermission" in chat
+       and "if (showComposerPermission)" not in chat,
+       "composer permission dialog must remain composed through exit")
     slider_code = strip_kotlin(extras[extras.index("internal fun ComposerEffortSlider("):])
     slider_sheet = chat[chat.index("private fun ThinkingLevelSheet("):]
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None

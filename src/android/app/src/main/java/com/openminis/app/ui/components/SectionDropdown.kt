@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
-import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Surface
-import top.yukonga.miuix.kmp.preference.WindowSpinnerPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Typed selection with Miuix's native press feedback, anchor and selection popup. */
@@ -22,9 +20,9 @@ fun <T> SectionDropdown(
 ) {
     Surface(color = SectionDesign.cardColor(), shape = SectionDesign.CardShape, modifier = modifier.fillMaxWidth()) {
         MiuixTheme(textStyles = MiuixTheme.textStyles.copy(main = textStyle)) {
-            WindowSpinnerPreference(
+            MinisDropdownPreference(
                 title = itemLabel(selected),
-                items = items.map { DropdownItem(text = itemLabel(it)) },
+                items = items.map(itemLabel),
                 selectedIndex = items.indexOf(selected).coerceAtLeast(0),
                 enabled = enabled,
                 showValue = false,

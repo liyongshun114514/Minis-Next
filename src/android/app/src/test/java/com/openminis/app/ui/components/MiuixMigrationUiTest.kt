@@ -50,6 +50,9 @@ import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.foundation.background
+import org.junit.rules.TemporaryFolder
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -65,6 +68,7 @@ import top.yukonga.miuix.kmp.basic.TextField
 @LooperMode(LooperMode.Mode.PAUSED)
 class MiuixMigrationUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val temporary = TemporaryFolder()
 
     @Test fun nativeButtonsHonorEnabledAndCallback() {
         var clicks = 0
@@ -743,6 +747,136 @@ class MiuixMigrationUiTest {
         }
     }
 
+    @Test fun environmentEditorKeepsDraftDuringExitAndClearsItOnReopen() {
+        val values = mutableMapOf<String, String>()
+        val repository = com.openminis.app.data.repository.EnvVarRepository(
+            temporary.newFolder("environment-form"),
+            object : com.openminis.app.data.repository.EnvVarRepository.ValueStore {
+                override fun get(key: String) = values[key]
+                override fun put(key: String, value: String) { values[key] = value }
+                override fun remove(key: String) { values.remove(key) }
+            },
+        )
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.settings.EnvironmentVariablesScreen(repository, onBack = {})
+            }
+        }
+        val add = compose.activity.getString(R.string.env_var_add)
+        val cancel = compose.activity.getString(R.string.common_cancel)
+        compose.onNodeWithContentDescription(add).performClick()
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("CANCELLED_DRAFT")
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText(cancel).performClick()
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNode(hasText("CANCELLED_DRAFT") and hasSetTextAction()).assertExists()
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        compose.onNodeWithContentDescription(add).performClick()
+        compose.onNode(hasText("CANCELLED_DRAFT") and hasSetTextAction()).assertDoesNotExist()
+        compose.onAllNodes(hasSetTextAction())[0].assertTextEquals("")
+        compose.runOnIdle { assertTrue(repository.entries.value.isEmpty()); assertTrue(values.isEmpty()) }
+    }
+
+    @Test fun nativeDropdownCanReopenAfterSelectionAndDisableWithoutCommitting() {
+        var index by mutableStateOf(0)
+        var enabled by mutableStateOf(true)
+        var changes = 0
+        compose.setContent {
+            MinisTheme {
+                SettingsScaffold(title = "Menu preferences") {
+                    SettingsSection {
+                        MinisDropdownPreference(
+                            title = "Routing policy", items = listOf("Fallback", "Load balance"),
+                            selectedIndex = index, enabled = enabled,
+                            onSelectedIndexChange = { index = it; changes++ },
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        compose.onAllNodesWithText("Load balance").onFirst().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, changes); assertEquals(1, index) }
+        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        compose.onAllNodesWithText("Fallback").onFirst().assertIsDisplayed()
+        compose.runOnIdle { enabled = false }
+        compose.waitForIdle()
+        compose.onNode(hasText("Routing policy") and hasClickAction()).assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(1, changes); enabled = true }
+        compose.onNode(hasText("Routing policy") and hasClickAction()).performClick()
+        compose.onAllNodesWithText("Fallback").onFirst().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(2, changes); assertEquals(0, index) }
+    }
+
+    @Test fun transformExitRestoresButtonPixelsAndReleasesSceneRecording() {
+        var scene: MinisSceneBackdrop? = null
+        var finished = 0
+        compose.setContent {
+            MinisTheme {
+                val owner = LocalMinisSceneBackdrop.current
+                SideEffect { scene = owner }
+                MinisPageScaffold(topBar = {
+                    Box(Modifier.fillMaxWidth().height(120.dp).testTag("halo-frame"), contentAlignment = Alignment.Center) {
+                        var open by remember { mutableStateOf(false) }
+                        val anchor = rememberGlassPopupAnchor()
+                        MinisGlassIconButton(
+                            onClick = { open = true }, menuMotion = true,
+                            modifier = Modifier.testTag("halo-button")
+                                .glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
+                        ) { Text("+", Modifier.glassPopupAnchorContent(anchor)) }
+                        MinisMenu(
+                            expanded = open, onDismissRequest = { open = false },
+                            glassAnchor = anchor, anchorContent = { Text("+") },
+                            onDismissFinished = { finished++ },
+                        ) { DropdownMenuItem(text = { Text("Close menu") }, onClick = { open = false }) }
+                    }
+                }) {
+                    Box(Modifier.fillMaxSize().background(MiuixTheme.colorScheme.surface))
+                }
+            }
+        }
+        val before = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
+        repeat(3) {
+            compose.onNodeWithTag("halo-button").performTouchInput { click() }
+            compose.onNodeWithText("Close menu").assertIsDisplayed()
+            compose.runOnIdle { assertTrue(scene?.recording == true) }
+            compose.onNodeWithText("Close menu").performClick()
+            compose.waitForIdle()
+            compose.runOnIdle { assertFalse(scene?.recording == true) }
+            val after = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
+            assertEquals(before.width, after.width)
+            assertEquals(before.height, after.height)
+            var changed = 0
+            for (y in 0 until before.height) for (x in 0 until before.width) {
+                val a = before[x, y]
+                val b = after[x, y]
+                if (kotlin.math.abs(a.red - b.red) > 0.02f ||
+                    kotlin.math.abs(a.green - b.green) > 0.02f ||
+                    kotlin.math.abs(a.blue - b.blue) > 0.02f) changed++
+            }
+            assertTrue("no retained dim halo after cycle $it: $changed pixels", changed <= before.width * before.height / 100)
+        }
+        compose.runOnIdle { assertEquals(3, finished) }
+    }
+
+    @Test fun permissionChoicesUseNativeRowsAndRemainDraftUntilSaved() {
+        var selection by mutableStateOf(com.openminis.app.offload.RootAccess.ASK_ONCE)
+        var choices = 0
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.chat.ComposerRootAccessChoices(selection) { selection = it; choices++ }
+            }
+        }
+        val denied = compose.activity.getString(R.string.composer_root_denied)
+        val allowed = compose.activity.getString(R.string.composer_root_allowed)
+        compose.onNode(hasText(denied) and hasClickAction()).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(com.openminis.app.offload.RootAccess.NOT_ALLOWED, selection) }
+        compose.onNode(hasText(allowed) and hasClickAction()).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(com.openminis.app.offload.RootAccess.BYPASS, selection); assertEquals(2, choices) }
+    }
+
     @Test fun nativePaletteAndFontScaleFollowAppOverride() {
         var dark by mutableStateOf(false)
         var page = Color.Unspecified
@@ -787,7 +921,7 @@ class MiuixMigrationUiTest {
             assertNotEquals(page, composer)
             assertNotEquals(card, field)
             assertEquals(21.25f, fontSize, 0.01f)
-            assertEquals(0.92f, densityRatio, 0.001f)
+            assertEquals(1f, densityRatio, 0.001f)
             assertEquals(1f, fontScaleRatio, 0.001f)
         }
     }

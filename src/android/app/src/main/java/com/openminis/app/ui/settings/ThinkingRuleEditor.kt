@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -187,6 +189,7 @@ fun ThinkingRuleEditorDialog(
                             )
                             Column {
                                 TextButton(
+                                    modifier = Modifier.minisJellyPress(),
                                     onClick = { formatMenuOpen = true },
                                     text = stringResource(choice.titleRes),
                                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),

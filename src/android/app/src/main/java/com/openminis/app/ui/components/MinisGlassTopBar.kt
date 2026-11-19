@@ -1,7 +1,12 @@
 package com.openminis.app.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.glass.glassPress
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -13,13 +18,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -44,28 +48,25 @@ import top.yukonga.miuix.kmp.glass.GlassTopAppBarDefaults
 import top.yukonga.miuix.kmp.material.GlassShadows
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** Draw-only spring: never changes the hit target or measured toolbar/anchor bounds. */
+/** Observe the native clickable without adding a second click handler or a painted overlay. */
 internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = composed {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.90f else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
-        label = "minisJellyPress",
-    )
+    val interactions = remember { MutableInteractionSource() }
+    val scope = rememberCoroutineScope()
     this.pointerInput(enabled) {
         if (!enabled) return@pointerInput
         awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            pressed = true
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val press = PressInteraction.Press(down.position)
+            scope.launch { interactions.emit(press) }
             try {
                 do {
                     val event = awaitPointerEvent(PointerEventPass.Final)
                 } while (event.changes.any { it.pressed })
             } finally {
-                pressed = false
+                scope.launch { interactions.emit(PressInteraction.Cancel(press)) }
             }
         }
-    }.graphicsLayer { scaleX = scale; scaleY = scale }
+    }.glassPress(interactions, enabled)
 }
 
 /** Background band and controls are siblings; the controls never sample a recorded bar. */
@@ -77,6 +78,7 @@ internal fun MinisGlassTopBar(
     backgroundAlpha: () -> Float = { 1f },
     content: @Composable () -> Unit,
 ) {
+    val resolvedBackdrop = backdrop ?: LocalMinisActionBackdrop.current
     val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.80f))) }
     val blurColors = BlurDefaults.blurColors(blendColors = blendColors)
     val fallback = remember(background) { GlassTopAppBarDefaults.bandBrush(background) }
@@ -89,7 +91,7 @@ internal fun MinisGlassTopBar(
     Layout(
         modifier = modifier,
         content = {
-            if (backdrop != null) {
+            if (resolvedBackdrop != null) {
                 Box(
                     Modifier.graphicsLayer {
                         alpha = backgroundAlpha().coerceIn(0f, 1f)
@@ -100,7 +102,7 @@ internal fun MinisGlassTopBar(
                             drawRect(edgeFade, blendMode = BlendMode.DstIn)
                         }
                         .textureBlur(
-                            backdrop = backdrop,
+                            backdrop = resolvedBackdrop,
                             shape = RectangleShape,
                             blurRadius = 25f,
                             noiseCoefficient = 0f,
@@ -110,7 +112,9 @@ internal fun MinisGlassTopBar(
             } else {
                 Box(Modifier.drawBehind { drawRect(fallback, alpha = backgroundAlpha().coerceIn(0f, 1f)) })
             }
-            Box { content() }
+            CompositionLocalProvider(LocalMinisActionBackdrop provides resolvedBackdrop) {
+                Box { content() }
+            }
         },
     ) { measurables, constraints ->
         val foreground = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
@@ -132,14 +136,19 @@ internal fun MinisGlassIconButton(
     size: Dp = 48.dp,
     enabled: Boolean = true,
     menuMotion: Boolean = false,
+    backdrop: Backdrop? = LocalMinisActionBackdrop.current,
     onLongClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
+    val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
+    val effectiveBackdrop = backdrop.takeIf { sameWindow }
+    val currentClick by rememberUpdatedState(onClick)
+    val currentLongClick by rememberUpdatedState(onLongClick)
     // GlassIconButton owns an internal clickable. A second recognizer that only observes
     // DOWN is cancelled by that clickable's consumption. For long-press actions claim DOWN
     // first, then own BOTH tap and hold; the inner clickable remains the semantics action.
-    val longPressModifier = if (onLongClick == null || !enabled) Modifier else Modifier.pointerInput(onClick, onLongClick) {
+    val longPressModifier = if (onLongClick == null || !enabled) Modifier else Modifier.pointerInput(enabled) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = true, pass = PointerEventPass.Initial)
             down.consume()
@@ -149,11 +158,11 @@ internal fun MinisGlassIconButton(
             when (released) {
                 true -> {
                     currentEvent.changes.forEach { it.consume() }
-                    onClick()
+                    currentClick()
                 }
                 null -> {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
+                    currentLongClick?.invoke()
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         event.changes.forEach { it.consume() }
@@ -165,7 +174,7 @@ internal fun MinisGlassIconButton(
     }
     GlassIconButton(
         onClick = { if (enabled) onClick() },
-        modifier = modifier.then(if (menuMotion) Modifier.minisJellyPress(enabled) else Modifier)
+        modifier = modifier.then(if (menuMotion || onLongClick != null) Modifier.minisJellyPress(enabled) else Modifier)
             .alpha(if (enabled) 1f else 0.38f)
             .then(longPressModifier)
             .semantics {
@@ -177,9 +186,10 @@ internal fun MinisGlassIconButton(
                 }
             },
         inheritTopBarMaterial = false,
-        backdrop = null,
-        fill = MiuixTheme.colorScheme.surfaceContainer,
-        shadow = GlassShadows.Float,
+        backdrop = effectiveBackdrop,
+        // The native button and morph endpoint use the same single shadow/material.
+        // Do not add a second app-owned press/dimming surface around that silhouette.
+        shadow = GlassShadows.Regular,
         size = size,
         content = content,
     )

@@ -2785,4 +2785,12 @@
     <string name="provider_image_endpoint_auto">Auto</string>
     <string name="provider_image_endpoint_images">Images API</string>
     <string name="provider_image_endpoint_chat">Chat</string>
+    <string name="composer_permission_title">Permissions</string>
+    <string name="composer_permission_explanation">Synced with Native Root access in settings. Real Root can modify your device and data; chroot is not a security boundary. Your su manager may request separate authorization. Existing interactive sessions keep their approved scope; stop them before revoking access.</string>
+    <string name="composer_root_denied">Not allowed</string>
+    <string name="composer_root_denied_summary">Refuse new native Root and chroot operations.</string>
+    <string name="composer_root_ask">Ask every time</string>
+    <string name="composer_root_ask_summary">Request approval for each command or new interactive session. Denied, cancelled or timed-out requests do not run.</string>
+    <string name="composer_root_allowed">Fully allowed</string>
+    <string name="composer_root_allowed_summary">Run native Root and chroot as uid 0 without a per-request app prompt. You can revoke this at any time.</string>
 </resources>

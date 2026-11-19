@@ -2515,4 +2515,12 @@
     <string name="provider_image_endpoint_auto">自動</string>
     <string name="provider_image_endpoint_images">圖像 API</string>
     <string name="provider_image_endpoint_chat">聊天</string>
+    <string name="composer_permission_title">權限</string>
+    <string name="composer_permission_explanation">與設定中的原生 Root 權限同步。真實 Root 能修改裝置和資料；chroot 不是安全隔離邊界。裝置 su 管理器仍可單獨要求授權。已啟動的互動工作階段保留其獲准範圍，請先停止工作階段再撤銷。</string>
+    <string name="composer_root_denied">不允許</string>
+    <string name="composer_root_denied_summary">拒絕新的原生 Root 和 chroot 操作。</string>
+    <string name="composer_root_ask">每次詢問</string>
+    <string name="composer_root_ask_summary">每次命令或新互動終端工作階段申請單次授權；拒絕、取消、逾時均不執行。</string>
+    <string name="composer_root_allowed">完全允許</string>
+    <string name="composer_root_allowed_summary">允許原生 Root 與 chroot 直接以 uid 0 執行，不再逐次彈出應用程式確認；可隨時撤銷。</string>
 </resources>

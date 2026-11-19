@@ -1,5 +1,7 @@
 package com.openminis.app.ui.preview
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.app.Activity
 import android.content.Intent
@@ -273,6 +275,7 @@ private fun FloatingMenuButton(
                     color = Color.Black.copy(alpha = 0.55f),
                     shape = androidx.compose.foundation.shape.CircleShape,
                 )
+                .minisJellyPress()
                 .clickable(onClick = { menuOpen = true }),
             contentAlignment = Alignment.Center,
         ) {

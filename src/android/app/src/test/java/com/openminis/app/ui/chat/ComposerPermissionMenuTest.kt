@@ -18,7 +18,9 @@ class ComposerPermissionMenuTest {
         val commands = chat.indexOf("ComposerCommandMenuRows(", file)
         assertTrue(start >= 0 && file > start && permission > file && commands > permission)
         assertFalse(chat.substring(file, permission).contains("MinisMenuDivider()"))
-        assertTrue(chat.contains("ComposerPermissionDialog(onDismiss = { showComposerPermission = false })"))
+        assertTrue(chat.contains("ComposerPermissionDialog("))
+        assertTrue(chat.contains("show = showComposerPermission"))
+        assertFalse(chat.contains("if (showComposerPermission)"))
     }
 
     @Test fun permissionUsesOneSharedPersistentRootSetting() {
@@ -31,24 +33,28 @@ class ComposerPermissionMenuTest {
     }
 
     @Test fun changesAreOnlyAppliedBySaveNotDismissOrRadioTap() {
-        assertTrue(menu.contains("var selection by remember(current)"))
-        assertTrue(menu.contains(".clickable { selection = access }"))
-        val dialog = menu.substringAfter("WindowDialog(")
+        assertTrue(menu.contains("var selection by remember { mutableStateOf(current) }"))
+        assertTrue(menu.contains("LaunchedEffect(show) { if (show) selection = current }"))
+        assertTrue(menu.contains("ComposerRootAccessChoices(selection) { selection = it }"))
+        val dialog = menu.substringAfter("WindowDialog(").substringBefore("internal fun ComposerRootAccessChoices")
         assertTrue(dialog.contains("onDismissRequest = onDismiss"))
-        val save = dialog.substringAfter("TextButton(").substringBefore("TextButton(")
-        val cancel = dialog.substringAfterLast("TextButton(")
+        val cancel = dialog.substringAfter("TextButton(").substringBefore("TextButton(")
+        val save = dialog.substringAfterLast("TextButton(")
         assertTrue(save.contains("RootManager.setAccessLevel(selection)"))
-        assertTrue(save.contains("text = \"保存\""))
+        assertTrue(save.contains("R.string.common_save"))
+        assertTrue(save.contains("ButtonDefaults.textButtonColorsPrimary()"))
         assertTrue(cancel.contains("onClick = onDismiss"))
         assertFalse(cancel.contains("setAccessLevel"))
+        assertTrue(dialog.contains("Arrangement.spacedBy(20.dp)"))
     }
 
     @Test fun triStateOrderAndRootRiskAreClear() {
-        val options = menu.substring(menu.indexOf("val descriptions ="), menu.indexOf("WindowDialog("))
+        val options = menu.substringAfter("val options =")
         assertTrue(options.indexOf("NOT_ALLOWED") < options.indexOf("ASK_ONCE"))
         assertTrue(options.indexOf("ASK_ONCE") < options.indexOf("BYPASS"))
-        assertTrue(menu.contains("uid 0"))
-        assertTrue(menu.contains("chroot 不是安全隔离边界"))
-        assertTrue(menu.contains("su 管理器"))
+        assertTrue(menu.contains("RadioButtonPreference("))
+        assertTrue(menu.contains("radioButtonLocation = top.yukonga.miuix.kmp.preference.RadioButtonLocation.End"))
+        assertTrue(menu.contains("R.string.composer_permission_explanation"))
+        assertTrue(menu.contains("R.string.composer_root_allowed_summary"))
     }
 }

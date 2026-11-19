@@ -2584,4 +2584,12 @@
     <string name="provider_image_endpoint_auto">自动</string>
     <string name="provider_image_endpoint_images">图像 API</string>
     <string name="provider_image_endpoint_chat">聊天</string>
+    <string name="composer_permission_title">权限</string>
+    <string name="composer_permission_explanation">与设置中的原生 Root 权限同步。真实 Root 能修改设备和数据；chroot 不是安全隔离边界。设备 su 管理器仍可单独要求授权。已启动的交互会话保留其获准范围，请先停止会话再撤销。</string>
+    <string name="composer_root_denied">不允许</string>
+    <string name="composer_root_denied_summary">拒绝新的原生 Root 和 chroot 操作。</string>
+    <string name="composer_root_ask">每次询问</string>
+    <string name="composer_root_ask_summary">每次命令或新交互终端会话申请单次授权；拒绝、取消、超时均不执行。</string>
+    <string name="composer_root_allowed">完全允许</string>
+    <string name="composer_root_allowed_summary">允许原生 Root 与 chroot 直接以 uid 0 执行，不再逐次弹应用确认；可随时撤销。</string>
 </resources>

@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,6 +87,7 @@ fun EnvironmentVariablesScreen(
             if (existing != null) {
                 editEntryId = existing.id
                 highlightEnabled = !existing.enabled
+                showAddSheet = true
             } else {
                 showAddSheet = true
             }
@@ -101,7 +103,12 @@ fun EnvironmentVariablesScreen(
         // T75-part1 moved Add off a FAB onto the top-bar action slot;
         // kept here for visual continuity.
         actions = {
-            com.openminis.app.ui.components.MinisToolbarIconButton(onClick = { showAddSheet = true }) {
+            com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = {
+                editEntryId = null
+                prefill = null
+                highlightEnabled = false
+                showAddSheet = true
+            }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.env_var_add))
             }
         },
@@ -171,7 +178,7 @@ fun EnvironmentVariablesScreen(
                         else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                         showChevron = false,
                         showDivider = index < entries.size - 1,
-                        onClick = { editEntryId = entry.id },
+                        onClick = { editEntryId = entry.id; showAddSheet = true },
                         trailing = {
                             Row {
                                 IconButton(onClick = {
@@ -227,20 +234,24 @@ fun EnvironmentVariablesScreen(
         Spacer(Modifier.height(24.dp))
     }
 
-    // Add/Edit sheet
-    val formActive = showAddSheet || editEntryId != null
+    // Visibility, editor identity and disposal are separate. Keep the entire draft
+    // and measured sheet through its slide-out; reset only after native completion.
     val editing = editEntryId?.let { id -> entries.find { it.id == id } }
+    var formSession by remember { mutableStateOf(0) }
     OverlayBottomSheet(
-        show = formActive,
+        show = showAddSheet,
         title = if (editing != null) stringResource(R.string.env_var_form_edit_title) else stringResource(R.string.env_var_form_add_title),
-        onDismissRequest = {
-            showAddSheet = false
-            editEntryId = null
-            prefill = null
-            highlightEnabled = false
+        onDismissRequest = { showAddSheet = false },
+        onDismissFinished = {
+            if (!showAddSheet) {
+                editEntryId = null
+                prefill = null
+                highlightEnabled = false
+                formSession++
+            }
         },
     ) {
-        if (formActive) {
+        key(formSession) {
             EnvVarFormSheetContent(
                 editEntry = editing,
                 prefillKey = prefill?.key.orEmpty(),
@@ -248,12 +259,7 @@ fun EnvironmentVariablesScreen(
                 prefillNote = prefill?.note.orEmpty(),
                 highlightEnabled = highlightEnabled,
                 envVarRepository = envVarRepository,
-                onDismiss = {
-                    showAddSheet = false
-                    editEntryId = null
-                    prefill = null
-                    highlightEnabled = false
-                },
+                onDismiss = { showAddSheet = false },
             )
         }
     }
@@ -426,13 +432,13 @@ private fun EnvVarFormSheetContent(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 TextButton(
+                    modifier = Modifier.weight(1f),
                     onClick = onDismiss,
                     text = stringResource(R.string.common_cancel),
-                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                 )
                 TextButton(
                     onClick = {
@@ -446,9 +452,10 @@ private fun EnvVarFormSheetContent(
                         }
                         if (success) onDismiss()
                     },
+                    modifier = Modifier.weight(1f),
                     enabled = canSave,
                     text = if (isEditing) stringResource(R.string.common_save) else stringResource(R.string.env_var_add),
-                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                 )
             }
         }

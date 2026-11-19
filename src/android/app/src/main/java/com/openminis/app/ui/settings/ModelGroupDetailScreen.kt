@@ -2,6 +2,19 @@ package com.openminis.app.ui.settings
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.consumeWindowInsets
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,7 +82,6 @@ import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.foundation.layout.Arrangement
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.BasicComponent
 
 /**
@@ -141,24 +153,28 @@ fun ModelGroupDetailScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            SettingsGlassTopBar(
                 title = group.name,
-                navigationIcon = {
-                    com.openminis.app.ui.components.MinisToolbarIconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.model_group_detail_back))
-                    }
-                },
-                expandable = false,
-                color = MiuixTheme.colorScheme.background,
+                backdrop = null,
+                overlap = { if (lazyListState.canScrollBackward) 1f else 0f },
+                centerTitle = true,
+                onBack = onBack,
+                navigation = null,
+                actions = null,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
+        val direction = LocalLayoutDirection.current
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
+            contentPadding = PaddingValues(
+                start = padding.calculateStartPadding(direction),
+                end = padding.calculateEndPadding(direction),
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + 16.dp,
+            ),
         ) {
             // ── Name section ──────────────────────────────────────────
             item {
@@ -248,14 +264,7 @@ fun ModelGroupDetailScreen(
 
             // ── Members section header ───────────────────────────────
             item {
-                Spacer(Modifier.height(20.dp))
-                Text(
-                    text = stringResource(R.string.model_group_detail_models_header_count, memberIds.size),
-                    style = MiuixTheme.textStyles.footnote2,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 6.dp),
-                )
+                SmallTitle(text = stringResource(R.string.model_group_detail_models_header_count, memberIds.size))
             }
 
             if (memberIds.isEmpty()) {
@@ -283,41 +292,29 @@ fun ModelGroupDetailScreen(
                         ?: com.openminis.app.data.model.SystemVoiceEntries.resolve(entryId)
 
                     if (entry == null) {
-                        // Stale member: UUID no longer resolves to any ModelEntry
+                        // Stale member: UUID no longer resolves to any ModelEntry.
                         ReorderableItem(reorderState, key = entryId) { _ ->
-                            BasicComponent(
-                                startAction = {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.Warning,
-                                                                    contentDescription = stringResource(R.string.model_group_detail_unavailable),
-                                                                    tint = MiuixTheme.colorScheme.error,
-                                                                )
-                                                            },
-                                endActions = {
-                                                                IconButton(onClick = {
-                                                                    val newIds = memberIds.toMutableList().apply { remove(entryId) }
-                                                                    memberIds = newIds
-                                                                    providerRepository.updateGroup(group.copy(memberEntryIds = newIds.toMutableList()))
-                                                                }) {
-                                                                    Icon(
-                                                                        imageVector = Icons.Default.Delete,
-                                                                        contentDescription = stringResource(R.string.common_remove),
-                                                                        tint = MiuixTheme.colorScheme.error,
-                                                                    )
-                                                                }
-                                                            },
-                            ) {
-                                Text(
-                                                                        stringResource(R.string.model_group_detail_stale_member),
-                                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                                                    )
-                                Text(
-                                                                        entryId,
-                                                                        style = MiuixTheme.textStyles.footnote2,
-                                                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                                                        maxLines = 1,
-                                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                                                    )
+                            Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+                                BasicComponent(
+                                    title = stringResource(R.string.model_group_detail_stale_member),
+                                    summary = entryId,
+                                    startAction = {
+                                        Icon(Icons.Default.Warning,
+                                            contentDescription = stringResource(R.string.model_group_detail_unavailable),
+                                            tint = MiuixTheme.colorScheme.error)
+                                    },
+                                    endActions = {
+                                        IconButton(onClick = {
+                                            val newIds = memberIds.toMutableList().apply { remove(entryId) }
+                                            memberIds = newIds
+                                            providerRepository.updateGroup(group.copy(memberEntryIds = newIds.toMutableList()))
+                                        }) {
+                                            Icon(Icons.Default.Delete,
+                                                contentDescription = stringResource(R.string.common_remove),
+                                                tint = MiuixTheme.colorScheme.error)
+                                        }
+                                    },
+                                )
                             }
                         }
                     } else {
@@ -334,66 +331,64 @@ fun ModelGroupDetailScreen(
                         var showMenu by remember { mutableStateOf(false) }
 
                         ReorderableItem(reorderState, key = entryId) { _ ->
-                            BasicComponent(
-                                modifier = Modifier.alpha(if (providerDisabled || notListed) 0.4f else 1f),
-                                startAction = {
-                                                                IconButton(
-                                                                    modifier = Modifier.draggableHandle(),
-                                                                    onClick = {},
-                                                                ) {
-                                                                    Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.model_group_detail_drag_to_reorder))
-                                                                }
-                                                            },
-                                endActions = {
-                                                                Box {
-                                                                    com.openminis.app.ui.components.MinisToolbarIconButton(menuMotion = true, onClick = { showMenu = true }) {
-                                                                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.model_group_detail_more_options))
-                                                                    }
-                                                                    com.openminis.app.ui.components.MinisMenu(
-                                                                        expanded = showMenu,
-                                                                        onDismissRequest = { showMenu = false },
-                                                                    ) {
-                                                                        DropdownMenuItem(
-                                                                            text = { Text(stringResource(R.string.model_group_detail_remove_from_group), color = MiuixTheme.colorScheme.error) },
-                                                                            onClick = {
-                                                                                showMenu = false
-                                                                                entryToRemove = entryId
-                                                                            },
-                                                                        )
-                                                                    }
-                                                                }
-                                                            },
-                            ) {
-                                // [T-model-row-premature-wrap] Name and quota pill on
-                                                                    // one line when they fit, else the name keeps the width
-                                                                    // and the pill drops below, as in the model picker.
-                                                                    com.openminis.app.ui.components.FitOrWrapLine(
-                                                                        lead = { Text(entry.model.displayName) },
-                                                                        tags = {
-                                                                            // [T-quota-group-member-pill] The model's (or its
-                                                                            // account's) quota; this page has no other way to
-                                                                            // the provider's quota. Tap opens the quota sheet.
-                                                                            if (instance != null && !providerDisabled) {
-                                                                                com.openminis.app.ui.quota.ModelQuotaMemberPill(
-                                                                                    instanceId = entry.providerInstanceId,
-                                                                                    modelId = entry.model.id,
-                                                                                ) { quotaSheetInstanceId = entry.providerInstanceId }
-                                                                            }
-                                                                        },
-                                                                    )
-                                if (providerDisabled || notListed) {
-                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                            Text(instanceLabel ?: "")
-                                                                            Text(
-                                                                                if (providerDisabled) " · Provider disabled"
-                                                                                else " · " + stringResource(R.string.model_not_listed_by_provider),
-                                                                                color = MiuixTheme.colorScheme.error,
-                                                                                style = MiuixTheme.textStyles.body2,
-                                                                            )
-                                                                        }
-                                                                    } else {
-                                                                        Text(instanceLabel ?: "")
-                                                                    }
+                            Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+                                BasicComponent(
+                                    modifier = Modifier.alpha(if (providerDisabled || notListed) 0.4f else 1f),
+                                    startAction = {
+                                        IconButton(modifier = Modifier.draggableHandle(), onClick = {}) {
+                                            Icon(Icons.Default.DragHandle,
+                                                contentDescription = stringResource(R.string.model_group_detail_drag_to_reorder))
+                                        }
+                                    },
+                                    endActions = {
+                                        Box {
+                                            val memberAnchor = rememberGlassPopupAnchor()
+                                            com.openminis.app.ui.components.MinisToolbarIconButton(
+                                                menuMotion = true,
+                                                onClick = { showMenu = true },
+                                                modifier = Modifier.glassPopupAnchor(memberAnchor, cornerRadius = 24.dp, floating = true),
+                                            ) {
+                                                Icon(Icons.Default.MoreVert,
+                                                    contentDescription = stringResource(R.string.model_group_detail_more_options),
+                                                    modifier = Modifier.glassPopupAnchorContent(memberAnchor))
+                                            }
+                                            com.openminis.app.ui.components.MinisMenu(
+                                                glassAnchor = memberAnchor,
+                                                anchorContent = { Icon(Icons.Default.MoreVert, contentDescription = null) },
+                                                expanded = showMenu,
+                                                onDismissRequest = { showMenu = false },
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text(stringResource(R.string.model_group_detail_remove_from_group), color = MiuixTheme.colorScheme.error) },
+                                                    onClick = { showMenu = false; entryToRemove = entryId },
+                                                )
+                                            }
+                                        }
+                                    },
+                                ) {
+                                    // Preserve the full model name; the quota pill wraps below when needed.
+                                    com.openminis.app.ui.components.FitOrWrapLine(
+                                        lead = { Text(entry.model.displayName, style = MiuixTheme.textStyles.main) },
+                                        tags = {
+                                            if (instance != null && !providerDisabled) {
+                                                com.openminis.app.ui.quota.ModelQuotaMemberPill(
+                                                    instanceId = entry.providerInstanceId,
+                                                    modelId = entry.model.id,
+                                                ) { quotaSheetInstanceId = entry.providerInstanceId }
+                                            }
+                                        },
+                                    )
+                                    Text(instanceLabel.orEmpty(), style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+                                    if (providerDisabled || notListed) {
+                                        Text(
+                                            if (providerDisabled) "Provider disabled"
+                                            else stringResource(R.string.model_not_listed_by_provider),
+                                            color = MiuixTheme.colorScheme.error,
+                                            style = MiuixTheme.textStyles.body2,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

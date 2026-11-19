@@ -1,5 +1,9 @@
 package com.openminis.app.ui.scheduled
 
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
+
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -107,6 +111,7 @@ fun ScheduledTasksScreen(
                             Icon(
                                 Icons.Filled.MoreVert,
                                 contentDescription = stringResource(R.string.model_group_detail_more_options),
+                                modifier = Modifier.glassPopupAnchorContent(actionAnchor),
                             )
                         }
                         com.openminis.app.ui.components.MinisMenu(
@@ -231,6 +236,7 @@ private fun ScheduledTaskRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
+                .minisJellyPress()
                 .combinedClickable(onClick = onClick, onLongClick = { menuExpanded = true })
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

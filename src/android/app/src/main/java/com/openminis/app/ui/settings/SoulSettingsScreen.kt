@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -262,6 +264,7 @@ fun SoulSettingsScreen(onBack: () -> Unit) {
                                         color = MiuixTheme.colorScheme.dividerLine,
                                         shape = CircleShape,
                                     )
+                                    .minisJellyPress()
                                     .clickable { showIconMenu = true },
                                 contentAlignment = Alignment.Center,
                             ) {

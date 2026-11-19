@@ -57,7 +57,7 @@ import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.glass.GlassPopup
+import top.yukonga.miuix.kmp.glass.GlassDropdownPopup
 import top.yukonga.miuix.kmp.glass.GlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import top.yukonga.miuix.kmp.glass.GlassPopupSizing
@@ -85,6 +85,7 @@ fun MinisMenu(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
+    val hostVisible = remember { mutableStateOf(false) }
     if (!expanded && !mounted) return
     SideEffect { if (expanded) mounted = true }
     val currentExpanded by rememberUpdatedState(expanded)
@@ -92,11 +93,20 @@ fun MinisMenu(
     val currentFinished by rememberUpdatedState(onDismissFinished)
     val finishDismiss = {
         if (mounted && !currentExpanded) {
+            // Close the root host as well as this call site. Otherwise its retained
+            // closure can leave a collapsed surface/shadow above the restored button.
+            hostVisible.value = false
             mounted = false
             currentFinished?.invoke()
         }
     }
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
+    val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow }
+    DisposableEffect(scene) {
+        val release = scene?.acquire()
+        onDispose { release?.invoke() }
+    }
+    val menuBackdrop = scene?.backdrop
     val locals = currentCompositionLocalContext
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
@@ -174,7 +184,7 @@ fun MinisMenu(
             if (glassAnchor != null) {
                 GlassTransformPopup(
                     show = show, onDismissRequest = requestDismiss, anchor = glassAnchor,
-                    backdrop = null, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
+                    backdrop = menuBackdrop, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
                     contentPadding = PaddingValues(0.dp), content = rows,
                 )
             } else {
@@ -184,19 +194,18 @@ fun MinisMenu(
                     anchorBounds, safeBounds, IntSize(width, height), alignEnd,
                     offsetX, offsetY, margin, preferAbove, direction,
                 )
-                GlassPopup(
+                GlassDropdownPopup(
                     show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
-                    backdrop = null, sizing = sizing, visuals = visuals,
+                    backdrop = menuBackdrop, sizing = sizing, visuals = visuals,
                     contentPadding = PaddingValues(0.dp), content = rows,
                 )
             }
         }
     }
     if (sameWindow) {
-        val visible = remember { mutableStateOf(true) }
-        SideEffect { visible.value = true }
+        SideEffect { if (expanded) hostVisible.value = true }
         PopupLayout(
-            visible = visible, enableWindowDim = false, enableBackHandler = false,
+            visible = hostVisible, enableWindowDim = false, enableBackHandler = false,
             enterTransition = EnterTransition.None, exitTransition = ExitTransition.None,
         ) {
             // Root overlays are composed elsewhere; preserve the caller's page/session locals.

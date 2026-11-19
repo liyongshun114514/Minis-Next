@@ -119,10 +119,10 @@ fun AddAgentLoopModelsScreen(
                     )
                 },
                 expandable = false,
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         // [T-picker-search-debounce] Ranked, capped, debounced search.
         val searchSections = com.openminis.app.ui.components.rememberModelEntryPickerSections(
@@ -212,10 +212,10 @@ fun AddAgentLoopGroupsScreen(
                     )
                 },
                 expandable = false,
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         if (available.isEmpty()) {
             Box(

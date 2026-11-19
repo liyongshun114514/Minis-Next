@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Tail composables extracted verbatim from ChatScreen.kt:
 // BorderedMarkdownTable, FallbackInfoBlock, CompactSummarySheet,
@@ -390,6 +392,7 @@ private fun BorderedMarkdownTable(
                     graphicsLayer.record { this@drawWithContent.drawContent() }
                     drawLayer(graphicsLayer)
                 }
+                .minisJellyPress()
                 .combinedClickable(
                     onClick = {},
                     onLongClick = { menuExpanded = true },

@@ -160,6 +160,7 @@ fun ModelGroupsScreen(
     // without retaining their graphics layers in a backdrop.
     val pageColor = MiuixTheme.colorScheme.surface
     Scaffold(
+        recordBodyForActions = false,
         containerColor = pageColor,
         topBar = {
             SettingsGlassTopBar(
@@ -489,13 +490,11 @@ private fun GroupDropdown(
     onSelect: (String?) -> Unit,
 ) {
     val none = stringResource(R.string.model_groups_none)
-    top.yukonga.miuix.kmp.preference.WindowSpinnerPreference(
+    com.openminis.app.ui.components.MinisDropdownPreference(
         title = label,
-        items = listOf(top.yukonga.miuix.kmp.basic.DropdownItem(text = none)) +
-            groups.map { top.yukonga.miuix.kmp.basic.DropdownItem(text = it.name) },
+        items = listOf(none) + groups.map { it.name },
         selectedIndex = groups.indexOfFirst { it.id == selectedId } + 1,
         onSelectedIndexChange = { index -> onSelect(groups.getOrNull(index - 1)?.id) },
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
 }
 

@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Composer/input widgets + tool preview/status bar
 // extracted verbatim from ChatScreen.kt: AttachmentChip, InputCircleButton,
@@ -586,6 +588,7 @@ private fun ToolPreviewThumbnail(
     Box(
         modifier = Modifier
             .size(width = 100.dp, height = 65.dp)
+            .minisJellyPress(onLongClick != null)
             .shadow(elevation = 10.dp, shape = thumbnailShape, ambientColor = Color.Black.copy(alpha = 0.15f), spotColor = Color.Black.copy(alpha = 0.25f))
             .clip(thumbnailShape)
             .background(
@@ -1167,6 +1170,7 @@ internal fun FloatingToolStatusBar(
                     maxLines = 1,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .minisJellyPress()
                         .combinedClickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },

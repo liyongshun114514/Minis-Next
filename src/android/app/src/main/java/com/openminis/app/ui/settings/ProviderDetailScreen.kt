@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -662,6 +664,7 @@ fun ProviderDetailScreen(
                         // visual-only, so the row stays tappable to re-show the
                         // model from its detail screen.
                         .then(if (entry.isHidden) Modifier.alpha(0.45f) else Modifier)
+                        .minisJellyPress()
                         .combinedClickable(
                             onClick = { onModelEntryClick(entry.id) },
                             // [T-android-model-row-hide-action] Long-press now
@@ -1527,6 +1530,7 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
             SettingsRow(
                 title = stringResource(R.string.provider_detail_response_idle_timeout),
                 onClick = { menuOpen = true },
+                menuMotion = true,
                 showChevron = false,
                 showDivider = false,
                 trailing = { Text(label(seconds), color = MiuixTheme.colorScheme.onSurfaceContainerVariant) },

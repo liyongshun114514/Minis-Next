@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisJellyPress
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,7 +131,7 @@ fun SettingsSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.fillMaxWidth().padding(top = 16.dp)) {
+    Column(modifier.fillMaxWidth().padding(bottom = 12.dp)) {
         if (header != null) SmallTitle(text = header)
         Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), content = content)
         if (footer != null) {
@@ -159,10 +160,12 @@ fun SettingsRow(
     trailing: (@Composable () -> Unit)? = null,
     minHeight: Dp = 56.dp,
     onLongClick: (() -> Unit)? = null,
+    menuMotion: Boolean = false,
 ) {
     val leading = if (icon != null) settingsRowIcon(icon, iconColor) else null
     val colors = BasicComponentDefaults.titleColor(color = titleColor)
     val modifier = Modifier.heightIn(min = minHeight)
+        .then(if (menuMotion || onLongClick != null) Modifier.minisJellyPress(onClick != null) else Modifier)
     if (showChevron && onLongClick == null) {
         ArrowPreference(
             title = title,
@@ -259,8 +262,7 @@ fun SettingsChoiceRow(
     showDivider: Boolean = true,
 ) {
     RadioButtonPreference(
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(16.dp)),
+        modifier = Modifier.clip(RoundedCornerShape(16.dp)),
         title = title,
         selected = selected,
         onClick = onSelect,

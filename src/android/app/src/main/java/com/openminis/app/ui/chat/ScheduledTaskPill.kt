@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.icu.text.MeasureFormat
 import android.icu.util.Measure
@@ -276,6 +278,7 @@ private fun PillCard(
                     .background(MiuixTheme.colorScheme.surface, CircleShape)
                     .background(ScheduledAccent.copy(alpha = 0.06f), CircleShape)
                     .border(0.75.dp, ScheduledAccent.copy(alpha = 0.28f), CircleShape)
+                    .minisJellyPress()
                     .combinedClickable(
                         onClick = onOpen,
                         onLongClick = {

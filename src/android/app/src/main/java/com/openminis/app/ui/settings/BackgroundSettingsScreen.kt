@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.res.pluralStringResource
 import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.BatteryFull
@@ -244,11 +243,11 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
                 pluralStringResource(R.plurals.settings_scheduled_countdown_minutes, 15, 15),
                 stringResource(R.string.settings_scheduled_countdown_always),
             )
-            OverlaySpinnerPreference(
+            com.openminis.app.ui.components.MinisDropdownPreference(
                 modifier = Modifier.clip(RoundedCornerShape(18.dp))
                     .background(MiuixTheme.colorScheme.surfaceContainer),
                 title = stringResource(R.string.settings_scheduled_countdown),
-                items = countdownLabels.map { DropdownItem(text = it) },
+                items = countdownLabels,
                 selectedIndex = scheduledCountdownLead.coerceIn(countdownLabels.indices),
                 onSelectedIndexChange = { backgroundRepo.setScheduledCountdownLead(it) },
                 startAction = {

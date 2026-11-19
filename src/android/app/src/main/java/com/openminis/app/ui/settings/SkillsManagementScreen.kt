@@ -1,5 +1,7 @@
 package com.openminis.app.ui.settings
 
+import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
+
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.R
@@ -168,6 +170,7 @@ fun SkillsManagementScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.Sort,
                         contentDescription = stringResource(R.string.filebrowser_sort_by),
+                        modifier = Modifier.glassPopupAnchorContent(actionAnchor),
                     )
                 }
                 com.openminis.app.ui.components.MinisMenu(
@@ -228,7 +231,8 @@ fun SkillsManagementScreen(
                     menuMotion = true,
                     onClick = { showAddMenu = true },
                     modifier = Modifier.glassPopupAnchor(addAnchor, cornerRadius = 24.dp, floating = true),
-                ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.skill_add)) }
+                ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.skill_add),
+                    modifier = Modifier.glassPopupAnchorContent(addAnchor)) }
                 com.openminis.app.ui.components.MinisMenu(
                     expanded = showAddMenu,
                     onDismissRequest = { showAddMenu = false },

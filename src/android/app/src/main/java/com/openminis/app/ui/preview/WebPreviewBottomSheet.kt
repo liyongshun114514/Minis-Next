@@ -1,5 +1,7 @@
 package com.openminis.app.ui.preview
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.R
@@ -345,6 +347,7 @@ internal fun WebPreviewToolbar(
             ToolbarIcon(
                 icon = Icons.Default.MoreVert,
                 description = stringResource(R.string.webpreview_more),
+                menuMotion = true,
                 onClick = { menuOpen = true },
             )
             com.openminis.app.ui.components.MinisMenu(
@@ -424,9 +427,11 @@ private fun ToolbarIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     onClick: () -> Unit,
+    menuMotion: Boolean = false,
 ) {
     Box(
         modifier = Modifier
+            .then(if (menuMotion) Modifier.minisJellyPress() else Modifier)
             .size(40.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick),

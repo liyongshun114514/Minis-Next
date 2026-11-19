@@ -407,6 +407,7 @@ private fun AgentPolicyRow(
         SettingsRow(
             title = stringResource(R.string.perm_agent_policy),
             onClick = { expanded = true },
+            menuMotion = true,
             // [T-android-perm-row-affordance] This row OPENS A DROPDOWN, but with
             // showChevron=false it looked like a read-only status line — nothing
             // hinted it was tappable. It also broke alignment with the sibling
@@ -480,6 +481,7 @@ private fun PermissionRow(
             title = toolTitle(tool),
             subtitle = tool.toolName,
             onClick = { expanded = true },
+            menuMotion = true,
             // [T-android-perm-row-affordance] Same dropdown affordance as
             // AgentPolicyRow — this row opens the same tri-state menu, so it gets
             // the same chevron. Keeping the two in sync also keeps every value in

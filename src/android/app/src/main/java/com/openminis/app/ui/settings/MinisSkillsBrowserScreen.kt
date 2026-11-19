@@ -125,10 +125,10 @@ fun MinisSkillsBrowserScreen(
                     )
                 },
                 expandable = false,
-                color = MiuixTheme.colorScheme.background,
+                color = MiuixTheme.colorScheme.surface,
             )
         },
-        containerColor = MiuixTheme.colorScheme.background,
+        containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
         Box(
             modifier = Modifier

@@ -27,11 +27,9 @@ import androidx.compose.ui.unit.dp
  * while retaining this app's string-based state and cursor-selection contract.
  * Error state uses the Miuix error border and tint.
  *
- * Horizontal contentPadding is 0: every callsite places this field inside
- * a parent ([SettingsCardBlock] or a manually padded Column) that already
- * adds the 16dp horizontal inset. Adding our own 16dp on top would
- * double-indent the text glyphs relative to sibling section headers /
- * description text / radio rows — see T352.
+ * A field is its own filled Miuix surface. Parent/card gutters position that
+ * surface; they do not replace the native inner margin between its edge and text.
+ * Keep an explicit inner inset in settings, sheets and dialogs alike.
  */
 @Composable
 fun SectionTextField(
@@ -50,30 +48,10 @@ fun SectionTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     textStyle: TextStyle = MiuixTheme.textStyles.main,
     fieldModifier: Modifier = Modifier,
-    /**
-     * Fill behind the field. The default matches settings cards — but inside
-     * a ModalBottomSheet that default is INVISIBLE: M3 sheets use the same
-     * surfaceContainerLow as their container, so the field renders as bare
-     * borderless text. Sheet callers pass a contrasting fill (typically
-     * [SectionDesign.screenBackgroundColor]) to restore the filled-card
-     * look the settings screens have.
-     */
+    /** Optional semantic fill override; the default separates the input from its Card. */
     containerColor: Color? = null,
-    /**
-     * [T-android-sheet-textfield-inset] Horizontal inset for the glyphs inside
-     * the field.
-     *
-     * Defaults to 0 because on a SETTINGS screen the field is a full-bleed row
-     * inside a section card whose parent already applies the 16dp inset — any
-     * padding here would double it and break alignment with sibling rows (T352).
-     *
-     * That assumption does not hold in a bottom sheet / dialog, where the field
-     * is a standalone rounded card supplying its own background: with 0 the text
-     * and placeholder sit flush against the card's left edge. Those callers pass
-     * a real inset instead of the component changing its default, so no settings
-     * screen shifts.
-     */
-    contentHorizontalPadding: Dp = 0.dp,
+    /** Inner text margin, independent from page/Card/SettingsCardBlock gutters. */
+    contentHorizontalPadding: Dp = SectionDesign.RowHorizontalPadding,
 ) {
     val fieldColors = TextFieldDefaults.textFieldColors(
         backgroundColor = containerColor ?: MiuixTheme.colorScheme.surfaceContainerHigh,

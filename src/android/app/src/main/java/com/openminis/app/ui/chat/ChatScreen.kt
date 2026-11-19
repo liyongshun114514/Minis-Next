@@ -7186,7 +7186,7 @@ fun ChatScreen(
                         )
                     }
 
-                    } // Editor region grows with the + menu; controls stay bottom-aligned.
+                    } // Only multiline text grows the editor; menus never change its geometry.
 
                     // Button row below text field (iOS layout: + / ... mic send)
                     Row(
@@ -7203,6 +7203,7 @@ fun ChatScreen(
                             val attachAnchor = rememberGlassPopupAnchor()
                             MinisGlassIconButton(
                                 onClick = { showAttachMenu = true },
+                                backdrop = chatTopBackdrop,
                                 size = 34.dp,
                                 menuMotion = true,
                                 modifier = Modifier.glassPopupAnchor(attachAnchor, cornerRadius = 17.dp, floating = true),
@@ -8296,9 +8297,10 @@ fun ChatScreen(
         )
     }
 
-    if (showComposerPermission) {
-        ComposerPermissionDialog(onDismiss = { showComposerPermission = false })
-    }
+    ComposerPermissionDialog(
+        show = showComposerPermission,
+        onDismiss = { showComposerPermission = false },
+    )
 
     // Keep the active picker session in composition until Miuix finishes its exit.
     if (showModelPicker || retainModelPicker) {

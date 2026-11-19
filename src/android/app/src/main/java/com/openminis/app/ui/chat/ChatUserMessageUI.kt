@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] User-message rendering extracted verbatim from
 // ChatScreen.kt: UserMessageBubble, UserAttachmentList, FileAttachmentTile,
@@ -323,6 +325,7 @@ internal fun UserMessageBubble(
         Box(
             modifier = Modifier
                 .widthIn(max = bubbleMaxWidth)
+                .minisJellyPress()
                 // pointerInput on the OUTER box (= MinisMenu's anchor). Long-press
                 // anywhere on the bubble (text or attachments) opens the menu;
                 // press coords are stored in this box's coordinate space, which

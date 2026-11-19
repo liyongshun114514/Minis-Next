@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import top.yukonga.miuix.kmp.basic.Card
 
 /**
- * Single source of truth for Settings section-card visual rhythm.
- * Mirror of iOS SwiftUI Form / List grouped style; the values below are
- * derived from the iOS reference screenshot and its pixel measurements.
+ * Shared settings/form spacing. External Cards follow Miuix's 12dp gutter;
+ * native SmallTitle and Preference components own their internal typography
+ * and padding. Existing row/field sizes remain explicit for editor contracts.
  *
  * All Settings screens (ProviderDetail / MountedFolders / MountDetail /
  * ModelGroups / EnvironmentVariables / etc.) MUST consume from this
@@ -28,8 +28,8 @@ import top.yukonga.miuix.kmp.basic.Card
  * here every screen updates atomically.
  */
 object SectionDesign {
-    /** Outer column padding from screen edge. iOS UIKit insets.left/.right = 16. */
-    val ScreenHorizontalPadding = 16.dp
+    /** External Card gutter; native Preference rows own their separate 16dp inner margin. */
+    val ScreenHorizontalPadding = 12.dp
 
     /** Card corner radius. iOS UITableViewCell rounded section uses ~10pt. */
     val CardShape = RoundedCornerShape(12.dp)
@@ -110,17 +110,7 @@ fun SectionHeader(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = text,
-        style = MiuixTheme.textStyles.subtitle,
-        fontWeight = FontWeight.SemiBold,
-        color = MiuixTheme.colorScheme.onSurface,
-        modifier = modifier.padding(
-            start = SectionDesign.ScreenHorizontalPadding,
-            end = SectionDesign.ScreenHorizontalPadding,
-            bottom = SectionDesign.HeaderToCardGap,
-        ),
-    )
+    top.yukonga.miuix.kmp.basic.SmallTitle(text = text, modifier = modifier)
 }
 
 /**
@@ -136,8 +126,8 @@ fun SectionFooter(
         style = MiuixTheme.textStyles.body2,
         color = SectionDesign.footerColor(),
         modifier = modifier.padding(
-            start = SectionDesign.ScreenHorizontalPadding,
-            end = SectionDesign.ScreenHorizontalPadding,
+            start = SectionDesign.ScreenHorizontalPadding + SectionDesign.RowHorizontalPadding,
+            end = SectionDesign.ScreenHorizontalPadding + SectionDesign.RowHorizontalPadding,
             top = SectionDesign.CardToFooterGap,
         ),
     )
@@ -189,8 +179,8 @@ fun SectionDivider() {
  * Horizontal padding is 0: callsites place this inside [SettingsCardBlock]
  * (or a manually padded Column) which already adds the 16dp inset. Adding
  * our own 16dp on top would double-indent the label relative to sibling
- * SectionHeader / description text / radio rows — see T353. Mirrors
- * SectionTextField's contentPadding=0 from T352.
+ * other page captions. The filled TextField owns its separate inner text
+ * margin; outer caption alignment must not remove that inner spacing.
  */
 @Composable
 fun RowLabel(

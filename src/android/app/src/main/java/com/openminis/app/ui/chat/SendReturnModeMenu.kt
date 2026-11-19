@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.ui.components.DecorativeSpinner
 import android.content.Context
@@ -206,6 +208,7 @@ fun ComposerSendButton(
     val a11yLabel = stringResource(R.string.send_return_mode_a11y_action)
     Box(
         modifier = modifier
+            .minisJellyPress()
             .size(38.dp)
             .background(
                 if (canActivate && !busy) ChatColors.sendButton else ChatColors.sendButtonDisabled,
@@ -423,6 +426,7 @@ fun ComposerStopButton(
     val a11yLabel = stringResource(R.string.stop_mode_a11y_action)
     Box(
         modifier = modifier
+            .minisJellyPress()
             .size(38.dp)
             .background(Color(0xFFFF3B30), CircleShape)
             .clip(CircleShape)

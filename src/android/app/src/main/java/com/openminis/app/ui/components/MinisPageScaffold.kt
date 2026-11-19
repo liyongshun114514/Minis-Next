@@ -5,7 +5,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -26,21 +32,31 @@ internal fun MinisPageScaffold(
     floatingToolbarPosition: ToolbarPosition = ToolbarPosition.BottomCenter,
     snackbarHost: @Composable () -> Unit = {},
     containerColor: Color = MiuixTheme.colorScheme.surface,
+    recordBodyForActions: Boolean = true,
     contentWindowInsets: WindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    val backdrop = if (recordBodyForActions && isRuntimeShaderSupported()) rememberLayerBackdrop {
+        drawRect(containerColor)
+        drawContent()
+    } else null
     top.yukonga.miuix.kmp.basic.Scaffold(
         modifier = modifier,
-        topBar = topBar,
-        bottomBar = bottomBar,
-        floatingActionButton = floatingActionButton,
+        topBar = { CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop, content = topBar) },
+        bottomBar = { CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop, content = bottomBar) },
+        floatingActionButton = { CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop, content = floatingActionButton) },
         floatingActionButtonPosition = floatingActionButtonPosition,
         floatingToolbar = floatingToolbar,
         floatingToolbarPosition = floatingToolbarPosition,
         snackbarHost = snackbarHost,
         containerColor = containerColor,
         contentWindowInsets = contentWindowInsets,
-        content = content,
+        content = { padding ->
+            // Sampling controls live in Scaffold slots, outside this opaque body recording.
+            Box(Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
+                content(padding)
+            }
+        },
     )
 }
 

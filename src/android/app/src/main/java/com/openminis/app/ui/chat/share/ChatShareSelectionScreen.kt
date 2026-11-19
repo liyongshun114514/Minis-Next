@@ -1,5 +1,7 @@
 package com.openminis.app.ui.chat.share
 
+import com.openminis.app.ui.components.minisJellyPress
+
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
@@ -386,6 +388,7 @@ private fun ChatShareRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .minisJellyPress()
             // Selected: a tint plus a check badge floating at the leading edge (not a
             // column, so the row keeps the chat's layout).
             .background(if (selected) accent.copy(alpha = 0.18f) else Color.Transparent),

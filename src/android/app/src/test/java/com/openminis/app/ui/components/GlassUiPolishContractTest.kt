@@ -9,8 +9,10 @@ class GlassUiPolishContractTest {
     @Test fun `only function menu triggers opt into the jelly spring`() {
         val buttons = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
         assertTrue(buttons.contains("menuMotion: Boolean = false"))
-        assertTrue(buttons.contains("if (menuMotion) Modifier.minisJellyPress(enabled) else Modifier"))
-        assertTrue(buttons.contains("spring(dampingRatio = 0.55f, stiffness = 500f)"))
+        assertTrue(buttons.contains("if (menuMotion || onLongClick != null) Modifier.minisJellyPress(enabled) else Modifier"))
+        assertTrue(buttons.contains(".glassPress(interactions, enabled)"))
+        assertFalse(buttons.contains("animateFloatAsState("))
+        assertTrue(buttons.contains("shadow = GlassShadows.Regular"))
         assertTrue(buttons.contains("GlassIconButton("))
         assertTrue("long press must own DOWN before the nested clickable", buttons.contains("down.consume()"))
         assertTrue(buttons.contains("withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis)"))
@@ -80,14 +82,48 @@ class GlassUiPolishContractTest {
         assertTrue(skills.contains("glassAnchor = actionAnchor"))
     }
 
+    @Test fun `forms separate field insets card gutters and semantic surfaces`() {
+        val field = ProductionSources.read("ui/components/SectionTextField.kt")
+        assertTrue(field.contains("contentHorizontalPadding: Dp = SectionDesign.RowHorizontalPadding"))
+        assertFalse(field.contains("contentHorizontalPadding: Dp = 0.dp"))
+        val tokens = ProductionSources.read("ui/components/SectionDesign.kt")
+        assertTrue(tokens.contains("val ScreenHorizontalPadding = 12.dp"))
+        assertTrue(tokens.contains("SmallTitle(text = text, modifier = modifier)"))
+        val detail = ProductionSources.read("ui/settings/ModelGroupDetailScreen.kt")
+        assertFalse(detail.contains("MiuixTheme.colorScheme.background"))
+        assertTrue(detail.contains("SettingsGlassTopBar("))
+        assertTrue(detail.contains("glassAnchor = memberAnchor"))
+        val theme = ProductionSources.read("ui/theme/Theme.kt")
+        assertFalse(theme.contains("MINIS_UI_DENSITY_SCALE"))
+        assertFalse(theme.contains("LocalDensity provides"))
+        assertFalse(theme.contains("textAlign = TextAlign.Left"))
+    }
+
+    @Test fun `environment editor closes before clearing its content`() {
+        val env = ProductionSources.read("ui/settings/EnvironmentVariablesScreen.kt")
+        val sheet = env.substringAfter("// Visibility, editor identity").substringBefore("// Delete confirmation")
+        assertTrue(sheet.contains("onDismissRequest = { showAddSheet = false }"))
+        assertTrue(sheet.contains("onDismissFinished = {"))
+        assertTrue(sheet.contains("formSession++"))
+        assertTrue(sheet.contains("key(formSession)"))
+        assertFalse(sheet.contains("if (formActive)"))
+        assertTrue(env.contains("ButtonDefaults.textButtonColorsPrimary()"))
+    }
+
     @Test fun `group lists render directly and toolbar actions keep separate space`() {
         val palette = ProductionSources.read("ui/theme/Theme.kt")
         assertTrue(palette.contains("userBubble = colors.surfaceContainerHigh"))
-        val sources = listOf("ui/components/MinisPageScaffold.kt", "ui/components/MinisOverlayHost.kt",
-            "ui/sessions/SessionListScreen.kt", "ui/settings/ModelGroupsScreen.kt")
-        for (source in sources) {
+        for (source in listOf("ui/sessions/SessionListScreen.kt", "ui/settings/ModelGroupsScreen.kt")) {
             assertFalse(source, ProductionSources.read(source).contains("layerBackdrop("))
         }
+        val scene = ProductionSources.read("ui/components/MinisOverlayHost.kt")
+        assertTrue(scene.contains("if (scene?.recording == true) Modifier.layerBackdrop(scene.backdrop) else Modifier"))
+        val page = ProductionSources.read("ui/components/MinisPageScaffold.kt")
+        assertTrue(page.contains("recordBodyForActions && isRuntimeShaderSupported()"))
+        val menus = ProductionSources.read("ui/components/MinisMenu.kt")
+        assertTrue(menus.contains("hostVisible.value = false"))
+        assertTrue(menus.contains("scene?.acquire()"))
+        assertTrue(menus.contains("backdrop = menuBackdrop"))
         val bar = ProductionSources.read("ui/settings/SettingsGlassTopBar.kt")
         assertTrue(bar.contains("Arrangement.spacedBy(8.dp)"))
         assertFalse("multiple actions must not stack in one Box", bar.contains("Box(contentAlignment = Alignment.CenterEnd) { actions?.invoke() }"))

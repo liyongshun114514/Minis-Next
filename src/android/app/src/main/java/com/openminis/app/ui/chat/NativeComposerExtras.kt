@@ -1,6 +1,7 @@
 package com.openminis.app.ui.chat
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.openminis.app.ui.components.minisJellyPress
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -264,6 +265,7 @@ internal fun ComposerModelThinkingBar(
                 // A fill=true weight would park the name's clickable box
                 // across the whole row and push the chip to the far edge.
                 .weight(1f, fill = false)
+                .minisJellyPress()
                 .clip(RoundedCornerShape(8.dp))
                 .then(
                     if (modelInteractionSource != null) {
@@ -290,6 +292,7 @@ internal fun ComposerModelThinkingBar(
             Box(
                 modifier = Modifier
                     .height(30.dp)
+                    .minisJellyPress(levelEnabled)
                     .then(if (compact) Modifier.widthIn(min = 0.dp) else Modifier.widthIn(min = 64.dp))
                     .alpha(if (levelEnabled) 1f else 0.45f)
                     .clip(RoundedCornerShape(15.dp))

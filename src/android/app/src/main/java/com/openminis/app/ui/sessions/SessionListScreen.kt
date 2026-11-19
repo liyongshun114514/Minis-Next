@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import com.openminis.app.ui.components.minisJellyPress
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -972,8 +973,8 @@ fun SessionListScreen(
     val scheduledBadgeCount = com.openminis.app.scheduled.ScheduledTaskStore
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
-    // The list starts below the pinned header and can dispose rows during folder toggles.
-    // Draw it directly instead of feeding those transient row layers into another RenderNode.
+    // Folder toggles can detach rows: do not retain their layers for resting chrome.
+    // Menus acquire a separate, temporary scene capture through the root host.
     Scaffold(
         topBar = {
             RichTitleAppBar(
@@ -2102,6 +2103,7 @@ private fun SelectionToolbar(
         var showExportMenu by remember { mutableStateOf(false) }
         Box {
             Button(
+                modifier = Modifier.minisJellyPress(selectedCount > 0),
                 onClick = { showExportMenu = true },
                 enabled = selectedCount > 0,
                 colors = ButtonDefaults.buttonColors(color = Color.Transparent, disabledColor = Color.Transparent, contentColor = MiuixTheme.colorScheme.primary),
@@ -2845,6 +2847,7 @@ internal fun FolderCard(
                 // long-press OFFSET is available for menu anchoring; the
                 // ripple is driven by hand through the InteractionSource
                 // (same pattern as SessionRow's press indication).
+                .minisJellyPress()
                 .indication(headerPressInteractions, LocalIndication.current)
                 .pointerInput(density, headerHaptics) {
                     detectTapGestures(
@@ -3170,6 +3173,7 @@ private fun SessionRow(
                         // Folder members: the wrapper's clip shapes the
                         // ripple to the card's segment, like the selection
                         // band (PAR-261022-02).
+                        .minisJellyPress()
                         .indication(pressInteractions, LocalIndication.current)
                         .pointerInput(Unit) {
                             detectTapGestures(

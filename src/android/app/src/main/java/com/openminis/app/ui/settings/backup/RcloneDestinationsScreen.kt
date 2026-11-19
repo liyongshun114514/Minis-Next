@@ -272,12 +272,10 @@ internal fun AddServerForm(
     // That crash fired every time "Add Server" was opened.
     Column(Modifier.padding(16.dp)) {
         // Backend picker
-        top.yukonga.miuix.kmp.preference.WindowSpinnerPreference(
+        com.openminis.app.ui.components.MinisDropdownPreference(
             title = stringResource(R.string.backup_dest_server_type),
             items = RcloneBackendCatalog.all.map { b ->
-                top.yukonga.miuix.kmp.basic.DropdownItem(
-                    text = stringResource(R.string.backup_dest_backend_label, b.title, b.subtitle),
-                )
+                stringResource(R.string.backup_dest_backend_label, b.title, b.subtitle)
             },
             selectedIndex = RcloneBackendCatalog.all.indexOf(backend).coerceAtLeast(0),
             onSelectedIndexChange = { index ->
