@@ -55,13 +55,13 @@ class GlassUiPolishContractTest {
         assertTrue("fade the complete tinted result, not only the blur", glass.contains("drawRect(edgeFade, blendMode = BlendMode.DstIn)"))
     }
 
-    @Test fun `attachment menu height drives editor while sends use only neutral colors`() {
+    @Test fun `attachment menu stays independent of editor while send uses neutral colors`() {
         val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
-        assertTrue(chat.contains("onPanelMeasured = { attachmentMenuHeightPx = it.height }"))
-        assertTrue(chat.contains("onDismissFinished = { attachmentMenuHeightPx = 0 }"))
+        assertTrue(chat.contains("val editorMinimumHeight = ComposerSurfaceGeometry.EDITOR_MIN_HEIGHT_DP.dp"))
         assertTrue(chat.contains(".heightIn(min = editorMinimumHeight)"))
-        val menu = ProductionSources.read("ui/components/MinisMenu.kt")
-        assertTrue(menu.contains("onMeasured = { size ->"))
+        val attachment = chat.substringAfter("glassAnchor = attachAnchor").substringBefore("ComposerMenuHeader(")
+        assertFalse(attachment.contains("onPanelMeasured"))
+        assertFalse(chat.contains("attachmentMenuHeightPx"))
         val palette = ProductionSources.read("ui/theme/Theme.kt")
         assertTrue(palette.contains("sendButton = colors.onSurface"))
         assertTrue(palette.contains("sendButtonDisabled = colors.onSurface.copy(alpha = 0.10f)"))
@@ -80,14 +80,14 @@ class GlassUiPolishContractTest {
         assertTrue(skills.contains("glassAnchor = actionAnchor"))
     }
 
-    @Test fun `user bubbles are neutral and toolbar capture excludes its own actions`() {
+    @Test fun `group lists render directly and toolbar actions keep separate space`() {
         val palette = ProductionSources.read("ui/theme/Theme.kt")
         assertTrue(palette.contains("userBubble = colors.surfaceContainerHigh"))
-        assertFalse(palette.contains("lerp(colors.surfaceContainer, colors.primary"))
-        val page = ProductionSources.read("ui/components/MinisPageScaffold.kt")
-        assertTrue(page.contains("LocalPageActionBackdrop provides backdrop"))
-        assertTrue(page.contains("Modifier.layerBackdrop(backdrop)"))
-        assertTrue(page.indexOf("topBar = topBar") < page.indexOf("Modifier.layerBackdrop(backdrop)"))
+        val sources = listOf("ui/components/MinisPageScaffold.kt", "ui/components/MinisOverlayHost.kt",
+            "ui/sessions/SessionListScreen.kt", "ui/settings/ModelGroupsScreen.kt")
+        for (source in sources) {
+            assertFalse(source, ProductionSources.read(source).contains("layerBackdrop("))
+        }
         val bar = ProductionSources.read("ui/settings/SettingsGlassTopBar.kt")
         assertTrue(bar.contains("Arrangement.spacedBy(8.dp)"))
         assertFalse("multiple actions must not stack in one Box", bar.contains("Box(contentAlignment = Alignment.CenterEnd) { actions?.invoke() }"))

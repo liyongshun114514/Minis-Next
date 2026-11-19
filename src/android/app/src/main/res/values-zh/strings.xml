@@ -1724,6 +1724,8 @@
     <string name="model_picker_groups_edit">编辑</string>
     <string name="model_picker_jump_current">定位到当前模型</string>
     <string name="model_picker_edit_provider">编辑 %1$s</string>
+    <string name="model_picker_expand_provider">展开 %1$s 的模型</string>
+    <string name="model_picker_collapse_provider">收起 %1$s 的模型</string>
     <string name="model_picker_groups_footer">将本会话绑定到分组以实现自动回退或负载均衡。</string>
     <string name="model_picker_default_badge">默认</string>
     <string name="model_picker_no_model_selected">未选择模型</string>

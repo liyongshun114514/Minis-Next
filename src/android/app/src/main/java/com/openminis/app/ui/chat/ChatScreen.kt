@@ -977,6 +977,8 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showModelPicker by remember { mutableStateOf(false) }
+    var retainModelPicker by remember { mutableStateOf(false) }
+    var afterModelPickerDismiss by remember { mutableStateOf<(() -> Unit)?>(null) }
     // [T-android-picker-provider-edit] Reopen the picker after a hand-off to
     // a provider's settings or Model Groups (iOS shows those over the picker).
     val reopenModelPickerOnResume = com.openminis.app.ui.components.rememberReopenOnResume {
@@ -3098,7 +3100,7 @@ fun ChatScreen(
                 navigationIcon = {
                     // [T-android-tablet-split] See `isTwoPane`.
                     if (!isTwoPane) {
-                        ChatGlassIconButton(backdrop = chatTopBackdrop, onClick = onBack) {
+                        MinisGlassIconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.settings_back),
@@ -3159,8 +3161,7 @@ fun ChatScreen(
                         //    28dp brings its ink to ~14dp, closing most of the
                         //    optical gap. The IconButton's 48dp touch target is
                         //    unchanged, so this is purely visual weight.
-                        ChatGlassIconButton(
-                            backdrop = chatTopBackdrop,
+                        MinisGlassIconButton(
                             onClick = onToggleSidebar,
                             modifier = Modifier.offset(y = (-2).dp),
                         ) {
@@ -3182,8 +3183,7 @@ fun ChatScreen(
                     // iOS: "..." circle button → dropdown menu
                     Box {
                         val moreAnchor = rememberGlassPopupAnchor()
-                        ChatGlassIconButton(
-                            backdrop = chatTopBackdrop,
+                        MinisGlassIconButton(
                             onClick = { showChatMenu = true },
                             menuMotion = true,
                             modifier = Modifier.glassPopupAnchor(moreAnchor, cornerRadius = 24.dp, floating = true),
@@ -6121,16 +6121,7 @@ fun ChatScreen(
 
                 // Eta-style 24dp thin-glass surface over the message-only recording.
                 val inputShape = remember { GlassShape(ComposerSurfaceGeometry.CORNER_RADIUS_DP.dp) }
-                var attachmentMenuHeightPx by remember(sessionId) { mutableIntStateOf(0) }
-                var inputCardHeightPx by remember(sessionId) { mutableIntStateOf(0) }
-                var editorRegionHeightPx by remember(sessionId) { mutableIntStateOf(0) }
-                val editorMinimumHeight = with(composerDensity) {
-                    ComposerSurfaceGeometry.editorMinimumHeightDp(
-                        menuHeightDp = attachmentMenuHeightPx.toDp().value,
-                        cardHeightDp = inputCardHeightPx.toDp().value,
-                        editorHeightDp = editorRegionHeightPx.toDp().value,
-                    ).dp
-                }
+                val editorMinimumHeight = ComposerSurfaceGeometry.EDITOR_MIN_HEIGHT_DP.dp
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6262,7 +6253,6 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .onGloballyPositioned { inputCardHeightPx = it.size.height }
                         .glassPanel(
                             backdrop = chatTopBackdrop,
                             shape = inputShape,
@@ -6595,8 +6585,7 @@ fun ChatScreen(
                     // InlineVoiceInputView). The legacy in-composer waveform
                     // branch below only serves captures started OUTSIDE the
                     // panel (none today, kept as a safety net).
-                    Box(Modifier.fillMaxWidth().heightIn(min = editorMinimumHeight)
-                        .onGloballyPositioned { editorRegionHeightPx = it.size.height }) {
+                    Box(Modifier.fillMaxWidth().heightIn(min = editorMinimumHeight)) {
                     if (com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive) {
                         // [T-readaloud-volume-bar] The read-aloud volume is no
                         // longer a standing row here: it opens above the TTS
@@ -7213,7 +7202,6 @@ fun ChatScreen(
                         Box {
                             val attachAnchor = rememberGlassPopupAnchor()
                             MinisGlassIconButton(
-                                backdrop = chatTopBackdrop,
                                 onClick = { showAttachMenu = true },
                                 size = 34.dp,
                                 menuMotion = true,
@@ -7230,8 +7218,6 @@ fun ChatScreen(
                                 expanded = showAttachMenu,
                                 onDismissRequest = { showAttachMenu = false },
                                 glassAnchor = attachAnchor,
-                                onPanelMeasured = { attachmentMenuHeightPx = it.height },
-                                onDismissFinished = { attachmentMenuHeightPx = 0 },
                                 anchorContent = {
                                     Icon(Icons.Default.Add, contentDescription = null,
                                         tint = MiuixTheme.colorScheme.onSurfaceContainerVariant, modifier = Modifier.size(20.dp))
@@ -8314,8 +8300,9 @@ fun ChatScreen(
         ComposerPermissionDialog(onDismiss = { showComposerPermission = false })
     }
 
-    // Model Picker bottom sheet
-    if (showModelPicker) {
+    // Keep the active picker session in composition until Miuix finishes its exit.
+    if (showModelPicker || retainModelPicker) {
+        SideEffect { if (showModelPicker) retainModelPicker = true }
         val config by providerRepository.config.collectAsState()
         val activeEntryId by viewModel.activeEntryId.collectAsState()
 
@@ -8343,6 +8330,7 @@ fun ChatScreen(
             config.modelEntries.firstOrNull { it.id == entryId }
 
         ModelPickerSheet(
+            show = showModelPicker,
             groups = availableGroups,
             selectedGroupId = selectedGroupId,
             activeEntryId = activeEntryId,
@@ -8394,18 +8382,28 @@ fun ChatScreen(
                 }
             },
             onDismiss = { showModelPicker = false },
-            // [T-android-modelpicker-group-edit] Close the picker first, then
-            // navigate — pushing the management screen on top of an open bottom
-            // sheet leaves the sheet lingering behind it on back.
+            onDismissFinished = {
+                if (!showModelPicker) {
+                    retainModelPicker = false
+                    val next = afterModelPickerDismiss
+                    afterModelPickerDismiss = null
+                    next?.invoke()
+                }
+            },
+            // Wait until the window has closed before pushing a management route.
             onEditGroups = {
+                afterModelPickerDismiss = {
+                    reopenModelPickerOnResume()
+                    onModelGroupsClick()
+                }
                 showModelPicker = false
-                reopenModelPickerOnResume()
-                onModelGroupsClick()
             },
             onEditProvider = { instanceId ->
+                afterModelPickerDismiss = {
+                    reopenModelPickerOnResume()
+                    onEditProviderClick(instanceId)
+                }
                 showModelPicker = false
-                reopenModelPickerOnResume()
-                onEditProviderClick(instanceId)
             },
         )
 

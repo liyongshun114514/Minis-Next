@@ -28,6 +28,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.verticalDrag
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.animation.scaleIn
@@ -63,6 +64,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -175,7 +177,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -212,7 +216,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
@@ -274,11 +281,18 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.unit.DpSize
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
+
+private val ModelPickerGutter = 12.dp
+private val ModelPickerCardRadius = 18.dp
 
 @Composable
 internal fun ModelPickerSheet(
+    show: Boolean,
     groups: List<ModelGroup>,
     selectedGroupId: String?,
     activeEntryId: String?,
@@ -289,6 +303,7 @@ internal fun ModelPickerSheet(
     onSelectGroupEntry: (String, String) -> Unit,
     onSelectEntry: (String) -> Unit,
     onDismiss: () -> Unit,
+    onDismissFinished: () -> Unit,
     /** [T-android-modelpicker-group-edit] "Edit" affordance on the Model Groups
      *  section header — dismisses the sheet and navigates to the Model Groups
      *  management screen. Null hides the button (callers without a route). */
@@ -387,72 +402,61 @@ internal fun ModelPickerSheet(
         else searchResult?.sections?.map { it.key to it.entries } ?: baseSections
     val truncatedSearch = searchResult?.takeIf { query.isNotEmpty() && it.truncated }
 
-    WindowBottomSheet(
-        show = true,
-        insideMargin = DpSize.Zero,
-        onDismissRequest = onDismiss,
-    ) {
+    val colors = MiuixTheme.colorScheme
+    val sheetDensity = LocalDensity.current
+    val pickerContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                // [T-android-model-picker-polish] navigationBarsPadding ALONE.
-                //
-                // This also carried a fixed `padding(bottom = 32.dp)`, so the
-                // gesture bar was accounted for twice: 32dp on top of the
-                // system inset the modifier already reserves (~24-48dp
-                // depending on device). The result was a dead band under the
-                // sheet far deeper than the chat composer's, which uses the
-                // inset on its own — the mismatch that reads as "the picker
-                // floats too high off the home indicator".
-                .navigationBarsPadding(),
+                // The Miuix sheet owns the top safe bound and IME avoidance.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                .pointerInput(show) {
+                    if (!show) awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent(PointerEventPass.Initial)
+                                .changes.forEach { it.consume() }
+                        }
+                    }
+                },
         ) {
-            // ── Title bar (iOS: "Choose Model" + Done) ──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = ModelPickerGutter),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Spacer(Modifier.weight(1f))
                 Text(
-                    stringResource(R.string.model_picker_title),
-                    style = MiuixTheme.textStyles.headline1,
-                    fontWeight = FontWeight.SemiBold,
+                    text = stringResource(R.string.model_picker_title),
+                    style = MiuixTheme.textStyles.title4,
+                    color = colors.onSurface,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() },
                 )
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                    TextButton(
-                        onClick = onDismiss,
-                        text = stringResource(R.string.model_picker_done),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-                }
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = show,
+                    text = stringResource(R.string.model_picker_done),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
 
-            // ── Search bar (iOS: capsule rounded) ──
-            //
-            // [T-android-search-height] BasicTextField + DecorationBox rather
-            // than a plain OutlinedTextField, so contentPadding is ours to set.
-            //
-            // The plain component cannot be made 42dp tall: its intrinsic
-            // height is 56dp, so `heightIn(min=42)` never binds, and forcing
-            // `height(42)` squeezes the frame while its own 16dp vertical
-            // contentPadding stays put — which clipped the placeholder to its
-            // top half on device. Owning contentPadding is the only way to
-            // shrink the field without cutting the text; same pattern
-            // SectionTextField already uses for this reason.
             TextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = ModelPickerGutter, vertical = 8.dp),
                 label = stringResource(R.string.model_picker_search_placeholder),
+                enabled = show,
                 useLabelAsPlaceholder = true,
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                insideMargin = DpSize(14.dp, 10.dp),
+                colors = TextFieldDefaults.textFieldColors(
+                    backgroundColor = colors.surfaceContainerHigh,
+                    labelColor = colors.onSurfaceContainerVariant,
+                ),
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 trailingIcon = {
                     if (searchText.isNotEmpty()) {
                         IconButton(onClick = { searchText = "" }) {
-                            Icon(Icons.Default.Close, stringResource(R.string.model_picker_search_clear), modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.Close, stringResource(R.string.model_picker_search_clear), modifier = Modifier.size(20.dp))
                         }
                     }
                 },
@@ -477,9 +481,9 @@ internal fun ModelPickerSheet(
                 var index = 0
                 if (filteredGroups.isNotEmpty()) {
                     if (selectedGroupId != null) {
-                        return@run if (filteredGroups.any { it.id == selectedGroupId }) 0 to selectedGroupRowTop else null
+                        return@run if (filteredGroups.any { it.id == selectedGroupId }) 1 to selectedGroupRowTop else null
                     }
-                    index += if (searchText.isEmpty()) 2 else 1
+                    index += if (searchText.isEmpty()) 3 else 2
                 }
                 if (selectedGroupId != null) return@run null
                 for ((instance, entries) in allInstancesWithEntries) {
@@ -506,62 +510,41 @@ internal fun ModelPickerSheet(
             Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
             LazyColumn(
                 state = pickerListState,
+                contentPadding = PaddingValues(bottom = 16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .nestedScroll(pickerScrollGuard),
             ) {
-                // ── Model Groups (grouped section card with embedded header) ──
                 if (filteredGroups.isNotEmpty()) {
-                    // Section card: header + rows live in the same surface so
-                    // the visual unit is unambiguous. Header uses the
-                    // titleSmall + onSurfaceVariant pair so it reads as a
-                    // section label rather than another row.
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                                .background(
-                                    MiuixTheme.colorScheme.surfaceContainerHighest,
-                                    RoundedCornerShape(14.dp),
-                                ),
+                    item(key = "model_groups_header") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = ModelPickerGutter),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // [T-android-modelpicker-group-edit] Section header
-                            // row: label on the left, an "Edit" button on the
-                            // right that jumps to the Model Groups management
-                            // screen (mirrors the iOS picker's group-section edit
-                            // affordance). Button hidden when no route is wired.
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    stringResource(R.string.model_picker_groups_section),
-                                    // [T-android-model-picker-polish] Section
-                                    // headers outrank the rows beneath them.
-                                    // titleSmall is 14sp Medium while the group
-                                    // and model names are bodyMedium SemiBold —
-                                    // same size, HEAVIER weight — so the header
-                                    // read as the weaker of the two and the
-                                    // hierarchy inverted. titleMedium (16sp) +
-                                    // SemiBold puts it a step above.
-                                    style = MiuixTheme.textStyles.headline1,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 16.dp, top = 14.dp, bottom = 6.dp),
+                            SmallTitle(
+                                text = stringResource(R.string.model_picker_groups_section),
+                                modifier = Modifier.weight(1f).semantics { heading() },
+                                insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            )
+                            if (onEditGroups != null) {
+                                TextButton(
+                                    onClick = onEditGroups,
+                                    enabled = show,
+                                    text = stringResource(R.string.model_picker_groups_edit),
+                                    colors = ButtonDefaults.textButtonColors(
+                                        color = Color.Transparent,
+                                        disabledColor = Color.Transparent,
+                                        textColor = colors.primary,
+                                    ),
                                 )
-                                if (onEditGroups != null) {
-                                    // Text button (not a pencil icon) matching the
-                                    // sheet's other text actions like "Done".
-                                    TextButton(
-                                        onClick = onEditGroups,
-                                        modifier = Modifier.padding(end = 8.dp),
-                                        text = stringResource(R.string.model_picker_groups_edit),
-                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                    )
-                                }
                             }
+                        }
+                    }
+                    item(key = "model_groups_card") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = ModelPickerGutter),
+                            cornerRadius = ModelPickerCardRadius,
+                        ) {
                             filteredGroups.forEachIndexed { index, group ->
                                 val isSelected = group.id == selectedGroupId
                                 val isDefault = group.id == defaultPrimaryGroupId
@@ -586,14 +569,6 @@ internal fun ModelPickerSheet(
                                         com.openminis.app.data.model.SystemVoiceEntries.resolve(entryId) != null
                                 }
 
-                                // Header sits above the first row, so the
-                                // first-row corners are no longer rounded
-                                // (only the bottom row of the last group is).
-                                val groupShape = when {
-                                    index == filteredGroups.size - 1 -> RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
-                                    else -> RoundedCornerShape(0.dp)
-                                }
-
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -606,15 +581,14 @@ internal fun ModelPickerSheet(
                                                 selectedGroupRowOnScreen = c.boundsInWindow().height >= c.size.height * 0.9f
                                             } else Modifier
                                         )
-                                        .clip(groupShape)
-                                        .clickable { onSelectGroup(group.id) }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        .modelPickerSelection(isSelected, show) { onSelectGroup(group.id) }
+                                        .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Icon(
                                         if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                         contentDescription = null,
-                                        tint = if (isSelected) Color(0xFF34C759)
+                                        tint = if (isSelected) colors.primary
                                         else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                         modifier = Modifier.size(22.dp),
                                     )
@@ -630,7 +604,7 @@ internal fun ModelPickerSheet(
                                     Icon(
                                         Icons.Default.Layers,
                                         contentDescription = null,
-                                        tint = Color(0xFF007AFF),
+                                        tint = MiuixTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp),
                                     )
                                     Spacer(Modifier.width(10.dp))
@@ -710,10 +684,10 @@ internal fun ModelPickerSheet(
                                             fontSize = 9.sp,
                                             lineHeight = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF007AFF),
+                                            color = colors.onPrimaryContainer,
                                             modifier = Modifier
                                                 .background(
-                                                    Color(0xFF007AFF).copy(alpha = 0.1f),
+                                                    colors.primaryContainer,
                                                     RoundedCornerShape(50),
                                                 )
                                                 .padding(horizontal = 5.dp, vertical = 1.dp),
@@ -721,50 +695,15 @@ internal fun ModelPickerSheet(
                                         Spacer(Modifier.width(8.dp))
                                     }
 
-                                    // [T-android-model-picker-polish]
-                                    // Expand/collapse chevron, matched to iOS
-                                    // (UnifiedModelPicker.swift:688-691): a
-                                    // NEUTRAL tertiarySystemFill circle with a
-                                    // .secondary glyph.
-                                    //
-                                    // T295 had pushed this to secondaryContainer
-                                    // to escape surfaceContainerHigh, which on
-                                    // the light theme is #F7F7FA and vanished
-                                    // against the white card. That fixed the
-                                    // visibility but overshot: a tinted
-                                    // container reads as an accented ACTION,
-                                    // competing with the group name beside it,
-                                    // where this is only a disclosure control.
-                                    // onSurface at low alpha separates from the
-                                    // card without claiming that emphasis.
-                                    //
-                                    // 28dp -> 24dp: at 28 the circle stood
-                                    // taller than the row's own text and drew
-                                    // the eye first.
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .background(
-                                                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                                                CircleShape,
-                                            )
-                                            .clip(CircleShape)
-                                            .clickable {
-                                                expandedGroupIds = if (isExpanded) {
-                                                    expandedGroupIds - group.id
-                                                } else {
-                                                    expandedGroupIds + group.id
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                        )
-                                    }
+                                    PickerDisclosureButton(
+                                        expanded = isExpanded,
+                                        enabled = show,
+                                        label = stringResource(if (isExpanded) R.string.group_collapse else R.string.group_expand),
+                                        onClick = {
+                                            expandedGroupIds = if (isExpanded) expandedGroupIds - group.id
+                                            else expandedGroupIds + group.id
+                                        },
+                                    )
                                 }
 
                                 // Expanded group member entries
@@ -810,18 +749,20 @@ internal fun ModelPickerSheet(
                                                 )
                                             }
                                             val isActive = activeEntryId == entry.id
+                                            val isMemberSelected = isSelected && isActive
                                             val instance = config.instances.find { it.id == entry.providerInstanceId }
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .clickable { onSelectGroupEntry(group.id, entry.id) }
+                                                    .heightIn(min = 48.dp)
+                                                    .modelPickerSelection(isMemberSelected, show) { onSelectGroupEntry(group.id, entry.id) }
                                                     .padding(start = 48.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
                                                 Icon(
-                                                    if (isActive) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                                    if (isMemberSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                     contentDescription = null,
-                                                    tint = if (isActive) Color(0xFF007AFF)
+                                                    tint = if (isMemberSelected) colors.primary
                                                     else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.2f),
                                                     modifier = Modifier.size(17.dp),
                                                 )
@@ -921,11 +862,12 @@ internal fun ModelPickerSheet(
                         item(key = "section_${instance.id}") {
                             Column(
                                 modifier = Modifier
-                                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = if (isCollapsed) 6.dp else 0.dp)
+                                    .padding(horizontal = ModelPickerGutter)
+                                    .padding(top = 12.dp)
                                     .background(
-                                        MiuixTheme.colorScheme.surfaceContainerHighest,
-                                        if (isCollapsed) RoundedCornerShape(14.dp)
-                                        else RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                                        colors.surfaceContainer,
+                                        if (isCollapsed) RoundedCornerShape(ModelPickerCardRadius)
+                                        else RoundedCornerShape(topStart = ModelPickerCardRadius, topEnd = ModelPickerCardRadius),
                                     ),
                             ) {
                                 // Header row, embedded in the card.
@@ -989,39 +931,23 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .padding(end = 4.dp)
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .clickable { onEditProvider(instance.id) }
+                                                .clickable(enabled = show) { onEditProvider(instance.id) }
                                                 .semantics { contentDescription = editLabel }
                                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                                         )
                                     }
-                                    // [T-android-model-picker-polish] Same
-                                    // neutral treatment as the group chevron
-                                    // above — see that comment for why the
-                                    // tinted container was dropped.
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .background(
-                                                MiuixTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                                                CircleShape,
-                                            )
-                                            .clip(CircleShape)
-                                            .clickable {
-                                                collapsedInstanceIds = if (isCollapsed) {
-                                                    collapsedInstanceIds - instance.id
-                                                } else {
-                                                    collapsedInstanceIds + instance.id
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                                        )
-                                    }
+                                    PickerDisclosureButton(
+                                        expanded = !isCollapsed,
+                                        enabled = show,
+                                        label = stringResource(
+                                            if (isCollapsed) R.string.model_picker_expand_provider else R.string.model_picker_collapse_provider,
+                                            providerName,
+                                        ),
+                                        onClick = {
+                                            collapsedInstanceIds = if (isCollapsed) collapsedInstanceIds - instance.id
+                                            else collapsedInstanceIds + instance.id
+                                        },
+                                    )
                                 }
 
                                 // [T-android-model-picker-polish] Hairline under
@@ -1049,15 +975,15 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 48.dp)
-                                                .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
-                                                .clickable { onSelectEntry(displayEntry.id) }
+                                                .clip(RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius))
+                                                .modelPickerSelection(selectedEntry != null, show) { onSelectEntry(displayEntry.id) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Icon(
                                                 if (selectedEntry != null) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                 contentDescription = null,
-                                                tint = if (selectedEntry != null) Color(0xFF007AFF)
+                                                tint = if (selectedEntry != null) MiuixTheme.colorScheme.primary
                                                 else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                                 modifier = Modifier.size(20.dp),
                                             )
@@ -1119,7 +1045,7 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 40.dp)
-                                                .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
+                                                .clip(RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius))
                                                 .clickable { collapsedInstanceIds = collapsedInstanceIds - instance.id }
                                                 .padding(horizontal = 16.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -1135,7 +1061,7 @@ internal fun ModelPickerSheet(
                                                 Icons.Default.KeyboardArrowDown,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp),
-                                                tint = Color(0xFF007AFF),
+                                                tint = MiuixTheme.colorScheme.primary,
                                             )
                                             Spacer(Modifier.width(4.dp))
                                             Text(
@@ -1145,7 +1071,7 @@ internal fun ModelPickerSheet(
                                                     entries.size,
                                                 ),
                                                 style = MiuixTheme.textStyles.footnote1,
-                                                color = Color(0xFF007AFF),
+                                                color = MiuixTheme.colorScheme.primary,
                                             )
                                         }
                                         }
@@ -1158,10 +1084,10 @@ internal fun ModelPickerSheet(
                                 val isLastRow = index == entries.size - 1
                                 Column(
                                     modifier = Modifier
-                                        .padding(start = 16.dp, end = 16.dp, bottom = if (isLastRow) 6.dp else 0.dp)
+                                        .padding(horizontal = ModelPickerGutter)
                                         .background(
-                                            MiuixTheme.colorScheme.surfaceContainerHighest,
-                                            if (isLastRow) RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
+                                            colors.surfaceContainer,
+                                            if (isLastRow) RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius)
                                             else androidx.compose.ui.graphics.RectangleShape,
                                         ),
                                 ) {
@@ -1170,7 +1096,7 @@ internal fun ModelPickerSheet(
                                         // Last row clips its own bottom so the
                                         // ripple respects the card corners.
                                         val rowShape = if (index == entries.size - 1) {
-                                            RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
+                                            RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius)
                                         } else {
                                             RoundedCornerShape(0.dp)
                                         }
@@ -1182,14 +1108,14 @@ internal fun ModelPickerSheet(
                                                 .fillMaxWidth()
                                                 .heightIn(min = 48.dp)
                                                 .clip(rowShape)
-                                                .clickable { onSelectEntry(entry.id) }
+                                                .modelPickerSelection(isSelected, show) { onSelectEntry(entry.id) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Icon(
                                                 if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                                 contentDescription = null,
-                                                tint = if (isSelected) Color(0xFF007AFF)
+                                                tint = if (isSelected) MiuixTheme.colorScheme.primary
                                                 else MiuixTheme.colorScheme.onSurfaceContainerVariant.copy(alpha = 0.3f),
                                                 modifier = Modifier.size(20.dp),
                                             )
@@ -1304,6 +1230,18 @@ internal fun ModelPickerSheet(
         }
     }
 
+    WindowBottomSheet(
+        show = show,
+        backgroundColor = colors.surface,
+        dragHandleColor = colors.onSurfaceVariantSummary,
+        insideMargin = DpSize.Zero,
+        onDismissRequest = { if (show) onDismiss() },
+        onDismissFinished = onDismissFinished,
+    ) {
+        // Android Dialog supplies its own density. Use the app density for the picker content.
+        CompositionLocalProvider(LocalDensity provides sheetDensity, content = pickerContent)
+    }
+
     // [T-quota-badge-ui] Read-only quota details, on top of the picker.
     quotaSheetInstanceId?.let { id ->
         key(id) {
@@ -1404,29 +1342,39 @@ private fun ProviderEntryRowText(
  * [T-android-model-picker-polish] Per-row Quick Test affordance, mirroring
  * iOS's `bolt.badge.checkmark` button (UnifiedModelPicker.swift:542).
  *
- * Sized to a 32dp target and given its own click surface so it never competes
- * with the row's select gesture: tapping the row picks the model, tapping the
- * bolt tests it without changing the selection.
+ * An independent icon action starts the test without changing the selection.
  */
 @Composable
 private fun QuickTestButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
+    IconButton(onClick = onClick, minWidth = 48.dp, minHeight = 48.dp) {
         Icon(
             Icons.Default.Bolt,
             contentDescription = stringResource(R.string.model_picker_quick_test),
-            tint = Color(0xFF007AFF),
+            tint = MiuixTheme.colorScheme.primary,
             modifier = Modifier.size(17.dp),
         )
     }
 }
 
-// iOS: provider color dot helper
+@Composable
+private fun PickerDisclosureButton(expanded: Boolean, enabled: Boolean, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, minWidth = 48.dp, minHeight = 48.dp) {
+        Icon(
+            if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = label,
+            tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun Modifier.modelPickerSelection(selected: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier {
+    val color = MiuixTheme.colorScheme.primary.copy(alpha = if (selected) 0.08f else 0f)
+    return background(color).selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+}
+
+// Provider type marks
 private fun providerDotColor(providerType: ProviderType?): Color = when (providerType) {
     ProviderType.anthropic -> Color(0xFFAB47BC) // purple
     ProviderType.gemini -> Color(0xFF42A5F5)    // blue

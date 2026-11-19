@@ -16,12 +16,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -32,8 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -42,15 +38,11 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.ProgressiveBlur
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.glass.GlassIconButton
 import top.yukonga.miuix.kmp.glass.GlassTopAppBarDefaults
-
-internal val LocalTopBarBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+import top.yukonga.miuix.kmp.material.GlassShadows
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Draw-only spring: never changes the hit target or measured toolbar/anchor bounds. */
 internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = composed {
@@ -76,71 +68,53 @@ internal fun Modifier.minisJellyPress(enabled: Boolean = true): Modifier = compo
     }.graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
-/**
- * The same scene -> progressive band -> button sampling order as Miuix GlassTopAppBar,
- * retaining Minis' rich title slots. Neither the title nor its buttons enter either recording.
- */
+/** Background band and controls are siblings; the controls never sample a recorded bar. */
 @Composable
 internal fun MinisGlassTopBar(
-    backdrop: LayerBackdrop?,
+    backdrop: Backdrop?,
     background: Color,
     modifier: Modifier = Modifier,
     backgroundAlpha: () -> Float = { 1f },
     content: @Composable () -> Unit,
 ) {
-    var bandCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val buttonBackdrop = if (backdrop != null) {
-        rememberLayerBackdrop {
-            // At zero overlap the band is transparent: retain the raw scene underneath it.
-            val coordinates = bandCoordinates?.takeIf { it.isAttached }
-            with(backdrop) { drawBackdrop(this@rememberLayerBackdrop, coordinates) }
-            drawContent()
-        }
-    } else null
-    val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.3f))) }
+    val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.80f))) }
     val blurColors = BlurDefaults.blurColors(blendColors = blendColors)
     val fallback = remember(background) { GlassTopAppBarDefaults.bandBrush(background) }
-    // progressiveTextureBlur also blends a uniform tint. Fade the WHOLE result,
-    // not just its blur radius, or that tint ends as a visible horizontal shelf.
     val edgeFade = remember {
         Brush.verticalGradient(
-            0f to Color.White, 0.38f to Color.White,
-            0.72f to Color.White.copy(alpha = 0.55f), 1f to Color.Transparent,
+            0f to Color.White, 0.42f to Color.White,
+            0.78f to Color.White.copy(alpha = 0.42f), 1f to Color.Transparent,
         )
     }
     Layout(
         modifier = modifier,
         content = {
-            if (backdrop != null && buttonBackdrop != null) {
+            if (backdrop != null) {
                 Box(
-                    Modifier.onGloballyPositioned { bandCoordinates = it }
-                        .layerBackdrop(buttonBackdrop)
-                        .graphicsLayer {
-                            alpha = backgroundAlpha().coerceIn(0f, 1f)
-                            compositingStrategy = CompositingStrategy.Offscreen
-                        }
+                    Modifier.graphicsLayer {
+                        alpha = backgroundAlpha().coerceIn(0f, 1f)
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
                         .drawWithContent {
                             drawContent()
                             drawRect(edgeFade, blendMode = BlendMode.DstIn)
                         }
-                        .progressiveTextureBlur(
+                        .textureBlur(
                             backdrop = backdrop,
                             shape = RectangleShape,
-                            blurRadius = GlassTopAppBarDefaults.ProgressiveBlurRadius.value,
-                            gradient = ProgressiveBlur.Top.copy(curve = 0.5f),
+                            blurRadius = 25f,
+                            noiseCoefficient = 0f,
                             colors = blurColors,
                         ),
                 )
             } else {
                 Box(Modifier.drawBehind { drawRect(fallback, alpha = backgroundAlpha().coerceIn(0f, 1f)) })
             }
-            Box {
-                CompositionLocalProvider(LocalTopBarBackdrop provides buttonBackdrop) { content() }
-            }
+            Box { content() }
         },
     ) { measurables, constraints ->
         val foreground = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
-        // The fade extends beyond the toolbar, without enlarging its layout or hit rectangle.
+        // The fade reaches below the toolbar without enlarging its touch bounds.
         val bandHeight = foreground.height + GlassTopAppBarDefaults.BandOverhang.roundToPx()
         val band = measurables[0].measure(Constraints.fixed(foreground.width, bandHeight))
         layout(foreground.width, foreground.height) {
@@ -150,10 +124,9 @@ internal fun MinisGlassTopBar(
     }
 }
 
-/** Always floating; sample the rendered band rather than replacing it with the raw page. */
+/** A glass silhouette with a uniform fill keeps its rim intact across inset boundaries. */
 @Composable
 internal fun MinisGlassIconButton(
-    backdrop: Backdrop?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
@@ -204,8 +177,9 @@ internal fun MinisGlassIconButton(
                 }
             },
         inheritTopBarMaterial = false,
-        backdrop = LocalTopBarBackdrop.current ?: backdrop,
-        material = GlassTopAppBarDefaults.buttonMaterial(),
+        backdrop = null,
+        fill = MiuixTheme.colorScheme.surfaceContainer,
+        shadow = GlassShadows.Float,
         size = size,
         content = content,
     )

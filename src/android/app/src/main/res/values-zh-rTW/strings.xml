@@ -1672,6 +1672,8 @@
     <string name="model_picker_groups_edit">編輯</string>
     <string name="model_picker_jump_current">定位到目前模型</string>
     <string name="model_picker_edit_provider">編輯 %1$s</string>
+    <string name="model_picker_expand_provider">展開 %1$s 的模型</string>
+    <string name="model_picker_collapse_provider">收合 %1$s 的模型</string>
     <string name="model_picker_groups_footer">將本工作階段綁定到分組以實現自動回退或負載平衡。</string>
     <string name="model_picker_default_badge">預設</string>
     <string name="model_picker_no_model_selected">未選擇模型</string>

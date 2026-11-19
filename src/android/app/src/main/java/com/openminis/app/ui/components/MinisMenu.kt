@@ -66,7 +66,7 @@ import top.yukonga.miuix.kmp.glass.GlassTransformPopup
 internal val LocalMinisMenuInteractive = staticCompositionLocalOf { true }
 
 /**
- * Native glass silhouette/rebound in Miuix's same-window overlay host, outside the scene recording.
+ * Native glass silhouette and rebound in Miuix's overlay host, using a stable theme fill.
  * Only placement is adapted. Keep this composed when [expanded] becomes false so the native
  * component can settle its exit before [onDismissFinished]. Neither host takes the IME focus.
  */
@@ -82,7 +82,6 @@ fun MinisMenu(
     glassAnchor: GlassPopupAnchor? = null,
     anchorContent: @Composable () -> Unit = {},
     preferAbove: Boolean = false,
-    onPanelMeasured: ((IntSize) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
@@ -97,8 +96,7 @@ fun MinisMenu(
             currentFinished?.invoke()
         }
     }
-    val sameWindow = LocalMinisGlassWindow.current === LocalView.current.rootView
-    val scene = LocalMinisGlassScene.current.takeIf { sameWindow }
+    val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
     val locals = currentCompositionLocalContext
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
@@ -176,10 +174,7 @@ fun MinisMenu(
             if (glassAnchor != null) {
                 GlassTransformPopup(
                     show = show, onDismissRequest = requestDismiss, anchor = glassAnchor,
-                    backdrop = scene, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
-                    onMeasured = { size ->
-                        onPanelMeasured?.invoke(IntSize(size.width.toInt(), size.height.toInt()))
-                    },
+                    backdrop = null, anchorContent = anchorContent, sizing = sizing, visuals = visuals,
                     contentPadding = PaddingValues(0.dp), content = rows,
                 )
             } else {
@@ -191,7 +186,7 @@ fun MinisMenu(
                 )
                 GlassPopup(
                     show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
-                    backdrop = scene, sizing = sizing, visuals = visuals,
+                    backdrop = null, sizing = sizing, visuals = visuals,
                     contentPadding = PaddingValues(0.dp), content = rows,
                 )
             }

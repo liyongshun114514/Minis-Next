@@ -64,24 +64,8 @@ class ComposerSurfaceGeometryTest {
     }
 
     @Test
-    fun `empty composer gets a taller comfortable editor`() {
-        assertEquals(56f, ComposerSurfaceGeometry.editorMinimumHeightDp(0f, 104f, 44f), 0.001f)
-    }
-
-    @Test
-    fun `editor grows card to exactly the measured attachment menu height`() {
-        val editor = ComposerSurfaceGeometry.editorMinimumHeightDp(420f, 116f, 56f)
-        assertEquals(360f, editor, 0.001f)
-        assertEquals(420f, editor + (116f - 56f), 0.001f)
-        // Same inputs after the new layout settles: no runaway growth or oscillation.
-        assertEquals(editor, ComposerSurfaceGeometry.editorMinimumHeightDp(420f, 420f, editor), 0.001f)
-    }
-
-    @Test
-    fun `menu resize and attachments are subtracted without double counting`() {
-        assertEquals(200f, ComposerSurfaceGeometry.editorMinimumHeightDp(300f, 156f, 56f), 0.001f)
-        assertEquals(56f, ComposerSurfaceGeometry.editorMinimumHeightDp(80f, 156f, 56f), 0.001f)
-        assertEquals(56f, ComposerSurfaceGeometry.editorMinimumHeightDp(420f, 0f, 0f), 0.001f)
+    fun `composer keeps a 56dp baseline editor region`() {
+        assertEquals(56f, ComposerSurfaceGeometry.EDITOR_MIN_HEIGHT_DP, 0.001f)
     }
 
     @Test

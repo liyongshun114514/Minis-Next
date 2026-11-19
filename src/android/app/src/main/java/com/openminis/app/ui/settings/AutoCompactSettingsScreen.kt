@@ -73,6 +73,12 @@ fun AutoCompactSettingsScreen(
 
     var showThresholdDialog by remember { mutableStateOf(false) }
     var pickerTarget by remember { mutableStateOf<CompactPickerTarget?>(null) }
+    var closingPickerTarget by remember { mutableStateOf<CompactPickerTarget?>(null) }
+    fun dismissPicker() {
+        val target = pickerTarget ?: return
+        closingPickerTarget = target
+        pickerTarget = null
+    }
     var thresholdDialogEntryId by remember { mutableStateOf<String?>(null) }
     var thresholdDraft by remember { mutableStateOf("") }
     var thresholdError by remember { mutableStateOf(ThresholdError.NONE) }
@@ -263,8 +269,9 @@ fun AutoCompactSettingsScreen(
         }
     }
 
-    pickerTarget?.let { target ->
+    (pickerTarget ?: closingPickerTarget)?.let { target ->
         ModelPickerSheet(
+            show = pickerTarget != null,
             // A threshold / explicit summary choice is a concrete entry, not
             // a routing group whose membership can change underneath it.
             groups = emptyList(),
@@ -285,10 +292,11 @@ fun AutoCompactSettingsScreen(
                         CompactPickerTarget.THRESHOLD -> thresholdEntryId = entryId
                         CompactPickerTarget.SUMMARY -> AutoCompactPrefs.setModelEntryId(context, entryId)
                     }
-                    pickerTarget = null
+                    dismissPicker()
                 }
             },
-            onDismiss = { pickerTarget = null },
+            onDismiss = ::dismissPicker,
+            onDismissFinished = { closingPickerTarget = null },
         )
     }
 }

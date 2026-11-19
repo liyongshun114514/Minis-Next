@@ -21,20 +21,8 @@ internal object ComposerSurfaceGeometry {
     /** Bottom clearance above the navigation safe area or the open keyboard. */
     const val BOTTOM_INSET_DP: Float = 12f
 
-    /** More breathing room than the previous single-line 36dp field. */
+    /** Baseline editor height. The attachment menu is measured in its own overlay. */
     const val EDITOR_MIN_HEIGHT_DP: Float = 56f
-
-    /**
-     * Grow the editor, not the button row, to match the actual attachment panel.
-     * Subtract measured non-editor content (attachments, controls and inner padding)
-     * so the final card equals the menu height instead of adding that height twice.
-     * A zero menu height means closed, including completion of its exit animation.
-     */
-    fun editorMinimumHeightDp(menuHeightDp: Float, cardHeightDp: Float, editorHeightDp: Float): Float {
-        if (menuHeightDp <= 0f || cardHeightDp <= 0f || editorHeightDp <= 0f) return EDITOR_MIN_HEIGHT_DP
-        val fixedContent = (cardHeightDp - editorHeightDp).coerceAtLeast(0f)
-        return (menuHeightDp - fixedContent).coerceAtLeast(EDITOR_MIN_HEIGHT_DP)
-    }
 
     /**
      * Padding below the composer card.

@@ -111,11 +111,6 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import com.openminis.app.ui.components.MinisToolbarIconButton
-import com.openminis.app.ui.components.LocalPageActionBackdrop
-import androidx.compose.runtime.CompositionLocalProvider
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
@@ -163,6 +158,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -976,8 +972,8 @@ fun SessionListScreen(
     val scheduledBadgeCount = com.openminis.app.scheduled.ScheduledTaskStore
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
-    val homeBackdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
-    CompositionLocalProvider(LocalPageActionBackdrop provides homeBackdrop) {
+    // The list starts below the pinned header and can dispose rows during folder toggles.
+    // Draw it directly instead of feeding those transient row layers into another RenderNode.
     Scaffold(
         topBar = {
             RichTitleAppBar(
@@ -989,14 +985,18 @@ fun SessionListScreen(
                             else
                                 stringResource(R.string.sessionlist_n_selected, selectedIds.size),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
+                            style = MiuixTheme.textStyles.title3,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     } else {
                         Column {
                             Text(
                                 stringResource(R.string.app_name),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
+                                style = MiuixTheme.textStyles.title4,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             // [FEAT-261021-07] Tailscale / proxy state; nothing when neither is set up.
                             NetworkStatusBadges(onOpen = onNetworkPageClick)
@@ -1153,9 +1153,7 @@ fun SessionListScreen(
             // onboarding flashes on top of existing user history. Mirrors
             // iOS `didInitialLoad` on ContentView. The transition is usually
             // sub-200ms, so no spinner.
-            if (isInitialLoadComplete) Column(modifier = Modifier.fillMaxSize()
-                .then(if (homeBackdrop != null) Modifier.layerBackdrop(homeBackdrop) else Modifier)
-                .background(MiuixTheme.colorScheme.surface)) {
+            if (isInitialLoadComplete) Column(modifier = Modifier.fillMaxSize()) {
                 // [T-search-folder-expand] A folder whose name matched is a result
                 // even with no member: the list shows it rather than "no results".
                 if (sessions.isEmpty() && !(searchResultsActive && folderBlocks.isNotEmpty())) {
@@ -1269,16 +1267,13 @@ fun SessionListScreen(
                                 } else {
                                     Modifier
                                 }
-                                // animateItem gives the accordion its motion:
-                                // member rows fade+slide over 250ms instead of
-                                // popping — the iOS easeInOut(0.25) equivalent
-                                // (monotonic tween on purpose; a spring's
-                                // oscillation read as jitter on iOS).
+                                // Keep placement motion. Disappearing rows should not
+                                // retain a display list after a folder toggle.
                                 Box(
                                     modifier = Modifier
                                         .animateItem(
-                                            fadeInSpec = tween(250),
-                                            fadeOutSpec = tween(250),
+                                            fadeInSpec = null,
+                                            fadeOutSpec = null,
                                             placementSpec = tween(250),
                                         )
                                         .then(rowModifier),
@@ -1346,7 +1341,7 @@ fun SessionListScreen(
                             }
                             folderBlocks.forEach { block ->
                                 item(key = "folder_${block.folder.id}") {
-                                    Box(Modifier.animateItem(placementSpec = tween(250))) {
+                                    Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = tween(250))) {
                                     FolderCard(
                                         block = block,
                                         searchQuery = if (searchResultsActive) searchQuery else null,
@@ -1402,7 +1397,7 @@ fun SessionListScreen(
                                 // [T-folder-pages] The rest, a page per tap.
                                 if (block.hiddenCount > 0) {
                                     item(key = "folder_more_${block.folder.id}") {
-                                        Box(Modifier.animateItem(placementSpec = tween(250))) {
+                                        Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = tween(250))) {
                                             FolderShowMoreRow(
                                                 hidden = block.hiddenCount,
                                                 onClick = {
@@ -1608,8 +1603,6 @@ fun SessionListScreen(
             }
         }
     }
-
-    } // Home action backdrop scope
 
     // Single delete confirmation
     if (showDeleteDialog && deleteTargetId != null) {
@@ -2193,7 +2186,7 @@ private fun SectionHeader(title: String) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = LIST_GUTTER + AVATAR_INSET, vertical = 8.dp)
             .padding(top = 4.dp),
     ) {
         if (isPinned) {
@@ -2764,17 +2757,16 @@ internal fun memberTileCells(n: Int): List<MemberTileCell> {
 /**
  * [PAR-261022-02] How far a row's avatar stays from its fill's left, top and
  * bottom edges (and the time from its right), and the group tile from its
- * card's inner edges: one gap all round, as on Windows (UI-261022-04). 12dp
- * keeps Android's 68dp row (44dp avatar) and, with [LIST_GUTTER], the 16dp
- * content keyline.
+ * card's inner edges. The 12dp inner padding and 44dp avatar yield a 68dp row.
+ * The separate [LIST_GUTTER] aligns the outer card edges.
  */
 private val AVATAR_INSET = 12.dp
 
 /** [PAR-261022-02] The space between the screen edge and a row's fill or a group card. */
-private val LIST_GUTTER = 4.dp
+private val LIST_GUTTER = 12.dp
 
 @Composable
-private fun FolderCard(
+internal fun FolderCard(
     block: FolderGroupBlock,
     /**
      * [T-search-folder-expand] The query while a result set is on screen, else
@@ -2801,6 +2793,7 @@ private fun FolderCard(
     var pressOffset by remember { mutableStateOf(DpOffset.Zero) }
     var menuAlignEnd by remember { mutableStateOf(false) }
     val headerPressInteractions = remember { MutableInteractionSource() }
+    val currentToggle by rememberUpdatedState(onToggle)
     val density = LocalDensity.current
     val expandLabel = stringResource(
         if (block.isCollapsed) R.string.group_expand else R.string.group_collapse,
@@ -2822,9 +2815,7 @@ private fun FolderCard(
     Box(
         modifier = Modifier
             // The outer inset floats the rounded card inside the list width
-            // (iOS: the inset frame is what separates it from the full-bleed
-            // session rows at a glance). [PAR-261022-02] LIST_GUTTER outside +
-            // AVATAR_INSET inside = 16dp, the tile on the rows' avatar column.
+            // and aligns the tile with the session avatars.
             .padding(
                 start = LIST_GUTTER, end = LIST_GUTTER, top = 4.dp,
                 bottom = if (isExpandedWithRows) 0.dp else 4.dp,
@@ -2855,7 +2846,7 @@ private fun FolderCard(
                 // ripple is driven by hand through the InteractionSource
                 // (same pattern as SessionRow's press indication).
                 .indication(headerPressInteractions, LocalIndication.current)
-                .pointerInput(Unit) {
+                .pointerInput(density, headerHaptics) {
                     detectTapGestures(
                         onPress = { offset ->
                             val press = PressInteraction.Press(offset)
@@ -2866,7 +2857,7 @@ private fun FolderCard(
                                 else PressInteraction.Cancel(press),
                             )
                         },
-                        onTap = { onToggle() },
+                        onTap = { currentToggle() },
                         onLongPress = { offset ->
                             // detectTapGestures gives no haptic of its own —
                             // see the SessionRow note; fired by hand so the
@@ -3132,8 +3123,7 @@ private fun SessionRow(
     //
     // Highlight SHAPE mirrors the folder card (user request): ungrouped rows
     // clip the indication to the same LIST_GUTTER-inset, 16dp-radius rounded
-    // rect the group card uses — 4dp outside the clip + 12dp inside keeps the
-    // 16dp content lead. Folder members skip this: their
+    // rect the group card uses. Both share the same content lead. Folder members skip this: their
     // wrapper Box already clips to the welded container's segment shape
     // (square middles / bottom-rounded last), and a rounded ripple mid-weld
     // would break the one-container illusion.
@@ -3219,8 +3209,7 @@ private fun SessionRow(
             // [PAR-261022-02] AVATAR_INSET on every side, in both branches:
             // the avatar is as far from its fill's left as from its top and
             // bottom (the 44dp avatar keeps the row at 68dp), and LIST_GUTTER
-            // (loose rows) or the wrapper's gutter (folder members) + 12 puts
-            // every avatar - the group tile's too - on one 16dp column.
+            // puts all session avatars and group tiles on the same column.
             .padding(AVATAR_INSET),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

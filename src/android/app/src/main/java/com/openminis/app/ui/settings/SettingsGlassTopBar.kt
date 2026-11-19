@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.graphics.Color
-import com.openminis.app.ui.components.LocalPageActionBackdrop
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.Backdrop
 import com.openminis.app.ui.components.MinisGlassIconButton
 import com.openminis.app.ui.components.MinisGlassTopBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -42,7 +41,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 internal fun SettingsGlassTopBar(
     title: String,
-    backdrop: LayerBackdrop?,
+    backdrop: Backdrop?,
     overlap: () -> Float,
     centerTitle: Boolean,
     onBack: (() -> Unit)?,
@@ -67,7 +66,7 @@ internal fun SettingsGlassTopBar(
                 Box(contentAlignment = Alignment.CenterStart) {
                     when {
                         navigation != null -> navigation()
-                        onBack != null -> SettingsGlassBackButton(backdrop, onBack)
+                        onBack != null -> SettingsGlassBackButton(onBack)
                     }
                 }
                 Box(contentAlignment = if (centerTitle) Alignment.Center else Alignment.CenterStart) {
@@ -112,7 +111,7 @@ internal fun SettingsGlassTopBar(
 /**
  * Miuix 0.9.5 SmallTopAppBar measures actions but never places them. Keep the
  * native typography/buttons, using the shared glass layout that places all three slots.
- * No clipToBounds: floating shadows and the progressive overhang must remain intact.
+ * Avoid clipping the button shadows or the fading overhang.
  */
 @Composable
 internal fun MinisSmallTopAppBar(
@@ -123,7 +122,7 @@ internal fun MinisSmallTopAppBar(
 ) {
     SettingsGlassTopBar(
         title = title,
-        backdrop = LocalPageActionBackdrop.current as? LayerBackdrop,
+        backdrop = null,
         overlap = { 1f },
         centerTitle = true,
         onBack = null,
@@ -140,9 +139,9 @@ internal fun MinisSmallTopAppBar(
 }
 
 @Composable
-private fun SettingsGlassBackButton(backdrop: LayerBackdrop?, onBack: () -> Unit) {
+private fun SettingsGlassBackButton(onBack: () -> Unit) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    MinisGlassIconButton(onClick = onBack, backdrop = backdrop) {
+    MinisGlassIconButton(onClick = onBack) {
         Icon(
             imageVector = MiuixIcons.ChevronBackward,
             contentDescription = stringResource(R.string.settings_back),

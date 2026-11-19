@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -7,7 +8,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,18 +28,22 @@ internal fun RichTitleAppBar(
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
     color: Color = MiuixTheme.colorScheme.surface,
-    windowInsets: WindowInsets = WindowInsets.statusBars,
+    windowInsets: WindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     expandedHeight: Dp = 56.dp,
 ) {
     Surface(color = color) {
         Row(
             modifier = Modifier.fillMaxWidth().windowInsetsPadding(windowInsets)
-                .heightIn(min = expandedHeight).padding(horizontal = 8.dp),
+                .heightIn(min = expandedHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             navigationIcon()
             Box(Modifier.weight(1f).padding(horizontal = 8.dp)) { title() }
-            Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                content = actions,
+            )
         }
     }
 }

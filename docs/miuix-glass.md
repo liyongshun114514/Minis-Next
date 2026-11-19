@@ -2,14 +2,13 @@
 
 The Android UI uses Miuix `0.9.5-beta01`. Preserve these sampling boundaries when changing a toolbar or menu.
 
-## Sampling graph
+## Backdrop ownership
 
-- Chat records an **opaque, full-width message viewport**, before message-column centering and gutters. The composer, toolbar title and toolbar controls are not part of this recording.
-- `MinisGlassTopBar` renders the native progressive band from that viewport. A second recording combines the raw background and rendered band, without foreground title or buttons.
-- `MinisGlassIconButton` samples the second recording, with an explicitly floating button material. Do not replace it with the raw message backdrop or tie material visibility to a zero scroll offset.
-- `MinisGlassScene` records the rendered page, including its bars. `MinisMenu` is hosted **outside** that recording in the root Miuix `PopupLayout`; recording a menu inside its own backdrop creates a feedback loop.
-
-The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefaults.BandOverhang`. Its complete rendered/tinted result fades to transparent with an offscreen `DstIn` mask: a blur-radius ramp alone leaves a uniform-tint shelf at the bottom. The button recording includes this finished fade. Only the foreground toolbar consumes toolbar taps; the fading overhang must not block messages.
+- Chat records an **opaque, full-width message viewport** before message-column centering and gutters. The toolbar and composer are separate from the recording. Shared scrolling settings record their body for the same top-bar effect.
+- `MinisGlassTopBar` draws one Miuix `textureBlur` background. `BandOverhang` extends the fade beneath the measured foreground. The `DstIn` mask fades both blur and tint to zero, and the overhang draws without intercepting taps.
+- `MinisGlassIconButton` uses a uniform theme fill with Miuix's edge stroke and soft shadow. Each button draws its complete circular surface independently of the bar and its safe-area boundaries.
+- The home session list and model-group management list draw directly. The home accordion keeps stable item keys and placement motion. Items removed by a toggle are disposed without a fade-out drawing layer. This reduces exposure to the `RenderThread` crash reported during group toggles. Confirm stability on the affected device.
+- `MinisOverlayHost` supplies the root Miuix `PopupLayout`. Its menus use the library's themed fill and draw above the page without recording it.
 
 `MinisSmallTopAppBar` deliberately shares `SettingsGlassTopBar`'s three-slot measure/place policy. Miuix 0.9.5-beta01's `SmallTopAppBarLayout` measures `actionIconsPlaceable` but never places it, hiding Mount Add / detail Save actions. Do not regress to that layout or its shadow-clipping `clipToBounds`. Reserve full action widths before ellipsizing the title; keep folder/permissions pages on the same `surface` background as the glass band.
 
@@ -17,15 +16,16 @@ The band extends beyond the toolbar's layout bounds using `GlassTopAppBarDefault
 
 - Discrete menus use native `GlassPopup`; chat More, composer +, home Terminal, scheduled More and skill menus use `GlassTransformPopup` with the actual glass-button anchor. Opening and closing share the same origin.
 - Independent icon actions use glass. Only function-menu triggers opt into `menuMotion = true` (one shared press/rebound spring). Direct navigation, add-provider/editor screens, Search, New Chat and Back do not use the spring; do not infer menu motion from an Add/More icon alone.
-- `MinisPageScaffold` records only its body for top-right actions; `SettingsScaffold` supplies its existing scroll recording. Never pass the global scene to a button already inside that scene.
-- Miuix owns the glass surface, shadow, stroke, spring, blur and content transition. `MinisMenuPosition` only translates existing physical left/right alignment, gaps and finger anchors into window coordinates.
+- Miuix owns the glass surface, shadow, stroke and transitions. `MinisMenuPosition` translates existing physical left/right alignment, gaps and finger anchors into window coordinates.
 - The host is first composed closed so native transitions animate on first open. Keep the caller composed through exit. The final-content disposal reads **current** visibility and fires `onDismissFinished` once; the chat speed submenu opens from that callback.
 - Composer Send/Stop choosers share this implementation, prefer placement above their button, avoid the IME, and do not take keyboard focus. Their existing preference writers and dismiss-tap guards remain unchanged.
 - Preserve caller composition locals when moving menu content into the root overlay (session context, theme and interaction state).
 
 ## Floating composer and settings
 
-The composer follows Eta's thin-glass proportions: a 24dp glass shape, 10dp side gutters, 12dp bottom clearance plus the live navigation inset, and a 56dp minimum editor region (up to six text lines). While the + menu is expanded, `onPanelMeasured` reports its final, safe-area-constrained height; the editor grows so the complete input card matches that height. Subtract measured attachments/controls/inner padding rather than adding the menu height to an already-sized card. Keep the bottom controls anchored and reset only after the popup's exit finishes. Send uses neutral `onSurface` with a 10%-alpha idle fill, never primary/disabled-primary blue. It samples the full-height **message-only** backdrop, with `puredThinGlass`, a small edge stroke and native regular shadow; old APIs use the same shape with an opaque fill.
+The composer uses a 24dp glass shape, 10dp side gutters, 12dp bottom clearance plus the live navigation inset, and a 56dp minimum editor region that supports up to six text lines. Opening or closing the + menu leaves the composer at its measured size and position. The menu measures itself within the available safe area. Send uses neutral `onSurface` with a 10%-alpha idle fill.
+
+The application theme uses 92% of the device's Compose density and preserves the system font-scale preference and font converter. The model picker applies the same density to its Android dialog content. It uses a `surface` sheet and `surfaceContainer` cards, with a readable accent and radio-button semantics for selection. Its window stays mounted through Miuix's exit animation so a management route opens after dismissal.
 
 The message list continues behind the input overlay instead of ending at a Column sibling boundary. Its bottom content padding includes the measured composer height and visible tool/status reserve exactly once. Tool/scroll controls are lifted by that same height. User bubbles use the neutral `surfaceContainerHigh`, not a primary-blue mix.
 

@@ -1884,6 +1884,8 @@
     <string name="model_picker_jump_current">Show current model</string>
     <!-- [T-android-picker-provider-edit] Accessibility label of the edit button on a provider section header in the model picker; %1$s is the provider name. -->
     <string name="model_picker_edit_provider">Edit %1$s</string>
+    <string name="model_picker_expand_provider">Expand %1$s models</string>
+    <string name="model_picker_collapse_provider">Collapse %1$s models</string>
     <string name="model_picker_groups_footer">Bind this session to a group for automatic fallback or load balancing.</string>
     <string name="model_picker_default_badge">Default</string>
     <string name="model_picker_no_model_selected">No model selected</string>

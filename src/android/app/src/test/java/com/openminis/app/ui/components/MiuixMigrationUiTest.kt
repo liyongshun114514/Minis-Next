@@ -15,13 +15,21 @@ import com.openminis.app.ui.settings.imageEndpointLabels
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import com.openminis.app.R
-import com.openminis.app.ui.chat.ChatGlassIconButton
+import com.openminis.app.data.db.FolderEntity
+import com.openminis.app.data.model.ModelGroup
+import com.openminis.app.data.model.ProviderConfig
+import com.openminis.app.data.repository.ProviderRepository
+import com.openminis.app.ui.chat.ComposerSurfaceGeometry
+import com.openminis.app.ui.chat.ModelPickerSheet
+import com.openminis.app.ui.sessions.FolderCard
+import com.openminis.app.ui.sessions.FolderGroupBlock
 import com.openminis.app.ui.chat.ChatGlassTopBar
 import com.openminis.app.ui.settings.SettingsScaffold
 import com.openminis.app.ui.settings.SettingsSection
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -286,10 +294,10 @@ class MiuixMigrationUiTest {
                     backdrop = null,
                     title = { Text("Conversation") },
                     navigationIcon = {
-                        ChatGlassIconButton(null, { backClicks++ }) { Text("Back") }
+                        MinisGlassIconButton(onClick = { backClicks++ }) { Text("Back") }
                     },
                     actions = {
-                        ChatGlassIconButton(null, { moreClicks++ }) { Text("More") }
+                        MinisGlassIconButton(onClick = { moreClicks++ }) { Text("More") }
                     },
                 )
             }
@@ -315,7 +323,6 @@ class MiuixMigrationUiTest {
                         var secondary by remember { mutableStateOf(false) }
                         val anchor = rememberGlassPopupAnchor()
                         MinisGlassIconButton(
-                            backdrop = null,
                             onClick = { primary = true },
                             modifier = Modifier.glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
                         ) { Text("Menu", Modifier.glassPopupAnchorContent(anchor)) }
@@ -461,13 +468,11 @@ class MiuixMigrationUiTest {
             MinisTheme {
                 Column {
                     MinisGlassIconButton(
-                        backdrop = null,
                         onClick = { taps++ },
                         onLongClick = { holds++ },
                         modifier = Modifier.testTag("long-glass"),
                     ) { Text("New") }
                     MinisGlassIconButton(
-                        backdrop = null,
                         onClick = { taps += 100 },
                         enabled = false,
                         modifier = Modifier.testTag("disabled-glass"),
@@ -566,43 +571,115 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(1, back); assertEquals(1, first); assertEquals(1, second) }
     }
 
-    @Test fun attachmentPanelPublishesFinalHeightAndRestoresAnchorOnDismiss() {
-        var measuredHeight = 0
+    @Test fun attachmentPanelLeavesComposerBoundsUnchangedAndRestoresAnchor() {
         var dismissed = 0
         compose.setContent {
             MinisTheme {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
-                    Box {
-                        var expanded by remember { mutableStateOf(false) }
-                        val anchor = rememberGlassPopupAnchor()
-                        MinisGlassIconButton(
-                            backdrop = null, onClick = { expanded = true },
-                            modifier = Modifier.testTag("height-plus")
-                                .glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
-                        ) { Text("+") }
-                        MinisMenu(
-                            expanded = expanded, onDismissRequest = { expanded = false },
-                            glassAnchor = anchor, anchorContent = { Text("+") },
-                            onPanelMeasured = { measuredHeight = it.height },
-                            onDismissFinished = { dismissed++ },
-                        ) {
-                            repeat(5) { index ->
-                                DropdownMenuItem(text = { Text("Height action $index") }, onClick = { expanded = false })
+                    Column(Modifier.fillMaxWidth().testTag("composer-card")) {
+                        Spacer(Modifier.height(ComposerSurfaceGeometry.EDITOR_MIN_HEIGHT_DP.dp))
+                        Box {
+                            var expanded by remember { mutableStateOf(false) }
+                            val anchor = rememberGlassPopupAnchor()
+                            MinisGlassIconButton(
+                                onClick = { expanded = true },
+                                modifier = Modifier.testTag("height-plus")
+                                    .glassPopupAnchor(anchor, cornerRadius = 24.dp, floating = true),
+                            ) { Text("+") }
+                            MinisMenu(
+                                expanded = expanded, onDismissRequest = { expanded = false },
+                                glassAnchor = anchor, anchorContent = { Text("+") },
+                                onDismissFinished = { dismissed++ },
+                            ) {
+                                repeat(5) { index ->
+                                    DropdownMenuItem(
+                                        text = { Text("Attachment action $index") },
+                                        onClick = { expanded = false },
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        val card = compose.onNodeWithTag("composer-card")
+        val initialBounds = card.getUnclippedBoundsInRoot()
         repeat(2) {
             compose.onNodeWithTag("height-plus").assertIsDisplayed().performTouchInput { click() }
-            compose.onNodeWithText("Height action 4").assertIsDisplayed()
-            compose.runOnIdle { assertTrue("actual visible panel height", measuredHeight > 0) }
-            compose.onNodeWithText("Height action 4").performClick()
-            compose.onNodeWithText("Height action 4").assertDoesNotExist()
+            val action = compose.onNodeWithText("Attachment action 4")
+            action.assertIsDisplayed()
+            assertEquals(initialBounds, card.getUnclippedBoundsInRoot())
+            action.performClick()
+            action.assertDoesNotExist()
             compose.onNodeWithTag("height-plus").assertIsDisplayed()
+            assertEquals(initialBounds, card.getUnclippedBoundsInRoot())
         }
         compose.runOnIdle { assertEquals(2, dismissed) }
+    }
+
+    @Test fun sessionGroupTapsFollowTheLatestExpandedState() {
+        val folder = FolderEntity(id = "work", name = "Work group", createdAt = 1, updatedAt = 1)
+        var collapsed by mutableStateOf(true)
+        compose.setContent {
+            MinisTheme {
+                val wasCollapsed = collapsed
+                FolderCard(
+                    block = FolderGroupBlock(
+                        folder = folder,
+                        ids = if (wasCollapsed) emptyList() else listOf("conversation"),
+                        totalCount = 1,
+                        isCollapsed = wasCollapsed,
+                        latestUpdatedAt = 0,
+                    ),
+                    onToggle = { collapsed = !wasCollapsed },
+                    onTogglePin = {}, onRename = {}, onDissolve = {},
+                    onNewChatInGroup = {}, onDeleteWithSessions = {},
+                )
+            }
+        }
+        repeat(4) { index ->
+            compose.onNode(hasText("Work group") and hasClickAction())
+                .assertIsDisplayed().performTouchInput { click() }
+            compose.runOnIdle { assertEquals(index % 2 == 1, collapsed) }
+        }
+    }
+
+    @Test fun modelPickerShowsSemanticSelectionAndCompletesExitBeforeReopening() {
+        val groups = listOf(ModelGroup(id = "primary", name = "Primary group"), ModelGroup(id = "other", name = "Other group"))
+        val repository = ProviderRepository(compose.activity.applicationContext)
+        var shown by mutableStateOf(true)
+        var selectedGroup by mutableStateOf("primary")
+        var finished = 0
+        compose.setContent {
+            MinisTheme(darkTheme = true) {
+                ModelPickerSheet(
+                    show = shown,
+                    groups = groups,
+                    selectedGroupId = selectedGroup,
+                    activeEntryId = null,
+                    defaultPrimaryGroupId = "primary",
+                    config = ProviderConfig(),
+                    providerRepository = repository,
+                    onSelectGroup = { selectedGroup = it; shown = false },
+                    onSelectGroupEntry = { _, _ -> },
+                    onSelectEntry = {},
+                    onDismiss = { shown = false },
+                    onDismissFinished = { finished++ },
+                )
+            }
+        }
+        val primary = compose.onNode(hasText("Primary group") and hasClickAction())
+        val other = compose.onNode(hasText("Other group") and hasClickAction())
+        primary.assertIsDisplayed().assertIsSelected()
+        other.assertIsDisplayed().assertIsNotSelected().performClick()
+        other.assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals("other", selectedGroup)
+            assertEquals(1, finished)
+            shown = true
+        }
+        other.assertIsDisplayed().assertIsSelected()
     }
 
     @Test fun systemPromptDirectoryExposesOnlySoulAndWorkspace() {
@@ -673,8 +750,12 @@ class MiuixMigrationUiTest {
         var composer = Color.Unspecified
         var field = Color.Unspecified
         var fontSize = 0f
+        var densityRatio = 0f
+        var fontScaleRatio = 0f
         compose.setContent {
+            val systemDensity = LocalDensity.current
             MinisTheme(darkTheme = dark, fontScale = 1.25f) {
+                val appDensity = LocalDensity.current
                 val colors = MiuixTheme.colorScheme
                 val pageColor = colors.surface
                 val cardColor = colors.surfaceContainer
@@ -687,6 +768,8 @@ class MiuixMigrationUiTest {
                     field = fieldColor
                     composer = inputColor
                     fontSize = nativeFontSize
+                    densityRatio = appDensity.density / systemDensity.density
+                    fontScaleRatio = appDensity.fontScale / systemDensity.fontScale
                 }
                 Text("Themed content")
             }
@@ -704,6 +787,8 @@ class MiuixMigrationUiTest {
             assertNotEquals(page, composer)
             assertNotEquals(card, field)
             assertEquals(21.25f, fontSize, 0.01f)
+            assertEquals(0.92f, densityRatio, 0.001f)
+            assertEquals(1f, fontScaleRatio, 0.001f)
         }
     }
 }

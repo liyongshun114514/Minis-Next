@@ -79,24 +79,20 @@ fun SettingsScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = if (scrollable) rememberScrollState() else null
-    val backdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
+    val backdrop = if (scrollable && isRuntimeShaderSupported()) rememberLayerBackdrop() else null
     val pageColor = MiuixTheme.colorScheme.surface
     val fadeInDistance = with(LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
         topBar = {
-            androidx.compose.runtime.CompositionLocalProvider(
-                com.openminis.app.ui.components.LocalPageActionBackdrop provides backdrop,
-            ) {
-                SettingsGlassTopBar(
-                    title = title,
-                    backdrop = backdrop,
-                    overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
-                    centerTitle = centerTitle,
-                    onBack = onBack,
-                    navigation = navigation,
-                    actions = actions,
-                )
-            }
+            SettingsGlassTopBar(
+                title = title,
+                backdrop = backdrop,
+                overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
+                centerTitle = centerTitle,
+                onBack = onBack,
+                navigation = navigation,
+                actions = actions,
+            )
         },
         floatingActionButton = { floatingActionButton?.invoke() },
         bottomBar = { bottomBar?.invoke() },

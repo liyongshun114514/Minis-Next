@@ -15,7 +15,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import com.openminis.app.ui.components.MinisGlassIconButton
 import com.openminis.app.ui.components.MinisGlassTopBar
 import com.openminis.app.ui.components.RichTitleAppBar
 
@@ -41,16 +40,4 @@ internal fun ChatGlassTopBar(
             )
         }
     }
-}
-
-/** With no backdrop, Miuix's same button uses a flat fill rather than a runtime shader. */
-@Composable
-internal fun ChatGlassIconButton(
-    backdrop: LayerBackdrop?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    menuMotion: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    MinisGlassIconButton(backdrop = backdrop, onClick = onClick, modifier = modifier, menuMotion = menuMotion, content = content)
 }

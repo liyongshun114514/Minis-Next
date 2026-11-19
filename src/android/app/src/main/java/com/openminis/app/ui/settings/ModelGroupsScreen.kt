@@ -56,11 +56,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.material.isRuntimeShaderSupported
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
@@ -160,20 +156,16 @@ fun ModelGroupsScreen(
         }
     }
 
-    val backdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
-    val capture = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier
+    // Reorder and detail transitions can detach these rows. Use the themed band
+    // without retaining their graphics layers in a backdrop.
     val pageColor = MiuixTheme.colorScheme.surface
-    val fadeDistance = with(LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
         containerColor = pageColor,
         topBar = {
             SettingsGlassTopBar(
                 title = stringResource(R.string.model_groups_model_groups),
-                backdrop = backdrop,
-                overlap = {
-                    if (lazyListState.firstVisibleItemIndex > 0) 1f
-                    else (lazyListState.firstVisibleItemScrollOffset / fadeDistance).coerceIn(0f, 1f)
-                },
+                backdrop = null,
+                overlap = { 1f },
                 centerTitle = true,
                 onBack = onBack,
                 navigation = null,
@@ -188,7 +180,7 @@ fun ModelGroupsScreen(
         val direction = LocalLayoutDirection.current
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier.fillMaxSize().then(capture).background(pageColor).consumeWindowInsets(padding),
+            modifier = Modifier.fillMaxSize().background(pageColor).consumeWindowInsets(padding),
             contentPadding = PaddingValues(
                 start = padding.calculateStartPadding(direction),
                 end = padding.calculateEndPadding(direction),

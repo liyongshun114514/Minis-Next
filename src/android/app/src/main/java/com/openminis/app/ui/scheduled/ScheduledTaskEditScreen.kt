@@ -37,6 +37,7 @@ import com.openminis.app.ui.chat.localizedName
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -429,6 +430,7 @@ private fun EditFormBody(
     var showSessionPicker by remember { mutableStateOf(false) }
     var showMessagePicker by remember { mutableStateOf(false) }
     var showModelPicker by remember { mutableStateOf(false) }
+    var retainModelPicker by remember { mutableStateOf(false) }
     var showThinkingPicker by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -709,7 +711,8 @@ private fun EditFormBody(
         }
     }
     val providerRepo = vm.providerRepository
-    if (showModelPicker && providerRepo != null) {
+    if ((showModelPicker || retainModelPicker) && providerRepo != null) {
+        SideEffect { if (showModelPicker) retainModelPicker = true }
         // [T-android-scheduled-task-model-binding] Reuse the chat-screen's
         // ModelPickerSheet so groups and individual entries are both
         // selectable; the editor only needs the JSON shape that
@@ -748,6 +751,7 @@ private fun EditFormBody(
             } else null
         }
         com.openminis.app.ui.chat.ModelPickerSheet(
+            show = showModelPicker,
             groups = cfg.modelGroups,
             selectedGroupId = preselectGroupId,
             activeEntryId = preselectEntryId,
@@ -775,6 +779,7 @@ private fun EditFormBody(
                 onPickModel(json, name); showModelPicker = false
             },
             onDismiss = { showModelPicker = false },
+            onDismissFinished = { retainModelPicker = false },
         )
     }
     if (showStartPicker) {

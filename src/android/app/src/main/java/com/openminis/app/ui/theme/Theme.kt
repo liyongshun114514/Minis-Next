@@ -5,6 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import com.openminis.app.ui.components.MinisOverlayHost
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
@@ -28,18 +33,28 @@ fun MinisTheme(
 ) {
     val controller = remember(darkTheme) { appearanceController(darkTheme) }
     val textStyles = remember(fontScale) { scaledTextStyles(fontScale) }
-    MiuixTheme(controller = controller, textStyles = textStyles) {
-        val colors = MiuixTheme.colorScheme
-        CompositionLocalProvider(LocalChatPalette provides chatPalette(colors, darkTheme)) {
-            // Root host also covers dialogs declared as siblings of a screen Scaffold.
-            top.yukonga.miuix.kmp.basic.Scaffold(
-                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
-                containerColor = colors.surface,
-            ) {
-                com.openminis.app.ui.components.MinisGlassScene(colors.surface, content)
+    val platformDensity = LocalDensity.current
+    val appDensity = remember(platformDensity) {
+        if (platformDensity is MinisUiDensity) platformDensity else MinisUiDensity(platformDensity)
+    }
+    CompositionLocalProvider(LocalDensity provides appDensity) {
+        MiuixTheme(controller = controller, textStyles = textStyles) {
+            CompositionLocalProvider(LocalChatPalette provides chatPalette(MiuixTheme.colorScheme, darkTheme)) {
+                MinisOverlayHost(content)
             }
         }
     }
+}
+
+internal const val MINIS_UI_DENSITY_SCALE = 0.92f
+
+/** Compose-only sizing. Keep Android's font converter, including large non-linear font scales. */
+internal class MinisUiDensity(private val platform: Density) : Density {
+    override val density: Float = platform.density * MINIS_UI_DENSITY_SCALE
+    override val fontScale: Float = platform.fontScale
+
+    override fun Dp.toSp(): TextUnit = with(platform) { this@toSp.toSp() }
+    override fun TextUnit.toDp(): Dp = with(platform) { this@toDp.toDp() }
 }
 
 /** Chat export can request light/dark independently while keeping the user's font scale. */
