@@ -61,7 +61,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          # Miuix 0.9.5-beta01 ships JVM 21 classes used by the rendering tests.
+          # Miuix 0.9.5-beta02 ships JVM 21 classes used by the rendering tests.
           java-version: '21'
       - uses: actions/setup-go@v5
         with:

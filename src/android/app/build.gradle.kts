@@ -424,11 +424,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Miuix UI (Compose Multiplatform Android artifacts)
-    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta01")
+    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta02")
     // The glass module pulls in miuix-blur. Settings gates its backdrop on API 33+.
-    implementation("top.yukonga.miuix.kmp:miuix-glass-android:0.9.5-beta01")
-    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta01")
-    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta01")
+    implementation("top.yukonga.miuix.kmp:miuix-glass-android:0.9.5-beta02")
+    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta02")
+    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta02")
 
     // [T-android-tablet-split] Adaptive list-detail layout for tablets/large
     // windows. Version pinned explicitly rather than left to the BOM: the
@@ -461,7 +461,7 @@ dependencies {
     // ProcessLifecycleOwner — used by XAIOAuthManager to detect Custom
     // Tab dismissal (T-xai-oauth-stop-resume port iOS d1dbdd5d).
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
-    // Upgraded to match Miuix 0.9.5-beta01's navigationevent dispatcher requirement.
+    // Upgraded to match Miuix 0.9.5-beta02's navigationevent dispatcher requirement.
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
