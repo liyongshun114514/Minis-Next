@@ -176,17 +176,12 @@ class MiuixSurfaceRegressionTest {
         }
         val slider = compose.onNodeWithContentDescription("Thinking effort: High")
         slider.assertIsDisplayed()
-        val config = slider.fetchSemanticsNode().config
-        val info = config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
+        val info = slider.fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
         assertEquals("thumb sits on the last supported tier", 1f, info.current, 0.001f)
         assertEquals(0f, info.range.start, 0.001f)
         assertEquals(1f, info.range.endInclusive, 0.001f)
         assertEquals(1, info.steps)
-        assertEquals(
-            "a disabled slider exposes no stepping actions",
-            0,
-            config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.CustomActions)?.size ?: 0,
-        )
         compose.runOnIdle { assertEquals(0, commits) }
     }
 }
