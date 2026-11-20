@@ -191,30 +191,36 @@ fun RestoreBrowseScreen(
             summary = stringResource(R.string.restore_download_note, e.name, humanBytes(e.size)),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    confirming = null
-                                    vm.downloadServerPackage(
-                                        RcloneChunkedUpload.RemotePackage(
-                                            key = e.path,
-                                            displayName = e.name,
-                                            size = e.size,
-                                            modified = e.modified,
-                                            partCount = 1,
-                                        ),
-                                        remote,
-                                    )
-                                },
-                                    text = stringResource(R.string.restore_download_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirming = null },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                confirming = null
+                                vm.downloadServerPackage(
+                                    RcloneChunkedUpload.RemotePackage(
+                                        key = e.path,
+                                        displayName = e.name,
+                                        size = e.size,
+                                        modified = e.modified,
+                                        partCount = 1,
+                                    ),
+                                    remote,
                                 )
-                TextButton(
-                                    onClick = { confirming = null },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                            },
+                            text = stringResource(R.string.restore_download_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -229,21 +235,27 @@ fun RestoreBrowseScreen(
             summary = stringResource(R.string.restore_browse_delete_note, e.name, humanBytes(e.size)),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    pendingDelete = null
-                                    vm.deleteBrowsedPackage(remote, e)
-                                },
-                                    text = stringResource(R.string.backup_dest_delete_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { pendingDelete = null },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { pendingDelete = null },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                pendingDelete = null
+                                vm.deleteBrowsedPackage(remote, e)
+                            },
+                            text = stringResource(R.string.backup_dest_delete_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

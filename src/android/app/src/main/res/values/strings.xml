@@ -2524,15 +2524,6 @@
     <string name="rootfs_dns_effective_system">In effect: system DNS</string>
     <string name="rootfs_dns_effective_custom">In effect: %1$s</string>
     <string name="quota_title">Quota</string>
-    <string name="quota_custom_balance_url_title">Balance URL</string>
-    <string name="quota_custom_balance_url_automatic">Automatic detection</string>
-    <string name="quota_custom_balance_url_add">Set</string>
-    <string name="quota_custom_balance_url_edit">Edit</string>
-    <string name="quota_custom_balance_url_description">Optional. Enter an HTTPS site or full balance endpoint. Uses this provider\'s saved API key automatically; no extra key is needed. Billing links also fetch usage to calculate the USD balance. Leave blank for automatic detection.</string>
-    <string name="quota_custom_balance_url_invalid">Enter a full https:// URL with a host. User-info and #fragments are not allowed.</string>
-    <string name="quota_custom_balance_url_clear">Clear</string>
-    <string name="quota_custom_balance_url_save">Save</string>
-    <string name="quota_custom_balance_url_cancel">Cancel</string>
     <string name="quota_refresh">Refresh quota</string>
     <string name="quota_source_updated">%1$s · updated %2$s</string>
     <string name="quota_last_refresh_failed">Last refresh failed: %1$s</string>
@@ -2793,4 +2784,10 @@
     <string name="composer_root_ask_summary">Request approval for each command or new interactive session. Denied, cancelled or timed-out requests do not run.</string>
     <string name="composer_root_allowed">Fully allowed</string>
     <string name="composer_root_allowed_summary">Run native Root and chroot as uid 0 without a per-request app prompt. You can revoke this at any time.</string>
+    <string name="browser_settings_viewport_title">Web viewport</string>
+    <string name="browser_settings_viewport_default">Default (automatic)</string>
+    <string name="browser_settings_viewport_custom_hint">Set your own width and height</string>
+    <string name="browser_settings_viewport_width">Width</string>
+    <string name="browser_settings_viewport_height">Height</string>
+    <string name="browser_settings_viewport_presets">Quick presets</string>
 </resources>

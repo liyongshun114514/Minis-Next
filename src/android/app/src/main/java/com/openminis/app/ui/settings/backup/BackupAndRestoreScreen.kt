@@ -2061,25 +2061,29 @@ private fun RestoreProgressSection(
             title = stringResource(R.string.restore_stop_title),
             summary = stringResource(R.string.restore_stop_message),
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.restore_stop_confirm),
-                    onClick = {
-                        confirmStop = false
-                        vm.stopRunningRestore()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(
-                        color = MiuixTheme.colorScheme.error,
-                        textColor = MiuixTheme.colorScheme.onError,
-                    ),
-                )
-                TextButton(
-                    text = stringResource(R.string.restore_stop_cancel),
-                    onClick = { confirmStop = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.restore_stop_cancel),
+                        onClick = { confirmStop = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.restore_stop_confirm),
+                        onClick = {
+                            confirmStop = false
+                            vm.stopRunningRestore()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(
+                            color = MiuixTheme.colorScheme.error,
+                            textColor = MiuixTheme.colorScheme.onError,
+                        ),
+                    )
+                },
+            )
         }
     }
 }

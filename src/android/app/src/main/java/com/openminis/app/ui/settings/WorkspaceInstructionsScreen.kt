@@ -23,6 +23,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +45,7 @@ import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**
  * [T-workspace-instructions] Settings → Workspace Instructions.
@@ -86,6 +87,7 @@ fun WorkspaceInstructionsScreen(
     val projectFiles = snapshot.files.filterNot { it.isUserGlobal }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.workspace_instructions_title),
@@ -102,6 +104,7 @@ fun WorkspaceInstructionsScreen(
         },
     ) { padding ->
         LazyColumn(
+            contentPadding = minisPageContentPadding(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -362,18 +365,24 @@ private fun ScopeDialog(
                                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                         }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            onClick = { onSave(root, cwd) },
-                            text = stringResource(R.string.workspace_save),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            TextButton(
-                            onClick = onDismiss,
-                            text = stringResource(R.string.common_cancel),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                        text = stringResource(R.string.common_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onSave(root, cwd) },
+                        text = stringResource(R.string.workspace_save),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+            )
         }
     }
 }
@@ -400,6 +409,7 @@ fun WorkspaceInstructionEditorScreen(
     var saved by remember { mutableStateOf(false) }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = File(linuxPath).name,
@@ -434,7 +444,7 @@ fun WorkspaceInstructionEditorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(minisPageContentPadding(padding))
                 .padding(horizontal = 16.dp),
         ) {
             Text(

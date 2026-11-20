@@ -1,5 +1,7 @@
 package com.openminis.app.ui.components
 
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
@@ -33,6 +35,7 @@ internal fun MinisPageScaffold(
     snackbarHost: @Composable () -> Unit = {},
     containerColor: Color = MiuixTheme.colorScheme.surface,
     recordBodyForActions: Boolean = true,
+    overlapTopBar: Boolean = false,
     contentWindowInsets: WindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -40,6 +43,7 @@ internal fun MinisPageScaffold(
         drawRect(containerColor)
         drawContent()
     } else null
+    CompositionLocalProvider(LocalMinisPageWindow provides androidx.compose.ui.platform.LocalView.current.rootView) {
     top.yukonga.miuix.kmp.basic.Scaffold(
         modifier = modifier,
         topBar = { CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop, content = topBar) },
@@ -56,12 +60,22 @@ internal fun MinisPageScaffold(
             Box(Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
                 // A sheet or menu opened from this page samples the recorded
                 // body instead of the overlay host it is drawn into.
-                CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop) {
-                    content(padding)
+                CompositionLocalProvider(
+                    LocalMinisActionBackdrop provides null,
+                    LocalMinisPageBackdrop provides backdrop,
+                    LocalMinisPageTopInset provides if (overlapTopBar) padding.calculateTopPadding() else 0.dp,
+                ) {
+                    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+                    content(if (overlapTopBar) PaddingValues(
+                        start = padding.calculateStartPadding(direction),
+                        end = padding.calculateEndPadding(direction),
+                        bottom = padding.calculateBottomPadding(),
+                    ) else padding)
                 }
             }
         },
     )
+    }
 }
 
 /** Right-side icon actions share one material and one spring; textual actions stay textual. */

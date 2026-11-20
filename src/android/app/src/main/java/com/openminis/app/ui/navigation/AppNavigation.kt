@@ -1,7 +1,8 @@
 package com.openminis.app.ui.navigation
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -84,7 +85,14 @@ import kotlinx.coroutines.flow.first
 // don't take a dependency-bump tax just for two CubicBezierEasing instances.
 // Source: m3.material.io/styles/motion/easing-and-duration/tokens-specs
 private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
-private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f)
+
+internal fun usesSettingsSlide(from: String?, to: String?): Boolean {
+    fun settingsPage(route: String?): Boolean = route != null &&
+        route != Routes.SESSION_LIST && !route.startsWith("chat/") &&
+        !route.startsWith("terminal") && !route.startsWith("agent_transcript/") &&
+        route != Routes.FILE_PREVIEW && !route.startsWith("chat_files/")
+    return settingsPage(from) || settingsPage(to)
+}
 
 object Routes {
     const val SESSION_LIST = "sessions"
@@ -584,48 +592,27 @@ fun AppNavigation(
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background),
-        // T342: Material 3 motion — shared-axis X transition.
-        // Spec (m3.material.io/styles/motion/transitions):
-        //   - enter uses EmphasizedDecelerate (cubic-bezier 0.05, 0.7, 0.1, 1.0)
-        //     so the new destination eases in confidently
-        //   - exit uses EmphasizedAccelerate (cubic-bezier 0.3, 0.0, 0.8, 0.15)
-        //     so the leaving destination clears out fast
-        //   - both legs together feel like a single 300ms motion (200ms
-        //     exit overlapping 300ms enter), short enough that a rapid second
-        //     tap still lands on the next destination once safeNavigate's
-        //     RESUMED guard releases
-        //   - the small slide distance (~SlideDirection default ≈ container
-        //     width ÷ N — Compose's slideIntoContainer already picks a
-        //     subtle distance) plus fade reads as a single coordinated
-        //     motion rather than a hard cut, matching Settings/Files in
-        //     Material You system apps.
-        // RESUMED guard via safeNavigate + the colorScheme.background
-        // modifier above (T333) still defend against rapid-tap white
-        // flashes; the slightly longer enter spec (300ms vs 220ms) is
-        // covered by the same guard.
+        // Settings push and pop use a bounded horizontal translation with no spring.
+        // Chat's list/detail animation remains owned by ChatSplitScaffold.
         enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(300, easing = EmphasizedDecelerate),
-            ) + fadeIn(animationSpec = tween(300, easing = EmphasizedDecelerate))
+            if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
+                slideInHorizontally(tween(260, easing = EmphasizedDecelerate)) { it }
+            } else fadeIn(tween(160))
         },
         exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(200, easing = EmphasizedAccelerate),
-            ) + fadeOut(animationSpec = tween(200, easing = EmphasizedAccelerate))
+            if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
+                slideOutHorizontally(tween(260, easing = EmphasizedDecelerate)) { -it / 4 }
+            } else fadeOut(tween(120))
         },
         popEnterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(300, easing = EmphasizedDecelerate),
-            ) + fadeIn(animationSpec = tween(300, easing = EmphasizedDecelerate))
+            if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
+                slideInHorizontally(tween(260, easing = EmphasizedDecelerate)) { -it / 4 }
+            } else fadeIn(tween(160))
         },
         popExitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(200, easing = EmphasizedAccelerate),
-            ) + fadeOut(animationSpec = tween(200, easing = EmphasizedAccelerate))
+            if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
+                slideOutHorizontally(tween(260, easing = EmphasizedDecelerate)) { it }
+            } else fadeOut(tween(120))
         },
     ) {
         // [T-android-tablet-split] SESSION_LIST and CHAT both render the same

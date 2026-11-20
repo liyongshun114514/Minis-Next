@@ -655,26 +655,28 @@ internal fun FolderBrowser(vm: RcloneDestinationsViewModel, onSaved: (String) ->
                     useLabelAsPlaceholder = false,
                     modifier = Modifier,
                 )
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Create is always rendered (greyed when empty) — an Android
-                                // AlertDialog button, unlike a SwiftUI alert action, is not
-                                // omitted when disabled, so the iOS "Create button missing"
-                                // trap (e747b6da1) cannot occur here.
-                                TextButton(
-                                    onClick = {
-                                        vm.createFolder(newFolderName.trim())
-                                        showNewFolder = false; newFolderName = ""
-                                    },
-                                    enabled = newFolderName.trim().isNotEmpty(),
-                                    text = stringResource(R.string.backup_dest_create),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { showNewFolder = false; newFolderName = "" },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showNewFolder = false; newFolderName = "" },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                vm.createFolder(newFolderName.trim())
+                                showNewFolder = false; newFolderName = ""
+                            },
+                            enabled = newFolderName.trim().isNotEmpty(),
+                            text = stringResource(R.string.backup_dest_create),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }

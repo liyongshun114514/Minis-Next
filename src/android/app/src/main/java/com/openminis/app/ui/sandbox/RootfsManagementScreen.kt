@@ -39,6 +39,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,7 +65,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 import top.yukonga.miuix.kmp.basic.BasicComponent
 
 @Composable
@@ -89,6 +90,7 @@ fun RootfsManagementScreen(
     // `surface`) read as raised pads against the page bg.
     val groupedBg = MiuixTheme.colorScheme.surface
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.rootfs_management_title),
@@ -108,7 +110,7 @@ fun RootfsManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(groupedBg)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -354,21 +356,27 @@ fun RootfsManagementScreen(
             summary = stringResource(R.string.rootfs_reset_confirm_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showResetDialog = false
-                                    viewModel.resetRootfs(context, keepUserData = false)
-                                },
-                                    text = "Reset",
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showResetDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showResetDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showResetDialog = false
+                                viewModel.resetRootfs(context, keepUserData = false)
+                            },
+                            text = "Reset",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -387,21 +395,27 @@ fun RootfsManagementScreen(
             summary = stringResource(R.string.rootfs_reset_backup_confirm_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showResetBackupDialog = false
-                                    viewModel.resetRootfs(context, keepUserData = true)
-                                },
-                                    text = stringResource(R.string.rootfs_reset_backup_confirm_button),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showResetBackupDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showResetBackupDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showResetBackupDialog = false
+                                viewModel.resetRootfs(context, keepUserData = true)
+                            },
+                            text = stringResource(R.string.rootfs_reset_backup_confirm_button),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

@@ -906,9 +906,7 @@ class ProviderRepository(private val context: Context) {
             }
             config.instances[idx] = instance
             saveConfig(config)
-            if (prior.customBalanceURL != instance.customBalanceURL) {
-                com.openminis.app.quota.QuotaStore.customBalanceURLChanged(instance.id, prior.customBalanceURL)
-            }
+
             // Any change that could move the model list (base URL, credential
             // swap, enabled flag, API format) invalidates the cache. Cheap to
             // over-invalidate.

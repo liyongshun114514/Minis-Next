@@ -316,7 +316,7 @@ fun ProviderDetailScreen(
             SettingsSection(header = stringResource(R.string.provider_detail_custom_api_base)) {
                 // URL input row — tighter vertical padding to match T226's
                 // SectionTextField height shrink (~-20%).
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
                     SectionTextField(
                         contentHorizontalPadding = 12.dp,
                         value = customBaseURL,
@@ -340,7 +340,7 @@ fun ProviderDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 44.dp)
+                        .heightIn(min = 56.dp)
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -371,11 +371,12 @@ fun ProviderDetailScreen(
                 val showUserAgentField = instance.providerType == ProviderType.openAI ||
                     instance.providerType == ProviderType.anthropic
                 if (showUserAgentField) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
                         Text(
                             text = stringResource(R.string.provider_detail_custom_user_agent),
                             style = MiuixTheme.textStyles.main,
                         )
+                        Spacer(Modifier.height(10.dp))
                         SectionTextField(
                         contentHorizontalPadding = 12.dp,
                             value = customUserAgent,
@@ -863,25 +864,29 @@ fun ProviderDetailScreen(
             summary = stringResource(R.string.provider_detail_delete_provider_confirm, instance.label),
             onDismissRequest = { showDeleteDialog = false },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.common_delete),
-                    onClick = {
-                deleted = true
-                providerRepository.removeInstance(instanceId)
-                AppLogger.info(TAG, "Deleted provider instance ${instance.id} (${instance.label})")
-                showDeleteDialog = false
-                onBack()
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showDeleteDialog = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showDeleteDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.common_delete),
+                        onClick = {
+                            deleted = true
+                            providerRepository.removeInstance(instanceId)
+                            AppLogger.info(TAG, "Deleted provider instance ${instance.id} (${instance.label})")
+                            showDeleteDialog = false
+                            onBack()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 
@@ -899,23 +904,27 @@ fun ProviderDetailScreen(
             ),
             onDismissRequest = { entryToDelete = null },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.common_delete),
-                    onClick = {
-                providerRepository.removeEntry(e.id)
-                AppLogger.info(TAG, "Deleted model entry ${e.id} (${e.model.displayName})")
-                entryToDelete = null
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { entryToDelete = null },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { entryToDelete = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.common_delete),
+                        onClick = {
+                            providerRepository.removeEntry(e.id)
+                            AppLogger.info(TAG, "Deleted model entry ${e.id} (${e.model.displayName})")
+                            entryToDelete = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 }
@@ -1253,11 +1262,13 @@ private fun ApiKeyCredentialBlock(
             )
         }
     } else {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (keyVisible) storedKey else maskedKey(storedKey),
                 style = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             IconButton(onClick = onToggleVisibility) {
                 Icon(
@@ -1543,19 +1554,25 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
                     useLabelAsPlaceholder = false,
                     modifier = Modifier .semantics { if (!valid) error("Invalid value") },
                 )
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    enabled = valid,
-                                    onClick = { customOpen = false; parsed?.let { apply(it) } },
-                                    text = stringResource(R.string.save),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { customOpen = false },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { customOpen = false },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = valid,
+                            onClick = { customOpen = false; parsed?.let { apply(it) } },
+                            text = stringResource(R.string.save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }

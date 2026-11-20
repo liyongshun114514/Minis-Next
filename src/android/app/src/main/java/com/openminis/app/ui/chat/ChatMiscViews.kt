@@ -835,23 +835,27 @@ private fun CompactSummarySheet(
                 "message to re-compact from that point.",
             onDismissRequest = { showRevertConfirm = false },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = "Revert",
-                    onClick = {
-                showRevertConfirm = false
-                onDismiss()
-                onRevert()
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showRevertConfirm = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showRevertConfirm = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = "Revert",
+                        onClick = {
+                            showRevertConfirm = false
+                            onDismiss()
+                            onRevert()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 }

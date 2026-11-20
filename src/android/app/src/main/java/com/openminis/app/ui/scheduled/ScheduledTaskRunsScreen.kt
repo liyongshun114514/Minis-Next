@@ -27,6 +27,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -65,6 +67,7 @@ fun ScheduledTaskRunsScreen(
     val runs = task?.runHistory ?: emptyList()
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             RichTitleAppBar(
                 title = {
@@ -102,7 +105,7 @@ fun ScheduledTaskRunsScreen(
         }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = minisPageContentPadding(PaddingValues(vertical = 8.dp)),
         ) {
             items(runs, key = { it.firedAt }) { run ->
                 RunRow(run = run, onOpenSession = onOpenSession)

@@ -131,21 +131,27 @@ fun BackupDestinationBrowseScreen(
             summary = stringResource(R.string.backup_dest_delete_note, pkg.displayName),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        vm.deleteServerPackage(remote, pkg)
-                                        pendingDelete = null
-                                    },
-                                    text = stringResource(R.string.backup_dest_delete_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { pendingDelete = null },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { pendingDelete = null },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                vm.deleteServerPackage(remote, pkg)
+                                pendingDelete = null
+                            },
+                            text = stringResource(R.string.backup_dest_delete_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

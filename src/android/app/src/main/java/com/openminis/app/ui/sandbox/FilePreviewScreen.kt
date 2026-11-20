@@ -57,6 +57,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -260,6 +262,7 @@ private fun FilePreviewContent(
         onDispose { }
     }
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             RichTitleAppBar(
                 title = {
@@ -327,10 +330,10 @@ private fun FilePreviewContent(
             // technically text but warrant richer renderers.
             when {
                 item.isMarkdownFile -> MarkdownPreview(item, onMarkdownLink)
-                item.isHtmlFile -> HtmlPreview(item)
+                item.isHtmlFile -> Box(Modifier.padding(top = com.openminis.app.ui.components.LocalMinisPageTopInset.current)) { HtmlPreview(item) }
                 item.isImageFile -> ImagePreview(item)
-                item.isAudioFile -> AudioPreview(item)
-                item.isVideoFile -> VideoPreview(item)
+                item.isAudioFile -> Box(Modifier.padding(top = com.openminis.app.ui.components.LocalMinisPageTopInset.current)) { AudioPreview(item) }
+                item.isVideoFile -> Box(Modifier.padding(top = com.openminis.app.ui.components.LocalMinisPageTopInset.current)) { VideoPreview(item) }
                 item.isPdfFile -> PdfPreview(item)
                 item.isCsvFile -> CsvPreview(item)
                 item.isJsonFile -> JsonPreview(item)
@@ -398,7 +401,7 @@ internal fun ImagePreview(item: FileItem) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
             ) {
                 Image(
                     bitmap = bitmap!!.asImageBitmap(),
@@ -481,7 +484,7 @@ internal fun TextPreview(item: FileItem) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
                 ) {
                     Box(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -554,9 +557,7 @@ private fun MarkdownPreview(item: FileItem, onLink: (String) -> Unit) {
             // are touched.
             content = content!!,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 16.dp, vertical = 12.dp,
-            ),
+            contentPadding = minisPageContentPadding(PaddingValues(horizontal = 16.dp, vertical = 12.dp)),
         ) }
         else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Loading...", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
@@ -696,7 +697,7 @@ private fun PdfPreview(item: FileItem) {
         pages!!.isEmpty() -> PdfOpenExternalFallback(item, stringResource(R.string.filepreview_pdf_empty))
         else -> {
             val rendered = pages!!
-            LazyColumn(
+            LazyColumn(contentPadding = minisPageContentPadding(),
                 modifier = Modifier.fillMaxSize().padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -722,7 +723,7 @@ private fun PdfOpenExternalFallback(item: FileItem, reason: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -801,7 +802,7 @@ private fun CsvPreview(item: FileItem) {
                     )
                     HorizontalDivider()
                 }
-                LazyColumn(modifier = Modifier.fillMaxSize().horizontalScroll(rememberScrollState())) {
+                LazyColumn(contentPadding = minisPageContentPadding(), modifier = Modifier.fillMaxSize().horizontalScroll(rememberScrollState())) {
                     items(table.size) { rowIdx ->
                         val cols = table[rowIdx]
                         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -896,7 +897,7 @@ private fun JsonPreview(item: FileItem) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
             ) {
                 Box(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -1000,7 +1001,7 @@ private fun ApkPreview(item: FileItem) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -1130,7 +1131,7 @@ private fun ArchivePreview(item: FileItem) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 HorizontalDivider()
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(contentPadding = minisPageContentPadding(), Modifier.fillMaxSize()) {
                     items(list.size) { i ->
                         val e = list[i]
                         BasicComponent {
@@ -1188,7 +1189,7 @@ private fun OfficeOpenExternal(item: FileItem) {
                 overscrollEffect = bounce,
             )
             .overscroll(bounce)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
     ) {
         Column(
             modifier = Modifier
@@ -1258,7 +1259,7 @@ private fun FileInfoView(item: FileItem) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
     ) {
         // Icon header
         Box(

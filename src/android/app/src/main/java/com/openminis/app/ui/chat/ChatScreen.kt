@@ -8015,23 +8015,27 @@ fun ChatScreen(
                     summary = stringResource(R.string.chat_clear_dialog_body),
                     onDismissRequest = { showClearChatDialog = false },
                 ) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(
-                            text = stringResource(R.string.chat_clear_dialog_confirm),
-                            onClick = {
-                        viewModel.clearChat()
-                        viewModel.setInputText("")
-                        showClearChatDialog = false
-                    },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                        )
-                        TextButton(
-                            text = stringResource(R.string.cancel),
-                            onClick = { showClearChatDialog = false },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    com.openminis.app.ui.components.MinisDialogActions(
+                        dismissButton = {
+                            TextButton(
+                                text = stringResource(R.string.cancel),
+                                onClick = { showClearChatDialog = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                text = stringResource(R.string.chat_clear_dialog_confirm),
+                                onClick = {
+                                    viewModel.clearChat()
+                                    viewModel.setInputText("")
+                                    showClearChatDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                            )
+                        },
+                    )
                 }
             }
             // [T-android-delete-from-here] Confirm before truncating. The cut
@@ -8055,22 +8059,26 @@ fun ChatScreen(
                     ),
                     onDismissRequest = { deleteFromHereTargetId = null },
                 ) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(
-                            text = stringResource(R.string.chat_delete_from_here_confirm),
-                            onClick = {
-                        viewModel.deleteFromMessage(targetId)
-                        deleteFromHereTargetId = null
-                    },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                        )
-                        TextButton(
-                            text = stringResource(R.string.cancel),
-                            onClick = { deleteFromHereTargetId = null },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    com.openminis.app.ui.components.MinisDialogActions(
+                        dismissButton = {
+                            TextButton(
+                                text = stringResource(R.string.cancel),
+                                onClick = { deleteFromHereTargetId = null },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                text = stringResource(R.string.chat_delete_from_here_confirm),
+                                onClick = {
+                                    viewModel.deleteFromMessage(targetId)
+                                    deleteFromHereTargetId = null
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                            )
+                        },
+                    )
                 }
             }
             // [T-android-compact-above] Compaction replaces the history above
@@ -8084,22 +8092,26 @@ fun ChatScreen(
                     summary = stringResource(R.string.chat_compact_above_dialog_body),
                     onDismissRequest = { compactAboveTargetId = null },
                 ) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(
-                            text = stringResource(R.string.chat_compact_above_confirm),
-                            onClick = {
-                        viewModel.compactBefore(targetId)
-                        compactAboveTargetId = null
-                    },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                        )
-                        TextButton(
-                            text = stringResource(R.string.cancel),
-                            onClick = { compactAboveTargetId = null },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    com.openminis.app.ui.components.MinisDialogActions(
+                        dismissButton = {
+                            TextButton(
+                                text = stringResource(R.string.cancel),
+                                onClick = { compactAboveTargetId = null },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                text = stringResource(R.string.chat_compact_above_confirm),
+                                onClick = {
+                                    viewModel.compactBefore(targetId)
+                                    compactAboveTargetId = null
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                            )
+                        },
+                    )
                 }
             }
             // [T-multi-select-share] The share picker (and, from it, the preview).
@@ -8146,23 +8158,27 @@ fun ChatScreen(
                     summary = stringResource(R.string.chat_new_chat_stop_dialog_body),
                     onDismissRequest = { showNewChatStopDialog = false },
                 ) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(
-                            text = stringResource(R.string.chat_new_chat_stop_dialog_confirm),
-                            onClick = {
-                        showNewChatStopDialog = false
-                        viewModel.cancelStream()
-                        onNewChat()
-                    },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                        )
-                        TextButton(
-                            text = stringResource(R.string.cancel),
-                            onClick = { showNewChatStopDialog = false },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    com.openminis.app.ui.components.MinisDialogActions(
+                        dismissButton = {
+                            TextButton(
+                                text = stringResource(R.string.cancel),
+                                onClick = { showNewChatStopDialog = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                text = stringResource(R.string.chat_new_chat_stop_dialog_confirm),
+                                onClick = {
+                                    showNewChatStopDialog = false
+                                    viewModel.cancelStream()
+                                    onNewChat()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                            )
+                        },
+                    )
                 }
             }
             // [T-android-enhanced-cache] One-time extra-billing confirmation
@@ -8175,22 +8191,26 @@ fun ChatScreen(
                     summary = stringResource(R.string.enhanced_cache_dialog_body),
                     onDismissRequest = { showEnhancedCacheDialog = false },
                 ) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(
-                            text = stringResource(R.string.enhanced_cache_dialog_confirm),
-                            onClick = {
-                        viewModel.confirmAndEnableEnhancedCache()
-                        showEnhancedCacheDialog = false
-                    },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(),
-                        )
-                        TextButton(
-                            text = stringResource(R.string.cancel),
-                            onClick = { showEnhancedCacheDialog = false },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    com.openminis.app.ui.components.MinisDialogActions(
+                        dismissButton = {
+                            TextButton(
+                                text = stringResource(R.string.cancel),
+                                onClick = { showEnhancedCacheDialog = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                text = stringResource(R.string.enhanced_cache_dialog_confirm),
+                                onClick = {
+                                    viewModel.confirmAndEnableEnhancedCache()
+                                    showEnhancedCacheDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColorsPrimary(),
+                            )
+                        },
+                    )
                 }
             }
         }

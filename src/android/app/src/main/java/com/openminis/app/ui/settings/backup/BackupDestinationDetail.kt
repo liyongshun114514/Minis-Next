@@ -282,22 +282,28 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
                                         modifier = Modifier,
                                     )
                                 }
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        renaming = false
-                                        vm.rename(r.name, draft) { nav.renamed(it.name) }
-                                    },
-                                    enabled = draft.trim().isNotEmpty(),
-                                    text = stringResource(R.string.backup_dest_save),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { renaming = false },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { renaming = false },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                renaming = false
+                                vm.rename(r.name, draft) { nav.renamed(it.name) }
+                            },
+                            enabled = draft.trim().isNotEmpty(),
+                            text = stringResource(R.string.backup_dest_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -309,26 +315,30 @@ internal fun DestinationDetailContent(vm: RcloneDestinationsViewModel, nav: Dest
             title = stringResource(R.string.backup_dest_remove_confirm_title),
             summary = if (local) null else stringResource(R.string.backup_dest_remove_confirm_note),
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.backup_dest_remove_action),
-                    onClick = {
-                        confirmRemove = false
-                        vm.remove(r.name)
-                        nav.close()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(
-                        color = MiuixTheme.colorScheme.error,
-                        textColor = MiuixTheme.colorScheme.onError,
-                    ),
-                )
-                TextButton(
-                    text = stringResource(R.string.backup_dest_cancel),
-                    onClick = { confirmRemove = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.backup_dest_cancel),
+                        onClick = { confirmRemove = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.backup_dest_remove_action),
+                        onClick = {
+                            confirmRemove = false
+                            vm.remove(r.name)
+                            nav.close()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(
+                            color = MiuixTheme.colorScheme.error,
+                            textColor = MiuixTheme.colorScheme.onError,
+                        ),
+                    )
+                },
+            )
         }
     }
 }

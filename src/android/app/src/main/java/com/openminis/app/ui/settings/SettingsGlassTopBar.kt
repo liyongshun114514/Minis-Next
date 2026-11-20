@@ -48,62 +48,81 @@ internal fun SettingsGlassTopBar(
     navigation: @Composable (() -> Unit)?,
     actions: @Composable (() -> Unit)?,
     background: Color = MiuixTheme.colorScheme.surface,
+    blurBackground: Boolean = true,
 ) {
-    val colors = MiuixTheme.colorScheme
+    val foreground: @Composable () -> Unit = {
+        SettingsBarForeground(title, centerTitle, onBack, navigation, actions)
+    }
+    if (!blurBackground) {
+        foreground()
+        return
+    }
     MinisGlassTopBar(
         backdrop = backdrop,
         background = background,
         modifier = Modifier.fillMaxWidth(),
         backgroundAlpha = overlap,
     ) {
-        Layout(
-            modifier = Modifier.fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-                .padding(horizontal = 12.dp)
-                .heightIn(min = 60.dp)
-                .padding(vertical = 5.dp),
-            content = {
-                Box(contentAlignment = Alignment.CenterStart) {
-                    when {
-                        navigation != null -> navigation()
-                        onBack != null -> SettingsGlassBackButton(onBack)
-                    }
+        foreground()
+    }
+}
+
+@Composable
+private fun SettingsBarForeground(
+    title: String,
+    centerTitle: Boolean,
+    onBack: (() -> Unit)?,
+    navigation: @Composable (() -> Unit)?,
+    actions: @Composable (() -> Unit)?,
+) {
+    val colors = MiuixTheme.colorScheme
+    Layout(
+        modifier = Modifier.fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .padding(horizontal = 12.dp)
+            .heightIn(min = 60.dp)
+            .padding(vertical = 5.dp),
+        content = {
+            Box(contentAlignment = Alignment.CenterStart) {
+                when {
+                    navigation != null -> navigation()
+                    onBack != null -> SettingsGlassBackButton(onBack)
                 }
-                Box(contentAlignment = if (centerTitle) Alignment.Center else Alignment.CenterStart) {
-                    Text(
-                        text = title,
-                        modifier = Modifier.semantics { heading() },
-                        style = MiuixTheme.textStyles.title3,
-                        color = colors.onSurface,
-                        textAlign = if (centerTitle) TextAlign.Center else TextAlign.Start,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                androidx.compose.foundation.layout.Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-                ) { actions?.invoke() }
-            },
-        ) { measurables, constraints ->
-            val width = constraints.maxWidth
-            val loose = constraints.copy(minWidth = 0, minHeight = 0)
-            val start = measurables[0].measure(loose.copy(maxWidth = width / 3))
-            // Reserve actual action widths before measuring the title. A one-third cap
-            // squeezed the second 48dp glass target on narrow screens / large fonts.
-            val end = measurables[2].measure(loose.copy(maxWidth = (width - start.width).coerceAtLeast(0)))
-            val gap = 10.dp.roundToPx()
-            val startSpace = if (start.width > 0) start.width + gap else 0
-            val endSpace = if (end.width > 0) end.width + gap else 0
-            val reserved = if (centerTitle) 2 * maxOf(startSpace, endSpace) else startSpace + endSpace
-            val label = measurables[1].measure(loose.copy(maxWidth = (width - reserved).coerceAtLeast(0)))
-            val height = constraints.constrainHeight(maxOf(start.height, end.height, label.height))
-            layout(width, height) {
-                start.placeRelative(0, (height - start.height) / 2)
-                label.placeRelative(if (centerTitle) (width - label.width) / 2 else startSpace, (height - label.height) / 2)
-                end.placeRelative(width - end.width, (height - end.height) / 2)
             }
+            Box(contentAlignment = if (centerTitle) Alignment.Center else Alignment.CenterStart) {
+                Text(
+                    text = title,
+                    modifier = Modifier.semantics { heading() },
+                    style = MiuixTheme.textStyles.title3,
+                    color = colors.onSurface,
+                    textAlign = if (centerTitle) TextAlign.Center else TextAlign.Start,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) { actions?.invoke() }
+        },
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val start = measurables[0].measure(loose.copy(maxWidth = width / 3))
+        // Reserve actual action widths before measuring the title. A one-third cap
+        // squeezed the second 48dp glass target on narrow screens / large fonts.
+        val end = measurables[2].measure(loose.copy(maxWidth = (width - start.width).coerceAtLeast(0)))
+        val gap = 10.dp.roundToPx()
+        val startSpace = if (start.width > 0) start.width + gap else 0
+        val endSpace = if (end.width > 0) end.width + gap else 0
+        val reserved = if (centerTitle) 2 * maxOf(startSpace, endSpace) else startSpace + endSpace
+        val label = measurables[1].measure(loose.copy(maxWidth = (width - reserved).coerceAtLeast(0)))
+        val height = constraints.constrainHeight(maxOf(start.height, end.height, label.height))
+        layout(width, height) {
+            start.placeRelative(0, (height - start.height) / 2)
+            label.placeRelative(if (centerTitle) (width - label.width) / 2 else startSpace, (height - label.height) / 2)
+            end.placeRelative(width - end.width, (height - end.height) / 2)
         }
     }
 }

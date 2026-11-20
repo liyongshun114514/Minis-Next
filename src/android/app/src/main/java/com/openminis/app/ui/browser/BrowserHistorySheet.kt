@@ -203,21 +203,27 @@ fun BrowserHistorySheet(
             summary = stringResource(R.string.browser_history_clear_dialog_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    historyStore.clear()
-                                    showClearConfirm = false
-                                },
-                                    text = stringResource(R.string.browser_history_clear),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showClearConfirm = false },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearConfirm = false },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                historyStore.clear()
+                                showClearConfirm = false
+                            },
+                            text = stringResource(R.string.browser_history_clear),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

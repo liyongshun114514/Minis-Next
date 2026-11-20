@@ -467,21 +467,27 @@ fun NetworkSettingsScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 DialogTextField(value = draft, onValueChange = { draft = it }, placeholder = "minis-android")
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    NetworkHub.update { it.copy(hostname = draft.trim()) }
-                                    showHostname = false
-                                },
-                                    text = stringResource(R.string.network_save),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { showHostname = false },
-                                    text = stringResource(R.string.network_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showHostname = false },
+                            text = stringResource(R.string.network_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                NetworkHub.update { it.copy(hostname = draft.trim()) }
+                                showHostname = false
+                            },
+                            text = stringResource(R.string.network_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -540,18 +546,24 @@ fun NetworkSettingsScreen(
             summary = stringResource(R.string.network_sign_out_clear_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = { NetworkHub.clearTailscale(); confirmClear = false },
-                                    text = stringResource(R.string.network_sign_out_clear),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { confirmClear = false },
-                                    text = stringResource(R.string.network_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmClear = false },
+                            text = stringResource(R.string.network_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { NetworkHub.clearTailscale(); confirmClear = false },
+                            text = stringResource(R.string.network_sign_out_clear),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -913,19 +925,25 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
                                 )
                             }
                         }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            enabled = valid,
-                            onClick = { NetworkHub.saveProxy(edited(), password); onDismiss() },
-                            text = stringResource(R.string.network_save),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            TextButton(
-                            onClick = onDismiss,
-                            text = stringResource(R.string.network_cancel),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                        text = stringResource(R.string.network_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = valid,
+                        onClick = { NetworkHub.saveProxy(edited(), password); onDismiss() },
+                        text = stringResource(R.string.network_save),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+            )
         }
     }
 }
@@ -945,19 +963,25 @@ private fun AuthKeyDialog(onDismiss: () -> Unit) {
                             Text(stringResource(R.string.network_auth_key_footer), style = MiuixTheme.textStyles.body2,
                                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
                         }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            enabled = key.isNotBlank(),
-                            onClick = { NetworkHub.login(key); onDismiss() },
-                            text = stringResource(R.string.network_log_in),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            TextButton(
-                            onClick = onDismiss,
-                            text = stringResource(R.string.network_cancel),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                        text = stringResource(R.string.network_cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = key.isNotBlank(),
+                        onClick = { NetworkHub.login(key); onDismiss() },
+                        text = stringResource(R.string.network_log_in),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+            )
         }
     }
 }

@@ -239,23 +239,29 @@ internal fun ScheduledTaskDetailSheet(
             summary = stringResource(R.string.scheduled_card_cancel_confirm_body, name),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    // Disable rather than delete, as the card does: the history
-                                    // stays, and the task can be re-enabled from Settings.
-                                    manager.setEnabled(marker.taskId, false)
-                                    confirmingCancel = false
-                                },
-                                    text = stringResource(R.string.scheduled_card_cancel_confirm_ok),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { confirmingCancel = false },
-                                    text = stringResource(R.string.scheduled_card_cancel_confirm_keep),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmingCancel = false },
+                            text = stringResource(R.string.scheduled_card_cancel_confirm_keep),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                // Disable rather than delete, as the card does: the history
+                                // stays, and the task can be re-enabled from Settings.
+                                manager.setEnabled(marker.taskId, false)
+                                confirmingCancel = false
+                            },
+                            text = stringResource(R.string.scheduled_card_cancel_confirm_ok),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }

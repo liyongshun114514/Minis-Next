@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.Terminal
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -198,24 +197,30 @@ fun MCPIntegrationsScreen(
             summary = stringResource(R.string.mcp_delete_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    mcpRepository.delete(id)
-                                    // [T-mcp-oauth-signin-android] Full cleanup, as iOS purge:
-                                    // secret, tokens and the guest's token bridge.
-                                    com.openminis.app.mcp.oauth.MCPOAuthController(screenContext, http = mcpOAuthHttp).purge(id)
-                                    deleteId = null
-                                },
-                                    text = stringResource(R.string.delete),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { deleteId = null },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { deleteId = null },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                mcpRepository.delete(id)
+                                // [T-mcp-oauth-signin-android] Full cleanup, as iOS purge:
+                                // secret, tokens and the guest's token bridge.
+                                com.openminis.app.mcp.oauth.MCPOAuthController(screenContext, http = mcpOAuthHttp).purge(id)
+                                deleteId = null
+                            },
+                            text = stringResource(R.string.delete),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -257,11 +262,11 @@ private fun MCPAddSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .padding(bottom = 32.dp)
                 .imePadding()
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
                 stringResource(if (isEdit) R.string.mcp_edit else R.string.mcp_add),
@@ -269,10 +274,15 @@ private fun MCPAddSheet(
             )
 
             if (!isEdit) {
-                TabRow(
-                    tabs = listOf(stringResource(R.string.mcp_tab_form), stringResource(R.string.mcp_tab_import)),
+                val tabs = listOf(stringResource(R.string.mcp_tab_form), stringResource(R.string.mcp_tab_import))
+                TabRowWithContour(
+                    tabs = tabs,
                     selectedTabIndex = selectedTab,
                     onTabSelected = { selectedTab = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minWidth = preferenceTabMinWidth(tabs),
+                    height = preferenceTabHeight(),
+                    colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.surfaceContainer),
                 )
             }
 
@@ -1002,21 +1012,27 @@ private fun MCPFormTab(
             summary = stringResource(R.string.mcp_signin_reset_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    confirmResetSignIn = false
-                                    resetBrowserSignIn()
-                                },
-                                    text = stringResource(R.string.mcp_signin_reset_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { confirmResetSignIn = false },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmResetSignIn = false },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                confirmResetSignIn = false
+                                resetBrowserSignIn()
+                            },
+                            text = stringResource(R.string.mcp_signin_reset_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -1089,21 +1105,27 @@ private fun MCPFormTab(
             summary = stringResource(R.string.mcp_form_env_clear_confirm_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    env = ""
-                                    showClearEnvConfirm = false
-                                },
-                                    text = stringResource(R.string.delete),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showClearEnvConfirm = false },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearEnvConfirm = false },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                env = ""
+                                showClearEnvConfirm = false
+                            },
+                            text = stringResource(R.string.delete),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

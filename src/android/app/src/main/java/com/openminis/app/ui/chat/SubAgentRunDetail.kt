@@ -662,21 +662,27 @@ internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean, back
             summary = stringResource(R.string.subagent_detail_stop_confirm_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    confirmStop = false
-                                    stopSubAgentByUser(context, childSessionId, "user-stop-detail")
-                                },
-                                    text = stringResource(R.string.helper_stop),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = HelperStatusRed),
-                                )
-                TextButton(
-                                    onClick = { confirmStop = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmStop = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                confirmStop = false
+                                stopSubAgentByUser(context, childSessionId, "user-stop-detail")
+                            },
+                            text = stringResource(R.string.helper_stop),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = HelperStatusRed),
+                        )
+                    },
+                )
             }
         }
     }

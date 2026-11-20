@@ -268,6 +268,108 @@ class MiuixSurfaceRegressionTest {
         compose.runOnIdle { assertFalse(visible); assertEquals(1, writes) }
     }
 
+    @Test fun capturedPageMasksInlineSamplingWhileBarAndOverlayKeepTheirSource() {
+        var barHasSource = false
+        var bodyHasSource = true
+        var overlayHasSource = false
+        compose.setContent {
+            MinisTheme {
+                MinisPageScaffold(topBar = {
+                    val source = LocalMinisActionBackdrop.current
+                    SideEffect { barHasSource = source != null }
+                    Text("Top bar")
+                }) {
+                    val inline = LocalMinisActionBackdrop.current
+                    val overlay = LocalMinisPageBackdrop.current
+                    SideEffect {
+                        bodyHasSource = inline != null
+                        overlayHasSource = overlay != null
+                    }
+                    Column {
+                        repeat(3) { index ->
+                            MinisGlassIconButton(onClick = {}) { Text("Member $index") }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Member 2").assertIsDisplayed()
+        compose.runOnIdle {
+            assertTrue("bar can sample its sibling page", barHasSource)
+            assertFalse("inline glass must not draw the layer containing itself", bodyHasSource)
+            assertTrue("out-of-tree sheets retain a source", overlayHasSource)
+        }
+    }
+
+    @Test fun dialogActionsShareOneBottomRowAtLargeFontAndKeepDisabledState() {
+        var cancelled = 0
+        var confirmed = 0
+        compose.setContent {
+            MinisTheme(fontScale = 1.5f) {
+                Column(Modifier.width(280.dp)) {
+                    Text("New group")
+                    MinisDialogActions(
+                        dismissButton = { TextButton("Cancel", onClick = { cancelled++ }, modifier = Modifier.fillMaxWidth()) },
+                        confirmButton = { TextButton("Create group", onClick = { confirmed++ }, enabled = false, modifier = Modifier.fillMaxWidth()) },
+                    )
+                }
+            }
+        }
+        val cancel = compose.onNodeWithText("Cancel")
+        val confirm = compose.onNodeWithText("Create group")
+        val left = cancel.fetchSemanticsNode().boundsInRoot
+        val right = confirm.fetchSemanticsNode().boundsInRoot
+        assertTrue(left.right < right.left)
+        assertEquals("both actions are on one row", left.center.y, right.center.y, 1f)
+        assertEquals("both slots get equal width", left.width, right.width, 1f)
+        confirm.assertIsNotEnabled()
+        cancel.performClick()
+        compose.runOnIdle { assertEquals(1, cancelled); assertEquals(0, confirmed) }
+    }
+
+    @Test fun modelGroupDetailCanEnterLeaveAndEnterAgainWithGlassMembers() {
+        val repository = com.openminis.app.data.repository.ProviderRepository(compose.activity.applicationContext)
+        val instance = com.openminis.app.data.model.ProviderInstance(
+            id = "group-glass-provider", label = "Test provider",
+            providerType = com.openminis.app.data.model.ProviderType.openAI,
+            credentialType = com.openminis.app.data.model.ProviderCredential.apiKey,
+        )
+        repository.addInstance(instance)
+        val entry = com.openminis.app.data.model.ModelEntry(
+            providerInstanceId = instance.id,
+            baseModel = com.openminis.app.data.model.LLMModel("test-model", "Test model", "openai"),
+        )
+        repository.addEntry(entry)
+        val group = com.openminis.app.data.model.ModelGroup(
+            id = "group-glass", name = "Glass group",
+            memberEntryIds = mutableListOf(entry.id),
+        )
+        repository.addGroup(group)
+        var selected by mutableStateOf<String?>(null)
+        compose.setContent {
+            MinisTheme {
+                if (selected == null) {
+                    com.openminis.app.ui.settings.ModelGroupsScreen(
+                        providerRepository = repository, onBack = {}, onGroupClick = { selected = it },
+                    )
+                } else {
+                    com.openminis.app.ui.settings.ModelGroupDetailScreen(
+                        groupId = selected!!, providerRepository = repository,
+                        onBack = { selected = null }, onAddModels = {},
+                    )
+                }
+            }
+        }
+        repeat(3) {
+            compose.onAllNodesWithText("Glass group").onFirst().performClick()
+            compose.onNode(hasScrollAction()).performScrollToNode(hasText("Test model"))
+            compose.onNodeWithText("Test model").assertIsDisplayed()
+            compose.onRoot().captureToImage()
+            compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.settings_back)).performClick()
+            compose.runOnIdle { assertNull(selected) }
+        }
+    }
+
     @Test fun particleEffortSliderKeepsAccessibleValueAndNeverCommitsWhileDisabled() {
         var commits = 0
         compose.setContent {

@@ -54,7 +54,7 @@ fun MinisBottomSheet(
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
     val locals = androidx.compose.runtime.currentCompositionLocalContext
     val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow }
-    val surfaceBackdrop = backdrop ?: LocalMinisActionBackdrop.current ?: scene?.backdrop
+    val surfaceBackdrop = backdrop ?: LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current ?: scene?.backdrop
     // A new controlled show session cancels an older internal close.
     var closing by remember(show) { mutableStateOf(false) }
     val currentShow by rememberUpdatedState(show)
@@ -71,6 +71,12 @@ fun MinisBottomSheet(
             currentFinished?.invoke()
         }
     }
+    val sheetStartAction: (@Composable () -> Unit)? = startAction?.let { action ->
+        { CompositionLocalProvider(LocalDismissState provides requestDismiss, content = action) }
+    }
+    val sheetEndAction: (@Composable () -> Unit)? = endAction?.let { action ->
+        { CompositionLocalProvider(LocalDismissState provides requestDismiss, content = action) }
+    }
     val sheetContent: @Composable () -> Unit = {
         CompositionLocalProvider(locals) {
             // Native content survives through exit. Its disposal, not requested
@@ -79,7 +85,11 @@ fun MinisBottomSheet(
                 val release = scene?.acquire()
                 onDispose { release?.invoke() }
             }
-            CompositionLocalProvider(LocalDismissState provides requestDismiss, content = content)
+            CompositionLocalProvider(
+                LocalDismissState provides requestDismiss,
+                LocalMinisPageTopInset provides 0.dp,
+                content = content,
+            )
         }
     }
     // A surface launched inside an independent Android Dialog must not move
@@ -90,8 +100,8 @@ fun MinisBottomSheet(
             show = show && !closing,
             modifier = modifier,
             title = title,
-            startAction = startAction,
-            endAction = endAction,
+            startAction = sheetStartAction,
+            endAction = sheetEndAction,
             backgroundColor = backgroundColor,
             enableWindowDim = enableWindowDim,
             cornerRadius = cornerRadius,
@@ -105,7 +115,11 @@ fun MinisBottomSheet(
             allowDismiss = allowDismiss,
             enableNestedScroll = enableNestedScroll,
         ) {
-            CompositionLocalProvider(LocalDismissState provides requestDismiss, content = content)
+            CompositionLocalProvider(
+                LocalDismissState provides requestDismiss,
+                LocalMinisPageTopInset provides 0.dp,
+                content = content,
+            )
         }
         return
     }
@@ -115,8 +129,8 @@ fun MinisBottomSheet(
         backdrop = surfaceBackdrop,
         modifier = modifier,
         title = title,
-        startAction = startAction,
-        endAction = endAction,
+        startAction = sheetStartAction,
+        endAction = sheetEndAction,
         containerColor = backgroundColor,
         enableWindowDim = enableWindowDim,
         cornerRadius = cornerRadius,

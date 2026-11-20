@@ -46,6 +46,8 @@ import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,7 +109,7 @@ fun ModelGroupDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (group == null) {
-        onBack()
+        LaunchedEffect(groupId) { onBack() }
         return
     }
 
@@ -151,12 +153,13 @@ fun ModelGroupDetailScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             SettingsGlassTopBar(
                 title = group.name,
                 backdrop = null,
-                overlap = { if (lazyListState.canScrollBackward) 1f else 0f },
+                overlap = { 1f },
                 centerTitle = true,
                 onBack = onBack,
                 navigation = null,
@@ -172,7 +175,7 @@ fun ModelGroupDetailScreen(
             contentPadding = PaddingValues(
                 start = padding.calculateStartPadding(direction),
                 end = padding.calculateEndPadding(direction),
-                top = padding.calculateTopPadding(),
+                top = padding.calculateTopPadding() + com.openminis.app.ui.components.LocalMinisPageTopInset.current,
                 bottom = padding.calculateBottomPadding() + 16.dp,
             ),
         ) {
@@ -602,23 +605,29 @@ fun ModelGroupDetailScreen(
                 val name = removingEntry?.model?.displayName
                                     ?: stringResource(R.string.model_group_detail_remove_this_model_fallback)
                                 Text(stringResource(R.string.model_group_detail_remove_named_model_confirm, name))
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        val newIds = memberIds.toMutableList().apply { remove(removingId) }
-                                        memberIds = newIds
-                                        providerRepository.updateGroup(group.copy(memberEntryIds = newIds.toMutableList()))
-                                        entryToRemove = null
-                                    },
-                                    text = stringResource(R.string.common_remove),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { entryToRemove = null },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { entryToRemove = null },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                val newIds = memberIds.toMutableList().apply { remove(removingId) }
+                                memberIds = newIds
+                                providerRepository.updateGroup(group.copy(memberEntryIds = newIds.toMutableList()))
+                                entryToRemove = null
+                            },
+                            text = stringResource(R.string.common_remove),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -632,22 +641,28 @@ fun ModelGroupDetailScreen(
             summary = stringResource(R.string.model_group_detail_delete_named_group_confirm, group.name),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        providerRepository.removeGroup(groupId)
-                                        showDeleteDialog = false
-                                        onBack()
-                                    },
-                                    text = stringResource(R.string.common_delete),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showDeleteDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDeleteDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                providerRepository.removeGroup(groupId)
+                                showDeleteDialog = false
+                                onBack()
+                            },
+                            text = stringResource(R.string.common_delete),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

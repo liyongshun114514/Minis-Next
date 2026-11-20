@@ -40,6 +40,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -72,7 +73,7 @@ import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 import androidx.compose.runtime.CompositionLocalProvider
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.theme.LocalContentColor
@@ -657,6 +658,7 @@ fun MirrorCategoryDetailScreen(
     val allForCategory = MirrorCatalog.mirrors(category)
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = category.displayName,
@@ -673,7 +675,7 @@ fun MirrorCategoryDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
         ) {
             // --- Current section ---
             Text(

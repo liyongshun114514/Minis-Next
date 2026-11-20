@@ -29,6 +29,8 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,7 +103,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 
 /**
@@ -292,6 +294,7 @@ fun UsageStatsScreen(
 private fun UsageScaffold(onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val page = if (isUsageDark()) Color.Black else Color(0xFFF2F2F7)
     Scaffold(
+        overlapTopBar = true,
         containerColor = page,
         topBar = {
             TopAppBar(
@@ -306,7 +309,7 @@ private fun UsageScaffold(onBack: () -> Unit, content: @Composable ColumnScope.(
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()), content = content)
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).minisPageScrollPadding(), content = content)
     }
 }
 

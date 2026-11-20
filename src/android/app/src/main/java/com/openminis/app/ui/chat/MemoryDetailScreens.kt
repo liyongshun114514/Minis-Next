@@ -259,18 +259,24 @@ fun RevokeConfirmDialog(
         summary = stringResource(R.string.memory_revoke_dialog_message),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            onClick = onConfirm,
-                            text = stringResource(R.string.memory_action_revoke),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                        )
-            TextButton(
-                            onClick = onDismiss,
-                            text = stringResource(R.string.cancel),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onDismiss,
+                        text = stringResource(R.string.cancel),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onConfirm,
+                        text = stringResource(R.string.memory_action_revoke),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                    )
+                },
+            )
         }
     }
 }

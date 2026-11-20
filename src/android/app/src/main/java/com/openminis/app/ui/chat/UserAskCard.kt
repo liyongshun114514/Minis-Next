@@ -752,18 +752,24 @@ private fun InputDialog(
                                 modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
                             )
                         }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                        onClick = { onDone(text) },
-                        text = stringResource(R.string.user_ask_done),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-            TextButton(
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = onDismiss,
                         text = stringResource(R.string.user_ask_cancel),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )
-            }
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onDone(text) },
+                        text = stringResource(R.string.user_ask_done),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+            )
         }
     }
 }

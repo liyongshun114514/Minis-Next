@@ -293,21 +293,8 @@ data class ProviderInstance(
     val createdAt: Long = System.currentTimeMillis(),
     var customBaseURL: String? = null,
     var appendV1Suffix: Boolean = true,
-    /**
-     * [T-provider-custom-balance-url] Optional, user-supplied, full HTTPS
-     * balance endpoint for this instance (e.g. a relay's own billing API that
-     * the automatic probe does not recognise).
-     *
-     * null / blank means "keep the automatic detection" - the vendor adapter
-     * chosen from [providerType] and [customBaseURL]. A value is queried
-     * INSTEAD of that automatic query, with this instance's own API key as the
-     * bearer credential; nothing is ever sent to an address the user did not
-     * enter here. The quota layer validates it as HTTPS-only, with a host and
-     * without user-info/fragment (see CustomBalanceEndpoint).
-     *
-     * Default null keeps every pre-existing config (JSON mirror, DB rows before
-     * MIGRATION_4_5, older backups) decoding unchanged.
-     */
+    /** Retired balance endpoint, retained only for lossless legacy DB/backup round-trips.
+     * Never read by the quota resolver, request builder or settings UI. */
     var customBalanceURL: String? = null,
     // [T-provider-custom-user-agent] Optional per-provider User-Agent
     // override. Some relay gateways only accept requests whose UA looks like

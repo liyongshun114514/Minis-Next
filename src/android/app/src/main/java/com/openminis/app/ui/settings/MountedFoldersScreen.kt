@@ -44,6 +44,7 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -158,6 +159,7 @@ fun MountedFoldersScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             SmallTopAppBar(
                 title = stringResource(R.string.settings_mount_external_folders),
@@ -199,14 +201,17 @@ fun MountedFoldersScreen(
         },
         containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
+            contentPadding = minisPageContentPadding(androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            InfoBanner()
+            item("info") { InfoBanner() }
 
             if (!hasAllFilesAccess) {
+                item("access") {
                 AllFilesAccessBanner(onClick = {
                     when {
                         // Android 11+: special All Files Access page.
@@ -240,16 +245,13 @@ fun MountedFoldersScreen(
                             )
                     }
                 })
+                }
             }
 
             if (entries.isEmpty()) {
-                EmptyState()
+                item("empty") { EmptyState() }
             } else {
-                ListHeader(count = entries.size, atCapacity = isAtCapacity)
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                item("header") { ListHeader(count = entries.size, atCapacity = isAtCapacity) }
                     items(entries, key = { it.id }) { entry ->
                         val dismissState = rememberSwipeToDismissBoxState()
                         LaunchedEffect(dismissState.currentValue) {
@@ -297,7 +299,6 @@ fun MountedFoldersScreen(
                             )
                         }
                     }
-                }
             }
         }
     }

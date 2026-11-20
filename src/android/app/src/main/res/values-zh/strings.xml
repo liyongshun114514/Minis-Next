@@ -2323,15 +2323,6 @@
     <string name="rootfs_dns_effective_system">当前生效：系统 DNS</string>
     <string name="rootfs_dns_effective_custom">当前生效：%1$s</string>
     <string name="quota_title">额度</string>
-    <string name="quota_custom_balance_url_title">余额查询地址</string>
-    <string name="quota_custom_balance_url_automatic">自动识别</string>
-    <string name="quota_custom_balance_url_add">设置</string>
-    <string name="quota_custom_balance_url_edit">编辑</string>
-    <string name="quota_custom_balance_url_description">可选。填写 HTTPS 站点或完整余额接口链接，自动使用当前供应商已保存的 API Key，无需额外输入；billing 接口会补查用量计算美元余额。留空则自动识别。</string>
-    <string name="quota_custom_balance_url_invalid">请输入带主机名的完整 https:// 地址；不允许 user-info 和 # 片段。</string>
-    <string name="quota_custom_balance_url_clear">清空</string>
-    <string name="quota_custom_balance_url_save">保存</string>
-    <string name="quota_custom_balance_url_cancel">取消</string>
     <string name="quota_refresh">刷新额度</string>
     <string name="quota_source_updated">%1$s · %2$s更新</string>
     <string name="quota_last_refresh_failed">上次刷新失败：%1$s</string>
@@ -2592,4 +2583,10 @@
     <string name="composer_root_ask_summary">每次命令或新交互终端会话申请单次授权；拒绝、取消、超时均不执行。</string>
     <string name="composer_root_allowed">完全允许</string>
     <string name="composer_root_allowed_summary">允许原生 Root 与 chroot 直接以 uid 0 执行，不再逐次弹应用确认；可随时撤销。</string>
+    <string name="browser_settings_viewport_title">网页视口</string>
+    <string name="browser_settings_viewport_default">默认（自动）</string>
+    <string name="browser_settings_viewport_custom_hint">设置自定义宽度和高度</string>
+    <string name="browser_settings_viewport_width">宽度</string>
+    <string name="browser_settings_viewport_height">高度</string>
+    <string name="browser_settings_viewport_presets">快捷尺寸</string>
 </resources>

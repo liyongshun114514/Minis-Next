@@ -8,8 +8,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 
-/** A page bar samples only its body, never the bar/buttons that consume it. */
+/** Only siblings outside a capture may sample it (top/bottom bars and floating actions). */
 internal val LocalMinisActionBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+
+/** Window owning this page capture, including independent preview dialogs. */
+internal val LocalMinisPageWindow = staticCompositionLocalOf<android.view.View?> { null }
+
+/** A body may hand this to an overlay, but must never sample its own recording inline. */
+internal val LocalMinisPageBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 
 /** A scene is recorded only while an in-window menu owns a lease, including its exit. */
 @Stable

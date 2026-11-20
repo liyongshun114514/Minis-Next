@@ -42,6 +42,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +67,7 @@ import java.util.Locale
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**
  * [T-android-scheduled-tasks-design / T-android-scheduled-tasks-run-records]
@@ -93,6 +94,7 @@ fun ScheduledTasksScreen(
     var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.scheduled_tasks_title),
@@ -150,7 +152,7 @@ fun ScheduledTasksScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = minisPageContentPadding(PaddingValues(vertical = 8.dp)),
         ) {
             items(tasks, key = { it.id }) { task ->
                 ScheduledTaskRow(
@@ -174,21 +176,27 @@ fun ScheduledTasksScreen(
             summary = stringResource(R.string.scheduled_task_delete_body, toDelete.label),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    vm.delete(toDelete.id)
-                                    pendingDelete = null
-                                },
-                                    text = stringResource(R.string.scheduled_task_delete_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { pendingDelete = null },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { pendingDelete = null },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                vm.delete(toDelete.id)
+                                pendingDelete = null
+                            },
+                            text = stringResource(R.string.scheduled_task_delete_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }

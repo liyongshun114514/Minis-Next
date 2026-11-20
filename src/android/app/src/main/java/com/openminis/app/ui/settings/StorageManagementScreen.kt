@@ -370,22 +370,26 @@ internal fun StorageManagementScreen(
                 summary = stringResource(R.string.storage_orphan_confirm_message, Formatter.formatFileSize(context, bytes)),
                 onDismissRequest = { orphanConfirmBytes = null },
             ) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(
-                        text = stringResource(R.string.storage_orphan_confirm_button),
-                        onClick = {
-                    orphanConfirmBytes = null
-                    vm.cleanOrphans()
-                },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                    )
-                    TextButton(
-                        text = stringResource(R.string.cancel),
-                        onClick = { orphanConfirmBytes = null },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            text = stringResource(R.string.cancel),
+                            onClick = { orphanConfirmBytes = null },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            text = stringResource(R.string.storage_orphan_confirm_button),
+                            onClick = {
+                                orphanConfirmBytes = null
+                                vm.cleanOrphans()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                        )
+                    },
+                )
             }
         } else {
             val kept = state.orphanBytes
@@ -442,22 +446,28 @@ internal fun StorageManagementScreen(
             summary = stringResource(R.string.storage_clear_logs_caches_confirm_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showClearLogsDialog = false
-                                    // Only logs & caches change, so only they are re-measured.
-                                    vm.clearLogsAndCaches()
-                                },
-                                    text = stringResource(R.string.storage_clear_logs_caches_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { showClearLogsDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearLogsDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showClearLogsDialog = false
+                                // Only logs & caches change, so only they are re-measured.
+                                vm.clearLogsAndCaches()
+                            },
+                            text = stringResource(R.string.storage_clear_logs_caches_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -471,22 +481,26 @@ internal fun StorageManagementScreen(
             summary = stringResource(R.string.storage_batch_clear_message, size),
             onDismissRequest = { showBatchClearDialog = false },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.storage_clear_confirm_button, size),
-                    onClick = {
-                showBatchClearDialog = false
-                vm.clearSelectedFiles()
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showBatchClearDialog = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showBatchClearDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.storage_clear_confirm_button, size),
+                        onClick = {
+                            showBatchClearDialog = false
+                            vm.clearSelectedFiles()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 
@@ -501,22 +515,26 @@ internal fun StorageManagementScreen(
             ),
             onDismissRequest = { showBatchDeleteDialog = false },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.delete),
-                    onClick = {
-                showBatchDeleteDialog = false
-                vm.deleteSelected()
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showBatchDeleteDialog = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showBatchDeleteDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            showBatchDeleteDialog = false
+                            vm.deleteSelected()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 }
@@ -773,51 +791,57 @@ fun SessionStorageDetailScreen(
             summary = "This will delete ${Formatter.formatFileSize(context, totalSize)} of files. This action cannot be undone.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showClearDialog = false
-                                    isClearing = true
-                                    scope.launch {
-                                        // [T-android-storage-delete-feedback] openminis/openminis#375:
-                                        // this used to discard the result and zero the sizes
-                                        // unconditionally, so a delete that removed nothing
-                                        // still looked like it worked. Report what survived,
-                                        // and re-measure rather than assuming zero.
-                                        val failed = withContext(Dispatchers.IO) {
-                                            // Cascade: the root's files and every child's.
-                                            memberIds.flatMap { storage.deleteFilesDetailed(it).failedPaths }
-                                        }
-                                        val remaining = withContext(Dispatchers.IO) {
-                                            memberIds.sumOf { storage.minisSize(it) } to
-                                                memberIds.sumOf { storage.mediaSize(it) }
-                                        }
-                                        minisSize = remaining.first
-                                        mediaSize = remaining.second
-                                        onMeasured(sessionId, remaining.first, remaining.second)
-                                        isClearing = false
-                                        if (failed.isNotEmpty()) {
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(
-                                                    R.string.storage_clear_partial_failure,
-                                                    failed.size,
-                                                    failed.first(),
-                                                ),
-                                                Toast.LENGTH_LONG,
-                                            ).show()
-                                        }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showClearDialog = false
+                                isClearing = true
+                                scope.launch {
+                                    // [T-android-storage-delete-feedback] openminis/openminis#375:
+                                    // this used to discard the result and zero the sizes
+                                    // unconditionally, so a delete that removed nothing
+                                    // still looked like it worked. Report what survived,
+                                    // and re-measure rather than assuming zero.
+                                    val failed = withContext(Dispatchers.IO) {
+                                        // Cascade: the root's files and every child's.
+                                        memberIds.flatMap { storage.deleteFilesDetailed(it).failedPaths }
                                     }
-                                },
-                                    text = "Clear ${Formatter.formatFileSize(context, totalSize)}",
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showClearDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                                    val remaining = withContext(Dispatchers.IO) {
+                                        memberIds.sumOf { storage.minisSize(it) } to
+                                        memberIds.sumOf { storage.mediaSize(it) }
+                                    }
+                                    minisSize = remaining.first
+                                    mediaSize = remaining.second
+                                    onMeasured(sessionId, remaining.first, remaining.second)
+                                    isClearing = false
+                                    if (failed.isNotEmpty()) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(
+                                                R.string.storage_clear_partial_failure,
+                                                failed.size,
+                                                failed.first(),
+                                            ),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                }
+                            },
+                            text = "Clear ${Formatter.formatFileSize(context, totalSize)}",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

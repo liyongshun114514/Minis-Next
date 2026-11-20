@@ -376,21 +376,27 @@ private fun BuiltinPromptEditorContent(
             summary = stringResource(R.string.prompt_catalog_discard_body),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showDiscard = false
-                                    onBack()
-                                },
-                                    text = stringResource(R.string.prompt_catalog_discard_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { showDiscard = false },
-                                    text = stringResource(R.string.prompt_catalog_discard_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDiscard = false },
+                            text = stringResource(R.string.prompt_catalog_discard_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showDiscard = false
+                                onBack()
+                            },
+                            text = stringResource(R.string.prompt_catalog_discard_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -405,21 +411,27 @@ private fun BuiltinPromptEditorContent(
             summary = stringResource(R.string.prompt_catalog_editor_reset_confirm_body),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showResetConfirm = false
-                                    restoreDefault()
-                                },
-                                    text = stringResource(R.string.prompt_catalog_editor_reset_confirm),
-                                    colors = ButtonDefaults.textButtonColorsPrimary(),
-                                )
-                TextButton(
-                                    onClick = { showResetConfirm = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showResetConfirm = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showResetConfirm = false
+                                restoreDefault()
+                            },
+                            text = stringResource(R.string.prompt_catalog_editor_reset_confirm),
+                            colors = ButtonDefaults.textButtonColorsPrimary(),
+                        )
+                    },
+                )
             }
         }
     }

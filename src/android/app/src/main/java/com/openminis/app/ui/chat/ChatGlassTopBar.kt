@@ -35,6 +35,7 @@ internal fun ChatGlassTopBar(
                 actions = actions,
                 windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
                 color = Color.Transparent,
+                blurBackground = false,
                 // Preserve the title/subtitle room and navigation slot used by the chat layout.
                 expandedHeight = 80.dp,
             )

@@ -886,7 +886,7 @@ class MiuixMigrationUiTest {
         repeat(3) {
             compose.onNodeWithTag("halo-button").performTouchInput { click() }
             compose.onNodeWithText("Close menu").assertIsDisplayed()
-            compose.runOnIdle { assertTrue(scene?.recording == true) }
+            compose.runOnIdle { assertFalse("page-backed menus must not record the whole navigation scene", scene?.recording == true) }
             compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Close menu").performClick()
             var samples = 0

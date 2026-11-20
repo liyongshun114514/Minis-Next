@@ -114,7 +114,10 @@ fun SettingsScaffold(
         )
         val capture = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier
         // Sheets opened from this page sample the page body, never themselves.
-        CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop) {
+        CompositionLocalProvider(
+            LocalMinisActionBackdrop provides null,
+            com.openminis.app.ui.components.LocalMinisPageBackdrop provides backdrop,
+        ) {
         Column(
             modifier = Modifier.fillMaxSize()
                 .then(capture)

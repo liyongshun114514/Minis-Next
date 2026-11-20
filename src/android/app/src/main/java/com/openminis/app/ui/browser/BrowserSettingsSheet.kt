@@ -9,6 +9,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -68,6 +71,11 @@ import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
+import com.openminis.app.ui.components.DialogTextField
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import androidx.compose.ui.semantics.error
 
 @Composable
@@ -136,9 +144,14 @@ fun BrowserSettingsSheet(
         show = true,
         deferDismissRequest = true,
         insideMargin = DpSize.Zero,
+        title = stringResource(R.string.browser_settings_title),
+        endAction = {
+            val dismiss = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
+            TextButton(onClick = dismiss, text = stringResource(R.string.browser_settings_done),
+                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, textColor = MiuixTheme.colorScheme.primary))
+        },
         onDismissRequest = onDismiss,
     ) {
-        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,26 +169,7 @@ fun BrowserSettingsSheet(
                 .padding(bottom = 32.dp)
                 .navigationBarsPadding(),
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.browser_settings_title),
-                    style = MiuixTheme.textStyles.headline1,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    onClick = dismissSheet,
-                    text = stringResource(R.string.browser_settings_done),
-                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
+            BrowserSettingsGroup {
             // ── User Agent ──
             Text(
                 stringResource(R.string.browser_settings_user_agent),
@@ -192,47 +186,27 @@ fun BrowserSettingsSheet(
                     UserAgentProfile.CUSTOM -> R.string.browser_settings_ua_custom
                 })
                 val uaSubtitle = displayUA(profile, customUA, notSetPlaceholder)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = selectedProfile == profile,
-                        onClick = {
-                            selectedProfile = profile
-                            prefs.edit()
-                                .putString("user_agent_profile", profile.name)
-                                .apply()
-                            tabPool.setUserAgentFromUI(profile, if (profile == UserAgentProfile.CUSTOM) customUA else null)
-                        },
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(label, style = MiuixTheme.textStyles.body1)
-                        Text(
-                            uaSubtitle,
-                            style = MiuixTheme.textStyles.footnote2,
-                            fontFamily = FontFamily.Monospace,
-                            color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
+                RadioButtonPreference(
+                    title = label,
+                    summary = uaSubtitle,
+                    selected = selectedProfile == profile,
+                    onClick = {
+                        selectedProfile = profile
+                        prefs.edit().putString("user_agent_profile", profile.name).apply()
+                        tabPool.setUserAgentFromUI(profile, if (profile == UserAgentProfile.CUSTOM) customUA else null)
+                    },
+                )
             }
 
             if (selectedProfile == UserAgentProfile.CUSTOM) {
-                TextField(
+                DialogTextField(
                     value = customUA,
                     onValueChange = {
                                         customUA = it
                                         prefs.edit().putString("custom_user_agent", it).apply()
                                     },
                     singleLine = false,
-                    textStyle = MiuixTheme.textStyles.body2,
-                    label = stringResource(R.string.browser_settings_custom_ua_label),
-                    useLabelAsPlaceholder = false,
+                    placeholder = stringResource(R.string.browser_settings_custom_ua_label),
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
                 TextButton(
@@ -244,9 +218,9 @@ fun BrowserSettingsSheet(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
+            }
             Spacer(Modifier.height(16.dp))
+            BrowserSettingsGroup {
 
             // ── Web Viewport (mirrors iOS BrowserManagementView.viewportSection) ──
             ViewportSection(
@@ -309,9 +283,9 @@ fun BrowserSettingsSheet(
                 },
             )
 
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
+            }
             Spacer(Modifier.height(16.dp))
+            BrowserSettingsGroup {
 
             // ── Idle Tab Eviction ──
             Text(
@@ -329,13 +303,11 @@ fun BrowserSettingsSheet(
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextField(
+                DialogTextField(
                     value = idleTimeoutText,
                     onValueChange = { new -> idleTimeoutText = new.filter { it.isDigit() }.take(3) },
                     singleLine = true,
-                    textStyle = MiuixTheme.textStyles.body1,
-                    label = stringResource(R.string.browser_settings_minutes_label),
-                    useLabelAsPlaceholder = false,
+                    placeholder = stringResource(R.string.browser_settings_minutes_label),
                     modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
                 )
                 Spacer(Modifier.size(8.dp))
@@ -352,9 +324,9 @@ fun BrowserSettingsSheet(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider()
+            }
             Spacer(Modifier.height(16.dp))
+            BrowserSettingsGroup {
 
             // ── Cookies & Website Data ──
             Text(
@@ -373,13 +345,11 @@ fun BrowserSettingsSheet(
             }
 
             if (allDomains.isNotEmpty()) {
-                TextField(
+                DialogTextField(
                     value = cookieFilterText,
                     onValueChange = { cookieFilterText = it },
                     singleLine = true,
-                    textStyle = MiuixTheme.textStyles.body2,
-                    label = stringResource(R.string.browser_settings_filter_by_domain),
-                    useLabelAsPlaceholder = false,
+                    placeholder = stringResource(R.string.browser_settings_filter_by_domain),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
@@ -397,16 +367,18 @@ fun BrowserSettingsSheet(
                     color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             } else {
-                LazyColumn(modifier = Modifier.height((domains.size.coerceAtMost(6) * 44).dp)) {
-                    items(domains) { domain ->
+                Column {
+                    domains.forEach { domain ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 domain,
                                 style = MiuixTheme.textStyles.body1,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             IconButton(
                                 onClick = {
@@ -450,6 +422,7 @@ fun BrowserSettingsSheet(
                 text = stringResource(R.string.browser_settings_clear_all_cookies),
                 colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
             )
+            }
         }
     }
 
@@ -461,34 +434,40 @@ fun BrowserSettingsSheet(
             summary = stringResource(R.string.browser_settings_clear_all_dialog_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    showClearConfirm = false
-                                    WebStorage.getInstance().deleteAllData()
-                                    // [ISS-040] removeAllCookies is asynchronous: refresh the
-                                    // section from its callback, not right after the call
-                                    // (hasCookies() still reads true at that point). The
-                                    // callback arrives on this (main) looper; launching on
-                                    // Main keeps the state write there regardless.
-                                    CookieManager.getInstance().removeAllCookies { removed ->
-                                        CookieManager.getInstance().flush()
-                                        AppLogger.info("BrowserSettings", "removeAllCookies done removed=$removed")
-                                        coroutineScope.launch(Dispatchers.Main) {
-                                            cookieDeleteFailed = null
-                                            cookieRevision++
-                                        }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearConfirm = false },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showClearConfirm = false
+                                WebStorage.getInstance().deleteAllData()
+                                // [ISS-040] removeAllCookies is asynchronous: refresh the
+                                // section from its callback, not right after the call
+                                // (hasCookies() still reads true at that point). The
+                                // callback arrives on this (main) looper; launching on
+                                // Main keeps the state write there regardless.
+                                CookieManager.getInstance().removeAllCookies { removed ->
+                                    CookieManager.getInstance().flush()
+                                    AppLogger.info("BrowserSettings", "removeAllCookies done removed=$removed")
+                                    coroutineScope.launch(Dispatchers.Main) {
+                                        cookieDeleteFailed = null
+                                        cookieRevision++
                                     }
-                                },
-                                    text = stringResource(R.string.browser_settings_clear),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showClearConfirm = false },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                                }
+                            },
+                            text = stringResource(R.string.browser_settings_clear),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -532,6 +511,7 @@ private val viewportPresets = listOf(
     Triple("Full HD", 1920, 1080),
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ViewportSection(
     tabPool: BrowserTabPool,
@@ -549,54 +529,25 @@ private fun ViewportSection(
     onPreset: (Int, Int) -> Unit,
 ) {
     Text(
-        "Web Viewport",
+        stringResource(R.string.browser_settings_viewport_title),
         style = MiuixTheme.textStyles.subtitle,
         fontWeight = FontWeight.SemiBold,
     )
     Spacer(Modifier.height(8.dp))
 
-    // Default row
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(
-            selected = viewportMode == ViewportMode.DEFAULT,
-            onClick = onSelectDefault,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Default (auto by UA)", style = MiuixTheme.textStyles.body1)
-            val (uaW, uaH) = selectedProfile.viewportSize
-            Text(
-                "${uaW} × $uaH",
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-            )
-        }
-    }
-
-    // Custom row
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(
-            selected = viewportMode == ViewportMode.CUSTOM,
-            onClick = onSelectCustom,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Custom", style = MiuixTheme.textStyles.body1)
-            Text(
-                "Set your own width × height",
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-            )
-        }
-    }
+    val (uaW, uaH) = selectedProfile.viewportSize
+    RadioButtonPreference(
+        title = stringResource(R.string.browser_settings_viewport_default),
+        summary = "$uaW × $uaH",
+        selected = viewportMode == ViewportMode.DEFAULT,
+        onClick = onSelectDefault,
+    )
+    RadioButtonPreference(
+        title = stringResource(R.string.browser_settings_ua_custom),
+        summary = stringResource(R.string.browser_settings_viewport_custom_hint),
+        selected = viewportMode == ViewportMode.CUSTOM,
+        onClick = onSelectCustom,
+    )
 
     if (showEditor) {
         Spacer(Modifier.height(12.dp))
@@ -605,36 +556,32 @@ private fun ViewportSection(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextField(
+            DialogTextField(
                 value = widthText,
                 onValueChange = onWidthChange,
                 singleLine = true,
-                textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                label = "Width",
-                useLabelAsPlaceholder = false,
-                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
+                placeholder = stringResource(R.string.browser_settings_viewport_width),
+                modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
             )
             Spacer(Modifier.size(8.dp))
             Text("×", color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
             Spacer(Modifier.size(8.dp))
-            TextField(
+            DialogTextField(
                 value = heightText,
                 onValueChange = onHeightChange,
                 singleLine = true,
-                textStyle = MiuixTheme.textStyles.body1.copy(fontFamily = FontFamily.Monospace),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                label = "Height",
-                useLabelAsPlaceholder = false,
-                modifier = Modifier.width(110.dp).bringIntoViewOnFocus(),
-            )
-            Spacer(Modifier.size(8.dp))
-            TextButton(
-                onClick = onApply,
-                text = stringResource(R.string.browser_settings_apply),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                placeholder = stringResource(R.string.browser_settings_viewport_height),
+                modifier = Modifier.weight(1f).bringIntoViewOnFocus(),
             )
         }
+        TextButton(
+            onClick = onApply,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            text = stringResource(R.string.browser_settings_apply),
+            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+        )
 
         // UA mismatch banner — same 768px breakpoint as iOS.
         val warning = uaMismatchWarning(selectedProfile, widthText)
@@ -645,17 +592,15 @@ private fun ViewportSection(
 
         Spacer(Modifier.height(12.dp))
         Text(
-            "Quick Set",
+            stringResource(R.string.browser_settings_viewport_presets),
             style = MiuixTheme.textStyles.footnote1,
             color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
         )
         Spacer(Modifier.height(6.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for ((label, w, h) in viewportPresets) {
                 val active = widthText.toIntOrNull() == w && heightText.toIntOrNull() == h
@@ -749,5 +694,16 @@ private fun UaMismatchBanner(message: String) {
             style = MiuixTheme.textStyles.body2,
             color = MiuixTheme.colorScheme.onSurface,
         )
+    }
+}
+
+/** A theme card isolates each setting family from the sheet's glass surface. */
+@Composable
+private fun BrowserSettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), content = content)
     }
 }

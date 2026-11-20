@@ -140,7 +140,8 @@ internal fun MinisGlassIconButton(
     content: @Composable () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
-    val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
+    val rootView = LocalView.current.rootView
+    val sameWindow = LocalMinisOverlayWindow.current === rootView || LocalMinisPageWindow.current === rootView
     val effectiveBackdrop = backdrop.takeIf { sameWindow }
     val currentClick by rememberUpdatedState(onClick)
     val currentLongClick by rememberUpdatedState(onLongClick)

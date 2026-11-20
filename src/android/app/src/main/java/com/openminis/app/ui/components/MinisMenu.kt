@@ -104,12 +104,13 @@ fun MinisMenu(
         }
     }
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
-    val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow }
+    val pageBackdrop = if (sameWindow) LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current else null
+    val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow && pageBackdrop == null }
     DisposableEffect(scene) {
         val release = scene?.acquire()
         onDispose { release?.invoke() }
     }
-    val menuBackdrop = scene?.backdrop
+    val menuBackdrop = pageBackdrop ?: scene?.backdrop
     val locals = currentCompositionLocalContext
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current

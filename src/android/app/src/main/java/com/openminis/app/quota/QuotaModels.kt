@@ -68,12 +68,7 @@ enum class QuotaVendor {
     /** [ISS-031] OpenCode Zen / Go. No usage or balance API is documented: console link only. */
     openCode,
 
-    /**
-     * [T-provider-custom-balance-url] A user-configured balance endpoint
-     * ([ProviderInstance.customBalanceURL]) queried instead of the automatic
-     * vendor query. The pools it reports are labelled compatibleInterface /
-     * userDeclared - never as a vendor-documented figure.
-     */
+    /** Tombstone for old cached snapshots; no active adapter or detection path. */
     customBalance,
     customRelay, unknown,
 }

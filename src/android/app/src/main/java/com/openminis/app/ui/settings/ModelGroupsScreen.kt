@@ -48,6 +48,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -156,11 +157,9 @@ fun ModelGroupsScreen(
         }
     }
 
-    // Reorder and detail transitions can detach these rows. Use the themed band
-    // without retaining their graphics layers in a backdrop.
     val pageColor = MiuixTheme.colorScheme.surface
     Scaffold(
-        recordBodyForActions = false,
+        overlapTopBar = true,
         containerColor = pageColor,
         topBar = {
             SettingsGlassTopBar(
@@ -185,7 +184,7 @@ fun ModelGroupsScreen(
             contentPadding = PaddingValues(
                 start = padding.calculateStartPadding(direction),
                 end = padding.calculateEndPadding(direction),
-                top = padding.calculateTopPadding(),
+                top = padding.calculateTopPadding() + com.openminis.app.ui.components.LocalMinisPageTopInset.current,
                 bottom = padding.calculateBottomPadding(),
             ),
         ) {
@@ -398,33 +397,39 @@ fun ModelGroupsScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        if (newGroupName.isNotBlank()) {
-                                            val newGroup = ModelGroup(name = newGroupName.trim())
-                                            providerRepository.addGroup(newGroup)
-                                            // Auto-set as primary default if it's the first group
-                                            if (config.modelGroups.size == 1 && config.defaultPrimaryGroupId == null) {
-                                                providerRepository.defaultPrimaryGroupId = newGroup.id
-                                            }
-                                            newGroupName = ""
-                                            showNewGroupDialog = false
-                                        }
-                                    },
-                                    enabled = newGroupName.isNotBlank(),
-                                    text = stringResource(R.string.model_groups_create),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = {
-                                    showNewGroupDialog = false
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                showNewGroupDialog = false
+                                newGroupName = ""
+                            },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                if (newGroupName.isNotBlank()) {
+                                    val newGroup = ModelGroup(name = newGroupName.trim())
+                                    providerRepository.addGroup(newGroup)
+                                    // Auto-set as primary default if it's the first group
+                                    if (config.modelGroups.size == 1 && config.defaultPrimaryGroupId == null) {
+                                        providerRepository.defaultPrimaryGroupId = newGroup.id
+                                    }
                                     newGroupName = ""
-                                },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                                    showNewGroupDialog = false
+                                }
+                            },
+                            enabled = newGroupName.isNotBlank(),
+                            text = stringResource(R.string.model_groups_create),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -443,21 +448,27 @@ fun ModelGroupsScreen(
                             ),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        providerRepository.removeGroup(target.id)
-                                        groupToDelete = null
-                                    },
-                                    text = stringResource(R.string.common_delete),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { groupToDelete = null },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { groupToDelete = null },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                providerRepository.removeGroup(target.id)
+                                groupToDelete = null
+                            },
+                            text = stringResource(R.string.common_delete),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

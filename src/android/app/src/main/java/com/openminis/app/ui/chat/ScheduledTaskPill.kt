@@ -213,22 +213,28 @@ internal fun ScheduledTaskPill(currentSessionId: () -> String) {
             summary = stringResource(R.string.sched_pill_cancel_all_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    confirmCancelAll = false
-                                    val n = manager.disableAllCreatedBy(sessionId, "user cancelled all from the timer pill")
-                                    AppLogger.info("SchedPill", "cancel all session=${sessionId.take(8)} cancelled=$n")
-                                },
-                                    text = stringResource(R.string.sched_pill_cancel_all_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { confirmCancelAll = false },
-                                    text = stringResource(R.string.sched_pill_not_now),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmCancelAll = false },
+                            text = stringResource(R.string.sched_pill_not_now),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                confirmCancelAll = false
+                                val n = manager.disableAllCreatedBy(sessionId, "user cancelled all from the timer pill")
+                                AppLogger.info("SchedPill", "cancel all session=${sessionId.take(8)} cancelled=$n")
+                            },
+                            text = stringResource(R.string.sched_pill_cancel_all_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

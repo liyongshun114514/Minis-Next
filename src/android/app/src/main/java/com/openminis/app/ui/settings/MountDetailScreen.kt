@@ -29,6 +29,8 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -91,6 +93,7 @@ fun MountDetailScreen(
     val canSave = hasChanges && (!nameChanged || nameValid)
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             SmallTopAppBar(
                 title = stringResource(R.string.mount_detail_title),
@@ -122,7 +125,7 @@ fun MountDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding()
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(16.dp))

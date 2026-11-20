@@ -129,7 +129,7 @@ class GlassUiPolishContractTest {
     @Test fun `bottom sheets share native glass and retain recording until native disposal`() {
         val sheet = ProductionSources.read("ui/components/MinisBottomSheet.kt")
         assertTrue(sheet.contains("GlassBottomSheet("))
-        assertTrue(sheet.contains("val surfaceBackdrop = backdrop ?: LocalMinisActionBackdrop.current ?: scene?.backdrop"))
+        assertTrue(sheet.contains("val surfaceBackdrop = backdrop ?: LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current ?: scene?.backdrop"))
         assertTrue(sheet.contains("backdrop = surfaceBackdrop,"))
         assertTrue(sheet.contains("DisposableEffect(scene)"))
         assertTrue(sheet.contains("scene?.acquire()"))
@@ -162,7 +162,7 @@ class GlassUiPolishContractTest {
         assertFalse(list.contains(".fillMaxSize()"))
         val bar = ProductionSources.read("ui/components/RichTitleAppBar.kt")
         assertFalse("Surface clips native glass shadows at the bar edge", bar.contains("Surface(color = color)"))
-        assertTrue(bar.contains("Box(Modifier.background(color))"))
+        assertTrue(bar.contains("MinisGlassTopBar(backdrop = LocalMinisActionBackdrop.current"))
     }
 
     @Test fun `provider format choices use native contour tabs`() {
@@ -176,7 +176,8 @@ class GlassUiPolishContractTest {
         assertTrue(sheet.contains("backdrop: Backdrop? = null"))
         assertTrue(sheet.contains("LocalMinisActionBackdrop.current ?: scene?.backdrop"))
         val settings = ProductionSources.read("ui/settings/SettingsComponents.kt")
-        assertTrue(settings.contains("CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop)"))
+        assertTrue(settings.contains("LocalMinisActionBackdrop provides null"))
+        assertTrue(settings.contains("LocalMinisPageBackdrop provides backdrop"))
         val bar = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
         assertTrue(bar.contains("progressiveTextureBlur(") && bar.contains("copy(alpha = 0.30f)"))
         val chat = ProductionSources.read("ui/chat/ChatScreen.kt")

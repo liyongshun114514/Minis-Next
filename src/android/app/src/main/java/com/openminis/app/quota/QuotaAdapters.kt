@@ -51,12 +51,7 @@ data class QuotaInstanceDescriptor(
      * carried in so this file does not grow a second one.
      */
     val isOpenCodeChannel: Boolean = false,
-    /**
-     * [T-provider-custom-balance-url] The user's own full HTTPS balance
-     * endpoint, or null for automatic detection. Passed verbatim to
-     * [CustomBalanceQuotaAdapter] only after [CustomBalanceEndpoint.normalize]
-     * accepts it.
-     */
+    /** Legacy deserialization slot. Ignored by detection and request construction. */
     val customBalanceURL: String? = null,
 ) {
     @Suppress("EnumEntryName")
@@ -75,17 +70,6 @@ data class QuotaInstanceDescriptor(
 
     val capabilityKey: QuotaCapabilityKey
         get() {
-            // [T-provider-custom-balance-url] A user endpoint is a different
-            // capability from the vendor's own: keying on it (host/path plus a
-            // hash, never the raw query string) means changing the URL starts a
-            // fresh probe instead of inheriting the old endpoint's failure.
-            val custom = CustomBalanceEndpoint.normalize(customBalanceURL)
-            if (custom != null) {
-                return QuotaCapabilityKey(
-                    providerKind.name + "#customBalance",
-                    CustomBalanceEndpoint.capabilityIdentity(custom),
-                )
-            }
             // A new protocol preference must not inherit a cached raw-quota
             // detection or a 24-hour failed probe from the previous version.
             val kind = if (QuotaVendorDetector.vendor(this) == QuotaVendor.customRelay) {
@@ -100,11 +84,6 @@ data class QuotaInstanceDescriptor(
 object QuotaVendorDetector {
     fun vendor(d: QuotaInstanceDescriptor): QuotaVendor {
         if (d.providerKind == QuotaInstanceDescriptor.ProviderKind.unsupported) return QuotaVendor.unknown
-        // [T-provider-custom-balance-url] An explicit endpoint wins over every
-        // host/type heuristic: it is the user's stated source of truth. A
-        // non-blank but invalid value also lands here so the section explains
-        // the bad URL instead of silently querying a different endpoint.
-        if (!d.customBalanceURL.isNullOrBlank()) return QuotaVendor.customBalance
         if (d.isOpenCodeChannel) return QuotaVendor.openCode
         val host = d.customHost
         if (host != null) {
@@ -406,7 +385,7 @@ object QuotaAdapterRegistry {
         // [T-quota-relay-probe] The relay's own account ledger, labelled as
         // relay-reported (never as the upstream vendor's balance).
         QuotaVendor.customRelay -> RelayQuotaAdapter
-        QuotaVendor.customBalance -> CustomBalanceQuotaAdapter
+        QuotaVendor.customBalance -> UnsupportedQuotaAdapter(vendor, QuotaSubject.UnsupportedReason.unknownVendor)
         QuotaVendor.unknown -> UnsupportedQuotaAdapter(vendor, QuotaSubject.UnsupportedReason.unknownVendor)
     }
 

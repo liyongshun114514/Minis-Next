@@ -36,6 +36,7 @@ import com.openminis.app.data.model.ThinkingLevel
 import com.openminis.app.ui.chat.localizedName
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -76,7 +77,7 @@ import com.openminis.app.ui.components.MinisBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.semantics.selected
 
@@ -245,6 +246,7 @@ fun ScheduledTaskEditScreen(
     val canRunNow = canSave && runNowState?.status != ScheduledTasksViewModel.RunStatus.RUNNING
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(
@@ -439,7 +441,7 @@ private fun EditFormBody(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()).minisPageScrollPadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {

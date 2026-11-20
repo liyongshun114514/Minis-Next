@@ -55,6 +55,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,7 +92,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 @Composable
 fun FileBrowserScreen(
@@ -120,7 +121,15 @@ fun FileBrowserScreen(
     BackHandler(enabled = true, onBack = handleBack)
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
+            Column {
+            com.openminis.app.ui.components.MinisGlassTopBar(
+                backdrop = com.openminis.app.ui.components.LocalMinisActionBackdrop.current,
+                background = MiuixTheme.colorScheme.surface,
+            ) {
+                Column {
+
             TopAppBar(
                 title = stringResource(R.string.filebrowser_title),
                 navigationIcon = {
@@ -144,14 +153,8 @@ fun FileBrowserScreen(
                     )
                 },
                 expandable = false,
+                blurBackground = false,
             )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
             // Breadcrumb bar
             BreadcrumbBar(
                 pathComponents = state.pathComponents,
@@ -160,6 +163,17 @@ fun FileBrowserScreen(
 
             HorizontalDivider()
 
+
+                }
+            }
+            }
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
             // Content
             when {
                 state.isLoading -> {
@@ -195,7 +209,7 @@ fun FileBrowserScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 4.dp),
+                        contentPadding = minisPageContentPadding(PaddingValues(vertical = 4.dp)),
                     ) {
                         items(state.items, key = { it.file.absolutePath }) { item ->
                             FileItemRow(
@@ -229,21 +243,27 @@ fun FileBrowserScreen(
             summary = stringResource(R.string.filebrowser_delete_message),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    viewModel.deleteItem(item)
-                                    deleteTarget = null
-                                },
-                                    text = stringResource(R.string.delete),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { deleteTarget = null },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { deleteTarget = null },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.deleteItem(item)
+                                deleteTarget = null
+                            },
+                            text = stringResource(R.string.delete),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

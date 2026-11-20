@@ -26,6 +26,7 @@ import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +53,7 @@ fun SharedFoldersScreen(
     onFolderClick: (folderId: String) -> Unit,
 ) {
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             SmallTopAppBar(
                 title = stringResource(R.string.shared_folders_title),
@@ -65,17 +67,14 @@ fun SharedFoldersScreen(
         },
         containerColor = MiuixTheme.colorScheme.surface,
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
+            contentPadding = minisPageContentPadding(androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            InfoBanner()
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            item("info") { InfoBanner() }
                 items(SharedFolderRegistry.entries, key = { it.id }) { folder ->
                     Surface(
                         color = MiuixTheme.colorScheme.surfaceContainer,
@@ -87,7 +86,6 @@ fun SharedFoldersScreen(
                         SharedFolderRow(folder = folder, onClick = { onFolderClick(folder.id) })
                     }
                 }
-            }
         }
     }
 }

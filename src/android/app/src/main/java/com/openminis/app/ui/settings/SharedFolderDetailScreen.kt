@@ -27,6 +27,8 @@ import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +63,7 @@ fun SharedFolderDetailScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             SmallTopAppBar(
                 title = stringResource(R.string.shared_folder_detail_title),
@@ -78,7 +81,7 @@ fun SharedFolderDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding()
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(Modifier.height(16.dp))

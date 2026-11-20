@@ -26,6 +26,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,7 +59,7 @@ import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.foundation.layout.Arrangement
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**
  * Log management screen — adopts the SettingsSection/SettingsRow toolkit
@@ -186,22 +188,28 @@ fun LogManagementScreen(
             summary = stringResource(R.string.log_delete_confirm_text, Formatter.formatFileSize(context, totalSize)),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    AppLogger.clearLogs()
-                                    refresh()
-                                    showDeleteAllConfirm = false
-                                },
-                                    text = stringResource(R.string.log_delete_confirm),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showDeleteAllConfirm = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDeleteAllConfirm = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                AppLogger.clearLogs()
+                                refresh()
+                                showDeleteAllConfirm = false
+                            },
+                            text = stringResource(R.string.log_delete_confirm),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -477,6 +485,7 @@ fun LogDetailScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = fileName,
@@ -529,6 +538,7 @@ fun LogDetailScreen(
             lazyLog != null -> {
                 val log = lazyLog!!
                 LazyColumn(
+            contentPadding = minisPageContentPadding(),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)

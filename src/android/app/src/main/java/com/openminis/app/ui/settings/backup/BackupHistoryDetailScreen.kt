@@ -291,48 +291,54 @@ fun BackupHistoryDetailScreen(
                             ),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                        confirmDeleteFiles = false
-                                        val action = onRemoveWithFiles ?: return@TextButton
-                                        deletingFiles = true
-                                        scope.launch {
-                                            val result = action()
-                                            deletingFiles = false
-                                            when (result) {
-                                                is BackupViewModel.DeleteWithFilesResult.Success -> {
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        context.getString(
-                                                            if (result.destinations > 0) {
-                                                                R.string.backup_delete_files_success
-                                                            } else {
-                                                                R.string.backup_delete_files_success_none
-                                                            },
-                                                        ),
-                                                        android.widget.Toast.LENGTH_LONG,
-                                                    ).show()
-                                                    onRemoved()
-                                                }
-                                                is BackupViewModel.DeleteWithFilesResult.Failed -> {
-                                                    // Stay on the screen: the record is still
-                                                    // there, and it is the only thing naming
-                                                    // the file left behind on the remote.
-                                                    deleteFailure = result.failures
-                                                }
-                                            }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { confirmDeleteFiles = false },
+                            text = stringResource(R.string.backup_dest_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                confirmDeleteFiles = false
+                                val action = onRemoveWithFiles ?: return@TextButton
+                                deletingFiles = true
+                                scope.launch {
+                                    val result = action()
+                                    deletingFiles = false
+                                    when (result) {
+                                        is BackupViewModel.DeleteWithFilesResult.Success -> {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                context.getString(
+                                                    if (result.destinations > 0) {
+                                                        R.string.backup_delete_files_success
+                                                    } else {
+                                                        R.string.backup_delete_files_success_none
+                                                    },
+                                                ),
+                                                android.widget.Toast.LENGTH_LONG,
+                                            ).show()
+                                            onRemoved()
                                         }
-                                    },
-                                    text = stringResource(R.string.backup_delete_files_confirm_action),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { confirmDeleteFiles = false },
-                                    text = stringResource(R.string.backup_dest_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                                        is BackupViewModel.DeleteWithFilesResult.Failed -> {
+                                            // Stay on the screen: the record is still
+                                            // there, and it is the only thing naming
+                                            // the file left behind on the remote.
+                                            deleteFailure = result.failures
+                                        }
+                                    }
+                                }
+                            },
+                            text = stringResource(R.string.backup_delete_files_confirm_action),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

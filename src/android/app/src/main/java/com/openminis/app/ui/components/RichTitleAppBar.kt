@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Header for screens with a title that includes separate interactive or live content. */
@@ -30,10 +29,9 @@ internal fun RichTitleAppBar(
     color: Color = MiuixTheme.colorScheme.surface,
     windowInsets: WindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     expandedHeight: Dp = 56.dp,
+    blurBackground: Boolean = true,
 ) {
-    // A paint-only background: native Surface clips even RectangleShape and
-    // cuts the circular glass shadows off in a horizontal line below the bar.
-    Box(Modifier.background(color)) {
+    val foreground: @Composable () -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth().windowInsetsPadding(windowInsets)
                 .heightIn(min = expandedHeight).padding(horizontal = 12.dp),
@@ -48,4 +46,6 @@ internal fun RichTitleAppBar(
             )
         }
     }
+    if (blurBackground) MinisGlassTopBar(backdrop = LocalMinisActionBackdrop.current, background = color, content = foreground)
+    else foreground()
 }

@@ -63,6 +63,8 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -97,7 +99,7 @@ import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**
  * Inline state for the three update actions on [SkillDetailScreen]
@@ -389,21 +391,27 @@ fun SkillsManagementScreen(
             summary = stringResource(R.string.skill_delete_confirm_text),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    deleteSkillId?.let { skillRepository.delete(it) }
-                                    deleteSkillId = null
-                                },
-                                    text = "Delete",
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { deleteSkillId = null },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { deleteSkillId = null },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                deleteSkillId?.let { skillRepository.delete(it) }
+                                deleteSkillId = null
+                            },
+                            text = "Delete",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -687,6 +695,7 @@ fun SkillDetailScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = skill.name,
@@ -735,7 +744,7 @@ fun SkillDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
         ) {
             // ── Meta Section ──
             DetailSection {
@@ -945,23 +954,29 @@ fun SkillDetailScreen(
             summary = stringResource(R.string.skill_delete_confirm_text),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    deleted = true
-                                    skillRepository.delete(skill.id)
-                                    showDeleteDialog = false
-                                    onBack()
-                                },
-                                    text = "Delete",
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                                )
-                TextButton(
-                                    onClick = { showDeleteDialog = false },
-                                    text = stringResource(R.string.common_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showDeleteDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                deleted = true
+                                skillRepository.delete(skill.id)
+                                showDeleteDialog = false
+                                onBack()
+                            },
+                            text = "Delete",
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }
@@ -1233,6 +1248,7 @@ fun SkillFileViewerScreen(
     var editContent by remember(skillId, relativePath) { mutableStateOf(initialContent) }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = fileName,
@@ -1277,7 +1293,7 @@ fun SkillFileViewerScreen(
             // [T-android-editor-keyboard-overlap] The caret stays above the
             // keyboard; see DocumentEditorField.
             com.openminis.app.ui.components.DocumentEditorField(
-                value = editContent,
+                contentPadding = minisPageContentPadding(androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp)),                value = editContent,
                 onValueChange = { editContent = it },
                 modifier = Modifier
                     .fillMaxSize()
@@ -1288,6 +1304,7 @@ fun SkillFileViewerScreen(
             )
         } else {
             LazyColumn(
+            contentPadding = minisPageContentPadding(),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)

@@ -30,6 +30,8 @@ import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageScrollPadding
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +111,7 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             SmallTopAppBar(
                 title = stringResource(R.string.system_permissions_title),
@@ -126,7 +129,7 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).minisPageScrollPadding(),
         ) {
             SettingsSection(
                 header = stringResource(R.string.system_permissions_section_a11y),

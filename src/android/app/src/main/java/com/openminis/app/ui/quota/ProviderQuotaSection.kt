@@ -47,7 +47,6 @@ import com.openminis.app.R
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.i18n.uppercaseForDisplay
 import com.openminis.app.quota.QuotaConsoleLink
-import com.openminis.app.quota.CustomBalanceEndpoint
 import com.openminis.app.quota.QuotaInstanceDisplay
 import com.openminis.app.quota.QuotaPool
 import com.openminis.app.quota.QuotaPoolBinding
@@ -62,13 +61,8 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
-import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.TextFieldDefaults
-import androidx.compose.ui.semantics.error
-import androidx.compose.ui.semantics.semantics
 
 // [T-provider-quota] "Quota" section of the provider detail page: the upstream
 // balance / quota of this instance's account, from the vendor itself - never
@@ -84,12 +78,9 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
     val st by QuotaStore.state.collectAsState()
     val descriptor = QuotaStore.descriptor(instance)
     val display = st.display(descriptor)
-    val hidden = display is QuotaInstanceDisplay.Hidden
+    if (display is QuotaInstanceDisplay.Hidden) return
 
-    // [T-quota-attention-refresh] Refreshes on open when due, and keeps the
-    // watched interval while the page is open. A hidden instance is not
-    // queried, but its custom balance URL must still be editable.
-    if (!hidden) QuotaWatch(instance.id, "detailAppeared")
+    QuotaWatch(instance.id, "detailAppeared")
 
     val scope = rememberCoroutineScope()
     var blockedMessage by remember(instance.id) { mutableStateOf<String?>(null) }
@@ -143,19 +134,12 @@ fun ProviderQuotaSection(instance: ProviderInstance) {
                 .background(MiuixTheme.colorScheme.surfaceContainer),
         ) {
             SectionContent(st, display)
-            if (!hidden) {
-                // [T-provider-custom-balance-url] Configuration lives here, in
-                // the quota section, so it is next to the figure it changes.
-                // Saving clears this instance's cached amount before re-querying.
-                QuotaDivider()
-            }
-            CustomBalanceURLRow(instance)
-            if (!hidden && linkUrl != null) {
+            if (linkUrl != null) {
                 QuotaDivider()
                 QuotaConsoleLinkRow(linkUrl, onOpen = { consoleUrl = linkUrl })
             }
         }
-        if (!hidden) SectionFooter(st, display, instance, blockedMessage)
+        SectionFooter(st, display, instance, blockedMessage)
     }
 
     consoleUrl?.let { url -> UrlPreviewSheet(url = url, onDismiss = { consoleUrl = null }) }
@@ -165,127 +149,6 @@ private fun canRefresh(display: QuotaInstanceDisplay): Boolean = when (display) 
     QuotaInstanceDisplay.Hidden -> false
     is QuotaInstanceDisplay.Unsupported -> display.reason == QuotaSubject.UnsupportedReason.capabilityProbeFailed
     else -> true
-}
-
-/**
- * [T-provider-custom-balance-url] "Balance URL: Automatic" / "host/path" row.
- * The full value is never printed - a configured URL may carry a token in its
- * query string - and the editor saves through the existing
- * ProviderRepository.updateInstance so this screen does not need its own
- * persistence path.
- */
-@Composable
-private fun CustomBalanceURLRow(instance: ProviderInstance) {
-    val repo = rememberProviderRepository()
-    var editing by remember(instance.id) { mutableStateOf(false) }
-    val configured = CustomBalanceEndpoint.normalize(instance.customBalanceURL)
-    val shown = if (configured != null) CustomBalanceEndpoint.display(configured)
-    else stringResource(R.string.quota_custom_balance_url_automatic)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = repo != null) { editing = true }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                stringResource(R.string.quota_custom_balance_url_title),
-                style = MiuixTheme.textStyles.body1,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-            Text(
-                shown,
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                maxLines = 1,
-            )
-        }
-        Text(
-            stringResource(
-                if (configured != null) R.string.quota_custom_balance_url_edit
-                else R.string.quota_custom_balance_url_add,
-            ),
-            style = MiuixTheme.textStyles.button,
-            color = MiuixTheme.colorScheme.primary,
-        )
-    }
-    if (editing && repo != null) {
-        CustomBalanceURLDialog(
-            initial = instance.customBalanceURL.orEmpty(),
-            onDismiss = { editing = false },
-            onSave = { value ->
-                repo.updateInstance(instance.copy(customBalanceURL = value))
-                editing = false
-            },
-        )
-    }
-}
-
-@Composable
-private fun CustomBalanceURLDialog(initial: String, onDismiss: () -> Unit, onSave: (String?) -> Unit) {
-    var text by remember(initial) { mutableStateOf(initial) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val invalid = stringResource(R.string.quota_custom_balance_url_invalid)
-    WindowDialog(
-        show = true,
-        onDismissRequest = onDismiss,
-        title = stringResource(R.string.quota_custom_balance_url_title),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                stringResource(R.string.quota_custom_balance_url_description),
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                            )
-                            TextField(
-                                value = text,
-                                onValueChange = { text = it; error = null },
-                                singleLine = false,
-                                minLines = 2,
-                                colors = TextFieldDefaults.textFieldColors().let { if (error != null) it.copy(borderColor = MiuixTheme.colorScheme.error) else it },
-                                modifier = Modifier.fillMaxWidth() .semantics { if (error != null) error("Invalid value") },
-                            )
-                            error?.let {
-                                Text(it, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.error)
-                            }
-                        }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            onClick = {
-                            val trimmed = text.trim()
-                            if (trimmed.isEmpty()) {
-                                onSave(null)
-                                return@TextButton
-                            }
-                            val normalized = CustomBalanceEndpoint.normalize(trimmed)
-                            if (normalized == null) {
-                                error = invalid
-                            } else {
-                                onSave(normalized)
-                            }
-                        },
-                            text = stringResource(R.string.quota_custom_balance_url_save),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            Row {
-                            if (initial.isNotBlank()) {
-                                TextButton(
-                                    onClick = { onSave(null) },
-                                    text = stringResource(R.string.quota_custom_balance_url_clear),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                            }
-                            TextButton(
-                                onClick = onDismiss,
-                                text = stringResource(R.string.quota_custom_balance_url_cancel),
-                                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                            )
-                        }
-            }
-        }
-    }
 }
 
 @Composable

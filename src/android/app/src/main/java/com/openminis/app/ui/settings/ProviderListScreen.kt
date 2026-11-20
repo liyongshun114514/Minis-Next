@@ -389,26 +389,30 @@ fun ProviderListScreen(
             ),
             onDismissRequest = { instanceToDelete = null },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.common_delete),
-                    onClick = {
-                providerRepository.removeInstance(target.id)
-                AppLogger.info(
-                    "ProviderList",
-                    "Deleted provider instance ${target.id} (${target.label}) via swipe",
-                )
-                instanceToDelete = null
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { instanceToDelete = null },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { instanceToDelete = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.common_delete),
+                        onClick = {
+                            providerRepository.removeInstance(target.id)
+                            AppLogger.info(
+                                "ProviderList",
+                                "Deleted provider instance ${target.id} (${target.label}) via swipe",
+                            )
+                            instanceToDelete = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 }

@@ -10,6 +10,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +28,7 @@ import com.openminis.app.ui.components.modelEntryPickerItems
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 @Composable
 fun AddModelsToGroupScreen(
@@ -77,6 +78,7 @@ fun AddModelsToGroupScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.model_group_detail_add_models),
@@ -125,6 +127,7 @@ fun AddModelsToGroupScreen(
             systemProviderLabel = systemProviderLabel,
         )
         LazyColumn(
+            contentPadding = minisPageContentPadding(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),

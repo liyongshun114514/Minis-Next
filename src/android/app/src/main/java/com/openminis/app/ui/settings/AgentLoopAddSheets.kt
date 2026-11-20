@@ -25,6 +25,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +43,7 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.components.modelEntryPickerItems
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.TopAppBar
+import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**
  * T185 — full-screen picker for adding model entries to the agent-loop
@@ -82,6 +83,7 @@ fun AddAgentLoopModelsScreen(
     }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.agent_loop_section_add_models_title),
@@ -131,6 +133,7 @@ fun AddAgentLoopModelsScreen(
             searchQuery = searchQuery.value,
         )
         LazyColumn(
+            contentPadding = minisPageContentPadding(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -175,6 +178,7 @@ fun AddAgentLoopGroupsScreen(
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
 
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             TopAppBar(
                 title = stringResource(R.string.agent_loop_section_add_groups_title),
@@ -233,6 +237,7 @@ fun AddAgentLoopGroupsScreen(
             }
         } else {
             LazyColumn(
+            contentPadding = minisPageContentPadding(),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),

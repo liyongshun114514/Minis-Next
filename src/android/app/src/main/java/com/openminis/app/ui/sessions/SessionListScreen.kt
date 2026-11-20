@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import top.yukonga.miuix.kmp.squircle.squircleSurface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -117,6 +118,7 @@ import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchorContent
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import com.openminis.app.ui.components.minisPageContentPadding
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -976,6 +978,7 @@ fun SessionListScreen(
     // Folder toggles can detach rows: do not retain their layers for resting chrome.
     // Menus acquire a separate, temporary scene capture through the root host.
     Scaffold(
+        overlapTopBar = true,
         topBar = {
             RichTitleAppBar(
                 title = {
@@ -1182,6 +1185,7 @@ fun SessionListScreen(
                         // async config load emits. The list branch (sessions present)
                         // is intentionally NOT gated, so users with history still see
                         // it immediately without waiting on the config decode.
+                        Box(Modifier.padding(top = com.openminis.app.ui.components.LocalMinisPageTopInset.current)) {
                         OnboardingLanding(
                             hasProviders = hasProviders,
                             hasGroups = hasGroups,
@@ -1195,6 +1199,7 @@ fun SessionListScreen(
                                 }
                             },
                         )
+                        }
                     }
                 } else {
                     LazyColumn(
@@ -1203,7 +1208,7 @@ fun SessionListScreen(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         // Leave space for bottom FAB row
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+                        contentPadding = minisPageContentPadding(androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)),
                     ) {
                         // T25: search-active path used to flatten the list and skip
                         // section headers entirely. Now reuses the same grouped
@@ -1616,26 +1621,30 @@ fun SessionListScreen(
                 deleteTargetId = null
             },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.delete),
-                    onClick = {
-                deleteTargetId?.let { viewModel.deleteSession(it) }
-                showDeleteDialog = false
-                deleteTargetId = null
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = {
-                showDeleteDialog = false
-                deleteTargetId = null
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = {
+                            showDeleteDialog = false
+                            deleteTargetId = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            deleteTargetId?.let { viewModel.deleteSession(it) }
+                            showDeleteDialog = false
+                            deleteTargetId = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 
@@ -1681,22 +1690,26 @@ fun SessionListScreen(
             title = stringResource(R.string.sessionlist_delete_n_title, selectedIds.size),
             onDismissRequest = { showBulkDeleteDialog = false },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.delete),
-                    onClick = {
-                viewModel.deleteSelected()
-                showBulkDeleteDialog = false
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { showBulkDeleteDialog = false },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { showBulkDeleteDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            viewModel.deleteSelected()
+                            showBulkDeleteDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 
@@ -1769,21 +1782,27 @@ fun SessionListScreen(
                                         )
                                     }
                                 }
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = {
-                                    viewModel.renameFolder(folder.id, name, desc)
-                                    folderToRename = null
-                                },
-                                    text = stringResource(R.string.common_save),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                TextButton(
-                                    onClick = { folderToRename = null },
-                                    text = stringResource(R.string.cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { folderToRename = null },
+                            text = stringResource(R.string.cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.renameFolder(folder.id, name, desc)
+                                folderToRename = null
+                            },
+                            text = stringResource(R.string.common_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }
@@ -1796,22 +1815,26 @@ fun SessionListScreen(
             summary = stringResource(R.string.group_dissolve_confirm_message, count),
             onDismissRequest = { folderToDissolve = null },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.group_dissolve),
-                    onClick = {
-                        viewModel.dissolveFolder(folder.id)
-                        folderToDissolve = null
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { folderToDissolve = null },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { folderToDissolve = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.group_dissolve),
+                        onClick = {
+                            viewModel.dissolveFolder(folder.id)
+                            folderToDissolve = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
+                },
+            )
         }
     }
 
@@ -1824,22 +1847,26 @@ fun SessionListScreen(
             summary = stringResource(R.string.group_delete_confirm_message, count),
             onDismissRequest = { folderToDelete = null },
         ) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                    text = stringResource(R.string.delete),
-                    onClick = {
-                viewModel.deleteFolderWithSessions(folder.id)
-                folderToDelete = null
-            },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
-                )
-                TextButton(
-                    text = stringResource(R.string.cancel),
-                    onClick = { folderToDelete = null },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        text = stringResource(R.string.cancel),
+                        onClick = { folderToDelete = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        text = stringResource(R.string.delete),
+                        onClick = {
+                            viewModel.deleteFolderWithSessions(folder.id)
+                            folderToDelete = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(color = MiuixTheme.colorScheme.error, textColor = MiuixTheme.colorScheme.onError),
+                    )
+                },
+            )
         }
     }
 
@@ -3155,8 +3182,11 @@ private fun SessionRow(
             .then(
                 if (!inFolder) {
                     Modifier
-                        .padding(start = LIST_GUTTER, end = LIST_GUTTER, bottom = 4.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .padding(start = LIST_GUTTER, end = LIST_GUTTER, bottom = 6.dp)
+                        .squircleSurface(
+                            color = rowBackground ?: MiuixTheme.colorScheme.surfaceContainer,
+                            cornerRadius = 20.dp,
+                        )
                 } else {
                     Modifier
                 }
@@ -3166,7 +3196,7 @@ private fun SessionRow(
             // clip only ever shaped the ripple. Now the tint is the rounded
             // rect itself, matching the folder card's shape and leaving equal
             // gutters left and right.
-            .background(rowBackground ?: MiuixTheme.colorScheme.surfaceContainer)
+            .then(if (inFolder) Modifier.background(rowBackground ?: Color.Transparent) else Modifier)
             .then(
                 if (onLongClick != null) {
                     Modifier
@@ -4006,18 +4036,24 @@ private fun SessionExportSummaryDialog(
                                 }
                             }
                         }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                        onClick = onShare,
-                        text = stringResource(R.string.common_share),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-            TextButton(
+            com.openminis.app.ui.components.MinisDialogActions(
+                dismissButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = onDismiss,
                         text = stringResource(R.string.common_cancel),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )
-            }
+                },
+                confirmButton = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onShare,
+                        text = stringResource(R.string.common_share),
+                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                    )
+                },
+            )
         }
     }
 }
