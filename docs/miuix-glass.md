@@ -1,11 +1,11 @@
 # Android glass rendering
 
-The Android UI uses Miuix `0.9.5-beta01`. Preserve these sampling boundaries when changing a toolbar or menu. This pass follows the pinned official Demo/source `6d2554a8`, the `limczhh/miuix-skill` rules, and Eta `939cae8` as a composition reference (opaque page base, scene/page sampling separation and native glass/press APIs; no dependency or navigation-runtime migration).
+The Android UI uses Miuix `0.9.5-beta02`, which builds on Compose Multiplatform `1.13.0-rc01`; the app therefore resolves Compose `1.13.0-rc01` and pins the matching `ui-test`/tooling artifacts. Preserve these sampling boundaries when changing a toolbar or menu. This pass follows the pinned official Demo/source `6d2554a8`, the `limczhh/miuix-skill` rules, and Eta `939cae8` as a composition reference (opaque page base, scene/page sampling separation and native glass/press APIs; no dependency or navigation-runtime migration).
 
 ## Backdrop ownership
 
 - Chat records an **opaque, full-width message viewport** before message-column centering and gutters. The toolbar and composer are separate from the recording. Shared scrolling settings record their body for the same top-bar effect.
-- `MinisGlassTopBar` draws one Miuix `textureBlur` background. `BandOverhang` extends the fade beneath the measured foreground. The `DstIn` mask fades both blur and tint to zero, and the overhang draws without intercepting taps.
+- `MinisGlassTopBar` draws one native progressive blur (`progressiveTextureBlur`, 80 dp `ProgressiveBlur.Top`) with the official 30% surface tint, sized to the measured foreground plus `BandOverhang`, so the band releases into the page without intercepting taps.
 - `MinisGlassIconButton` samples `LocalMinisActionBackdrop`, which records only the opaque page body. Buttons remain siblings of the band; neither samples itself. Use the native default fill only without a supported backdrop, and the same `GlassShadows.Regular` at the button and morph endpoint.
 - The home session list and model-group management list draw directly. The home accordion keeps stable item keys and placement motion. Items removed by a toggle are disposed without a fade-out drawing layer. This reduces exposure to the `RenderThread` crash reported during group toggles. Confirm stability on the affected device.
 - `MinisOverlayHost` supplies the root Miuix `PopupLayout`. `MinisSceneBackdrop` records the opaque scene only while a same-window menu owns a lease, including exit. Root popups and dimming are outside this recording. The lease is released on disposal; idle lists/transitions are not permanently recorded. Window-hosted menus keep the readable native fallback rather than sampling another window.
