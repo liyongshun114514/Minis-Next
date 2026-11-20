@@ -141,8 +141,9 @@ def main() -> int:
     for path in (components / "MinisGlassTopBar.kt", components / "MinisOverlayHost.kt",
                  components / "MinisMenu.kt", CHAT.with_name("SendReturnModeMenu.kt")):
         balanced(text(path), str(path.relative_to(ROOT)))
-    ok(band.count(".textureBlur(") == 1 and "BlendMode.DstIn" in band,
-       "the shared bar must fade one complete tinted blur layer")
+    ok(band.count(".progressiveTextureBlur(") == 1 and "ProgressiveBlur.Top" in band
+       and "copy(alpha = 0.30f)" in band,
+       "the shared bar must draw one native progressive blur layer with the official 30% tint")
     buttons = band.split("fun MinisGlassIconButton(", 1)[1]
     ok("layerBackdrop(" not in band and "backdrop: Backdrop? = LocalMinisActionBackdrop.current" in buttons,
        "glass buttons must sample the body, never a clipped or re-recorded bar")
@@ -330,18 +331,18 @@ def main() -> int:
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")
-    ok("top.yukonga.miuix.kmp.basic.Slider(" in slider_code and "Canvas(" not in slider_code,
-       "effort control must use the native Miuix Slider, not a custom painted control")
-    ok("steps = (levels.size - 2).coerceAtLeast(0)" in slider_code and "coerceIn(levels.indices)" in slider_code,
-       "native slider must snap only to supported levels")
+    ok("Canvas(" in slider_code and "ThinkingSliderGeometry.track(" in slider_code,
+       "original particle slider must share its drawing and gesture geometry")
+    ok("ComposerPortMath.nearestIndex(" in slider_code and "ComposerPortMath.detentIndex(" in slider_code,
+       "particle slider must snap only to supported levels")
     ok("private fun ThinkingLevel.effortSliderLabel(): String = displayName" in slider_code,
        "slider labels must match the compact composer's display names")
-    ok("if (canChange && released) onSelect(levels[" in slider_code and "if (!released) draft = selectedIndex.toFloat()" in slider_code,
+    ok("onSelect(levels[requestedIndex])" in slider_code and "if (!completed)" in slider_code,
        "slider must commit one supported level on release and none on cancellation")
-    ok("if (!pointerActive) onSelect(levels[draft.toInt()])" in slider_code and "disabled()" in slider_code,
-       "native slider must retain accessible stepping and disabled semantics")
-    ok("withFrameNanos" not in slider_code and "FlowRow(" in slider_code,
-       "native slider must not run a decorative particle clock and tier labels must wrap")
+    ok("CustomAccessibilityAction" in slider_code and "progressBarRangeInfo" in slider_code,
+       "particle slider must retain accessible stepping and progress semantics")
+    ok("if (!enabled || reducedMotion) return@LaunchedEffect" in slider_code,
+       "particle clock must stop under reduced motion")
     ok("glassAnchor = attachAnchor" in chat_code and "glassPopupAnchor(attachAnchor" in chat_code,
        "+ menu must expand from and collapse into its actual button")
     ok("val bottomReserve = composerHeightDp +" in chat_code and

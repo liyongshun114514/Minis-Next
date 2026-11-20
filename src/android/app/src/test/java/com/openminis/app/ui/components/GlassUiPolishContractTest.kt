@@ -151,10 +151,43 @@ class GlassUiPolishContractTest {
         assertTrue(bounce.contains("content(eventsOnly)"))
         val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
         val list = chat.substringAfter("val perfNewestLogged").substringBefore("// [T-android-session-entering-dots] Fades")
-        assertTrue(list.contains(".fillMaxSize()"))
+        // Short conversations stay top-aligned: the list itself wraps its
+        // content and only the outer overscroll box spans the viewport.
+        assertTrue(list.contains(".fillMaxWidth()"))
+        assertFalse(list.contains(".fillMaxSize()"))
         val bar = ProductionSources.read("ui/components/RichTitleAppBar.kt")
         assertFalse("Surface clips native glass shadows at the bar edge", bar.contains("Surface(color = color)"))
         assertTrue(bar.contains("Box(Modifier.background(color))"))
+    }
+
+    @Test fun `segmented tabs keep a fixed track and press rectangles`() {
+        val tabs = ProductionSources.read("ui/components/MinisSegmentedTabs.kt")
+        assertFalse("a draggable track slides the selection pill with it", tabs.contains("LazyRow("))
+        assertFalse(tabs.contains("horizontalScroll("))
+        assertFalse(tabs.contains("overScrollHorizontal("))
+        assertTrue(tabs.contains("indication = MiuixIndication("))
+        assertTrue(tabs.contains(".clip(trackShape)"))
+        val provider = ProductionSources.read("ui/settings/ProviderDetailScreen.kt")
+        assertFalse(provider.contains("TabRowWithContour("))
+        assertEquals(2, Regex("MinisSegmentedTabs\\(").findAll(provider).count())
+    }
+
+    @Test fun `glass surfaces sample recorded pages and keep the original effort slider`() {
+        val sheet = ProductionSources.read("ui/components/MinisBottomSheet.kt")
+        assertTrue(sheet.contains("backdrop: Backdrop? = null"))
+        assertTrue(sheet.contains("LocalMinisActionBackdrop.current ?: scene?.backdrop"))
+        val settings = ProductionSources.read("ui/settings/SettingsComponents.kt")
+        assertTrue(settings.contains("CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop)"))
+        val bar = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
+        assertTrue(bar.contains("progressiveTextureBlur(") && bar.contains("copy(alpha = 0.30f)"))
+        val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
+        assertTrue(chat.contains("backdrop = chatTopBackdrop,"))
+        assertTrue(chat.contains("MinisGlassIconButton(") && chat.contains("size = 36.dp"))
+        assertTrue(chat.contains("scroll to previous", ignoreCase = true) || chat.contains("Scroll to previous message"))
+        val editor = ProductionSources.read("ui/settings/WorkspaceInstructionsScreen.kt")
+        assertTrue(editor.contains("DocumentEditorField("))
+        val slider = ProductionSources.read("ui/chat/NativeComposerExtras.kt")
+        assertTrue(slider.contains("Canvas(") && slider.contains("ThinkingSliderGeometry.track("))
     }
 
     @Test fun `pressed settings rows keep separators outside their input plane`() {

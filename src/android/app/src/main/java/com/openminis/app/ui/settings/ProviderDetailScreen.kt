@@ -73,9 +73,7 @@ import com.openminis.app.ui.components.SectionTextField
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
-import top.yukonga.miuix.kmp.basic.TabRowWithContour
-import top.yukonga.miuix.kmp.basic.TabRowDefaults
-import com.openminis.app.ui.components.preferenceTabMinWidth
+import com.openminis.app.ui.components.MinisSegmentedTabs
 import com.openminis.app.ui.components.preferenceTabHeight
 import com.openminis.app.data.model.ImageEndpointMode
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
@@ -443,7 +441,7 @@ fun ProviderDetailScreen(
                         stringResource(R.string.provider_detail_chat_completions),
                         stringResource(R.string.provider_detail_responses_api),
                     )
-                    TabRowWithContour(
+                    MinisSegmentedTabs(
                         tabs = tabLabels,
                         selectedTabIndex = if (instance.useResponsesAPI) 1 else 0,
                         onTabSelected = { index ->
@@ -452,10 +450,7 @@ fun ProviderDetailScreen(
                                 providerRepository.updateInstance(instance.copy(useResponsesAPI = useResponses))
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        minWidth = preferenceTabMinWidth(tabLabels),
                         height = preferenceTabHeight(),
-                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
                     )
                 }
             }
@@ -521,7 +516,7 @@ fun ProviderDetailScreen(
             ) {
                 SettingsCardBlock {
                     val endpointLabels = imageEndpointLabels()
-                    TabRowWithContour(
+                    MinisSegmentedTabs(
                         tabs = endpointLabels,
                         selectedTabIndex = ImageEndpointMode.entries.indexOf(mode),
                         onTabSelected = { index ->
@@ -533,10 +528,7 @@ fun ProviderDetailScreen(
                                 ))
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        minWidth = preferenceTabMinWidth(endpointLabels),
                         height = preferenceTabHeight(),
-                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
                     )
                 }
             }

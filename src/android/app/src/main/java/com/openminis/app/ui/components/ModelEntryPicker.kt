@@ -309,19 +309,15 @@ fun LazyListScope.modelEntryPickerItems(
                 Column(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .background(MiuixTheme.colorScheme.surfaceContainer, cardShape),
+                        .background(MiuixTheme.colorScheme.surfaceContainer, cardShape)
+                        // The card owns the outside corners; every interior row
+                        // presses as a plain rectangle flush with its divider.
+                        .clip(cardShape),
                 ) {
                         val isSelected = entry.id in selectedIds
-                        val rowShape = when {
-                            entries.size == 1 -> RoundedCornerShape(12.dp)
-                            index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                            index == entries.size - 1 -> RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                            else -> RoundedCornerShape(0.dp)
-                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(rowShape)
                                 .clickable { onToggleSelection(entry.id) }
                                 .padding(horizontal = 16.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,

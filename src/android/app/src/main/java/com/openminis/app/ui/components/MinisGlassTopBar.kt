@@ -43,6 +43,8 @@ import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.textureBlur
+import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
+import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.glass.GlassIconButton
 import top.yukonga.miuix.kmp.glass.GlassTopAppBarDefaults
 import top.yukonga.miuix.kmp.material.GlassShadows
@@ -84,7 +86,9 @@ internal fun MinisGlassTopBar(
     content: @Composable () -> Unit,
 ) {
     val resolvedBackdrop = backdrop ?: LocalMinisActionBackdrop.current
-    val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.80f))) }
+    // The official band tints with 30% surface. A heavier wash hides the very
+    // texture it is supposed to blur and reads as "gradient only".
+    val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.30f))) }
     val blurColors = BlurDefaults.blurColors(blendColors = blendColors)
     val fallback = remember(background) { GlassTopAppBarDefaults.bandBrush(background) }
     val edgeFade = remember {
@@ -102,14 +106,13 @@ internal fun MinisGlassTopBar(
                         alpha = backgroundAlpha().coerceIn(0f, 1f)
                         compositingStrategy = CompositingStrategy.Offscreen
                     }
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(edgeFade, blendMode = BlendMode.DstIn)
-                        }
-                        .textureBlur(
+                        // Native progressive blur: full strength at the bar,
+                        // releasing into the page over the overhang band.
+                        .progressiveTextureBlur(
                             backdrop = resolvedBackdrop,
                             shape = RectangleShape,
-                            blurRadius = 25f,
+                            blurRadius = 80f,
+                            gradient = ProgressiveBlur.Top.copy(curve = 0.5f),
                             noiseCoefficient = 0f,
                             colors = blurColors,
                         ),

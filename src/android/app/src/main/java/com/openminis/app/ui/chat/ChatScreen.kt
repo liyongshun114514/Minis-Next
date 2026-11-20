@@ -4466,10 +4466,13 @@ fun ChatScreen(
                         bottom = if (bottomReserve == 0.dp) 12.dp else bottomReserve,
                     ),
                     modifier = Modifier
-                        // Short conversations must use the full message viewport too.
-                        // A wrap-height reversed list clips a pulled-down reply at its
-                        // content-sized bottom, far above the floating composer.
-                        .fillMaxSize()
+                        // Short conversations keep their first row at the TOP of
+                        // the viewport (a full-height reversed list would pin the
+                        // newest bubble to the composer). The overscroll visual
+                        // now lives on AlwaysStretchOverscrollBox's full-height
+                        // Box, so a wrap-height list still stretches the whole
+                        // viewport instead of clipping a pulled-down reply.
+                        .fillMaxWidth()
                         // [T-android-session-entering-dots] Fades the first
                         // rows in under the leaving dots; 1f at all other times.
                         .graphicsLayer { alpha = listEntryAlpha }
@@ -5535,7 +5538,7 @@ fun ChatScreen(
                 // than jumping to the oldest message.
                 if (messages.isNotEmpty() && !isNearBottom.value) {
                     val upBaseBottom = scrollControlsBottom
-                    IconButton(
+                    MinisGlassIconButton(
                         onClick = {
                             // [T-android-updown-fab-asymmetry] Arm the same flag a
                             // finger-drag would. The down-button is gated on
@@ -5555,10 +5558,9 @@ fun ChatScreen(
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 12.dp + fabEndInset, bottom = upBaseBottom + 46.dp)
-                            .shadow(4.dp, CircleShape)
-                            .size(36.dp),
-                        backgroundColor = ChatColors.inputBg,
+                            .padding(end = 12.dp + fabEndInset, bottom = upBaseBottom + 46.dp),
+                        // Same 36dp silhouette as the old solid FAB, now a glass one.
+                        size = 36.dp,
                     ) {
                         Icon(
                             // Matches iOS's `arrow.up.to.line` (AIChatView.swift:2501):
@@ -5567,6 +5569,7 @@ fun ChatScreen(
                             // distinct from the down button's plain chevron.
                             imageVector = Icons.Default.VerticalAlignTop,
                             contentDescription = "Scroll to previous message",
+                            tint = ChatColors.primaryText,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -5574,7 +5577,7 @@ fun ChatScreen(
 
                 if (userScrolledAway && contentOverflows.value && messages.isNotEmpty()) {
                     val fabBottomPadding = scrollControlsBottom
-                    IconButton(
+                    MinisGlassIconButton(
                         onClick = {
                             // [T-android-scroll-fab-down-stuck] Clear the
                             // scrolled-away intent SYNCHRONOUSLY on tap — that
@@ -5604,14 +5607,13 @@ fun ChatScreen(
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 12.dp + fabEndInset, bottom = fabBottomPadding)
-                            .shadow(4.dp, CircleShape)
-                            .size(36.dp),
-                        backgroundColor = ChatColors.inputBg,
+                            .padding(end = 12.dp + fabEndInset, bottom = fabBottomPadding),
+                        size = 36.dp,
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Scroll to bottom",
+                            tint = ChatColors.primaryText,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -8298,6 +8300,9 @@ fun ChatScreen(
                 viewModel.setThinkingLevel(level)
             },
             onDismiss = { showThinkingLevelSheet = false },
+            // Sample the recorded chat page: the shared scene would read the
+            // sheet's own surface back into its blur.
+            backdrop = chatTopBackdrop,
         )
     }
 
@@ -8659,6 +8664,7 @@ private fun ThinkingLevelSheet(
     availableLevels: List<com.openminis.app.data.model.ThinkingLevel>,
     onSelect: (com.openminis.app.data.model.ThinkingLevel) -> Unit,
     onDismiss: () -> Unit,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
     // Off is always offered (turns thinking off); availableLevels already
     // excludes Off, so prepend it. De-dup defensively in case a caller ever
@@ -8672,6 +8678,7 @@ private fun ThinkingLevelSheet(
         deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
+        backdrop = backdrop,
     ) {
         val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {

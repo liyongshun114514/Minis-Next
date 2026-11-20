@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import com.openminis.app.ui.components.LocalMinisActionBackdrop
 import com.openminis.app.ui.components.minisJellyPress
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
@@ -80,7 +82,9 @@ fun SettingsScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = if (scrollable) rememberScrollState() else null
-    val backdrop = if (scrollable && isRuntimeShaderSupported()) rememberLayerBackdrop() else null
+    // Record even a short page: without a backdrop the bar can only paint the
+    // opaque brush fallback, which reads as "gradient only, no blur".
+    val backdrop = if (isRuntimeShaderSupported()) rememberLayerBackdrop() else null
     val pageColor = MiuixTheme.colorScheme.surface
     val fadeInDistance = with(LocalDensity.current) { 24.dp.toPx() }
     Scaffold(
@@ -88,7 +92,10 @@ fun SettingsScaffold(
             SettingsGlassTopBar(
                 title = title,
                 backdrop = backdrop,
-                overlap = { ((scrollState?.value ?: 0) / fadeInDistance).coerceIn(0f, 1f) },
+                overlap = {
+                    if (scrollState == null) 1f
+                    else 0.35f + 0.65f * (scrollState.value / fadeInDistance).coerceIn(0f, 1f)
+                },
                 centerTitle = centerTitle,
                 onBack = onBack,
                 navigation = navigation,
@@ -106,6 +113,8 @@ fun SettingsScaffold(
             bottom = padding.calculateBottomPadding(),
         )
         val capture = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier
+        // Sheets opened from this page sample the page body, never themselves.
+        CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop) {
         Column(
             modifier = Modifier.fillMaxSize()
                 .then(capture)
@@ -120,6 +129,7 @@ fun SettingsScaffold(
                 .then(if (scrollable) Modifier.padding(bottom = 16.dp) else Modifier),
             content = content,
         )
+        }
     }
 }
 

@@ -443,15 +443,18 @@ fun WorkspaceInstructionEditorScreen(
                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 modifier = Modifier.padding(vertical = 8.dp),
             )
-            TextField(
+            // A top-aligned editor. Miuix TextField centres its decoration row,
+            // so a full-height field painted a short AGENTS.md in the middle of
+            // the screen instead of at the first line.
+            com.openminis.app.ui.components.DocumentEditorField(
                 value = content,
                 onValueChange = { content = it },
                 textStyle = MiuixTheme.textStyles.body2,
-                label = stringResource(R.string.workspace_editor_placeholder),
-                useLabelAsPlaceholder = true,
+                placeholder = stringResource(R.string.workspace_editor_placeholder),
+                outlined = true,
                 modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
+                    .fillMaxWidth()
+                    .weight(1f),
             )
             if (saved) {
                 Text(

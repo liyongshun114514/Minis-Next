@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.glass.GlassBottomSheet
 import top.yukonga.miuix.kmp.glass.GlassBottomSheetDefaults
 import top.yukonga.miuix.kmp.layout.BottomSheetDefaults
@@ -45,11 +46,15 @@ fun MinisBottomSheet(
     enableNestedScroll: Boolean = true,
     renderInRootScaffold: Boolean = true,
     deferDismissRequest: Boolean = false,
+    // A page recording (bars included, sheet excluded) beats the shared scene:
+    // sampling the scene from inside the overlay host would read the sheet itself.
+    backdrop: Backdrop? = null,
     content: @Composable () -> Unit,
 ) {
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
     val locals = androidx.compose.runtime.currentCompositionLocalContext
     val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow }
+    val surfaceBackdrop = backdrop ?: LocalMinisActionBackdrop.current ?: scene?.backdrop
     // A new controlled show session cancels an older internal close.
     var closing by remember(show) { mutableStateOf(false) }
     val currentShow by rememberUpdatedState(show)
@@ -107,7 +112,7 @@ fun MinisBottomSheet(
     GlassBottomSheet(
         show = show && !closing,
         onDismissRequest = requestDismiss,
-        backdrop = scene?.backdrop,
+        backdrop = surfaceBackdrop,
         modifier = modifier,
         title = title,
         startAction = startAction,

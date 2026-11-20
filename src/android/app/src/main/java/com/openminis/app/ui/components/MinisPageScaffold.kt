@@ -54,7 +54,11 @@ internal fun MinisPageScaffold(
         content = { padding ->
             // Sampling controls live in Scaffold slots, outside this opaque body recording.
             Box(Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
-                content(padding)
+                // A sheet or menu opened from this page samples the recorded
+                // body instead of the overlay host it is drawn into.
+                CompositionLocalProvider(LocalMinisActionBackdrop provides backdrop) {
+                    content(padding)
+                }
             }
         },
     )
