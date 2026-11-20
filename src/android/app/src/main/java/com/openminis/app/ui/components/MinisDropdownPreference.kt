@@ -1,5 +1,9 @@
 package com.openminis.app.ui.components
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,6 +16,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
@@ -27,6 +36,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 /**
  * Native Miuix row + native Glass dropdown, sharing MinisMenu's window/IME,
  * exit completion and demand-scene contract. Values remain caller-controlled.
+ * [valueText] can show the saved value when it differs from the selected preset label.
+ * [anchorAtTap] uses the pointer position, with the row as the keyboard and accessibility fallback.
  */
 @Composable
 internal fun MinisDropdownPreference(
@@ -40,13 +51,38 @@ internal fun MinisDropdownPreference(
     summary: String? = null,
     startAction: (@Composable () -> Unit)? = null,
     insideMargin: PaddingValues = BasicComponentDefaults.InsideMargin,
+    valueText: String? = null,
+    anchorAtTap: Boolean = false,
+    onDismissFinished: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var mounted by remember { mutableStateOf(false) }
     val active = enabled && items.isNotEmpty()
     LaunchedEffect(active) { if (!active) expanded = false }
     val colors = MiuixTheme.colorScheme
-    Box {
+    val interactions = remember { MutableInteractionSource() }
+    var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var tapForClick by remember { mutableStateOf<Offset?>(null) }
+    var menuTap by remember { mutableStateOf<Offset?>(null) }
+    val tapObserver = if (anchorAtTap && active) {
+        Modifier.onGloballyPositioned { coordinates = it }.pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                if (up != null) {
+                    // Only expose this point during the native click's Main pass.
+                    // Scrolling, Back and accessibility clicks cannot reuse an old point.
+                    tapForClick = coordinates?.takeIf { it.isAttached }?.localToWindow(up.position)
+                    try {
+                        awaitPointerEvent(PointerEventPass.Final)
+                    } finally {
+                        tapForClick = null
+                    }
+                }
+            }
+        }
+    } else Modifier
+    Box(tapObserver) {
         BasicComponent(
             title = title,
             summary = summary,
@@ -63,14 +99,19 @@ internal fun MinisDropdownPreference(
             insideMargin = insideMargin,
             enabled = active,
             role = Role.DropdownList,
+            interactionSource = interactions,
             holdDownState = mounted,
-            onClick = { expanded = true; mounted = true },
+            onClick = {
+                menuTap = tapForClick
+                mounted = true
+                expanded = true
+            },
             endActions = {
                 Row(
                     modifier = Modifier.minisJellyPress(active),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (showValue) items.getOrNull(selectedIndex)?.let { value ->
+                    if (showValue) (valueText ?: items.getOrNull(selectedIndex))?.let { value ->
                         Text(value, style = MiuixTheme.textStyles.body2,
                             color = colors.onSurfaceVariantActions,
                             modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp))
@@ -82,8 +123,15 @@ internal fun MinisDropdownPreference(
         MinisMenu(
             expanded = expanded && active,
             onDismissRequest = { expanded = false },
-            onDismissFinished = { if (!expanded || !active) mounted = false },
+            onDismissFinished = {
+                if (!expanded || !active) {
+                    mounted = false
+                    menuTap = null
+                    onDismissFinished?.invoke()
+                }
+            },
             alignEnd = true,
+            tapPositionInWindow = menuTap,
         ) {
             items.forEachIndexed { index, label ->
                 GlassPopupItem(

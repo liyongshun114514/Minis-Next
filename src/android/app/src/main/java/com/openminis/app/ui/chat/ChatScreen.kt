@@ -3612,13 +3612,7 @@ fun ChatScreen(
             // This is the actual visible area above the composer, after IME
             // and Scaffold insets; status UI must never exceed these bounds.
             var workAreaHeightPx by remember(sessionId) { mutableStateOf(0) }
-            // Messages + scroll-to-bottom button
             Box(modifier = Modifier.fillMaxSize()
-                // Capture the complete, opaque viewport BEFORE column centering and gutters.
-                // Recording only the transparent/capped LazyColumn leaves empty side textures
-                // and causes dark seams or repeated text when the top band samples its edges.
-                .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
-                .background(ChatColors.background)
                 .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
                 var toolBarHeightPx by remember { mutableStateOf(0) }
                 var subAgentStatusExpanded by remember(sessionId) { mutableStateOf(false) }
@@ -4448,7 +4442,13 @@ fun ChatScreen(
                 // breadcrumb once.
                 val perfNewestLogged = remember(sessionId) { java.util.concurrent.ConcurrentHashMap.newKeySet<String>() }
                 Box {
-                AlwaysStretchOverscrollBox { sharedEffect ->
+                // Only the opaque message viewport is recorded. The tool bar and scroll
+                // buttons are drawn afterwards so their glass can sample it without feedback.
+                AlwaysStretchOverscrollBox(
+                    modifier = Modifier.fillMaxSize()
+                        .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
+                        .background(ChatColors.background),
+                ) { sharedEffect ->
                 LazyColumn(
                     state = listState,
                     reverseLayout = true,
@@ -5473,6 +5473,7 @@ fun ChatScreen(
                         toolBlocks = lastToolBlocks,
                         initialIndex = initialIdx,
                         onDismiss = { viewModel.closeToolDetail() },
+                        backdrop = chatTopBackdrop,
                         onOpenTerminalWithCommand = onOpenTerminalWithCommand,
                         onOpenBrowserForUrl = { url ->
                             viewModel.closeToolDetail()
@@ -5491,6 +5492,7 @@ fun ChatScreen(
                         toolBlocks = listOf(block),
                         initialIndex = 0,
                         onDismiss = { callbackDetailBlock = null },
+                        backdrop = chatTopBackdrop,
                         onOpenAgentTranscript = { childId ->
                             callbackDetailBlock = null
                             onOpenAgentTranscript(childId)
@@ -5559,8 +5561,8 @@ fun ChatScreen(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 12.dp + fabEndInset, bottom = upBaseBottom + 46.dp),
-                        // Same 36dp silhouette as the old solid FAB, now a glass one.
                         size = 36.dp,
+                        backdrop = chatTopBackdrop,
                     ) {
                         Icon(
                             // Matches iOS's `arrow.up.to.line` (AIChatView.swift:2501):
@@ -5609,6 +5611,7 @@ fun ChatScreen(
                             .align(Alignment.BottomEnd)
                             .padding(end = 12.dp + fabEndInset, bottom = fabBottomPadding),
                         size = 36.dp,
+                        backdrop = chatTopBackdrop,
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,

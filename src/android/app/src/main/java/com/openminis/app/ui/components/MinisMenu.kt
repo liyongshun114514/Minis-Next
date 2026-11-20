@@ -30,6 +30,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -62,6 +63,7 @@ import top.yukonga.miuix.kmp.glass.GlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import top.yukonga.miuix.kmp.glass.GlassPopupSizing
 import top.yukonga.miuix.kmp.glass.GlassTransformPopup
+import kotlin.math.roundToInt
 
 internal val LocalMinisMenuInteractive = staticCompositionLocalOf { true }
 
@@ -82,6 +84,7 @@ fun MinisMenu(
     glassAnchor: GlassPopupAnchor? = null,
     anchorContent: @Composable () -> Unit = {},
     preferAbove: Boolean = false,
+    tapPositionInWindow: Offset? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
@@ -115,11 +118,13 @@ fun MinisMenu(
     val status = WindowInsets.statusBars
     val navigation = WindowInsets.navigationBars
     val ime = WindowInsets.ime
+    val systemBottom = with(density) { maxOf(navigation.getBottom(this), cutout.getBottom(this)) }
+    val imeBottom = with(density) { ime.getBottom(this) }
     val safeBounds = with(density) {
         IntRect(
             cutout.getLeft(this, direction), maxOf(status.getTop(this), cutout.getTop(this)),
             windowSize.width - cutout.getRight(this, direction),
-            windowSize.height - maxOf(navigation.getBottom(this), ime.getBottom(this), cutout.getBottom(this)),
+            windowSize.height - maxOf(systemBottom, imeBottom),
         )
     }
     val maxWidth = with(density) {
@@ -139,7 +144,15 @@ fun MinisMenu(
             parentBounds = IntRect(p.x.toInt(), p.y.toInt(), p.x.toInt() + parent.size.width, p.y.toInt() + parent.size.height)
         }
     })
-    val anchorBounds = parentBounds ?: return
+    val touchBounds = tapPositionInWindow?.takeIf {
+        it != Offset.Unspecified && it.x.isFinite() && it.y.isFinite()
+    }?.let { tap ->
+        val x = tap.x.roundToInt()
+        val y = tap.y.roundToInt()
+        IntRect(x, y, x, y)
+    }
+    val anchorBounds = touchBounds ?: parentBounds ?: return
+    val alignAtRight = touchBounds?.let { it.left >= safeBounds.left + safeBounds.width / 2 } ?: alignEnd
     if (windowSize == IntSize.Zero) return
     val offsetX = with(density) { offset.x.roundToPx() }
     val offsetY = with(density) { offset.y.roundToPx() }
@@ -190,15 +203,35 @@ fun MinisMenu(
             } else {
                 val width = panelSize.width.coerceIn(with(density) { sizing.minWidth.roundToPx() }, with(density) { maxWidth.roundToPx() })
                 val height = panelSize.height.coerceAtMost(with(density) { maxHeight.roundToPx() })
-                val anchor = MinisMenuPosition.glassAnchor(
-                    anchorBounds, safeBounds, IntSize(width, height), alignEnd,
-                    offsetX, offsetY, margin, preferAbove, direction,
-                )
-                GlassDropdownPopup(
-                    show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
-                    backdrop = menuBackdrop, sizing = sizing, visuals = visuals,
-                    contentPadding = PaddingValues(0.dp), content = rows,
-                )
+                // Match the spring's fixed edge to the side of the finger. Native
+                // placement can then grow directly from the point and flip above it.
+                val popupDirection = when {
+                    touchBounds == null -> direction
+                    alignAtRight -> LayoutDirection.Ltr
+                    else -> LayoutDirection.Rtl
+                }
+                val anchor = if (touchBounds != null && imeBottom <= systemBottom) {
+                    val x = touchBounds.left.toFloat()
+                    val y = touchBounds.top.toFloat().coerceIn(
+                        safeBounds.top.toFloat(), safeBounds.bottom.coerceAtLeast(safeBounds.top).toFloat(),
+                    )
+                    Rect(x, y, x, y)
+                } else {
+                    // The native popup's window bounds do not include the IME.
+                    MinisMenuPosition.glassAnchor(
+                        anchorBounds, safeBounds, IntSize(width, height), alignAtRight,
+                        offsetX, offsetY, margin, preferAbove, popupDirection,
+                    )
+                }
+                CompositionLocalProvider(LocalLayoutDirection provides popupDirection) {
+                    GlassDropdownPopup(
+                        show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
+                        backdrop = menuBackdrop, sizing = sizing, visuals = visuals,
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides direction) { rows() }
+                    }
+                }
             }
         }
     }

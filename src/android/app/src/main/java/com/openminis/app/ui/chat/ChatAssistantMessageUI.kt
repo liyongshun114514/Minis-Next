@@ -1,6 +1,6 @@
 package com.openminis.app.ui.chat
 
-import com.openminis.app.ui.components.minisJellyPress
+import top.yukonga.miuix.kmp.utils.MiuixIndication
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 // [T-android-split-chat] Assistant-message + tool-pill + thinking rendering
@@ -847,33 +847,29 @@ internal fun ToolCallPill(
     // itself. The clock is held only while the tool is RUNNING.
     val shimmerTick = if (isRunning) rememberDecorativeTick() else null
 
-    // [T-android-tool-bubble-longpress-menu] Long-press menu state, scoped
-    // to this pill. The DropdownMenu is anchored to the pill via the Box
-    // wrapper below so it opens beneath the tapped bubble.
-    var showToolMenu by remember { mutableStateOf(false) }
+    // Anchor the menu and its press indication to the pill's resting bounds.
+    var showToolMenu by remember(block.id) { mutableStateOf(false) }
 
     // Pill stretches up to the full row width so long titles can ellipsize
     // without pushing the duration out of view. Title takes the remaining
     // space via weight(1f), duration stays fixed-width (softWrap=false).
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-      Box(modifier = Modifier.weight(1f, fill = false)) {
+      // One capsule clips its fill, running shimmer and full-surface press tint.
+      Box(
+          modifier = Modifier.weight(1f, fill = false)
+              .clip(CircleShape)
+              .background(ChatColors.toolCapsuleBg)
+              .combinedClickable(
+                  interactionSource = null,
+                  indication = MiuixIndication(),
+                  onClick = { onOpenDetail(block.id) },
+                  onLongClick = if (onRerunFromHere != null || onCopyDetails != null || onSearchInChat != null) {
+                      { showToolMenu = true }
+                  } else null,
+              ),
+      ) {
         Row(
-            modifier = Modifier
-                .background(
-                    ChatColors.toolCapsuleBg,
-                    CircleShape,
-                )
-                .border(0.5.dp, ChatColors.toolBorder, CircleShape)
-                .minisJellyPress()
-                .clip(CircleShape)
-                .combinedClickable(
-                    onClick = { onOpenDetail(block.id) },
-                    onLongClick = if (onRerunFromHere != null || onCopyDetails != null || onSearchInChat != null) {
-                        { showToolMenu = true }
-                    } else null,
-                )
-                .padding(horizontal = 12.dp)
-                .height(36.dp),
+            modifier = Modifier.padding(horizontal = 12.dp).height(36.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Status icon — always the typed tool icon. Color shifts to
@@ -955,7 +951,6 @@ internal fun ToolCallPill(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(CircleShape)
                     .graphicsLayer {
                         val phase = decorativePhase(shimmerTick.value, SHIMMER_PERIOD_MS)
                         // Same -1f..2f sweep, in pill widths, the old tween produced.

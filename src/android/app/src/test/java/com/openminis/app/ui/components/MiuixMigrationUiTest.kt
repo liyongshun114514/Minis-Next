@@ -819,6 +819,42 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(2, changes); assertEquals(0, index) }
     }
 
+    @Test fun touchAnchoredDropdownMovesWithThePointTappedInsideTheSameRow() {
+        var selected = -1
+        compose.setContent {
+            MinisTheme {
+                SettingsScaffold(title = "Provider") {
+                    Spacer(Modifier.height(72.dp))
+                    SettingsSection {
+                        MinisDropdownPreference(
+                            title = "Idle timeout",
+                            items = listOf("Default preset", "Custom timeout"),
+                            selectedIndex = 0,
+                            modifier = Modifier.testTag("idle-timeout"),
+                            anchorAtTap = true,
+                            onSelectedIndexChange = { selected = it },
+                        )
+                    }
+                }
+            }
+        }
+        val row = compose.onNodeWithTag("idle-timeout")
+        val height = row.fetchSemanticsNode().boundsInRoot.height
+        val choice = compose.onNodeWithText("Custom timeout")
+        fun openAt(yFraction: Float): Float {
+            row.performTouchInput { click(androidx.compose.ui.geometry.Offset(center.x, height * yFraction)) }
+            return choice.assertIsDisplayed().fetchSemanticsNode().boundsInRoot.top
+        }
+        val atTop = openAt(0.25f)
+        choice.performClick()
+        choice.assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, selected) }
+        val atBottom = openAt(0.75f)
+        assertEquals("the menu follows the touch within the row", height / 2, atBottom - atTop, 3f)
+        choice.performClick()
+        choice.assertDoesNotExist()
+    }
+
     @Test fun transformExitRestoresButtonPixelsAndReleasesSceneRecording() {
         var scene: MinisSceneBackdrop? = null
         var finished = 0

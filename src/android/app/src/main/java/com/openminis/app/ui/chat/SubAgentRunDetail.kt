@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.StopCircle
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,6 +68,10 @@ import com.openminis.app.agent.jobs.AgentJobState
 import com.openminis.app.debug.HeadlessChatRunner
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.ui.components.DecorativeSpinner
+import com.openminis.app.ui.components.MinisGlassIconButton
+import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.glass.GlassDialogButton
+import top.yukonga.miuix.kmp.glass.GlassDialogButtonRole
 import com.openminis.app.ui.theme.ChatColors
 import org.json.JSONObject
 import java.util.Locale
@@ -590,7 +593,7 @@ internal fun SubAgentLatestOutputCard(text: String) {
 
 /** While the run is live: send it a course correction, or stop it. */
 @Composable
-internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean) {
+internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean, backdrop: Backdrop?) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val accent = helperAccent()
@@ -615,8 +618,10 @@ internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean) {
                         modifier = Modifier.weight(1f),
                     )
                     val sendLabel = stringResource(R.string.subagent_detail_send)
-                    IconButton(
+                    MinisGlassIconButton(
                         enabled = !isBlank,
+                        size = 40.dp,
+                        backdrop = backdrop,
                         onClick = {
                             if (SubAgentUserSteer.send(draft, childSessionId)) {
                                 draft = ""
@@ -636,19 +641,15 @@ internal fun SubAgentActionsCard(childSessionId: String, canSteer: Boolean) {
                     fontSize = 11.sp, color = ChatColors.secondaryText,
                 )
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(HelperStatusRed.copy(alpha = 0.12f))
-                    .clickable { confirmStop = true }
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+            GlassDialogButton(
+                onClick = { confirmStop = true },
+                modifier = Modifier.fillMaxWidth(),
+                role = GlassDialogButtonRole.Destructive,
+                minHeight = 40.dp,
             ) {
-                Icon(Icons.Default.StopCircle, contentDescription = null, tint = HelperStatusRed, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.StopCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.helper_stop), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = HelperStatusRed)
+                Text(stringResource(R.string.helper_stop), style = MiuixTheme.textStyles.button)
             }
         }
     }

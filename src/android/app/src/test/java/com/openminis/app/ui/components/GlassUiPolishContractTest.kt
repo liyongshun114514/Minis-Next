@@ -153,7 +153,8 @@ class GlassUiPolishContractTest {
         assertTrue(bounce.contains(".overscroll(effect)"))
         assertTrue(bounce.contains("content(eventsOnly)"))
         val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
-        val list = chat.substringAfter("val perfNewestLogged").substringBefore("// [T-android-session-entering-dots] Fades")
+        val list = chat.substringAfter("AlwaysStretchOverscrollBox(").substringAfter("LazyColumn(")
+            .substringBefore("// [T-android-session-entering-dots] Fades")
         // Short conversations stay top-aligned: the list itself wraps its
         // content and only the outer overscroll box spans the viewport.
         assertTrue(list.contains(".fillMaxWidth()"))
@@ -163,16 +164,10 @@ class GlassUiPolishContractTest {
         assertTrue(bar.contains("Box(Modifier.background(color))"))
     }
 
-    @Test fun `segmented tabs keep a fixed track and press rectangles`() {
-        val tabs = ProductionSources.read("ui/components/MinisSegmentedTabs.kt")
-        assertFalse("a draggable track slides the selection pill with it", tabs.contains("LazyRow("))
-        assertFalse(tabs.contains("horizontalScroll("))
-        assertFalse(tabs.contains("overScrollHorizontal("))
-        assertTrue(tabs.contains("indication = MiuixIndication("))
-        assertTrue(tabs.contains(".clip(trackShape)"))
+    @Test fun `provider format choices use native contour tabs`() {
         val provider = ProductionSources.read("ui/settings/ProviderDetailScreen.kt")
-        assertFalse(provider.contains("TabRowWithContour("))
-        assertEquals(2, Regex("MinisSegmentedTabs\\(").findAll(provider).count())
+        assertEquals(2, Regex("TabRowWithContour\\(").findAll(provider).count())
+        assertEquals(2, Regex("minWidth = preferenceTabMinWidth\\(").findAll(provider).count())
     }
 
     @Test fun `glass surfaces sample recorded pages and keep the original effort slider`() {
@@ -184,9 +179,12 @@ class GlassUiPolishContractTest {
         val bar = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
         assertTrue(bar.contains("progressiveTextureBlur(") && bar.contains("copy(alpha = 0.30f)"))
         val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
-        assertTrue(chat.contains("backdrop = chatTopBackdrop,"))
-        assertTrue(chat.contains("MinisGlassIconButton(") && chat.contains("size = 36.dp"))
-        assertTrue(chat.contains("scroll to previous", ignoreCase = true) || chat.contains("Scroll to previous message"))
+        for (label in listOf("Scroll to previous message", "Scroll to bottom")) {
+            val button = chat.substringBefore("contentDescription = \"$label\"").substringAfterLast("MinisGlassIconButton(")
+            assertTrue(label, button.contains("size = 36.dp,") && button.contains("backdrop = chatTopBackdrop,"))
+        }
+        val viewport = chat.substringAfter("AlwaysStretchOverscrollBox(").substringBefore("LazyColumn(")
+        assertTrue(viewport.contains("Modifier.layerBackdrop(chatTopBackdrop)"))
         val editor = ProductionSources.read("ui/settings/WorkspaceInstructionsScreen.kt")
         assertTrue(editor.contains("DocumentEditorField("))
         val slider = ProductionSources.read("ui/chat/NativeComposerExtras.kt")

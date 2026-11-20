@@ -89,6 +89,8 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 import com.openminis.app.ui.components.DecorativeSpinner
 import com.openminis.app.ui.components.RichTitleAppBar
+import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 // [T-p2-agent-series] Dedicated rendering for a `delegate_task` (agent)
 // block — the Android port of iOS HelperBlockView.swift / HelperSheet.swift
@@ -847,10 +849,10 @@ internal fun AgentDetailCard(
     trailing: (@Composable () -> Unit)? = null,
     body: (@Composable () -> Unit)? = null,
 ) {
-    val isDark = ChatColors.isDark
-    val barBg = if (isDark) Color(0xFF212121) else Color(0xFFEBEBEB)
-    val cardBg = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-    val stroke = if (isDark) Color(0xFF404040) else Color(0xFFD1D1D1)
+    val colors = MiuixTheme.colorScheme
+    val barBg = colors.surfaceContainerHigh
+    val cardBg = colors.surfaceContainer
+    val stroke = colors.dividerLine
     val shape = RoundedCornerShape(10.dp)
     Column(modifier = Modifier.fillMaxWidth().clip(shape).background(cardBg).border(0.5.dp, stroke, shape)) {
         Row(modifier = Modifier.fillMaxWidth().background(barBg).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -925,7 +927,7 @@ private fun HelperControlDetailContent(block: AssistantBlock, summary: String) {
  * conversation is reached from the sheet's top-right chat-bubble button.
  */
 @Composable
-internal fun HelperDetailContent(block: AssistantBlock) {
+internal fun HelperDetailContent(block: AssistantBlock, backdrop: Backdrop?) {
     // [T-android-subagent-control-capsule] A control call is not a delegation:
     // it has no child session, no model, no elapsed time and no deliverable, so
     // the delegation body below would render a card of empty rows. Show what
@@ -1234,7 +1236,7 @@ internal fun HelperDetailContent(block: AssistantBlock) {
         // [T-subagent-detail-rich] Steer or stop, only while there is a run to act on.
         val cid = info.childSessionId
         if (info.isRunning && cid != null) {
-            SubAgentActionsCard(childSessionId = cid, canSteer = clock.jobIsLive)
+            SubAgentActionsCard(childSessionId = cid, canSteer = clock.jobIsLive, backdrop = backdrop)
         }
     }
 }

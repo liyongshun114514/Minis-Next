@@ -75,6 +75,7 @@ import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
+import com.openminis.app.ui.components.MinisDropdownPreference
 
 /**
  * [FEAT-261021-04, iOS c77be4fb6] The pages of Settings > Network, each its
@@ -617,27 +618,16 @@ fun NetworkSettingsScreen(
 @Composable
 internal fun ProviderNetworkRouteSection(instanceId: String) {
     val settings by NetworkHub.settings.collectAsState()
-    var picking by remember { mutableStateOf(false) }
-    val title = stringResource(R.string.network_provider_route)
+    val routes = routeOptions(includeFollowDefault = true, proxies = settings.proxies)
+    val selectedIndex = routes.indexOf(settings.providerRoute(instanceId))
+        .takeIf { it >= 0 } ?: routes.indexOf(NetworkRoute.Direct)
     SettingsSection(footer = stringResource(R.string.network_provider_route_footer)) {
-        SettingsValueRow(
-            title = title,
-            value = routeLabel(settings.providerRoute(instanceId), settings),
-            onClick = { picking = true },
-            showDivider = false,
-        )
-    }
-    if (picking) {
-        RoutePickerDialog(
-            title = title,
-            includeFollowDefault = true,
-            current = settings.providerRoute(instanceId),
-            proxies = settings.proxies,
-            onPick = { r ->
-                NetworkHub.setProviderRoute(r, instanceId)
-                picking = false
-            },
-            onDismiss = { picking = false },
+        MinisDropdownPreference(
+            title = stringResource(R.string.network_provider_route),
+            items = routes.map { routeLabel(it, settings) },
+            selectedIndex = selectedIndex,
+            onSelectedIndexChange = { NetworkHub.setProviderRoute(routes[it], instanceId) },
+            anchorAtTap = true,
         )
     }
 }
@@ -667,6 +657,13 @@ internal fun routeLabel(route: NetworkRoute, settings: NetworkSettings): String 
         ?: stringResource(R.string.network_route_direct)
 }
 
+private fun routeOptions(includeFollowDefault: Boolean, proxies: List<ProxyServer>): List<NetworkRoute> = buildList {
+    if (includeFollowDefault) add(NetworkRoute.FollowDefault)
+    add(NetworkRoute.Direct)
+    add(NetworkRoute.Tailscale)
+    proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
+}
+
 @Composable
 internal fun RoutePickerDialog(
     title: String,
@@ -676,12 +673,7 @@ internal fun RoutePickerDialog(
     onPick: (NetworkRoute) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val options = buildList {
-        if (includeFollowDefault) add(NetworkRoute.FollowDefault)
-        add(NetworkRoute.Direct)
-        add(NetworkRoute.Tailscale)
-        proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
-    }
+    val options = routeOptions(includeFollowDefault, proxies)
     val s = NetworkSettings(proxies = proxies)
     WindowDialog(
         show = true,

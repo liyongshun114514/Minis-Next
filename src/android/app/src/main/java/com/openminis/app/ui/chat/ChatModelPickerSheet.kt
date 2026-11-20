@@ -65,6 +65,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.graphics.RectangleShape
+import top.yukonga.miuix.kmp.utils.MiuixIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -860,15 +862,14 @@ internal fun ModelPickerSheet(
                         // item is the card's top: header, hairline and — when
                         // collapsed — the summary rows, closing the card.
                         item(key = "section_${instance.id}") {
+                            val cardShape = if (isCollapsed) RoundedCornerShape(ModelPickerCardRadius)
+                                else RoundedCornerShape(topStart = ModelPickerCardRadius, topEnd = ModelPickerCardRadius)
                             Column(
                                 modifier = Modifier
                                     .padding(horizontal = ModelPickerGutter)
                                     .padding(top = 12.dp)
-                                    .background(
-                                        colors.surfaceContainer,
-                                        if (isCollapsed) RoundedCornerShape(ModelPickerCardRadius)
-                                        else RoundedCornerShape(topStart = ModelPickerCardRadius, topEnd = ModelPickerCardRadius),
-                                    ),
+                                    .clip(cardShape)
+                                    .background(colors.surfaceContainer),
                             ) {
                                 // Header row, embedded in the card.
                                 Row(
@@ -975,7 +976,6 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 48.dp)
-                                                .clip(RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius))
                                                 .modelPickerSelection(selectedEntry != null, show) { onSelectEntry(displayEntry.id) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -1045,7 +1045,6 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 40.dp)
-                                                .clip(RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius))
                                                 .clickable { collapsedInstanceIds = collapsedInstanceIds - instance.id }
                                                 .padding(horizontal = 16.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -1081,25 +1080,17 @@ internal fun ModelPickerSheet(
                         }
                         if (!isCollapsed) {
                             itemsIndexed(entries, key = { _, e -> "entry_${instance.id}_${e.id}" }) { index, entry ->
-                                val isLastRow = index == entries.size - 1
+                                val cardSlice = if (index == entries.lastIndex) {
+                                    RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius)
+                                } else RectangleShape
                                 Column(
                                     modifier = Modifier
                                         .padding(horizontal = ModelPickerGutter)
-                                        .background(
-                                            colors.surfaceContainer,
-                                            if (isLastRow) RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius)
-                                            else androidx.compose.ui.graphics.RectangleShape,
-                                        ),
+                                        .clip(cardSlice)
+                                        .background(colors.surfaceContainer),
                                 ) {
                                         val isSelected = activeEntryId == entry.id && selectedGroupId == null
                                         val dotColor = providerDotColor(instance.providerType)
-                                        // Last row clips its own bottom so the
-                                        // ripple respects the card corners.
-                                        val rowShape = if (index == entries.size - 1) {
-                                            RoundedCornerShape(bottomStart = ModelPickerCardRadius, bottomEnd = ModelPickerCardRadius)
-                                        } else {
-                                            RoundedCornerShape(0.dp)
-                                        }
                                         Row(
                                             // T236: expanded entry row —
                                             // vertical 14→8 + heightIn(min=48dp)
@@ -1107,7 +1098,6 @@ internal fun ModelPickerSheet(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 48.dp)
-                                                .clip(rowShape)
                                                 .modelPickerSelection(isSelected, show) { onSelectEntry(entry.id) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -1370,8 +1360,16 @@ private fun PickerDisclosureButton(expanded: Boolean, enabled: Boolean, label: S
 
 @Composable
 private fun Modifier.modelPickerSelection(selected: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier {
-    val color = MiuixTheme.colorScheme.primary.copy(alpha = if (selected) 0.08f else 0f)
-    return background(color).selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+    val colors = MiuixTheme.colorScheme
+    val selectedFill = colors.primary.copy(alpha = if (selected) 0.08f else 0f)
+    return background(selectedFill).selectable(
+        selected = selected,
+        interactionSource = null,
+        indication = MiuixIndication(colors.onSurface),
+        enabled = enabled,
+        role = Role.RadioButton,
+        onClick = onClick,
+    )
 }
 
 // Provider type marks

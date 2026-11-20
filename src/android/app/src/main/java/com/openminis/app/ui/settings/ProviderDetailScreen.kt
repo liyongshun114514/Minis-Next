@@ -70,10 +70,13 @@ import com.openminis.app.ui.util.bringIntoViewOnFocus
 import com.openminis.app.R
 import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SectionTextField
+import com.openminis.app.ui.components.MinisDropdownPreference
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
-import com.openminis.app.ui.components.MinisSegmentedTabs
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TabRowDefaults
+import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import com.openminis.app.data.model.ImageEndpointMode
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
@@ -441,7 +444,7 @@ fun ProviderDetailScreen(
                         stringResource(R.string.provider_detail_chat_completions),
                         stringResource(R.string.provider_detail_responses_api),
                     )
-                    MinisSegmentedTabs(
+                    TabRowWithContour(
                         tabs = tabLabels,
                         selectedTabIndex = if (instance.useResponsesAPI) 1 else 0,
                         onTabSelected = { index ->
@@ -450,7 +453,10 @@ fun ProviderDetailScreen(
                                 providerRepository.updateInstance(instance.copy(useResponsesAPI = useResponses))
                             }
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        minWidth = preferenceTabMinWidth(tabLabels),
                         height = preferenceTabHeight(),
+                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
                     )
                 }
             }
@@ -516,7 +522,7 @@ fun ProviderDetailScreen(
             ) {
                 SettingsCardBlock {
                     val endpointLabels = imageEndpointLabels()
-                    MinisSegmentedTabs(
+                    TabRowWithContour(
                         tabs = endpointLabels,
                         selectedTabIndex = ImageEndpointMode.entries.indexOf(mode),
                         onTabSelected = { index ->
@@ -528,7 +534,10 @@ fun ProviderDetailScreen(
                                 ))
                             }
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        minWidth = preferenceTabMinWidth(endpointLabels),
                         height = preferenceTabHeight(),
+                        colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
                     )
                 }
             }
@@ -1474,8 +1483,8 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val setting = com.openminis.app.provider.ResponseIdleTimeoutSetting
     var seconds by remember(instanceId) { mutableStateOf(setting.seconds(context, instanceId)) }
-    var menuOpen by remember { mutableStateOf(false) }
-    var customOpen by remember { mutableStateOf(false) }
+    var pendingCustom by remember(instanceId) { mutableStateOf(false) }
+    var customOpen by remember(instanceId) { mutableStateOf(false) }
     fun label(s: Int): String = when (s) {
         120 -> context.getString(R.string.response_idle_timeout_2min_default)
         300 -> context.getString(R.string.response_idle_timeout_5min)
@@ -1489,32 +1498,28 @@ private fun ResponseIdleTimeoutSection(instanceId: String) {
         seconds = setting.seconds(context, instanceId)
         AppLogger.info(TAG, "Set responseIdleTimeout=${seconds}s for $instanceId")
     }
+    val customIndex = setting.PRESETS.size
+    val customLabel = stringResource(R.string.response_idle_timeout_custom)
     SettingsSection(
         header = stringResource(R.string.provider_detail_response_idle_timeout),
         footer = stringResource(R.string.provider_detail_response_idle_timeout_footer),
     ) {
-        Box {
-            SettingsRow(
-                title = stringResource(R.string.provider_detail_response_idle_timeout),
-                onClick = { menuOpen = true },
-                menuMotion = true,
-                showChevron = false,
-                showDivider = false,
-                trailing = { Text(label(seconds), color = MiuixTheme.colorScheme.onSurfaceContainerVariant) },
-            )
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                for (preset in setting.PRESETS) {
-                    DropdownMenuItem(
-                        text = { Text(label(preset)) },
-                        onClick = { menuOpen = false; apply(preset) },
-                    )
+        MinisDropdownPreference(
+            title = stringResource(R.string.provider_detail_response_idle_timeout),
+            items = setting.PRESETS.map(::label) + customLabel,
+            selectedIndex = setting.PRESETS.indexOf(seconds).takeIf { it >= 0 } ?: customIndex,
+            valueText = label(seconds),
+            anchorAtTap = true,
+            onSelectedIndexChange = { index ->
+                if (index == customIndex) pendingCustom = true else apply(setting.PRESETS[index])
+            },
+            onDismissFinished = {
+                if (pendingCustom) {
+                    pendingCustom = false
+                    customOpen = true
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.response_idle_timeout_custom)) },
-                    onClick = { menuOpen = false; customOpen = true },
-                )
-            }
-        }
+            },
+        )
     }
     if (customOpen) {
         var text by remember { mutableStateOf(seconds.toString()) }

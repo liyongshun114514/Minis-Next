@@ -17,6 +17,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import com.openminis.app.ui.chat.AlwaysStretchOverscrollBox
 import com.openminis.app.ui.chat.ComposerEffortSlider
+import com.openminis.app.ui.chat.AssistantBlock
+import com.openminis.app.ui.chat.ToolBlockStatus
+import com.openminis.app.ui.chat.ToolCallPill
 import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.theme.MinisTheme
 import com.openminis.app.data.model.ThinkingLevel
@@ -116,6 +119,51 @@ class MiuixSurfaceRegressionTest {
             compose.mainClock.autoAdvance = true
             compose.waitForIdle()
         }
+    }
+
+    @Test fun toolCallPressDarkensTheWholeCapsuleAndLongPressOpensItsMenu() {
+        var detailOpens = 0
+        var copies = 0
+        compose.setContent {
+            MinisTheme(darkTheme = false) {
+                Box(Modifier.fillMaxSize().background(Color(0xFFCCDDEE)).testTag("tool-press-frame")) {
+                    ToolCallPill(
+                        block = AssistantBlock(
+                            id = "completed-tool", kind = "tool_use", toolStatus = ToolBlockStatus.SUCCESS,
+                            toolName = "file_read", toolTitle = "Read notes",
+                        ),
+                        onOpenDetail = { detailOpens++ },
+                        onCopyDetails = { copies++ },
+                    )
+                }
+            }
+        }
+        val frame = compose.onNodeWithTag("tool-press-frame")
+        val pill = compose.onNode(hasText("Read notes") and hasClickAction())
+        val initial = frame.captureToImage().toPixelMap()
+        val root = frame.fetchSemanticsNode().boundsInRoot
+        val bounds = pill.fetchSemanticsNode().boundsInRoot
+        compose.mainClock.autoAdvance = false
+        pill.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(240)
+        val pressed = frame.captureToImage().toPixelMap()
+        val left = (bounds.left - root.left).toInt() + 2
+        val right = (bounds.right - root.left).toInt() - 3
+        val middle = (bounds.center.y - root.top).toInt()
+        val top = (bounds.top - root.top).toInt() + 1
+        assertEquals(bounds, pill.fetchSemanticsNode().boundsInRoot)
+        assertTrue("the left cap darkens", initial[left, middle].red - pressed[left, middle].red > 0.025f)
+        assertTrue("the right cap darkens", initial[right, middle].red - pressed[right, middle].red > 0.025f)
+        assertEquals("the corner outside the capsule stays clear", initial[left, top].red, pressed[left, top].red, 0.015f)
+        pill.performTouchInput { cancel() }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        pill.performTouchInput { longClick() }
+        compose.onNodeWithText(compose.activity.getString(com.openminis.app.R.string.tool_longpress_copy_details))
+            .assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, copies); assertEquals(0, detailOpens) }
+        pill.performTouchInput { click() }
+        compose.runOnIdle { assertEquals(1, detailOpens) }
     }
 
     @Test fun shortReplyUsesFullViewportAndRemainsVisibleDuringDownPull() {

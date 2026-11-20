@@ -219,7 +219,10 @@ fun SettingsRow(
             startAction = leading,
             endActions = endActions,
             modifier = if (withLongPress) modifier.combinedClickable(
-                onClick = requireNotNull(onClick), onLongClick = onLongClick,
+                interactionSource = null,
+                indication = top.yukonga.miuix.kmp.utils.MiuixIndication(MiuixTheme.colorScheme.onSurface),
+                onClick = requireNotNull(onClick),
+                onLongClick = onLongClick,
             ) else modifier,
             onClick = if (withLongPress) null else onClick,
         )
