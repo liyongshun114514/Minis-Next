@@ -1131,7 +1131,7 @@ private fun ArchivePreview(item: FileItem) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 HorizontalDivider()
-                LazyColumn(contentPadding = minisPageContentPadding(), Modifier.fillMaxSize()) {
+                LazyColumn(contentPadding = minisPageContentPadding(), modifier = Modifier.fillMaxSize()) {
                     items(list.size) { i ->
                         val e = list[i]
                         BasicComponent {
