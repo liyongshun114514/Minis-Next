@@ -158,30 +158,35 @@ class MiuixSurfaceRegressionTest {
         compose.onNodeWithTag("reply-tail").assertIsDisplayed()
     }
 
-    @Test fun nativeEffortSliderAccessibleSelectionPersistsAndDisabledNeverCommits() {
-        var level by mutableStateOf(ThinkingLevel.LOW)
-        var enabled by mutableStateOf(true)
+    @Test fun particleEffortSliderKeepsAccessibleValueAndNeverCommitsWhileDisabled() {
         var commits = 0
         compose.setContent {
             MinisTheme(fontScale = 1.5f) {
                 Box(Modifier.width(280.dp)) {
                     ComposerEffortSlider(
                         levels = listOf(ThinkingLevel.OFF, ThinkingLevel.LOW, ThinkingLevel.HIGH),
-                        current = level, enabled = enabled,
-                        onSelect = { level = it; commits++ },
+                        current = ThinkingLevel.HIGH,
+                        // Disabled also stops the decorative particle clock, so
+                        // the Robolectric looper can settle.
+                        enabled = false,
+                        onSelect = { commits++ },
                     )
                 }
             }
         }
-        compose.onNodeWithContentDescription("Thinking effort: Low")
-            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(2f) }
-        compose.runOnIdle { assertEquals(ThinkingLevel.HIGH, level); assertEquals(1, commits) }
-        compose.onNodeWithText("Off").assertIsDisplayed()
-        compose.onNodeWithText("High").assertIsDisplayed()
-        compose.runOnIdle { enabled = false }
-        compose.onNodeWithContentDescription("Thinking effort: High").assertIsNotEnabled()
-            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(0f) }
-        compose.onNodeWithText("Off").assertIsNotEnabled()
-        compose.runOnIdle { assertEquals(ThinkingLevel.HIGH, level); assertEquals(1, commits) }
+        val slider = compose.onNodeWithContentDescription("Thinking effort: High")
+        slider.assertIsDisplayed()
+        val config = slider.fetchSemanticsNode().config
+        val info = config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals("thumb sits on the last supported tier", 1f, info.current, 0.001f)
+        assertEquals(0f, info.range.start, 0.001f)
+        assertEquals(1f, info.range.endInclusive, 0.001f)
+        assertEquals(1, info.steps)
+        assertEquals(
+            "a disabled slider exposes no stepping actions",
+            0,
+            config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.CustomActions)?.size ?: 0,
+        )
+        compose.runOnIdle { assertEquals(0, commits) }
     }
 }

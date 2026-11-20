@@ -56,7 +56,9 @@ class GlassUiPolishContractTest {
         assertTrue(background.contains("modifier = Modifier.clip(RoundedCornerShape(18.dp))"))
         val glass = ProductionSources.read("ui/components/MinisGlassTopBar.kt")
         assertTrue(glass.contains("CompositingStrategy.Offscreen"))
-        assertTrue("fade the complete tinted result, not only the blur", glass.contains("drawRect(edgeFade, blendMode = BlendMode.DstIn)"))
+        assertTrue("one native progressive blur band", glass.contains("progressiveTextureBlur("))
+        assertTrue("official 30% surface tint keeps the texture visible", glass.contains("copy(alpha = 0.30f)"))
+        assertTrue(glass.contains("ProgressiveBlur.Top"))
     }
 
     @Test fun `attachment menu stays independent of editor while send uses neutral colors`() {
@@ -127,7 +129,8 @@ class GlassUiPolishContractTest {
     @Test fun `bottom sheets share native glass and retain recording until native disposal`() {
         val sheet = ProductionSources.read("ui/components/MinisBottomSheet.kt")
         assertTrue(sheet.contains("GlassBottomSheet("))
-        assertTrue(sheet.contains("backdrop = scene?.backdrop"))
+        assertTrue(sheet.contains("val surfaceBackdrop = backdrop ?: LocalMinisActionBackdrop.current ?: scene?.backdrop"))
+        assertTrue(sheet.contains("backdrop = surfaceBackdrop,"))
         assertTrue(sheet.contains("DisposableEffect(scene)"))
         assertTrue(sheet.contains("scene?.acquire()"))
         assertTrue(sheet.contains("onDispose { release?.invoke() }"))

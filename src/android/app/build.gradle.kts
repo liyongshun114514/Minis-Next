@@ -451,8 +451,8 @@ dependencies {
     // [T-android-jankdiag] ProfileVerifier (ART compile state in the jank log).
     // Already in the APK through Compose at this version; declared to compile against it.
     implementation("androidx.profileinstaller:profileinstaller:1.4.0")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.13.0-rc01")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.13.0-rc01")
 
     // Core
     implementation("androidx.core:core-ktx:1.15.0")
@@ -556,8 +556,11 @@ dependencies {
     testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Miuix 0.9.5-beta02 resolves Compose Foundation/UI to 1.13.0-rc01 through
+    // its Compose Multiplatform 1.13.0-rc01 dependency. The test harness must
+    // ride the same version, or ui-test 1.12.1 would drive a 1.13 runtime.
+    testImplementation("androidx.compose.ui:ui-test-junit4:1.13.0-rc01")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.13.0-rc01")
 
     // Testing — Instrumented (on-device) tests
     // [T-android-downgrade-compat] MigrationTestHelper replays the committed
