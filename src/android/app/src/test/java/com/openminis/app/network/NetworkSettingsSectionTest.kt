@@ -19,6 +19,7 @@ import org.robolectric.RobolectricTestRunner
  * aliases, and the Routing page lists every provider's route.
  */
 @RunWith(RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(application = android.app.Application::class)
 class NetworkSettingsSectionTest {
 
     private fun route(link: String) =
