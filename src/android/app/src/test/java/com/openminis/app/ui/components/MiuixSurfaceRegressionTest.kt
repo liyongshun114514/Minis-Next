@@ -362,7 +362,7 @@ class MiuixSurfaceRegressionTest {
         }
         repeat(3) {
             compose.onAllNodesWithText("Glass group").onFirst().performClick()
-            compose.onNode(hasScrollAction()).performScrollToNode(hasText("Test model"))
+            compose.onNodeWithTag("model-group-detail-list").performScrollToNode(hasText("Test model"))
             compose.onNodeWithText("Test model").assertIsDisplayed()
             compose.onRoot().captureToImage()
             compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.settings_back)).performClick()

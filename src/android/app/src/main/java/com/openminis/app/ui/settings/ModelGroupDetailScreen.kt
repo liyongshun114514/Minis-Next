@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -171,7 +172,8 @@ fun ModelGroupDetailScreen(
         val direction = LocalLayoutDirection.current
         LazyColumn(
             state = lazyListState,
-            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding),
+            modifier = Modifier.fillMaxSize().consumeWindowInsets(padding)
+                .testTag("model-group-detail-list"),
             contentPadding = PaddingValues(
                 start = padding.calculateStartPadding(direction),
                 end = padding.calculateEndPadding(direction),

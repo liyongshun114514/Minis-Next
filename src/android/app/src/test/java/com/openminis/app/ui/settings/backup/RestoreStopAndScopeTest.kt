@@ -130,13 +130,18 @@ class RestoreStopAndScopeTest {
         assertTrue("no dialog", section.contains("WindowDialog("))
         // The tap must only open the dialog; the cancel happens on confirm.
         val dialog = section.substringAfter("if (confirmStop)").substringBefore("private fun ReportLine")
-        val confirm = dialog.substringAfter("TextButton(").substringBefore("TextButton(")
+        assertTrue("dialog must use the shared action row", dialog.contains("MinisDialogActions("))
+        val actions = dialog.substringAfter("MinisDialogActions(")
+        assertTrue("dismiss slot missing", actions.contains("dismissButton = {"))
+        assertTrue("confirm slot missing", actions.contains("confirmButton = {"))
+        val dismiss = actions.substringAfter("dismissButton = {").substringBefore("confirmButton = {")
+        val confirm = actions.substringAfter("confirmButton = {")
         assertTrue("confirm must call the ViewModel", confirm.contains("vm.stopRunningRestore()"))
         assertTrue(
             "the destructive action must be coloured as such",
             confirm.contains("MiuixTheme.colorScheme.error"),
         )
-        val dismiss = dialog.substringAfterLast("TextButton(")
+        assertTrue("dismiss must close the dialog", dismiss.contains("confirmStop = false"))
         assertTrue("dismiss must not cancel the restore", !dismiss.contains("stopRunningRestore"))
     }
 
