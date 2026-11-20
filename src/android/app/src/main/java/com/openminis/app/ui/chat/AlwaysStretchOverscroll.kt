@@ -18,8 +18,9 @@ import androidx.compose.ui.Modifier
  * are both false, so the platform stretch overscroll never fires when the
  * list content fits the viewport. Wrap the list in this box to restore it:
  * the outer scrollable always accepts gestures, consumes 0, and pipes the
- * delta into a shared stretch effect. The inner LazyColumn, given the same
- * effect, forwards its own overflow too.
+ * delta into a shared stretch effect only while the inner list cannot scroll.
+ * A scrollable list alone handles the effect; feeding the same drag through
+ * both nested scrollables consumes it twice and pulls the viewport backward.
  *
  * Usage:
  *   AlwaysStretchOverscrollBox { effect ->
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 @Composable
 fun AlwaysStretchOverscrollBox(
     modifier: Modifier = Modifier,
+    contentScrollable: Boolean = true,
     content: @Composable (OverscrollEffect?) -> Unit,
 ) {
     val effect = rememberOverscrollEffect()
@@ -42,6 +44,7 @@ fun AlwaysStretchOverscrollBox(
             .fillMaxSize()
             .scrollable(
                 state = noopState,
+                enabled = !contentScrollable,
                 orientation = Orientation.Vertical,
                 overscrollEffect = eventsOnly,
             )
@@ -50,6 +53,6 @@ fun AlwaysStretchOverscrollBox(
         modifier.fillMaxSize()
     }
     Box(modifier = boxModifier) {
-        content(eventsOnly)
+        content(if (contentScrollable) eventsOnly else null)
     }
 }

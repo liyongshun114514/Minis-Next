@@ -334,67 +334,56 @@ private fun EnvVarFormSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .padding(bottom = 32.dp),
+            .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
 
-            Text(
-                text = stringResource(R.string.env_var_field_name),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            DialogTextField(
-                value = keyText,
-                onValueChange = { keyText = it.uppercase() },
-                singleLine = true,
-                isError = errorText != null,
-                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
-            )
-            if (errorText != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = errorText,
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.error,
-                )
+        // One quiet form card above the glass sheet; fields use the page
+        // surface so the card and each editable area remain distinguishable.
+        top.yukonga.miuix.kmp.basic.Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                EnvVarFieldGroup(stringResource(R.string.env_var_field_name)) {
+                    DialogTextField(
+                        value = keyText,
+                        onValueChange = { keyText = it.uppercase() },
+                        isError = errorText != null,
+                        textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        backgroundColor = MiuixTheme.colorScheme.surface,
+                    )
+                    errorText?.let { error ->
+                        Text(error, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.error)
+                    }
+                }
+                EnvVarFieldGroup(stringResource(R.string.env_var_field_value)) {
+                    DialogTextField(
+                        value = valueText,
+                        onValueChange = { valueText = it },
+                        singleLine = false,
+                        maxLines = 3,
+                        textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                        backgroundColor = MiuixTheme.colorScheme.surface,
+                    )
+                }
+                EnvVarFieldGroup(stringResource(R.string.env_var_field_note)) {
+                    DialogTextField(
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        placeholder = stringResource(R.string.env_var_field_note_placeholder),
+                        backgroundColor = MiuixTheme.colorScheme.surface,
+                    )
+                }
             }
-
-            Text(
-                text = stringResource(R.string.env_var_field_value),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            DialogTextField(
-                value = valueText,
-                onValueChange = { valueText = it },
-                singleLine = false,
-                maxLines = 3,
-                textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
-            )
-
-            // iOS parity: optional human-readable note explaining what the
-            // variable is for. Stored alongside the metadata, surfaced in the
-            // list row below the value.
-            Text(
-                text = stringResource(R.string.env_var_field_note),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            DialogTextField(
-                value = noteText,
-                onValueChange = { noteText = it },
-                placeholder = stringResource(R.string.env_var_field_note_placeholder),
-                singleLine = true,
-            )
+        }
 
             // [T-envvar-disable] On / off, editing only (a new variable starts on).
             if (isEditing) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(MiuixTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp))
                         .then(
                             if (highlightEnabled && !enabled) Modifier.background(
                                 MiuixTheme.colorScheme.primaryContainer,
@@ -459,4 +448,16 @@ private fun EnvVarFormSheetContent(
                 )
             }
         }
+}
+
+
+@Composable
+private fun EnvVarFieldGroup(
+    label: String,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceContainerVariant)
+        content()
+    }
 }

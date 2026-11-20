@@ -52,9 +52,9 @@ object ChatNestedScrollFollow {
     /**
      * What a finished child gesture leaves behind: the same rule as a finger
      * lifted from the list itself - away from the bottom means the user is
-     * reading, near it means keep following.
+     * reading; only reaching the actual live bottom resumes following.
      */
-    fun scrolledAwayAfterGesture(nearBottom: Boolean): Boolean = !nearBottom
+    fun scrolledAwayAfterGesture(atLiveBottom: Boolean): Boolean = !atLiveBottom
 }
 
 /**

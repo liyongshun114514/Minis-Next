@@ -223,6 +223,7 @@ jobs:
             --tests '*AutoCompactIntegrationTest' --tests '*CompactLoopFramingTest' \
             --tests '*ContextTrimWiringTest' --tests '*ContextTrimPlannerTest' \
             --tests '*MiuixMigrationUiTest' --tests '*MinisMenuPositionTest' --tests '*UpdateDialogButtonPlanTest' \
+            --tests '*ChatNestedScrollFollowTest' --tests '*NetworkSettingsSectionTest' \
             --tests '*GlassUiPolishContractTest' --tests '*MiuixSurfaceRegressionTest' --tests '*SessionListFabShadowTest' --tests '*BadgedIconButtonTest' \
             --tests '*ModelGroupReorderTest' --tests '*UsageVectorsTest' --tests '*UsageDisplayTest' \
             --tests '*RestoreStopAndScopeTest' --tests '*RestoreReportSeverityTest' \

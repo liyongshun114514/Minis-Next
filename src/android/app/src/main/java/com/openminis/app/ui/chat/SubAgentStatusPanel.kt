@@ -340,6 +340,7 @@ fun SubAgentStatusToggle(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     contentStartPadding: Dp = 12.dp,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
     if (jobs.isEmpty()) return
 
@@ -360,7 +361,7 @@ fun SubAgentStatusToggle(
             .height(FloatingToolBarMetrics.BAR_HEIGHT)
             .shadow(8.dp, shape, ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
             .clip(shape)
-            .background(ChatColors.inputBg, shape)
+            .chatStatusBackground(backdrop, shape)
             .border(0.5.dp, ChatColors.toolBorder, shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = description

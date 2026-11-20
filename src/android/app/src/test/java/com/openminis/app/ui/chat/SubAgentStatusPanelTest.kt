@@ -464,7 +464,7 @@ class SubAgentStatusPanelTest {
         val src = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
             .substringAfter("fun SubAgentStatusToggle(").substringBefore("fun SubAgentStatusPanel(")
         assertTrue(src.contains("RoundedCornerShape(10.dp)"))
-        assertTrue(src.contains(".background(ChatColors.inputBg, shape)"))
+        assertTrue(src.contains(".chatStatusBackground(backdrop, shape)"))
         assertTrue(src.contains(".border(0.5.dp, ChatColors.toolBorder, shape)"))
         assertTrue(src.contains(".height(FloatingToolBarMetrics.BAR_HEIGHT)"))
         assertTrue(src.contains("Icons.Filled.Groups"))
@@ -476,7 +476,7 @@ class SubAgentStatusPanelTest {
         assertFalse(src.contains("fontSize = 11.sp"))
         assertFalse(src.contains("lineHeight = 12.sp"))
         assertTrue(src.contains(".padding(start = contentStartPadding, end = 12.dp)"))
-        assertTrue(src.indexOf(".background(ChatColors.inputBg, shape)") < src.indexOf(".padding(start = contentStartPadding"))
+        assertTrue(src.indexOf(".chatStatusBackground(backdrop, shape)") < src.indexOf(".padding(start = contentStartPadding"))
     }
 
     @Test

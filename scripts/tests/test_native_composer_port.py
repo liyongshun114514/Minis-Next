@@ -150,8 +150,8 @@ def main() -> int:
     ok("inheritTopBarMaterial = false" in buttons and "backdrop = effectiveBackdrop" in buttons
        and "shadow = GlassShadows.Regular" in buttons and ".glassPress(interactions, enabled)" in band,
        "glass buttons must keep native material, press motion and matching morph shadow")
-    ok("GlassTopAppBarDefaults.BandOverhang" in band,
-       "the translucent band must fade past the toolbar edge")
+    ok("foreground.height + 12.dp.roundToPx()" in band,
+       "the translucent band must end within the compact 12dp toolbar overhang")
     chat_code = strip_kotlin(chat)
     capture = chat_code.index("Modifier.layerBackdrop(chatTopBackdrop)")
     ok(chat_code.count("Modifier.layerBackdrop(chatTopBackdrop)") == 1

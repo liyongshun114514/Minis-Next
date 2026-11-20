@@ -40,9 +40,10 @@ fun DialogTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     textStyle: TextStyle = MiuixTheme.textStyles.main,
     fieldModifier: Modifier = Modifier,
+    backgroundColor: androidx.compose.ui.graphics.Color = MiuixTheme.colorScheme.surfaceContainerHigh,
 ) {
     val colors = TextFieldDefaults.textFieldColors(
-        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+        backgroundColor = backgroundColor,
         labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
         borderColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
     )

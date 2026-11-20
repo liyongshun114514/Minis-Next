@@ -384,6 +384,7 @@ fun ChatSplitScaffold(
     // untouched.
     val effectiveListWidth by animateDpAsState(
         targetValue = if (listCollapsed) 0.dp else listPaneWidth,
+        animationSpec = androidx.compose.animation.core.tween(220),
         label = "listPaneWidth",
     )
 
@@ -543,6 +544,9 @@ fun ChatSplitScaffold(
         listPane = {
             AnimatedPane(
                 modifier = if (twoPane) Modifier.width(effectiveListWidth) else Modifier,
+                enterTransition = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
+                exitTransition = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)),
+                boundsAnimationSpec = androidx.compose.animation.core.tween(220),
             ) {
                 listPane(
                     // Only reflect a selection when both panes are visible.
@@ -584,7 +588,11 @@ fun ChatSplitScaffold(
             }
         },
         detailPane = {
-            AnimatedPane {
+            AnimatedPane(
+                enterTransition = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
+                exitTransition = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)),
+                boundsAnimationSpec = androidx.compose.animation.core.tween(220),
+            ) {
                 // [T-android-tablet-split-gutters] Divider on the detail pane's
                 // leading edge. The two panes differ only by background colour
                 // (#F2F2F7 vs #FFFFFF) and sat pixel-adjacent with no seam, so

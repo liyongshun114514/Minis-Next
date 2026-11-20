@@ -56,7 +56,7 @@ class NetworkSettingsSectionTest {
     fun theRoutingPageListsProvidersAndEachPageShowsOnlyItsSections() {
         val s = ProductionSources.read("ui/settings/NetworkSettingsScreen.kt")
         assertTrue(s.contains("if (page == NetworkPage.ROUTING && providers.isNotEmpty()) SettingsSection("))
-        assertTrue(s.contains("is RoutePickerTarget.Provider -> NetworkHub.setProviderRoute(r, target.id)"))
+        assertTrue(s.contains("onPick = { route -> NetworkHub.setProviderRoute(route, p.id) }"))
         assertTrue(s.contains("if (page == NetworkPage.TAILSCALE) SettingsSection("))
         assertTrue(s.contains("if (page == NetworkPage.PROXIES) SettingsSection("))
         // The master switch is reachable from every page while routing is off.
@@ -94,7 +94,7 @@ class NetworkSettingsSectionTest {
         assertTrue(detail.indexOf("// ─── Custom Base URL") < detail.indexOf("ProviderNetworkRouteSection(instance.id)"))
         val screen = ProductionSources.read("ui/settings/NetworkSettingsScreen.kt")
         val section = screen.substringAfter("internal fun ProviderNetworkRouteSection(").substringBefore("\n}\n")
-        assertTrue(section.contains("NetworkHub.setProviderRoute(r, instanceId)"))
-        assertTrue(section.contains("includeFollowDefault = true"))
+        assertTrue(section.contains("NetworkHub.setProviderRoute(route, instanceId)"))
+        assertTrue(section.contains("NetworkRoutePreference("))
     }
 }

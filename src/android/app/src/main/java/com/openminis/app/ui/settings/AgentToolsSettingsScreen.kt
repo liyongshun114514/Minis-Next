@@ -1,9 +1,6 @@
 package com.openminis.app.ui.settings
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,8 +12,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.tools.AgentToolSwitch
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
 
 /**
  * [T-tools-granular-switches] Settings › Agent Runtime › Tools — port of iOS
@@ -46,7 +41,6 @@ fun AgentToolsSettingsScreen(onBack: () -> Unit) {
     var userAskNotify by remember {
         mutableStateOf(com.openminis.app.agent.userask.UserAskSettings.notifyInBackground(context))
     }
-    var showWaitPicker by remember { mutableStateOf(false) }
 
     SettingsScaffold(title = stringResource(R.string.settings_agent_tools), onBack = onBack) {
         SettingsSection(footer = stringResource(R.string.agent_tools_browser_footer)) {
@@ -74,11 +68,20 @@ fun AgentToolsSettingsScreen(onBack: () -> Unit) {
                 showDivider = userAskEnabled,
             )
             if (userAskEnabled) {
-                SettingsValueRow(
+                val choices = com.openminis.app.agent.userask.UserAskSettingsSpec.TIMEOUT_CHOICES
+                com.openminis.app.ui.components.MinisDropdownPreference(
                     title = stringResource(R.string.user_ask_setting_wait),
-                    value = userAskWaitLabel(userAskTimeout),
-                    onClick = { showWaitPicker = true },
-                    showDivider = true,
+                    items = choices.map { userAskWaitLabel(it) },
+                    selectedIndex = choices.indexOf(userAskTimeout),
+                    anchorAtTap = true,
+                    onSelectedIndexChange = { index ->
+                        userAskTimeout = choices[index]
+                        com.openminis.app.agent.userask.UserAskSettings.setTimeoutMinutes(context, choices[index])
+                    },
+                )
+                top.yukonga.miuix.kmp.basic.HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
                 )
                 SettingsSwitchRow(
                     title = stringResource(R.string.user_ask_setting_notify),
@@ -90,32 +93,6 @@ fun AgentToolsSettingsScreen(onBack: () -> Unit) {
                     showDivider = false,
                 )
             }
-        }
-        OverlayDialog(
-            title = stringResource(R.string.user_ask_setting_wait),
-            show = showWaitPicker,
-            onDismissRequest = { showWaitPicker = false },
-        ) {
-            Column {
-                for (m in com.openminis.app.agent.userask.UserAskSettingsSpec.TIMEOUT_CHOICES) {
-                    SettingsChoiceRow(
-                        title = userAskWaitLabel(m),
-                        selected = m == userAskTimeout,
-                        onSelect = {
-                            userAskTimeout = m
-                            com.openminis.app.agent.userask.UserAskSettings.setTimeoutMinutes(context, m)
-                            showWaitPicker = false
-                        },
-                        showDivider = false,
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            TextButton(
-                text = stringResource(R.string.user_ask_cancel),
-                onClick = { showWaitPicker = false },
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
         // [T-android-subagent-settings-parity] The agents switch is NOT here.
         //

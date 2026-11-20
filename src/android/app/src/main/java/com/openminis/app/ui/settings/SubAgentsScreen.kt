@@ -94,36 +94,6 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     // keep in sync with Settings > Tools.
     var agentsEnabled by remember { mutableStateOf(AgentToolSwitch.AGENTS.isEnabled(context)) }
     var concurrency by remember { mutableStateOf(AgentJobRegistry.maxConcurrentChildJobsPerParent) }
-    var showConcurrency by remember { mutableStateOf(false) }
-    top.yukonga.miuix.kmp.overlay.OverlayDialog(
-        show = showConcurrency,
-        title = stringResource(R.string.sub_agents_concurrency_title),
-        onDismissRequest = { showConcurrency = false },
-    ) {
-        Column(Modifier.fillMaxWidth()
-            .heightIn(max = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.65f)
-            .verticalScroll(rememberScrollState())) {
-            (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).forEach { count ->
-                SettingsChoiceRow(
-                    title = stringResource(R.string.sub_agents_concurrency_count, count),
-                    selected = concurrency == count,
-                    onSelect = {
-                        SubAgentConcurrencyPrefs.set(context, count)
-                        concurrency = count
-                        showConcurrency = false
-                    },
-                    showDivider = false,
-                )
-            }
-        }
-        androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
-        TextButton(
-            text = stringResource(android.R.string.cancel),
-            onClick = { showConcurrency = false },
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-
     SettingsScaffold(title = stringResource(R.string.sub_agents_title), onBack = onBack) {
         SettingsSection(footer = stringResource(R.string.agent_settings_allow_footer)) {
             // Local title row rather than SettingsSwitchRow, because this row
@@ -176,13 +146,17 @@ fun SubAgentsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             }
         }
         SettingsSection(footer = stringResource(R.string.sub_agents_concurrency_footer)) {
-            SettingsRow(
+            val counts = (1..AgentJobRegistry.MAX_USER_CONCURRENT_CHILD_JOBS).toList()
+            com.openminis.app.ui.components.MinisDropdownPreference(
                 title = stringResource(R.string.sub_agents_concurrency_title),
-                subtitle = stringResource(R.string.sub_agents_concurrency_count, concurrency),
-                icon = Icons.Default.Groups,
-                onClick = { showConcurrency = true },
-                minHeight = 72.dp,
-                showDivider = false,
+                items = counts.map { stringResource(R.string.sub_agents_concurrency_count, it) },
+                selectedIndex = counts.indexOf(concurrency),
+                startAction = { Icon(Icons.Default.Groups, contentDescription = null) },
+                anchorAtTap = true,
+                onSelectedIndexChange = { index ->
+                    concurrency = counts[index]
+                    SubAgentConcurrencyPrefs.set(context, concurrency)
+                },
             )
         }
         // Dimmed but still editable when the switch is off: off means "not

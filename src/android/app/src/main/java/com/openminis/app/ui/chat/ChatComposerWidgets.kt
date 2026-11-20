@@ -1050,6 +1050,7 @@ internal fun FloatingToolStatusBar(
     // extra row above both the thumbnail and work bar.
     statusEntry: (@Composable () -> Unit)? = null,
     selectionScope: Any? = null,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
     // Follow new MAIN-model work even while a background delegate is alive.
     // Manual paging is ID-based and never snapped back by status emissions.
@@ -1125,7 +1126,7 @@ internal fun FloatingToolStatusBar(
                 .height(barHeight)
                 .align(Alignment.BottomCenter)
                 .shadow(elevation = 8.dp, shape = RoundedCornerShape(10.dp), ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
-                .background(ChatColors.inputBg, RoundedCornerShape(10.dp))
+                .chatStatusBackground(backdrop, RoundedCornerShape(10.dp))
                 .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp))
                 .padding(start = barStartPadding, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

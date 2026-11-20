@@ -57,8 +57,8 @@ class ChatNestedScrollFollowTest {
 
     @Test
     fun `a finished child gesture leaves the same state as a finger lifted from the list`() {
-        assertTrue("away from the bottom: the user is reading", ChatNestedScrollFollow.scrolledAwayAfterGesture(nearBottom = false))
-        assertFalse("still near the bottom: keep following", ChatNestedScrollFollow.scrolledAwayAfterGesture(nearBottom = true))
+        assertTrue("away from the bottom: the user is reading", ChatNestedScrollFollow.scrolledAwayAfterGesture(atLiveBottom = false))
+        assertFalse("at the actual bottom: keep following", ChatNestedScrollFollow.scrolledAwayAfterGesture(atLiveBottom = true))
     }
 
     @Test
@@ -79,7 +79,7 @@ class ChatNestedScrollFollowTest {
         assertTrue(screen.contains("if (!ChatNestedScrollFollow.followMaySnap(userScrolledAway, listState.isScrollInProgress, childScrolling)) {"))
         val snap = screen.indexOf("tracedScrollToItem(\"LAYOUT-DRIFT-SNAP\", 0, 0)")
         assertTrue("the guard sits before the snap", screen.indexOf("ChatNestedScrollFollow.followMaySnap(") in 1 until snap)
-        assertTrue(screen.contains("val away = ChatNestedScrollFollow.scrolledAwayAfterGesture(isNearBottom.value)"))
+        assertTrue(screen.contains("val away = ChatNestedScrollFollow.scrolledAwayAfterGesture(atLiveBottom = !listState.canScrollBackward)"))
         val card = ProductionSources.read("ui/chat/UserAskCard.kt")
         val stop = card.indexOf(".nestedScroll(StopFlingAtEdgeConnection)")
         assertTrue("above the body's own scroll, so it receives its leftovers", stop in 1 until card.indexOf(".verticalScroll(bodyScroll)"))

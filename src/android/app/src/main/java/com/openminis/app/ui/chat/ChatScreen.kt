@@ -2008,6 +2008,7 @@ fun ChatScreen(
     // dropped the in-flight keystroke (the reported "can't type while
     // streaming" bug).
     var isUserDragging by remember { mutableStateOf(false) }
+    var userScrollAwaitingSettle by remember { mutableStateOf(false) }
     readingAnchor.keepOnResize = { userScrolledAway || isUserDragging }
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { interaction ->
@@ -2017,6 +2018,9 @@ fun ChatScreen(
             when (interaction) {
                 is androidx.compose.foundation.interaction.DragInteraction.Start -> {
                     isUserDragging = true
+                    userScrollAwaitingSettle = true
+                    userScrolledAway = true
+                    lastInterruptMs = System.currentTimeMillis()
                     // [T-android-scrollbtn-turn-walk] A manual drag breaks the
                     // up-button's turn-walk chain: the next tap should re-anchor
                     // to wherever the user landed, not continue the old sequence.
@@ -2025,14 +2029,18 @@ fun ChatScreen(
                 is androidx.compose.foundation.interaction.DragInteraction.Stop -> {
                     isUserDragging = false
                     lastInterruptMs = System.currentTimeMillis()
-                    val nowAtBottom = isNearBottom.value
-                    val newScrolledAway = !nowAtBottom
+                    // Near-bottom is only a FAB/display threshold. A small
+                    // intentional drag must remain where the finger leaves it.
+                    val newScrolledAway = listState.canScrollBackward
                     if (newScrolledAway != userScrolledAway) {
                         userScrolledAway = newScrolledAway
                     }
                 }
-                is androidx.compose.foundation.interaction.DragInteraction.Cancel ->
+                is androidx.compose.foundation.interaction.DragInteraction.Cancel -> {
                     isUserDragging = false
+                    lastInterruptMs = System.currentTimeMillis()
+                    userScrolledAway = listState.canScrollBackward
+                }
                 else -> Unit
             }
         }
@@ -2060,7 +2068,9 @@ fun ChatScreen(
                     )
                 ) {
                     childScrollGestureOpen = true
+                    userScrolledAway = true
                     lastChildScrollMs = System.currentTimeMillis()
+                    lastInterruptMs = lastChildScrollMs
                 }
                 return Offset.Zero
             }
@@ -2072,7 +2082,7 @@ fun ChatScreen(
                 if (childScrollGestureOpen) {
                     childScrollGestureOpen = false
                     lastInterruptMs = System.currentTimeMillis()
-                    val away = ChatNestedScrollFollow.scrolledAwayAfterGesture(isNearBottom.value)
+                    val away = ChatNestedScrollFollow.scrolledAwayAfterGesture(atLiveBottom = !listState.canScrollBackward)
                     if (away != userScrolledAway) userScrolledAway = away
                     AppLogger.debug("ScrollFollow", "child scroll gesture ended scrolledAway=$away")
                 }
@@ -2080,34 +2090,8 @@ fun ChatScreen(
             }
         }
     }
-    // Re-engage follow whenever the user (manually or via FAB) returns
-    // the viewport to the bottom.
-    //
-    // [T-android-stream-end-anchor-jump] Gate the clear on RECENT USER
-    // INTERACTION. Without this, the final markdown re-render at the
-    // streaming→idle edge briefly collapses the last assistant row's height
-    // (large code blocks / tables / images finalizing their layout), which
-    // clamps firstVisibleItemScrollOffset within the nearBottomThreshold for
-    // one frame. isNearBottom flips true, this LE clears userScrolledAway,
-    // and the stream-end settle LE — whose live-anchor check sees the same
-    // bogus near-bottom offset — then scrollToItem()s the user back to
-    // wherever the layout collapse parked them (often the start of the
-    // current user message, because that's the "first content row" the
-    // settle LE pins on). Only accept the clear when the user actually
-    // dragged into this position recently — a real return-to-bottom gesture
-    // always trails a DragInteraction.Stop, which lastInterruptMs records.
-    // FAB taps also work because the FAB onClick path resets userScrolledAway
-    // directly (line 1124) and never relies on this LE.
-    LaunchedEffect(isNearBottom.value) {
-        if (isNearBottom.value && userScrolledAway) {
-            val sinceDragMs = System.currentTimeMillis() - lastInterruptMs
-            // KEEP userScrolledAway when no recent drag — the at-bottom
-            // reading came from a stream-end layout reflow, not a real
-            // return-to-bottom gesture.
-            if (sinceDragMs > 1500L) return@LaunchedEffect
-            userScrolledAway = false
-        }
-    }
+    // Follow resumes on a completed gesture at the actual bottom (or the
+    // explicit down button), never from a transient near-bottom layout sample.
     // T169 / T170: an IME show/hide animates the LazyColumn's content area,
     // which can briefly register as a synthetic drag-stop and flip
     // userScrolledAway=true even though the user never actually scrolled.
@@ -2119,7 +2103,7 @@ fun ChatScreen(
     // they were reading.
     val imeBottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(imeBottomPx) {
-        if (userScrolledAway && isNearBottom.value) userScrolledAway = false
+        if (userScrolledAway && !isUserDragging && !listState.canScrollBackward) userScrolledAway = false
     }
     // [T-android-tool-autoscroll] Start-of-turn edge from ViewModel: resume() /
     // retryLast() / retryFromMessage() / rerunFromToolBlock() emit Unit on
@@ -2338,7 +2322,10 @@ fun ChatScreen(
                             while (
                                 (listState.firstVisibleItemIndex != 0 ||
                                     listState.firstVisibleItemScrollOffset != 0) &&
-                                guard < 120
+                                guard < 120 && !userScrolledAway && !isUserDragging &&
+                                !ChatNestedScrollFollow.childScrollActive(
+                                    childScrollGestureOpen, System.currentTimeMillis() - lastChildScrollMs,
+                                )
                             ) {
                                 guard++
                                 val remaining = listState.firstVisibleItemIndex * avg +
@@ -2433,6 +2420,7 @@ fun ChatScreen(
             if (!ChatNestedScrollFollow.followMaySnap(userScrolledAway, listState.isScrollInProgress, childScrolling)) {
                 return@collectLatest
             }
+            if (System.currentTimeMillis() - lastInterruptMs < 1000L) return@collectLatest
             // [T-toggle-anchor-snap-yield] A card or fold row the user is
             // opening / shutting moves the list on purpose, one frame at a
             // time; snapping back to the bottom would undo each step a frame
@@ -2460,58 +2448,17 @@ fun ChatScreen(
             }
         }
     }
-    // T170: when a user-initiated drag ends near the bottom, give the
-    // streaming follow path one extra pin in case content grew during the
-    // drag (we suppressed the streaming LE while isScrollInProgress). This
-    // mirrors iOS settleAfterInteraction.
+    // A finger lift never triggers an extra snap. Keep the completed fling's
+    // exact position and resume streaming only when it reached the live bottom.
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }
             .distinctUntilChanged()
             .collect { inProgress ->
-                // [T-android-small-drag-snaps-back] Re-pin to bottom after a
-                // drag-end ONLY while actively STREAMING. T170's purpose is to
-                // catch content that grew during a drag we suppressed the
-                // streaming-follow LE for — that only matters mid-stream. When
-                // NOT streaming, a finger lift near the bottom must NOT yank the
-                // viewport back: that was the "small upward drag snaps back to
-                // bottom" bug (logged: settle-after-interaction firing with
-                // firstOff=27/34 right after a sub-threshold peek). The earlier
-                // bottom-item-offset<0 guard could not distinguish a user's
-                // upward peek from content drift — in reverseLayout BOTH push the
-                // bottom item's offset negative — so it never actually gated.
-                // isStreaming is the real discriminator. The streaming-content LE
-                // (gated by lastInterruptMs + isScrollInProgress) handles the
-                // follow itself; this is just the post-drag settle for it.
-                // [T-android-settle-programmatic-scroll] Key on a RECENT USER
-                // DRAG, not on the isScrollInProgress edge alone. The streaming
-                // auto-follow glide is itself a `listState.scroll { }` block, so
-                // every glide that finished also produced this edge and the
-                // settle snapped `scrollToItem(0, 0)` on top of it — measured
-                // 103 times in one 300-paragraph turn on a Pixel 4a, seen as an
-                // eased glide followed by an instant jump, over and over.
-                // Programmatic scrolls emit no DragInteraction; only a real
-                // finger lift stamps lastInterruptMs (DragInteraction.Stop
-                // handler above), so that timestamp is the discriminator.
-                if (SettleAfterInteractionGate.shouldSettle(
-                        scrollInProgress = inProgress,
-                        userScrolledAway = userScrolledAway,
-                        nearBottom = isNearBottom.value,
-                        streaming = viewModel.isStreaming.value,
-                        msSinceDrag = System.currentTimeMillis() - lastInterruptMs,
-                    )
-                ) {
-                    tracedScrollToItem("settle-after-interaction", 0, 0)
-                }
-                // [T-android-scroll-fling-stale-userscrolledaway #49] Catch
-                // the stale-userScrolledAway window left by a fling-from-
-                // bottom: DragInteraction.Stop fires at finger lift while
-                // isNearBottom is still true, so the DragStop handler sets
-                // userScrolledAway=false; the fling then carries the
-                // viewport off-bottom. Use the isScrollInProgress→false
-                // edge (past drag AND fling settle) as the authoritative
-                // checkpoint and re-arm userScrolledAway.
-                if (!inProgress && !isNearBottom.value && !userScrolledAway) {
-                    userScrolledAway = true
+                if (!inProgress) {
+                    if (userScrollAwaitingSettle) {
+                        userScrollAwaitingSettle = false
+                        userScrolledAway = listState.canScrollBackward
+                    } else if (!isNearBottom.value && !userScrolledAway) userScrolledAway = true
                 }
             }
     }
@@ -3802,7 +3749,9 @@ fun ChatScreen(
                     // within 2s of the user's send).
                     val sinceSendMs = System.currentTimeMillis() - lastUserAppendMs
                     val sendGrace = lastUserAppendMs > 0L && sinceSendMs in 0..SEND_FOLLOW_GRACE_MS
-                    if (!userScrolledAway && (isNearBottom.value || sendGrace)) {
+                    if (!userScrolledAway && !listState.isScrollInProgress &&
+                        System.currentTimeMillis() - lastInterruptMs >= 1000L &&
+                        (isNearBottom.value || sendGrace)) {
                         val reason = if (!isNearBottom.value) "send-grace" else "near-bottom"
                         tracedScrollToItem("reserve-change/$reason", 0, 0)
                     }
@@ -4445,6 +4394,7 @@ fun ChatScreen(
                 // Only the opaque message viewport is recorded. The tool bar and scroll
                 // buttons are drawn afterwards so their glass can sample it without feedback.
                 AlwaysStretchOverscrollBox(
+                    contentScrollable = listState.canScrollForward || listState.canScrollBackward,
                     modifier = Modifier.fillMaxSize()
                         .then(if (chatTopBackdrop != null) Modifier.layerBackdrop(chatTopBackdrop) else Modifier)
                         .background(ChatColors.background),
@@ -5331,6 +5281,7 @@ fun ChatScreen(
                         Column {
                         if (lastToolBlocks.isNotEmpty()) FloatingToolStatusBar(
                             toolBlocks = lastToolBlocks,
+                            backdrop = chatTopBackdrop,
                             selectionScope = sessionId to messages.lastOrNull { it.rendersAsUserBubble() }?.id,
                             // [T-android-stop-late-write] Same per-tool stop
                             // as the message-list pill, for the shown block.
@@ -5344,6 +5295,7 @@ fun ChatScreen(
                                 {
                                     SubAgentStatusToggle(
                                         jobs = statusJobs,
+                                        backdrop = chatTopBackdrop,
                                         contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp,
                                         expanded = subAgentStatusExpanded,
                                         onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
@@ -5356,6 +5308,7 @@ fun ChatScreen(
                             Box(Modifier.fillMaxWidth().height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)) {
                                 SubAgentStatusToggle(
                                     jobs = statusJobs,
+                                    backdrop = chatTopBackdrop,
                                     expanded = subAgentStatusExpanded,
                                     onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
                                 )
@@ -5378,6 +5331,7 @@ fun ChatScreen(
         deferDismissRequest = true,
                         insideMargin = DpSize.Zero,
                         onDismissRequest = { subAgentStatusExpanded = false },
+                        backdrop = chatTopBackdrop,
                     ) {
                         BoxWithConstraints(Modifier.fillMaxWidth().heightIn(max = LocalConfiguration.current.screenHeightDp.dp * 0.85f)) {
                         val sheetMaxHeight = maxHeight

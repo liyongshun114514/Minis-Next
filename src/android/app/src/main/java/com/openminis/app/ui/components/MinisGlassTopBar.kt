@@ -26,8 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
@@ -42,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurDefaults
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
 import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.glass.GlassIconButton
@@ -91,12 +88,6 @@ internal fun MinisGlassTopBar(
     val blendColors = remember(background) { listOf(BlendColorEntry(background.copy(alpha = 0.30f))) }
     val blurColors = BlurDefaults.blurColors(blendColors = blendColors)
     val fallback = remember(background) { GlassTopAppBarDefaults.bandBrush(background) }
-    val edgeFade = remember {
-        Brush.verticalGradient(
-            0f to Color.White, 0.42f to Color.White,
-            0.78f to Color.White.copy(alpha = 0.42f), 1f to Color.Transparent,
-        )
-    }
     Layout(
         modifier = modifier,
         content = {
@@ -111,7 +102,7 @@ internal fun MinisGlassTopBar(
                         .progressiveTextureBlur(
                             backdrop = resolvedBackdrop,
                             shape = RectangleShape,
-                            blurRadius = 80f,
+                            blurRadius = 48f,
                             gradient = ProgressiveBlur.Top.copy(curve = 0.5f),
                             noiseCoefficient = 0f,
                             colors = blurColors,
@@ -127,7 +118,7 @@ internal fun MinisGlassTopBar(
     ) { measurables, constraints ->
         val foreground = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
         // The fade reaches below the toolbar without enlarging its touch bounds.
-        val bandHeight = foreground.height + GlassTopAppBarDefaults.BandOverhang.roundToPx()
+        val bandHeight = foreground.height + 12.dp.roundToPx()
         val band = measurables[0].measure(Constraints.fixed(foreground.width, bandHeight))
         layout(foreground.width, foreground.height) {
             band.placeRelative(0, 0)

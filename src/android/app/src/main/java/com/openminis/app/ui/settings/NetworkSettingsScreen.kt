@@ -108,11 +108,9 @@ fun NetworkSettingsScreen(
     val lastError by NetworkHub.lastError.collectAsState()
     val context = LocalContext.current
 
-    var routePicker by remember { mutableStateOf<RoutePickerTarget?>(null) }
     var editingProxy by remember { mutableStateOf<ProxyServer?>(null) }
     var showAuthKey by remember { mutableStateOf(false) }
     var showHostname by remember { mutableStateOf(false) }
-    var showExitNode by remember { mutableStateOf(false) }
     var showDevices by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var addingProviderRoutes by remember { mutableStateOf(false) }
@@ -204,11 +202,12 @@ fun NetworkSettingsScreen(
         if (page == NetworkPage.ROUTING) SettingsSection(
             footer = stringResource(R.string.network_default_route_footer) + "\n\n" + stringResource(R.string.network_default_route_covers),
         ) {
-            SettingsValueRow(
+            NetworkRoutePreference(
                 title = stringResource(R.string.network_default_route),
-                value = routeLabel(NetworkRoute.parse(settings.defaultRoute), settings),
-                onClick = { routePicker = RoutePickerTarget.Default },
-                showDivider = false,
+                current = NetworkRoute.parse(settings.defaultRoute),
+                settings = settings,
+                includeFollowDefault = false,
+                onPick = { route -> NetworkHub.update { it.copy(defaultRoute = route.raw) } },
             )
         }
 
@@ -275,11 +274,16 @@ fun NetworkSettingsScreen(
                     onCheckedChange = { on -> NetworkHub.update { it.copy(acceptRoutes = on) } },
                 )
                 if (ts.isLoggedIn) {
-                    val exit = ts.peers.firstOrNull { p -> p.ips.contains(settings.exitNodeIP) }
-                    SettingsValueRow(
+                    val exitOptions = ts.peers.filter { it.exitNodeOption && it.ips.any { ip -> !ip.contains(':') } }
+                    val exitIps = listOf<String?>(null) + exitOptions.map { peer -> peer.ips.first { !it.contains(':') } }
+                    MinisDropdownPreference(
                         title = stringResource(R.string.network_exit_node),
-                        value = exit?.displayName ?: stringResource(R.string.network_exit_node_none),
-                        onClick = { showExitNode = true },
+                        items = listOf(stringResource(R.string.network_exit_node_none)) + exitOptions.map { peer ->
+                            if (peer.online) peer.displayName else stringResource(R.string.network_peer_offline, peer.displayName)
+                        },
+                        selectedIndex = exitIps.indexOf(settings.exitNodeIP).coerceAtLeast(0),
+                        onSelectedIndexChange = { index -> NetworkHub.update { it.copy(exitNodeIP = exitIps[index]) } },
+                        anchorAtTap = true,
                     )
                     SettingsValueRow(
                         title = stringResource(R.string.network_devices),
@@ -362,10 +366,11 @@ fun NetworkSettingsScreen(
                 (if (!WebViewNetworkProxy.isSupported()) "\n" + stringResource(R.string.network_browser_no_proxy) else ""),
         ) {
             NetworkScope.entries.forEachIndexed { i, scope ->
-                SettingsValueRow(
+                NetworkRoutePreference(
                     title = scopeTitle(scope),
-                    value = routeLabel(settings.route(scope), settings),
-                    onClick = { routePicker = RoutePickerTarget.Scope(scope) },
+                    current = settings.route(scope),
+                    settings = settings,
+                    onPick = { route -> NetworkHub.update { it.copy(scopes = it.scopes + (scope.tag to route.raw)) } },
                     showDivider = i < NetworkScope.entries.size - 1,
                 )
             }
@@ -386,12 +391,15 @@ fun NetworkSettingsScreen(
             footer = stringResource(R.string.network_providers_unlisted_footer),
         ) {
             routed.forEachIndexed { i, p ->
-                SettingsValueRow(
-                    title = p.label,
-                    value = routeLabel(settings.providerRoute(p.id), settings),
-                    onClick = { routePicker = RoutePickerTarget.Provider(p.id, p.label) },
-                    showDivider = i < routed.size - 1 || unrouted.isNotEmpty(),
-                )
+                androidx.compose.runtime.key(p.id) {
+                    NetworkRoutePreference(
+                        title = p.label,
+                        current = settings.providerRoute(p.id),
+                        settings = settings,
+                        onPick = { route -> NetworkHub.setProviderRoute(route, p.id) },
+                        showDivider = i < routed.size - 1 || unrouted.isNotEmpty(),
+                    )
+                }
             }
             if (unrouted.isNotEmpty()) SettingsRow(
                 title = stringResource(R.string.network_add_providers),
@@ -426,33 +434,6 @@ fun NetworkSettingsScreen(
                 showDivider = false,
             )
         }
-    }
-
-    routePicker?.let { target ->
-        val current = when (target) {
-            RoutePickerTarget.Default -> NetworkRoute.parse(settings.defaultRoute)
-            is RoutePickerTarget.Scope -> settings.route(target.scope)
-            is RoutePickerTarget.Provider -> settings.providerRoute(target.id)
-        }
-        RoutePickerDialog(
-            title = when (target) {
-                RoutePickerTarget.Default -> stringResource(R.string.network_default_route)
-                is RoutePickerTarget.Scope -> scopeTitle(target.scope)
-                is RoutePickerTarget.Provider -> target.label
-            },
-            includeFollowDefault = target !is RoutePickerTarget.Default,
-            current = current,
-            proxies = settings.proxies,
-            onPick = { r ->
-                when (target) {
-                    RoutePickerTarget.Default -> NetworkHub.update { it.copy(defaultRoute = r.raw) }
-                    is RoutePickerTarget.Scope -> NetworkHub.update { it.copy(scopes = it.scopes + (target.scope.tag to r.raw)) }
-                    is RoutePickerTarget.Provider -> NetworkHub.setProviderRoute(r, target.id)
-                }
-                routePicker = null
-            },
-            onDismiss = { routePicker = null },
-        )
     }
 
     if (addingProviderRoutes) {
@@ -497,40 +478,6 @@ fun NetworkSettingsScreen(
                                 )
                 TextButton(
                                     onClick = { showHostname = false },
-                                    text = stringResource(R.string.network_cancel),
-                                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                                )
-                }
-            }
-        }
-    }
-
-    if (showExitNode) {
-        val options = ts.peers.filter { it.exitNodeOption }
-        WindowDialog(
-            show = true,
-            onDismissRequest = { showExitNode = false },
-            title = stringResource(R.string.network_exit_node),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                                    SettingsChoiceRow(
-                                        title = stringResource(R.string.network_exit_node_none),
-                                        selected = settings.exitNodeIP == null,
-                                        onSelect = { NetworkHub.update { it.copy(exitNodeIP = null) }; showExitNode = false },
-                                    )
-                                    for (p in options) {
-                                        val ip = p.ips.firstOrNull { !it.contains(':') } ?: continue
-                                        SettingsChoiceRow(
-                                            title = if (p.online) p.displayName else stringResource(R.string.network_peer_offline, p.displayName),
-                                            selected = settings.exitNodeIP == ip,
-                                            onSelect = { NetworkHub.update { it.copy(exitNodeIP = ip) }; showExitNode = false },
-                                        )
-                                    }
-                                }
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(
-                                    onClick = { showExitNode = false },
                                     text = stringResource(R.string.network_cancel),
                                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                                 )
@@ -618,24 +565,14 @@ fun NetworkSettingsScreen(
 @Composable
 internal fun ProviderNetworkRouteSection(instanceId: String) {
     val settings by NetworkHub.settings.collectAsState()
-    val routes = routeOptions(includeFollowDefault = true, proxies = settings.proxies)
-    val selectedIndex = routes.indexOf(settings.providerRoute(instanceId))
-        .takeIf { it >= 0 } ?: routes.indexOf(NetworkRoute.Direct)
     SettingsSection(footer = stringResource(R.string.network_provider_route_footer)) {
-        MinisDropdownPreference(
+        NetworkRoutePreference(
             title = stringResource(R.string.network_provider_route),
-            items = routes.map { routeLabel(it, settings) },
-            selectedIndex = selectedIndex,
-            onSelectedIndexChange = { NetworkHub.setProviderRoute(routes[it], instanceId) },
-            anchorAtTap = true,
+            current = settings.providerRoute(instanceId),
+            settings = settings,
+            onPick = { route -> NetworkHub.setProviderRoute(route, instanceId) },
         )
     }
-}
-
-private sealed class RoutePickerTarget {
-    object Default : RoutePickerTarget()
-    data class Scope(val scope: NetworkScope) : RoutePickerTarget()
-    data class Provider(val id: String, val label: String) : RoutePickerTarget()
 }
 
 @Composable
@@ -664,42 +601,34 @@ private fun routeOptions(includeFollowDefault: Boolean, proxies: List<ProxyServe
     proxies.forEach { add(NetworkRoute.Proxy(it.id)) }
 }
 
+/** All route selectors use the same touch-anchored native dropdown. */
 @Composable
-internal fun RoutePickerDialog(
+internal fun NetworkRoutePreference(
     title: String,
-    includeFollowDefault: Boolean,
     current: NetworkRoute,
-    proxies: List<ProxyServer>,
+    settings: NetworkSettings,
     onPick: (NetworkRoute) -> Unit,
-    onDismiss: () -> Unit,
+    includeFollowDefault: Boolean = true,
+    showDivider: Boolean = false,
 ) {
-    val options = routeOptions(includeFollowDefault, proxies)
-    val s = NetworkSettings(proxies = proxies)
-    WindowDialog(
-        show = true,
-        onDismissRequest = onDismiss,
+    val options = routeOptions(includeFollowDefault, settings.proxies)
+    // Selecting Follow Default can remove this provider row. Apply after the
+    // native exit completes so its anchor and popup survive the whole animation.
+    var pendingRoute by remember { mutableStateOf<NetworkRoute?>(null) }
+    MinisDropdownPreference(
         title = title,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                            options.forEachIndexed { i, r ->
-                                SettingsChoiceRow(
-                                    title = routeLabel(r, s),
-                                    selected = r == current,
-                                    onSelect = { onPick(r) },
-                                    showDivider = i < options.size - 1,
-                                )
-                            }
-                        }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(
-                            onClick = onDismiss,
-                            text = stringResource(R.string.network_cancel),
-                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                        )
-            }
-        }
-    }
+        items = options.map { routeLabel(it, settings) },
+        selectedIndex = options.indexOf(current).takeIf { it >= 0 } ?: options.indexOf(NetworkRoute.Direct),
+        anchorAtTap = true,
+        onSelectedIndexChange = { pendingRoute = options[it] },
+        onDismissFinished = {
+            pendingRoute?.let { route -> pendingRoute = null; onPick(route) }
+        },
+    )
+    if (showDivider) top.yukonga.miuix.kmp.basic.HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.5f),
+    )
 }
 
 /**
@@ -765,14 +694,13 @@ private fun AddProviderRoutesSheet(
             }
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
                 SettingsSection(header = stringResource(R.string.network_route)) {
-                    routes.forEachIndexed { i, r ->
-                        SettingsChoiceRow(
-                            title = routeLabel(r, s),
-                            selected = r == route,
-                            onSelect = { route = r },
-                            showDivider = i < routes.size - 1,
-                        )
-                    }
+                    MinisDropdownPreference(
+                        title = stringResource(R.string.network_route),
+                        items = routes.map { routeLabel(it, s) },
+                        selectedIndex = routes.indexOf(route),
+                        onSelectedIndexChange = { route = routes[it] },
+                        anchorAtTap = true,
+                    )
                 }
                 SettingsSection(header = stringResource(R.string.settings_section_llm_providers)) {
                     candidates.forEachIndexed { i, p ->
@@ -910,16 +838,13 @@ private fun ProxyEditorDialog(proxy: ProxyServer, isNew: Boolean, onDismiss: () 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             DialogTextField(value = name, onValueChange = { name = it }, placeholder = stringResource(R.string.network_proxy_name))
-                            Text(stringResource(R.string.network_proxy_type), style = MiuixTheme.textStyles.footnote1)
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                for (k in ProxyServer.KINDS) {
-                                    TextButton(
-                                        onClick = { kind = k },
-                                        text = ProxyServer.kindLabel(k),
-                                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = if (k == kind) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceContainerVariant),
-                                    )
-                                }
-                            }
+                            MinisDropdownPreference(
+                                title = stringResource(R.string.network_proxy_type),
+                                items = ProxyServer.KINDS.map { ProxyServer.kindLabel(it) },
+                                selectedIndex = ProxyServer.KINDS.indexOf(kind),
+                                onSelectedIndexChange = { kind = ProxyServer.KINDS[it] },
+                                anchorAtTap = true,
+                            )
                             DialogTextField(value = host, onValueChange = { host = it }, placeholder = stringResource(R.string.network_proxy_server),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
                             DialogTextField(value = portText, onValueChange = { portText = it.filter(Char::isDigit).take(5) },

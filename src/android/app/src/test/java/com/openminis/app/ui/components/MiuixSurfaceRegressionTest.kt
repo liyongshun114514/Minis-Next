@@ -170,7 +170,7 @@ class MiuixSurfaceRegressionTest {
         compose.setContent {
             MinisTheme {
                 Box(Modifier.fillMaxWidth().height(520.dp).testTag("chat-work-area")) {
-                    AlwaysStretchOverscrollBox {
+                    AlwaysStretchOverscrollBox(contentScrollable = false) {
                         LazyColumn(
                             state = rememberLazyListState(), reverseLayout = true,
                             contentPadding = PaddingValues(top = 80.dp, bottom = 140.dp),
@@ -204,6 +204,68 @@ class MiuixSurfaceRegressionTest {
         viewport.performTouchInput { up() }
         compose.waitForIdle()
         compose.onNodeWithTag("reply-tail").assertIsDisplayed()
+    }
+
+    @Test fun scrollableTranscriptMovesBothWaysWithoutOuterStretchTakingTheDrag() {
+        lateinit var state: androidx.compose.foundation.lazy.LazyListState
+        compose.setContent {
+            MinisTheme {
+                state = rememberLazyListState()
+                Box(Modifier.fillMaxWidth().height(500.dp)) {
+                    AlwaysStretchOverscrollBox(contentScrollable = state.canScrollForward || state.canScrollBackward) { effect ->
+                        LazyColumn(
+                            state = state, reverseLayout = true, overscrollEffect = effect,
+                            modifier = Modifier.fillMaxWidth().testTag("scrollable-transcript"),
+                        ) {
+                            items(60) { index ->
+                                Text("Message $index", Modifier.fillMaxWidth().height(80.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        fun position() = state.firstVisibleItemIndex * 10000 + state.firstVisibleItemScrollOffset
+        val transcript = compose.onNodeWithTag("scrollable-transcript")
+        transcript.performTouchInput { swipeDown(durationMillis = 600) }
+        compose.waitForIdle()
+        var away = 0
+        compose.runOnIdle { away = position(); assertTrue("drag moves toward older messages", away > 0) }
+        transcript.performTouchInput { swipeDown(durationMillis = 600) }
+        compose.waitForIdle()
+        compose.runOnIdle { assertTrue("the next drag is not eaten by outer overscroll", position() > away); away = position() }
+        transcript.performTouchInput { swipeUp(durationMillis = 600) }
+        compose.waitForIdle()
+        compose.runOnIdle { assertTrue("reverse drag immediately moves back", position() < away) }
+    }
+
+    @Test fun providerRouteRemovalWaitsForNativeMenuExit() {
+        var visible by mutableStateOf(true)
+        var writes = 0
+        compose.setContent {
+            MinisTheme {
+                if (visible) {
+                    SectionCard {
+                        com.openminis.app.ui.settings.NetworkRoutePreference(
+                            title = "Provider route",
+                            current = com.openminis.app.network.NetworkRoute.Direct,
+                            settings = com.openminis.app.network.NetworkSettings(),
+                            onPick = { writes++; visible = false },
+                        )
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Provider route").performTouchInput { click() }
+        val follow = compose.onNodeWithText(compose.activity.getString(com.openminis.app.R.string.network_route_follow_default))
+        follow.assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        follow.performClick()
+        compose.mainClock.advanceTimeBy(32)
+        compose.runOnIdle { assertTrue("provider row stays mounted during exit", visible); assertEquals(0, writes) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.runOnIdle { assertFalse(visible); assertEquals(1, writes) }
     }
 
     @Test fun particleEffortSliderKeepsAccessibleValueAndNeverCommitsWhileDisabled() {
