@@ -198,6 +198,11 @@ class GlassUiPolishContractTest {
         assertFalse(popup.contains("MinisBottomSheet("))
         assertTrue(popup.contains("tapPositionInWindow = tapPositionInWindow"))
         assertTrue(popup.contains("ComposerEffortSlider("))
+        assertTrue("native popup width probes must not reach SubcomposeLayout", popup.contains("Modifier.width(panelWidth)"))
+        assertTrue("native popup height probes must not reach SubcomposeLayout", popup.contains(".height(sliderHeight)"))
+        for (dimension in listOf("SLOT_HEIGHT_DP", "LABEL_GAP_DP", "LABEL_BAND_DP")) {
+            assertTrue("keep the original slider geometry: $dimension", popup.contains("ThinkingSliderGeometry.$dimension"))
+        }
         assertTrue(popup.contains("LocalMinisMenuInteractive.current"))
         assertTrue(chat.contains("thinkingLevelTap = thinkingLevelAnchor.clickPosition()"))
         val editor = ProductionSources.read("ui/settings/ThinkingRuleEditor.kt")

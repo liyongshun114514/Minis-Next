@@ -179,7 +179,7 @@ class MiuixSurfaceRegressionTest {
         compose.setContent {
             MinisTheme {
                 val anchor = rememberMinisMenuAnchor()
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().testTag("effort-test-window")) {
                     TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
                         modifier = Modifier.align(Alignment.BottomEnd).minisMenuAnchor(anchor))
                     com.openminis.app.ui.chat.ThinkingLevelSheet(
@@ -191,7 +191,13 @@ class MiuixSurfaceRegressionTest {
         }
         repeat(2) {
             compose.onNodeWithText("Open effort").performClick()
-            compose.onNodeWithContentDescription("Thinking effort: Off").assertIsDisplayed()
+            val slider = compose.onNodeWithContentDescription("Thinking effort: Off").assertIsDisplayed()
+            val bounds = slider.fetchSemanticsNode().boundsInRoot
+            val window = compose.onNodeWithTag("effort-test-window").fetchSemanticsNode().boundsInRoot
+            assertTrue("effort popup remains horizontal", bounds.width > bounds.height * 3f)
+            assertTrue("slider fits the window", bounds.left >= window.left && bounds.right <= window.right)
+            slider.assertHeightIsEqualTo(52.dp)
+            slider.performTouchInput { click() }
             val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))
             close.assertIsDisplayed().performClick()
             compose.onNodeWithContentDescription("Thinking effort: Off").assertDoesNotExist()
@@ -572,12 +578,16 @@ class MiuixSurfaceRegressionTest {
             compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Back to slide home").performClick()
             compose.mainClock.advanceTimeBy(80)
-            compose.onNodeWithText("Session slide-session").assertExists()
-            val leaving = compose.onNodeWithTag("slide-chat").fetchSemanticsNode().boundsInRoot
+            // AnimatedPane hides an exiting pane from accessibility before
+            // disposal. Its drawn content must still survive in the unmerged tree.
+            compose.onNodeWithText("Session slide-session", useUnmergedTree = true).assertExists()
+            val leaving = compose.onNodeWithTag("slide-chat", useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot
             assertTrue("departing chat slides right with its content", leaving.left > settled.left)
             compose.mainClock.autoAdvance = true
             compose.waitForIdle()
-            compose.onNodeWithTag("slide-chat").assertDoesNotExist()
+            compose.onNodeWithTag("slide-chat", useUnmergedTree = true).assertDoesNotExist()
+            compose.onNodeWithText("Session slide-session", useUnmergedTree = true).assertDoesNotExist()
             compose.onNodeWithText("Open slide chat").assertIsDisplayed()
         }
     }

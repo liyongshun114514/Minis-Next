@@ -8646,16 +8646,21 @@ internal fun ThinkingLevelSheet(
         listOf(com.openminis.app.data.model.ThinkingLevel.OFF) +
             availableLevels.filter { it != com.openminis.app.data.model.ThinkingLevel.OFF }
     }
+    val panelWidth = 420.dp
+    val sliderHeight = (ThinkingSliderGeometry.SLOT_HEIGHT_DP +
+        ThinkingSliderGeometry.LABEL_GAP_DP + ThinkingSliderGeometry.LABEL_BAND_DP).dp
     MinisMenu(
         expanded = show,
         onDismissRequest = onDismiss,
         minWidth = 320.dp,
-        maxPanelWidth = 420.dp,
+        maxPanelWidth = panelWidth,
         tapPositionInWindow = tapPositionInWindow,
         preferAbove = true,
         backdrop = backdrop,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        // Native glass popups probe intrinsic sizes. Bound both axes before the
+        // slider's BoxWithConstraints; real measurement still obeys the safe width.
+        Column(modifier = Modifier.width(panelWidth).padding(vertical = 4.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -8676,7 +8681,8 @@ internal fun ThinkingLevelSheet(
                 current = currentLevel,
                 enabled = rows.size > 1 && com.openminis.app.ui.components.LocalMinisMenuInteractive.current,
                 onSelect = onSelect,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+                    .height(sliderHeight),
             )
             if (rows.size <= 1) {
                 Text(

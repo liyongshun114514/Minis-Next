@@ -26,7 +26,15 @@ class SoulPromptUiAccessibilityTest {
     fun `name field and save button keep their labels`() {
         assertTrue(src.contains("label = stringResource(R.string.soul_field_name)"))
         assertTrue(src.contains("R.string.soul_save"))
-        assertTrue(src.contains("import top.yukonga.miuix.kmp.basic.TextButton"))
+        assertTrue(src.contains("import com.openminis.app.ui.components.MinisTextButton as TextButton"))
+        val save = src.substringBefore("text = stringResource(R.string.soul_save)")
+            .substringAfterLast("TextButton(")
+        assertTrue(save.contains("onClick = save"))
+        assertTrue(save.contains("enabled = loaded && isDirty && !saving"))
+        val button = ProductionSources.read("ui/components/MinisTextButton.kt")
+        assertTrue(button.contains("import top.yukonga.miuix.kmp.basic.TextButton"))
+        assertTrue(button.contains("if (!LocalMinisDialogSurface.current)"))
+        assertTrue(button.contains("TextButton(text, onClick, modifier, enabled,"))
     }
 
     @Test
