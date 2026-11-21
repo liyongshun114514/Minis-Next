@@ -542,8 +542,18 @@ class MiuixMigrationUiTest {
         val add = compose.activity.getString(R.string.mount_add_dialog_title)
         compose.onNodeWithContentDescription(add).assertIsDisplayed().assertIsEnabled()
             .performTouchInput { click() }
-        compose.onNodeWithText(compose.activity.getString(R.string.mount_picker_intro_message))
-            .assertIsDisplayed()
+        val message = compose.onNodeWithText(compose.activity.getString(R.string.mount_picker_intro_message))
+        message.assertIsDisplayed()
+        val cancel = compose.onNodeWithText(compose.activity.getString(R.string.cancel))
+        val proceed = compose.onNodeWithText(compose.activity.getString(R.string.mount_picker_intro_continue))
+        val left = cancel.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val right = proceed.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertEquals(left.width, right.width, 1f)
+        assertEquals(left.center.y, right.center.y, 1f)
+        cancel.performClick()
+        message.assertDoesNotExist()
+        compose.onNodeWithContentDescription(add).performClick()
+        message.assertIsDisplayed()
     }
 
     @Test fun compactGlassBarKeepsLongTitleBetweenVisibleBackAndMultipleActions() {
@@ -777,6 +787,41 @@ class MiuixMigrationUiTest {
         compose.onNode(hasText("CANCELLED_DRAFT") and hasSetTextAction()).assertDoesNotExist()
         compose.onAllNodes(hasSetTextAction())[0].assertTextEquals("")
         compose.runOnIdle { assertTrue(repository.entries.value.isEmpty()); assertTrue(values.isEmpty()) }
+    }
+
+    @Test fun mcpAuthorizationRowsKeepSelectionAndDisableDuringLogin() {
+        var selected by mutableStateOf(com.openminis.app.mcp.oauth.MCPOAuthSignInLogic.AuthKind.NONE)
+        var enabled by mutableStateOf(true)
+        var changes = 0
+        compose.setContent {
+            MinisTheme {
+                Box(Modifier.width(280.dp)) {
+                    com.openminis.app.ui.settings.MCPAuthorizationChoices(
+                        selected = selected, enabled = enabled,
+                        onSelect = { selected = it; changes++ },
+                    )
+                }
+            }
+        }
+        val browser = compose.activity.getString(R.string.mcp_form_auth_browser)
+        val manual = compose.activity.getString(R.string.mcp_form_auth_manual)
+        compose.onNodeWithText(browser).assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(com.openminis.app.mcp.oauth.MCPOAuthSignInLogic.AuthKind.BROWSER, selected)
+            assertEquals(1, changes)
+            enabled = false
+        }
+        compose.onNodeWithText(manual).assertIsNotEnabled().performTouchInput { click() }
+        compose.runOnIdle {
+            assertEquals(com.openminis.app.mcp.oauth.MCPOAuthSignInLogic.AuthKind.BROWSER, selected)
+            assertEquals(1, changes)
+            enabled = true
+        }
+        compose.onNodeWithText(manual).assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(com.openminis.app.mcp.oauth.MCPOAuthSignInLogic.AuthKind.MANUAL, selected)
+            assertEquals(2, changes)
+        }
     }
 
     @Test fun nativeDropdownCanReopenAfterSelectionAndDisableWithoutCommitting() {

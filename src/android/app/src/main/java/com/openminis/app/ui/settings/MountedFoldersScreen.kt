@@ -40,6 +40,11 @@ import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import com.openminis.app.ui.components.MinisBottomSheet
+import com.openminis.app.ui.components.MinisDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import top.yukonga.miuix.kmp.glass.GlassDialogButton
+import top.yukonga.miuix.kmp.glass.GlassDialogButtonRole
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -104,6 +109,7 @@ fun MountedFoldersScreen(
     // system picker, explaining that Android forbids mounting the storage root.
     // See showPicker() below for why this is needed.
     var showPickerIntro by remember { mutableStateOf(false) }
+    var openPickerAfterIntro by remember { mutableStateOf(false) }
 
     // T219 follow-up: re-read all-files-access state on every ON_RESUME so
     // returning from the system Settings page (where the user toggles the
@@ -355,41 +361,56 @@ fun MountedFoldersScreen(
     // cannot add a back button to it — what we CAN do is (a) explain the
     // restriction in our own words before the user leaves our UI, and
     // (b) land them somewhere selectable (see initialPickerUri()).
-    OverlayDialog(
+    MinisDialog(
         title = stringResource(R.string.mount_picker_intro_title),
-        summary = stringResource(R.string.mount_picker_intro_message),
         show = showPickerIntro,
-        onDismissRequest = { showPickerIntro = false },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { showPickerIntro = false },
-                text = stringResource(R.string.cancel),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
-            TextButton(
-                onClick = {
-                showPickerIntro = false
-                // [T-android-mount-picker-anf] OpenDocumentTree fires
-                // ACTION_OPEN_DOCUMENT_TREE, and some OEM ROMs ship without a
-                // resolvable DocumentsUI (field crash: OnePlus 8T / ColorOS,
-                // ActivityNotFoundException straight out of
-                // startActivityForResult). safeLaunchPicker catches it and
-                // tells the user instead of dying; it deliberately does NOT
-                // pre-check with resolveActivity (see its doc).
+        onDismissRequest = {
+            openPickerAfterIntro = false
+            showPickerIntro = false
+        },
+        onDismissFinished = {
+            if (openPickerAfterIntro) {
+                openPickerAfterIntro = false
+                // [T-android-mount-picker-anf] Keep the guarded system handoff,
+                // but wait for this dialog's native exit animation to finish.
                 pickerLauncher.safeLaunchPicker(
-                    initialPickerUri(),
-                    context,
-                    "MountedFolders",
-                    R.string.mount_picker_unavailable,
+                    initialPickerUri(), context, "MountedFolders", R.string.mount_picker_unavailable,
                 )
-            },
-                text = stringResource(R.string.mount_picker_intro_continue),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            }
+        },
+    ) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Text(
+                stringResource(R.string.mount_picker_intro_message),
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceSecondary,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                GlassDialogButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        openPickerAfterIntro = false
+                        showPickerIntro = false
+                    },
+                ) {
+                    Text(stringResource(R.string.cancel), style = MiuixTheme.textStyles.button)
+                }
+                GlassDialogButton(
+                    modifier = Modifier.weight(1f),
+                    role = GlassDialogButtonRole.Primary,
+                    onClick = {
+                        openPickerAfterIntro = true
+                        showPickerIntro = false
+                    },
+                ) {
+                    Text(stringResource(R.string.mount_picker_intro_continue), style = MiuixTheme.textStyles.button)
+                }
+            }
         }
     }
 }

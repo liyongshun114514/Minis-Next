@@ -282,7 +282,8 @@ private fun MCPAddSheet(
                     modifier = Modifier.fillMaxWidth(),
                     minWidth = preferenceTabMinWidth(tabs),
                     height = preferenceTabHeight(),
-                    colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.surfaceContainer),
+                    // Native defaults keep the track and selected tab on distinct surfaces.
+                    colors = TabRowDefaults.tabRowColors(),
                 )
             }
 
@@ -522,7 +523,7 @@ private fun MCPFormTab(
             modifier = Modifier.fillMaxWidth(),
             minWidth = preferenceTabMinWidth(tabLabels),
             height = preferenceTabHeight(),
-            colors = TabRowDefaults.tabRowColors(backgroundColor = MiuixTheme.colorScheme.secondaryContainer),
+            colors = TabRowDefaults.tabRowColors(),
         )
 
         FieldLabel(stringResource(R.string.mcp_form_name))
@@ -588,30 +589,15 @@ private fun MCPFormTab(
             // [T-mcp-oauth-signin-android] Authorization: none, a browser
             // sign-in, or the manual fields (iOS MCPFormSheet oauthSection).
             FieldLabel(stringResource(R.string.mcp_form_auth_mode))
-            for ((kind, label) in listOf(
-                MCPOAuthSignInLogic.AuthKind.NONE to R.string.mcp_form_auth_none,
-                MCPOAuthSignInLogic.AuthKind.BROWSER to R.string.mcp_form_auth_browser,
-                MCPOAuthSignInLogic.AuthKind.MANUAL to R.string.mcp_form_auth_manual,
-            )) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !oauthBusy) {
-                            authKind = kind
-                            errorText = null
-                            discoveryNote = null
-                        },
-                ) {
-                    top.yukonga.miuix.kmp.basic.RadioButton(
-                        selected = authKind == kind,
-                        onClick = null,
-                        enabled = !oauthBusy,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(label), style = MiuixTheme.textStyles.body1)
-                }
-            }
+            MCPAuthorizationChoices(
+                selected = authKind,
+                enabled = !oauthBusy,
+                onSelect = { kind ->
+                    authKind = kind
+                    errorText = null
+                    discoveryNote = null
+                },
+            )
 
             if (authKind == MCPOAuthSignInLogic.AuthKind.BROWSER) {
                 // One line of explanation, the state, and ONE button that finds
@@ -1298,6 +1284,30 @@ private fun MCPImportTab(
                 enabled = previewCount > 0,
                 text = stringResource(R.string.mcp_import_submit),
                 colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+            )
+        }
+    }
+}
+
+/** Native whole-row selection, with the same card/spacing rules as settings choices. */
+@Composable
+internal fun MCPAuthorizationChoices(
+    selected: MCPOAuthSignInLogic.AuthKind,
+    enabled: Boolean,
+    onSelect: (MCPOAuthSignInLogic.AuthKind) -> Unit,
+) {
+    top.yukonga.miuix.kmp.basic.Card(modifier = Modifier.fillMaxWidth()) {
+        for ((kind, label) in listOf(
+            MCPOAuthSignInLogic.AuthKind.NONE to R.string.mcp_form_auth_none,
+            MCPOAuthSignInLogic.AuthKind.BROWSER to R.string.mcp_form_auth_browser,
+            MCPOAuthSignInLogic.AuthKind.MANUAL to R.string.mcp_form_auth_manual,
+        )) {
+            top.yukonga.miuix.kmp.preference.RadioButtonPreference(
+                title = stringResource(label),
+                selected = selected == kind,
+                enabled = enabled,
+                radioButtonLocation = top.yukonga.miuix.kmp.preference.RadioButtonLocation.End,
+                onClick = { onSelect(kind) },
             )
         }
     }

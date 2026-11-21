@@ -25,7 +25,11 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
-import com.openminis.app.ui.components.MinisBottomSheet
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.openminis.app.ui.components.MinisDialog
+import top.yukonga.miuix.kmp.glass.GlassDialogButton
+import top.yukonga.miuix.kmp.glass.GlassDialogButtonRole
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
@@ -235,10 +239,10 @@ fun EnvironmentVariablesScreen(
     }
 
     // Visibility, editor identity and disposal are separate. Keep the entire draft
-    // and measured sheet through its slide-out; reset only after native completion.
+    // through dialog exit; reset only after native completion.
     val editing = editEntryId?.let { id -> entries.find { it.id == id } }
     var formSession by remember { mutableStateOf(0) }
-    MinisBottomSheet(
+    MinisDialog(
         show = showAddSheet,
         title = if (editing != null) stringResource(R.string.env_var_form_edit_title) else stringResource(R.string.env_var_form_add_title),
         onDismissRequest = { showAddSheet = false },
@@ -331,52 +335,52 @@ private fun EnvVarFormSheetContent(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-
-        // One quiet form card above the glass sheet; fields use the page
-        // surface so the card and each editable area remain distinguishable.
-        top.yukonga.miuix.kmp.basic.Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                EnvVarFieldGroup(stringResource(R.string.env_var_field_name)) {
-                    DialogTextField(
-                        value = keyText,
-                        onValueChange = { keyText = it.uppercase() },
-                        isError = errorText != null,
-                        textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
-                        backgroundColor = MiuixTheme.colorScheme.surface,
-                    )
-                    errorText?.let { error ->
-                        Text(error, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.error)
+        // The fields scroll above a fixed action row when the keyboard is open.
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            top.yukonga.miuix.kmp.basic.Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    EnvVarFieldGroup(stringResource(R.string.env_var_field_name)) {
+                        DialogTextField(
+                            value = keyText,
+                            onValueChange = { keyText = it.uppercase() },
+                            isError = errorText != null,
+                            textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                            backgroundColor = MiuixTheme.colorScheme.surface,
+                        )
+                        errorText?.let { error ->
+                            Text(error, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.error)
+                        }
+                    }
+                    EnvVarFieldGroup(stringResource(R.string.env_var_field_value)) {
+                        DialogTextField(
+                            value = valueText,
+                            onValueChange = { valueText = it },
+                            singleLine = false,
+                            maxLines = 3,
+                            textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
+                            backgroundColor = MiuixTheme.colorScheme.surface,
+                        )
+                    }
+                    EnvVarFieldGroup(stringResource(R.string.env_var_field_note)) {
+                        DialogTextField(
+                            value = noteText,
+                            onValueChange = { noteText = it },
+                            placeholder = stringResource(R.string.env_var_field_note_placeholder),
+                            backgroundColor = MiuixTheme.colorScheme.surface,
+                        )
                     }
                 }
-                EnvVarFieldGroup(stringResource(R.string.env_var_field_value)) {
-                    DialogTextField(
-                        value = valueText,
-                        onValueChange = { valueText = it },
-                        singleLine = false,
-                        maxLines = 3,
-                        textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
-                        backgroundColor = MiuixTheme.colorScheme.surface,
-                    )
-                }
-                EnvVarFieldGroup(stringResource(R.string.env_var_field_note)) {
-                    DialogTextField(
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        placeholder = stringResource(R.string.env_var_field_note_placeholder),
-                        backgroundColor = MiuixTheme.colorScheme.surface,
-                    )
-                }
             }
-        }
 
             // [T-envvar-disable] On / off, editing only (a new variable starts on).
             if (isEditing) {
@@ -420,34 +424,41 @@ private fun EnvVarFormSheetContent(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            GlassDialogButton(
+                modifier = Modifier.weight(1f),
+                onClick = onDismiss,
             ) {
-                TextButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onDismiss,
-                    text = stringResource(R.string.common_cancel),
-                )
-                TextButton(
-                    onClick = {
-                        val success = if (isEditing) {
-                            // update() never touches the enabled state; the switch
-                            // is applied on its own, only when it changed.
-                            envVarRepository.update(editEntry!!.id, keyText, valueText, noteText) &&
-                                (enabled == editEntry.enabled || envVarRepository.setEnabled(editEntry.id, enabled))
-                        } else {
-                            envVarRepository.add(keyText, valueText, noteText)
-                        }
-                        if (success) onDismiss()
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = canSave,
-                    text = if (isEditing) stringResource(R.string.common_save) else stringResource(R.string.env_var_add),
-                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                Text(stringResource(R.string.common_cancel), style = MiuixTheme.textStyles.button)
+            }
+            GlassDialogButton(
+                onClick = {
+                    val success = if (isEditing) {
+                        // update() never touches the enabled state; the switch
+                        // is applied on its own, only when it changed.
+                        envVarRepository.update(editEntry!!.id, keyText, valueText, noteText) &&
+                            (enabled == editEntry.enabled || envVarRepository.setEnabled(editEntry.id, enabled))
+                    } else {
+                        envVarRepository.add(keyText, valueText, noteText)
+                    }
+                    if (success) onDismiss()
+                },
+                modifier = Modifier.weight(1f),
+                enabled = canSave,
+                role = GlassDialogButtonRole.Primary,
+            ) {
+                Text(
+                    if (isEditing) stringResource(R.string.common_save) else stringResource(R.string.env_var_add),
+                    style = MiuixTheme.textStyles.button,
                 )
             }
         }
+    }
 }
 
 

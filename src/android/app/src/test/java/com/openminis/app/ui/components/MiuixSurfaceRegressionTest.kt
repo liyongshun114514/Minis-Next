@@ -81,6 +81,58 @@ class MiuixSurfaceRegressionTest {
         }
     }
 
+    @Test fun insetGlassDialogRetainsContentThroughExitAndUsesFilledEqualActions() {
+        var show by mutableStateOf(false)
+        var finished = 0
+        var confirmed = 0
+        var scene: MinisSceneBackdrop? = null
+        compose.setContent {
+            MinisTheme {
+                val owner = LocalMinisSceneBackdrop.current
+                SideEffect { scene = owner }
+                TextButton(text = "Open inset dialog", onClick = { show = true })
+                MinisDialog(show = show, title = "Add variable", onDismissRequest = { show = false },
+                    onDismissFinished = { finished++ }) {
+                    Column(Modifier.fillMaxWidth().testTag("inset-dialog-body")) {
+                        Text("Variable draft")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            top.yukonga.miuix.kmp.glass.GlassDialogButton(
+                                modifier = Modifier.weight(1f), onClick = { show = false },
+                            ) { Text("Cancel draft") }
+                            top.yukonga.miuix.kmp.glass.GlassDialogButton(
+                                modifier = Modifier.weight(1f), enabled = false,
+                                role = top.yukonga.miuix.kmp.glass.GlassDialogButtonRole.Primary,
+                                onClick = { confirmed++ },
+                            ) { Text("Save draft") }
+                        }
+                    }
+                }
+            }
+        }
+        repeat(2) { cycle ->
+            compose.onNodeWithText("Open inset dialog").performClick()
+            compose.onNodeWithTag("inset-dialog-body").assertIsDisplayed()
+            val cancel = compose.onNodeWithText("Cancel draft")
+            val save = compose.onNodeWithText("Save draft").assertIsNotEnabled()
+            val left = cancel.fetchSemanticsNode().boundsInRoot
+            val right = save.fetchSemanticsNode().boundsInRoot
+            assertEquals(left.width, right.width, 1f)
+            assertEquals(left.center.y, right.center.y, 1f)
+            assertTrue(left.right < right.left)
+            assertTrue(cancel.captureToImage().width > 0)
+            compose.runOnIdle { assertTrue(scene?.recording == true); assertEquals(0, confirmed) }
+            compose.mainClock.autoAdvance = false
+            cancel.performClick()
+            compose.mainClock.advanceTimeBy(32)
+            compose.onNodeWithTag("inset-dialog-body").assertExists()
+            compose.runOnIdle { assertEquals(cycle, finished); assertTrue(scene?.recording == true) }
+            compose.mainClock.autoAdvance = true
+            compose.waitForIdle()
+            compose.onNodeWithTag("inset-dialog-body").assertDoesNotExist()
+            compose.runOnIdle { assertEquals(cycle + 1, finished); assertFalse(scene?.recording == true) }
+        }
+    }
+
     @Test fun nativeGroupedRowsKeepPressInsideCornersAndOnDividerSeams() {
         compose.setContent {
             MinisTheme {

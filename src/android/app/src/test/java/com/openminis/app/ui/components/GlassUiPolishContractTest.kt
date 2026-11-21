@@ -113,7 +113,10 @@ class GlassUiPolishContractTest {
         assertTrue(sheet.contains("formSession++"))
         assertTrue(sheet.contains("key(formSession)"))
         assertFalse(sheet.contains("if (formActive)"))
-        assertTrue(env.contains("ButtonDefaults.textButtonColorsPrimary()"))
+        assertTrue(sheet.contains("MinisDialog("))
+        assertFalse(env.contains("MinisBottomSheet("))
+        assertEquals(2, Regex("GlassDialogButton\\(").findAll(env).count())
+        assertTrue(env.contains("GlassDialogButtonRole.Primary"))
     }
 
     @Test fun `dropdown keeps its role and disabled state when native click is absent`() {
@@ -138,7 +141,7 @@ class GlassUiPolishContractTest {
         assertTrue(sheet.contains("if (!sameWindow)"))
         assertTrue(sheet.contains("WindowBottomSheet("))
         for (path in listOf("ui/chat/ChatModelPickerSheet.kt", "ui/components/UnifiedModelPickerSheet.kt",
-            "ui/chat/StandardChatSheet.kt", "ui/settings/EnvironmentVariablesScreen.kt", "ui/settings/ProviderListScreen.kt")) {
+            "ui/chat/StandardChatSheet.kt", "ui/settings/ProviderListScreen.kt")) {
             val source = ProductionSources.read(path)
             assertTrue(path, source.contains("MinisBottomSheet("))
             assertFalse(path, source.contains("import top.yukonga.miuix.kmp.window.WindowBottomSheet"))
