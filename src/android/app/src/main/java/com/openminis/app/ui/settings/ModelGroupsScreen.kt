@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -890,7 +888,6 @@ private fun GroupModalityIcon(marker: GroupModalityMarker) {
 /** A single group row inside the Groups section card. Built as a plain
  *  Composable (not a ListItem) so it inherits the card's surface color
  *  cleanly without ListItem's container override. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun GroupRow(
     group: ModelGroup,
@@ -930,7 +927,6 @@ internal fun GroupRow(
         config.modelEntries.find { it.id == entryId }?.providerInstanceId in enabledInstanceIds
     }
     val allDisabled = totalMembers > 0 && enabledMembers == 0
-    val modalities = groupTopModalities(group, config)
 
     Row(
         modifier = Modifier
@@ -959,31 +955,27 @@ internal fun GroupRow(
             }
             Spacer(modifier = Modifier.width(4.dp))
         }
-        Column(
-            modifier = Modifier.weight(1f).padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = group.name,
-                style = MiuixTheme.textStyles.main,
-                fontWeight = FontWeight.SemiBold,
-                color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("group-title:${group.id}"),
-            )
-            // Badges/modalities are secondary, wrapping independently instead
-            // of competing with the title for its one horizontal line.
-            if (isPrimary || isSub || allDisabled || modalities.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.testTag("group-badges:${group.id}"),
-                ) {
-                    if (isPrimary) BadgeLabel("Primary", MiuixTheme.colorScheme.primary)
-                    if (isSub) BadgeLabel("Sub", MiuixTheme.colorScheme.primary)
-                    modalities.forEach { marker -> GroupModalityIcon(marker) }
-                    if (allDisabled) BadgeLabel(
+        // Keep the original three-line layout; typography alone makes it less dense.
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.testTag("group-heading:${group.id}"),
+            ) {
+                Text(
+                    text = group.name,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Medium,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier.testTag("group-title:${group.id}"),
+                )
+                groupTopModalities(group, config).forEach { marker ->
+                    GroupModalityIcon(marker)
+                }
+                if (isPrimary) BadgeLabel("Primary", MiuixTheme.colorScheme.primary)
+                if (isSub) BadgeLabel("Sub", MiuixTheme.colorScheme.primary)
+                if (allDisabled) {
+                    BadgeLabel(
                         stringResource(R.string.model_group_no_usable_models_badge),
                         MiuixTheme.colorScheme.error,
                     )
@@ -1006,14 +998,12 @@ internal fun GroupRow(
                 Text(
                     text = preview,
                     style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    color = MiuixTheme.colorScheme.outline,
+                    maxLines = 1,
                     modifier = Modifier.testTag("group-members:${group.id}"),
                 )
             }
         }
-        Spacer(Modifier.width(12.dp))
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,

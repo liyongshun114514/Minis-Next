@@ -696,20 +696,20 @@ class MiuixMigrationUiTest {
         other.assertIsDisplayed().assertIsSelected()
     }
 
-    @Test fun systemPromptDirectoryExposesOnlySoul() {
-        var soul = 0
+    @Test fun systemPromptEntryImmediatelyShowsSoulEditorAndReturnsOnce() {
+        var backs = 0
         compose.setContent {
             MinisTheme {
-                com.openminis.app.ui.settings.PromptSettingsScreen(
-                    onBack = {}, onIdentityClick = { soul++ },
-                )
+                com.openminis.app.ui.settings.PromptSettingsScreen(onBack = { backs++ })
             }
         }
-        compose.onNodeWithText("SOUL").assertIsDisplayed().performClick()
+        // Name and body are available immediately, without clicking a SOUL directory row.
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(2)
         compose.onAllNodes(hasText("Workspace Instructions") or hasText("工作区指令") or hasText("AGENTS.md"))
             .assertCountEquals(0)
-        compose.runOnIdle { assertEquals(1, soul) }
-        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        compose.onNodeWithText("SOUL").assertDoesNotExist()
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.settings_back)).performClick()
+        compose.runOnIdle { assertEquals(1, backs) }
     }
 
     @Test fun nativeThinkingSliderRetainsAllTierLabelsAndAccessibleValue() {
@@ -784,8 +784,25 @@ class MiuixMigrationUiTest {
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         compose.onNodeWithContentDescription(add).performClick()
         compose.onNode(hasText("CANCELLED_DRAFT") and hasSetTextAction()).assertDoesNotExist()
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(3)
         compose.onAllNodes(hasSetTextAction())[0].assertTextEquals("")
         compose.runOnIdle { assertTrue(repository.entries.value.isEmpty()); assertTrue(values.isEmpty()) }
+        compose.onNodeWithText(add).assertIsNotEnabled()
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("NEW_VARIABLE")
+        compose.onAllNodes(hasSetTextAction())[1].performTextInput("test-value")
+        compose.onAllNodes(hasSetTextAction())[2].performTextInput("Test note")
+        compose.onNodeWithText(add).assertIsEnabled().performClick()
+        compose.waitForIdle()
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        compose.runOnIdle {
+            assertEquals("test-value", repository.getValue("NEW_VARIABLE"))
+            assertEquals("Test note", repository.entries.value.single().note)
+        }
+        compose.onNodeWithContentDescription(add).performClick()
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("NEW_VARIABLE")
+        compose.onNodeWithText(compose.activity.getString(R.string.env_var_error_duplicate)).assertIsDisplayed()
+        compose.onNodeWithText(add).assertIsNotEnabled()
+        compose.onNodeWithText(cancel).performClick()
     }
 
     @Test fun mcpAuthorizationRowsKeepSelectionAndDisableDuringLogin() {

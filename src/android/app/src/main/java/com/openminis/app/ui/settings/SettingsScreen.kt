@@ -205,13 +205,8 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_skills_subtitle),
                 onClick = onSkillsClick,
             )
-            // [T-soul-md] Between Skills and Memory, as on iOS.
-            // [K-unified-prompt-workspace] This row is now the ONE prompt
-            // entry: Routes.SOUL opens the hub, which links to identity /
-            // global SOUL, workspace instructions and every built-in
-            // prompt. The separate Workspace Instructions row below it was
-            // removed rather than duplicated; its screen and route are
-            // unchanged, so old deep links still land on the editor.
+            // One System Prompt entry opens the SOUL editor directly.
+            // Compatibility routes do not add another directory to the back stack.
             SettingsItem(
                 icon = Icons.Outlined.AutoAwesome,
                 title = stringResource(R.string.settings_soul),

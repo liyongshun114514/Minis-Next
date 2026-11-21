@@ -1021,9 +1021,9 @@ fun ChatScreen(
     // AIChatView.showThinkingLevelSheet.
     var showThinkingLevelSheet by remember { mutableStateOf(false) }
     val thinkingLevelAnchor = com.openminis.app.ui.components.rememberMinisMenuAnchor()
-    val thinkingPopupGapPx = with(LocalDensity.current) { 12.dp.toPx() }
+    val thinkingPopupGapPx = with(LocalDensity.current) { 4.dp.toPx() }
     var thinkingLevelTap by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
-    var composerTopInWindow by remember(sessionId) { mutableStateOf<Float?>(null) }
+    var composerActionsTopInWindow by remember(sessionId) { mutableStateOf<Float?>(null) }
     var openThinkingAfterAttach by remember { mutableStateOf(false) }
     var showAttachMenu by remember { mutableStateOf(false) }
     var showComposerPermission by remember { mutableStateOf(false) }
@@ -5632,10 +5632,7 @@ fun ChatScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .onGloballyPositioned {
-                        composerHeightPx = it.size.height
-                        composerTopInWindow = it.positionInWindow().y
-                    }
+                    .onGloballyPositioned { composerHeightPx = it.size.height }
                     .fillMaxWidth()
                     // [T-android-chat-max-content-width] Same cap and centring
                     // as the message list, so the composer stays aligned with
@@ -7167,7 +7164,10 @@ fun ChatScreen(
                             // T185: 12dp horizontal lines the +/slash and
                             // mic/send icon-button column up with the
                             // attachment row + textfield + Move-to popup.
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            // Anchor to the controls, not the whole editor. A long
+                            // draft must not push the thinking menu above the input.
+                            .onGloballyPositioned { composerActionsTopInWindow = it.positionInWindow().y },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Expand from + and collapse back into the same measured button.
@@ -8291,7 +8291,7 @@ fun ChatScreen(
         onSelect = { level -> viewModel.setThinkingLevel(level) },
         onDismiss = { showThinkingLevelSheet = false },
         tapPositionInWindow = thinkingLevelTap,
-        bottomBoundaryInWindow = composerTopInWindow?.minus(thinkingPopupGapPx),
+        bottomBoundaryInWindow = composerActionsTopInWindow?.minus(thinkingPopupGapPx),
         backdrop = chatTopBackdrop,
     )
 

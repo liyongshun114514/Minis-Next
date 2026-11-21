@@ -127,9 +127,11 @@ class MinisMenuPositionTest {
     }
 
     @Test
-    fun `thinking panel stays above the composer boundary in both text directions`() {
+    fun `thinking panel sits just above action row instead of the multiline editor in both directions`() {
         val panel = IntSize(900, 280)
-        for (bottom in listOf(1600, 980)) {
+        val gap = 11 // 4dp at 2.75px/dp; the native safe margin is additional.
+        for (actionsTop in listOf(1600, 980)) {
+            val bottom = actionsTop - gap
             val safe = IntRect(0, 96, 1080, bottom)
             for (direction in LayoutDirection.entries) {
                 val anchor = MinisMenuPosition.glassAnchor(
@@ -137,7 +139,11 @@ class MinisMenuPositionTest {
                     alignEnd = true, offsetX = 0, offsetY = 0, margin = m,
                     preferAbove = true, layoutDirection = direction,
                 )
-                assertTrue("whole panel clears composer/IME", anchor.top + panel.height <= bottom - m)
+                val panelBottom = anchor.top + panel.height
+                assertEquals("only the small gap plus safe margin clears controls", (actionsTop - gap - m).toFloat(), panelBottom, 0f)
+                for (editorHeight in listOf(600, 800)) {
+                    assertTrue("do not lift panel above the whole input", anchor.top > actionsTop - editorHeight)
+                }
                 assertTrue("panel remains under status bar", anchor.top >= safe.top + m)
             }
         }

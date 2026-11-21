@@ -8,8 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [K-unified-prompt-workspace] The System Prompt hub + built-in editor, pinned
- * at the two places a compiler cannot help:
+ * The direct System Prompt entry + compatibility built-in editor, pinned
+ * at the boundaries a compiler cannot help:
  *
  *  1. the placeholder summary shown to the author must come from
  *     [com.openminis.app.agent.prompts.PromptTemplate.signature] — i.e. the
@@ -18,9 +18,8 @@ import org.junit.Test
  *  2. Save / Restore-default must act on a draft snapshot taken at tap time,
  *     so text typed while the write is in flight is never reported as saved
  *     (and never discarded by a concurrent reset);
- *  3. the editor's remembered state is keyed to the prompt id, and the hub
- *     re-reads override state on RESUMED instead of assuming that coming back
- *     from the editor rebuilds the composition.
+ *  3. compatibility editor state is keyed to the prompt id; the System Prompt
+ *     entry renders SOUL directly and adds no directory route to the back stack.
  *
  * The behavioural half exercises [builtinSlotUsage] directly (pure function,
  * no Android); the rest are source contracts over the production files, in the
@@ -128,13 +127,17 @@ class UnifiedPromptSettingsTest {
     }
 
     @Test
-    fun `system prompt page contains only soul`() {
-        assertEquals(1, Regex("SettingsRow\\(").findAll(hub).count())
-        assertTrue(hub.contains("onClick = onIdentityClick"))
-        assertFalse(hub.contains("onWorkspaceInstructionsClick"))
-        for (retired in listOf("PromptOverrides", "PromptCatalogScope", "TextField(", "onEditBuiltin", "overrideRevision")) {
-            assertFalse("catalog UI must not return: $retired", hub.contains(retired))
+    fun `system prompt opens soul directly without another directory or back stack entry`() {
+        assertTrue(hub.contains("SoulSettingsScreen(onBack = onBack)"))
+        for (retired in listOf("SettingsRow(", "SettingsScaffold(", "onIdentityClick", "onWorkspaceInstructionsClick",
+            "PromptOverrides", "PromptCatalogScope", "TextField(", "onEditBuiltin", "overrideRevision")) {
+            assertFalse("the entry must render only the editor: $retired", hub.contains(retired))
         }
+        val nav = ProductionSources.read("ui/navigation/AppNavigation.kt")
+        val route = nav.substringAfter("composable(Routes.SOUL) {").substringBefore("composable(Routes.SOUL_PERSONALITY)")
+        assertTrue(route.contains("PromptSettingsScreen("))
+        assertTrue(route.contains("onBack = { navController.safePopBackStack() }"))
+        assertFalse("do not push another route before showing the editor", route.contains("safeNavigate("))
     }
 
     // ─── Routing / resources ────────────────────────────────────────────────

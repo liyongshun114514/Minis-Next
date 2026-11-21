@@ -17,9 +17,8 @@ import org.junit.Test
  * it keeps growing when a tool or a scenario gains text. If such a group were
  * shown on Settings → System Prompt, the page would silently go back to listing
  * per-tool parameter descriptions. These assertions fail on that drift: the
- * global set is explicit, the excluded groups still exist in the asset (they
- * were not deleted), and the hub filters through [PromptCatalogScope] instead of
- * keeping a second copy of the list.
+ * classification is explicit, excluded groups still exist in the asset (they
+ * were not deleted), and the direct SOUL entry does not expose the catalog.
  */
 class PromptCatalogScopeTest {
 
@@ -91,10 +90,11 @@ class PromptCatalogScopeTest {
     }
 
     @Test
-    fun `the hub filters through the shared scope instead of its own list`() {
+    fun `the system prompt entry renders soul directly without exposing the catalog`() {
         val hub = ProductionSources.read("ui/settings/PromptSettingsScreen.kt")
+        assertTrue(hub.contains("SoulSettingsScreen(onBack = onBack)"))
+        assertFalse(hub.contains("SettingsRow("))
         assertFalse(hub.contains("PromptCatalogScope.globalOnly(it)"))
-        assertTrue(hub.contains("title = \"SOUL\""))
         assertFalse(hub.contains("settings_workspace_instructions"))
         assertFalse("a second copy of the group list would drift", hub.contains("\"主系统提示词\""))
     }

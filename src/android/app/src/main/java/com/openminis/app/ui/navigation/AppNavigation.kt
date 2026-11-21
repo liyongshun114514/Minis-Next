@@ -182,17 +182,9 @@ object Routes {
     const val AGENT_TOOLS = "agent_tools"
     /** [T-mcp-integration-android] MCP Integrations management screen. */
     const val MCP = "mcp"
-    /**
-     * [T-soul-md] System Prompt entry.
-     *
-     * [K-unified-prompt-workspace] The setting is now a hub: this route opens
-     * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (identity +
-     * global body) and the compatibility built-in editor in
-     * [SOUL_BUILTIN_EDITOR]. The path string is unchanged so existing
-     * deep links keep working.
-     */
+    /** System Prompt opens the SOUL editor directly; the deep-link path is unchanged. */
     const val SOUL = "soul"
-    /** [K-unified-prompt-workspace] Identity + global SOUL body (former SOUL page). */
+    /** Legacy identity route remains a direct alias of the SOUL editor. */
     const val SOUL_PERSONALITY = "soul_personality"
     /** [K-unified-prompt-workspace] Full-text editor for one catalog prompt. */
     const val SOUL_BUILTIN_EDITOR = "soul_builtin/{promptId}"
@@ -1430,15 +1422,14 @@ fun AppNavigation(
             }
         }
 
-        // System Prompt settings expose only SOUL and workspace instructions.
+        // One navigation entry renders SOUL immediately; Back returns to Settings.
         composable(Routes.SOUL) {
             com.openminis.app.ui.settings.PromptSettingsScreen(
                 onBack = { navController.safePopBackStack() },
-                onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
             )
         }
 
-        // [K-unified-prompt-workspace] The former SOUL page, one level down.
+        // Existing identity links still open the same editor directly.
         composable(Routes.SOUL_PERSONALITY) {
             com.openminis.app.ui.settings.SoulSettingsScreen(
                 onBack = { navController.safePopBackStack() },

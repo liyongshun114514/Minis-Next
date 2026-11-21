@@ -1,6 +1,6 @@
 # SOUL: the sole application instruction source
 
-Settings → System Prompt contains one SOUL entry. AGENTS.md / CLAUDE.md discovery, project chains, scope/budget controls and their editors are removed. Legacy workspace deep links open the SOUL editor; existing user files and preferences are left on disk, not silently merged, overwritten or deleted.
+Settings → System Prompt opens the SOUL editor directly, without another directory row; Back returns to Settings. AGENTS.md / CLAUDE.md discovery, project chains, scope/budget controls and their editors are removed. Legacy workspace deep links open the SOUL editor; existing user files and preferences are left on disk, not silently merged, overwritten or deleted.
 
 The SOUL Markdown body inherits the former AGENTS authority wording and native-system format:
 

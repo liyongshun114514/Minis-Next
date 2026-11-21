@@ -176,23 +176,34 @@ class MiuixSurfaceRegressionTest {
         var shown by mutableStateOf(false)
         var commits = 0
         var tap: androidx.compose.ui.geometry.Offset? = null
-        var composerTop: Float? by mutableStateOf(null)
+        var actionsTop: Float? by mutableStateOf(null)
+        var editorHeight by mutableStateOf(220.dp)
+        var keyboardLift by mutableStateOf(0.dp)
         compose.setContent {
             MinisTheme {
                 val anchor = rememberMinisMenuAnchor()
+                val gapPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
                 Box(Modifier.fillMaxSize().testTag("effort-test-window")) {
-                    TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).height(72.dp).minisMenuAnchor(anchor)
-                            .testTag("effort-composer").onGloballyPositioned { composerTop = it.positionInWindow().y })
+                    Column(Modifier.align(Alignment.BottomCenter).padding(bottom = keyboardLift)
+                        .fillMaxWidth().testTag("effort-composer")) {
+                        Box(Modifier.fillMaxWidth().height(editorHeight).testTag("effort-editor"))
+                        Row(Modifier.fillMaxWidth().testTag("effort-actions")
+                            .onGloballyPositioned { actionsTop = it.positionInWindow().y },
+                            horizontalArrangement = Arrangement.End) {
+                            TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
+                                modifier = Modifier.height(52.dp).minisMenuAnchor(anchor))
+                        }
+                    }
                     com.openminis.app.ui.chat.ThinkingLevelSheet(
                         show = shown, currentLevel = ThinkingLevel.OFF, availableLevels = emptyList(),
                         onSelect = { commits++ }, onDismiss = { shown = false }, tapPositionInWindow = tap,
-                        bottomBoundaryInWindow = composerTop,
+                        bottomBoundaryInWindow = actionsTop?.minus(gapPx),
                     )
                 }
             }
         }
-        repeat(2) {
+        repeat(2) { cycle ->
+            compose.runOnIdle { keyboardLift = if (cycle == 0) 0.dp else 64.dp }
             compose.onNodeWithText("Open effort").performClick()
             val slider = compose.onNodeWithContentDescription("Thinking effort: Off").assertIsDisplayed()
             val bounds = slider.fetchSemanticsNode().boundsInRoot
@@ -200,9 +211,16 @@ class MiuixSurfaceRegressionTest {
             assertTrue("effort popup remains horizontal", bounds.width > bounds.height * 3f)
             assertTrue("slider fits the window", bounds.left >= window.left && bounds.right <= window.right)
             val panel = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
-            val composer = compose.onNodeWithTag("effort-composer").fetchSemanticsNode().boundsInRoot
-            assertTrue("whole menu clears the full composer", panel.bottom < composer.top)
+            val actions = compose.onNodeWithTag("effort-actions").fetchSemanticsNode().boundsInRoot
+            val editor = compose.onNodeWithTag("effort-editor").fetchSemanticsNode().boundsInRoot
+            assertTrue("whole menu clears the + / model / send row", panel.bottom < actions.top)
+            val gapDp = with(compose.activity.resources.displayMetrics) { (actions.top - panel.bottom) / density }
+            assertTrue("panel sits just above the action controls", gapDp in 4f..36f)
+            assertTrue("panel may cover the editor, not sit above it", panel.top > editor.top)
             assertTrue("panel keeps its natural horizontal size", panel.width > panel.height)
+            compose.runOnIdle { editorHeight = 280.dp }
+            val after = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
+            assertEquals("growing the draft must not lift the panel", panel.bottom, after.bottom, 1f)
             slider.assertHeightIsEqualTo(52.dp)
             slider.performTouchInput { click() }
             val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))
@@ -212,8 +230,8 @@ class MiuixSurfaceRegressionTest {
         }
     }
 
-    @Test fun modelGroupRowSeparatesTheNameBadgesAndReadableMembersAtLargeFont() {
-        val group = com.openminis.app.data.model.ModelGroup(id = "hierarchy", name = "Default Models for daily work")
+    @Test fun modelGroupRowKeepsInlineBadgesAndSmallerTypographyAtLargeFont() {
+        val group = com.openminis.app.data.model.ModelGroup(id = "hierarchy", name = "Default")
         val instance = com.openminis.app.data.model.ProviderInstance(
             id = "hierarchy-provider", label = "Provider",
             providerType = com.openminis.app.data.model.ProviderType.openAI,
@@ -238,13 +256,23 @@ class MiuixSurfaceRegressionTest {
         }
         fun bounds(part: String) = compose.onNodeWithTag("group-$part:hierarchy", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot
+        val heading = bounds("heading")
         val title = bounds("title")
-        val badges = bounds("badges")
+        val badge = compose.onNodeWithText("Primary", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val summary = bounds("summary")
         val members = bounds("members")
-        assertTrue("title has a separate line", title.bottom < badges.top)
-        assertTrue("badges do not collide with strategy", badges.bottom < summary.top)
-        assertTrue("members have breathing room", summary.bottom < members.top)
+        assertEquals("name and badge remain on the original row", title.center.y, badge.center.y, 1f)
+        assertTrue("badge remains after the title", title.right < badge.left)
+        assertTrue("summary stays below heading", heading.bottom <= summary.top)
+        assertTrue("single-line preview stays below summary", summary.bottom <= members.top)
+        val textLayouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithTag("group-title:hierarchy", useUnmergedTree = true)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { action ->
+                assertTrue(action(textLayouts))
+            }
+        assertEquals("title uses the smaller 16sp native style and follows app font scale", 24f,
+            textLayouts.single().layoutInput.style.fontSize.value, 0.01f)
+        assertTrue("title remains visually stronger than details", title.height > summary.height)
         compose.onNodeWithText("DeepSeek V4.1 Flash").assertIsDisplayed()
         compose.onNodeWithText(group.name).performClick()
         compose.runOnIdle { assertEquals(1, opens) }
