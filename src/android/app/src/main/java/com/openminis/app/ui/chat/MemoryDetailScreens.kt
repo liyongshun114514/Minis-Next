@@ -32,10 +32,10 @@ import com.openminis.app.R
 import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.i18n.uppercaseForDisplay
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.fillMaxWidth
 
 /**

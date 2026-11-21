@@ -39,9 +39,9 @@ import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.ui.components.MinisMenu
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth

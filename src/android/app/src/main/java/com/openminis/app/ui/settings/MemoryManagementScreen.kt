@@ -26,7 +26,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.repository.MemoryRepository
 import com.openminis.app.ui.components.DialogTextField
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 
@@ -142,27 +142,30 @@ fun MemoryManagementScreen(
         show = deleteFileName != null,
         onDismissRequest = { deleteFileName = null },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { deleteFileName = null },
-                text = stringResource(R.string.common_cancel),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
-            TextButton(
-                onClick = {
-                deleteFileName?.let {
-                    memoryRepository.deleteFile(it)
-                    files = memoryRepository.listAllFiles()
-                }
-                deleteFileName = null
+        com.openminis.app.ui.components.MinisDialogActions(
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { deleteFileName = null },
+                    text = stringResource(R.string.common_cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             },
-                text = stringResource(R.string.common_delete),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-            )
-        }
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                    deleteFileName?.let {
+                        memoryRepository.deleteFile(it)
+                        files = memoryRepository.listAllFiles()
+                    }
+                    deleteFileName = null
+                },
+                    text = stringResource(R.string.common_delete),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                )
+            },
+        )
     }
 }
 

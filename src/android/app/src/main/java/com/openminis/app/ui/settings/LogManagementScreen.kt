@@ -49,7 +49,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.RandomAccessFile
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
@@ -57,7 +57,7 @@ import top.yukonga.miuix.kmp.basic.TabRowDefaults
 import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.Arrangement
 import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 

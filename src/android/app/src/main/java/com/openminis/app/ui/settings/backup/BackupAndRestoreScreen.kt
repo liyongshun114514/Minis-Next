@@ -101,7 +101,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
@@ -109,7 +109,7 @@ import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import androidx.compose.ui.semantics.error

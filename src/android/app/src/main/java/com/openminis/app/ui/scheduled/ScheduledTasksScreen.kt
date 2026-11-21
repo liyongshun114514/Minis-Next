@@ -64,9 +64,9 @@ import com.openminis.app.scheduled.ScheduledTask
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 
 /**

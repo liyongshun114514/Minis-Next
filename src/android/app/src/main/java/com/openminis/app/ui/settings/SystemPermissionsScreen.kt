@@ -27,7 +27,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import com.openminis.app.ui.components.minisPageScrollPadding
@@ -50,7 +50,7 @@ import com.openminis.app.offload.ShizukuManager
 import com.openminis.app.power.PowerOptimizationManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
@@ -343,30 +343,33 @@ fun SystemPermissionsScreen(onBack: () -> Unit) {
                 show = showClearCorrectionConfirm,
                 onDismissRequest = { showClearCorrectionConfirm = false },
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = { showClearCorrectionConfirm = false },
-                        text = stringResource(R.string.voice_correction_consent_not_now),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-                    TextButton(
-                        onClick = {
-                        showClearCorrectionConfirm = false
-                        com.openminis.app.speech.correction.VoiceCorrection
-                            .clearAllData(context)
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.voice_correction_cleared),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showClearCorrectionConfirm = false },
+                            text = stringResource(R.string.voice_correction_consent_not_now),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
                     },
-                        text = stringResource(R.string.voice_correction_clear),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-                    )
-                }
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                            showClearCorrectionConfirm = false
+                            com.openminis.app.speech.correction.VoiceCorrection
+                                .clearAllData(context)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.voice_correction_cleared),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                            text = stringResource(R.string.voice_correction_clear),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                        )
+                    },
+                )
             }
         }
     }

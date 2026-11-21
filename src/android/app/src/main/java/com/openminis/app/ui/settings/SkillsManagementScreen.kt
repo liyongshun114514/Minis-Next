@@ -93,10 +93,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.openminis.app.i18n.uppercaseForDisplay
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
 import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar

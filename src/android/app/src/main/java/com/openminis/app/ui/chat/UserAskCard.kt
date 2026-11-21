@@ -82,10 +82,10 @@ import com.openminis.app.agent.userask.UserAskResultStatus
 import com.openminis.app.agent.userask.UserAskRisk
 import com.openminis.app.ui.theme.ChatColors
 import kotlinx.coroutines.delay
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 
 /**

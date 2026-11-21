@@ -168,6 +168,58 @@ class GlassUiPolishContractTest {
         assertTrue(bar.contains("MinisGlassTopBar(backdrop = LocalMinisActionBackdrop.current"))
     }
 
+    @Test fun `all modal forms share glass surfaces and filled actions without changing page buttons`() {
+        val dialog = ProductionSources.read("ui/components/MinisDialog.kt")
+        assertTrue(dialog.contains("GlassDialog("))
+        assertTrue(dialog.contains("scene?.acquire(blurBackground = true)"))
+        assertTrue(dialog.contains("if (!sameWindow)"))
+        assertTrue(dialog.contains("LocalMinisDialogSurface provides true"))
+        val button = ProductionSources.read("ui/components/MinisTextButton.kt")
+        assertTrue(button.contains("if (!LocalMinisDialogSurface.current)"))
+        assertTrue(button.contains("GlassDialogButton("))
+        assertTrue(button.contains("GlassDialogButtonRole.Destructive"))
+        val scene = ProductionSources.read("ui/components/MinisOverlayHost.kt")
+        assertTrue(scene.contains("scene?.backgroundBlurred == true"))
+        assertTrue(scene.contains(".textureBlur("))
+        assertTrue(scene.contains("if (scene != null && !scene.recording && blurAlpha > 0f)"))
+        for (path in listOf("ui/settings/MemoryManagementScreen.kt", "ui/settings/ThinkingRuleEditor.kt",
+            "ui/settings/ProviderDetailScreen.kt", "ui/settings/EnvironmentVariablesScreen.kt")) {
+            val source = ProductionSources.read(path)
+            assertTrue(path, source.contains("import com.openminis.app.ui.components.MinisDialog"))
+            assertTrue(path, source.contains("import com.openminis.app.ui.components.MinisTextButton as TextButton"))
+            assertFalse(path, source.contains("import top.yukonga.miuix.kmp.window.WindowDialog"))
+        }
+    }
+
+    @Test fun `thinking popup keeps slider behavior and maps its trigger to a real tap`() {
+        val chat = ProductionSources.read("ui/chat/ChatScreen.kt")
+        val popup = chat.substringAfter("internal fun ThinkingLevelSheet(").substringBefore("/** [T-speed-tier]")
+        assertTrue(popup.contains("MinisMenu("))
+        assertFalse(popup.contains("MinisBottomSheet("))
+        assertTrue(popup.contains("tapPositionInWindow = tapPositionInWindow"))
+        assertTrue(popup.contains("ComposerEffortSlider("))
+        assertTrue(popup.contains("LocalMinisMenuInteractive.current"))
+        assertTrue(chat.contains("thinkingLevelTap = thinkingLevelAnchor.clickPosition()"))
+        val editor = ProductionSources.read("ui/settings/ThinkingRuleEditor.kt")
+        assertTrue(editor.contains("formatTap = formatAnchor.clickPosition()"))
+        assertTrue(editor.contains("tapPositionInWindow = formatTap"))
+        assertTrue(editor.contains("onDismissFinished = {"))
+        assertTrue(editor.contains("if (result != null) onSave(result) else onDismiss()"))
+    }
+
+    @Test fun `settings and phone home chat share both push and pop translations`() {
+        val motion = ProductionSources.read("ui/navigation/PageSlideMotion.kt")
+        assertEquals(4, Regex("tween\\(260").findAll(motion).count())
+        assertFalse(motion.contains("spring("))
+        val navigation = ProductionSources.read("ui/navigation/AppNavigation.kt")
+        val panes = ProductionSources.read("ui/navigation/ChatSplitScaffold.kt")
+        for (name in listOf("pushEnter", "pushExit", "popEnter", "popExit")) {
+            assertTrue(name, navigation.contains("PageSlideMotion.$name()"))
+            assertTrue(name, panes.contains("PageSlideMotion.$name()"))
+        }
+        assertTrue(panes.contains("currentSessionId ?: if (!twoPane) lastDetailSessionId else null"))
+    }
+
     @Test fun `provider format choices use native contour tabs`() {
         val provider = ProductionSources.read("ui/settings/ProviderDetailScreen.kt")
         assertEquals(2, Regex("TabRowWithContour\\(").findAll(provider).count())

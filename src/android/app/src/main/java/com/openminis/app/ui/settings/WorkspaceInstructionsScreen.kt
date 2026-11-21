@@ -39,10 +39,10 @@ import com.openminis.app.R
 import com.openminis.app.agent.workspace.WorkspaceInstructionDiscovery
 import com.openminis.app.agent.workspace.WorkspaceInstructionStore
 import java.io.File
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error
 import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar

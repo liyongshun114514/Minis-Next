@@ -11,7 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,7 +33,7 @@ import com.openminis.app.ui.chat.ModelPickerSheet
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.repository.ProviderRepository
 import java.text.NumberFormat
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 
@@ -239,32 +239,35 @@ fun AutoCompactSettingsScreen(
                     )
                 }
                 Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = { showThresholdDialog = false },
-                        text = stringResource(R.string.common_cancel),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-                    TextButton(
-                        onClick = {
-                            // Validation is a pure function so the failure path is
-                            // testable: on invalid input the dialog stays open with
-                            // the draft intact, and nothing is persisted.
-                            when (val parsed = parseThresholdInput(thresholdDraft)) {
-                                is ThresholdParseResult.Valid -> {
-                                    AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)
-                                    showThresholdDialog = false
+                com.openminis.app.ui.components.MinisDialogActions(
+                    dismissButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { showThresholdDialog = false },
+                            text = stringResource(R.string.common_cancel),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                // Validation is a pure function so the failure path is
+                                // testable: on invalid input the dialog stays open with
+                                // the draft intact, and nothing is persisted.
+                                when (val parsed = parseThresholdInput(thresholdDraft)) {
+                                    is ThresholdParseResult.Valid -> {
+                                        AutoCompactPrefs.setThresholdTokens(context, editingEntryId, parsed.tokens)
+                                        showThresholdDialog = false
+                                    }
+                                    is ThresholdParseResult.Invalid -> thresholdError = parsed.error
                                 }
-                                is ThresholdParseResult.Invalid -> thresholdError = parsed.error
-                            }
-                        },
-                        text = stringResource(R.string.common_save),
-                        colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-                    )
-                }
+                            },
+                            text = stringResource(R.string.common_save),
+                            colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                        )
+                    },
+                )
             }
         }
     }

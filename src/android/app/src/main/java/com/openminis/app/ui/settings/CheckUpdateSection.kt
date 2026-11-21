@@ -19,7 +19,7 @@ import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.RadioButton
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +63,7 @@ import com.openminis.app.data.UpdateStateStore
 import kotlinx.coroutines.launch
 import com.openminis.app.i18n.uppercaseForDisplay
 import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 /**
@@ -256,26 +256,29 @@ fun CheckUpdateSection() {
         show = confirmBeta,
         onDismissRequest = { confirmBeta = false },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { confirmBeta = false },
-                text = stringResource(R.string.cancel),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
-            TextButton(
-                onClick = {
-                confirmBeta = false
-                // Clears the cache; the check below then runs at once.
-                UpdateStateStore.setChannel(context, UpdatePolicy.Channel.BETA)
-                UpdateAutoChecker.maybeCheck(context, "channel")
+        com.openminis.app.ui.components.MinisDialogActions(
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { confirmBeta = false },
+                    text = stringResource(R.string.cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             },
-                text = stringResource(R.string.update_channel_beta_confirm),
-                colors = ButtonDefaults.textButtonColorsPrimary(),
-            )
-        }
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                    confirmBeta = false
+                    // Clears the cache; the check below then runs at once.
+                    UpdateStateStore.setChannel(context, UpdatePolicy.Channel.BETA)
+                    UpdateAutoChecker.maybeCheck(context, "channel")
+                },
+                    text = stringResource(R.string.update_channel_beta_confirm),
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
+                )
+            },
+        )
     }
 
     update?.let { u ->

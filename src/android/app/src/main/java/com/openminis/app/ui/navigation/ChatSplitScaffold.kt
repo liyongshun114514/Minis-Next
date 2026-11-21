@@ -441,6 +441,12 @@ fun ChatSplitScaffold(
             ?.takeIf { it.pane == ListDetailPaneScaffoldRole.Detail }
             ?.contentKey
 
+        // The departing detail keeps its session until AnimatedPane finishes sliding out.
+        var lastDetailSessionId by remember { mutableStateOf(currentSessionId) }
+        androidx.compose.runtime.SideEffect {
+            if (currentSessionId != null) lastDetailSessionId = currentSessionId
+        }
+
         // [T-android-new-chat-shortcut] Open a fresh draft in the detail pane.
         // Hoisted out of the detailPane call below so the keyboard shortcut and
         // the "New Chat" menu item cannot drift into doing different things.
@@ -544,9 +550,9 @@ fun ChatSplitScaffold(
         listPane = {
             AnimatedPane(
                 modifier = if (twoPane) Modifier.width(effectiveListWidth) else Modifier,
-                enterTransition = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
-                exitTransition = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)),
-                boundsAnimationSpec = androidx.compose.animation.core.tween(220),
+                enterTransition = if (twoPane) androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)) else PageSlideMotion.popEnter(),
+                exitTransition = if (twoPane) androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) else PageSlideMotion.pushExit(),
+                boundsAnimationSpec = androidx.compose.animation.core.tween(if (twoPane) 220 else 260),
             ) {
                 listPane(
                     // Only reflect a selection when both panes are visible.
@@ -589,9 +595,9 @@ fun ChatSplitScaffold(
         },
         detailPane = {
             AnimatedPane(
-                enterTransition = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
-                exitTransition = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)),
-                boundsAnimationSpec = androidx.compose.animation.core.tween(220),
+                enterTransition = if (twoPane) androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)) else PageSlideMotion.pushEnter(),
+                exitTransition = if (twoPane) androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) else PageSlideMotion.popExit(),
+                boundsAnimationSpec = androidx.compose.animation.core.tween(if (twoPane) 220 else 260),
             ) {
                 // [T-android-tablet-split-gutters] Divider on the detail pane's
                 // leading edge. The two panes differ only by background colour
@@ -599,9 +605,7 @@ fun ChatSplitScaffold(
                 // in light theme the boundary was nearly invisible. SwiftUI's
                 // NavigationSplitView draws its own separator; ListDetailPane-
                 // Scaffold does not.
-                val sessionId = navigator.currentDestination
-                    ?.takeIf { it.pane == ListDetailPaneScaffoldRole.Detail }
-                    ?.contentKey
+                val sessionId = currentSessionId ?: if (!twoPane) lastDetailSessionId else null
                 Row(Modifier.fillMaxSize()) {
                     // [T-android-tablet-sidebar-collapse] No seam to draw when
                     // the list is collapsed — the chat then owns the full width

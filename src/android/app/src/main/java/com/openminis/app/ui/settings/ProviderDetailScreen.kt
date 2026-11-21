@@ -72,7 +72,7 @@ import com.openminis.app.R
 import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SectionTextField
 import com.openminis.app.ui.components.MinisDropdownPreference
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
@@ -81,7 +81,7 @@ import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
 import com.openminis.app.data.model.ImageEndpointMode
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import androidx.compose.ui.semantics.error

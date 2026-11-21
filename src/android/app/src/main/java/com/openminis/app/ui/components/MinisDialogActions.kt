@@ -17,10 +17,20 @@ internal fun MinisDialogActions(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { dismissButton() }
-        androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { confirmButton() }
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalMinisDialogActionRole provides top.yukonga.miuix.kmp.glass.GlassDialogButtonRole.Normal,
+                content = dismissButton,
+            )
+        }
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalMinisDialogActionRole provides top.yukonga.miuix.kmp.glass.GlassDialogButtonRole.Primary,
+                content = confirmButton,
+            )
+        }
     }
 }

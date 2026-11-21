@@ -48,7 +48,7 @@ import com.openminis.app.mcp.oauth.MCPOAuthController
 import com.openminis.app.mcp.oauth.MCPOAuthSignInLogic
 import com.openminis.app.mcp.oauth.McpDiscoveryException
 import com.openminis.app.ui.components.DialogTextField
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.PaddingValues
@@ -56,7 +56,7 @@ import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
 import com.openminis.app.ui.components.preferenceTabMinWidth
 import com.openminis.app.ui.components.preferenceTabHeight
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
 

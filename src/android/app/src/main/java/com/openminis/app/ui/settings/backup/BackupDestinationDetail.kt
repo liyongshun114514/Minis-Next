@@ -31,11 +31,11 @@ import com.openminis.app.ui.settings.SettingsValueRow
 import java.text.DateFormat
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.Arrangement
 import top.yukonga.miuix.kmp.basic.TextField
 import androidx.compose.ui.semantics.error

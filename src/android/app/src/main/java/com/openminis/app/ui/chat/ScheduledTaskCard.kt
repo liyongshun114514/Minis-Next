@@ -47,10 +47,10 @@ import com.openminis.app.ui.theme.ChatColors
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 
 /** [T-android-scheduled-task-card] Amber — a timer, not an agent. */
 internal val ScheduledAccent = Color(0xFFF59E0B)

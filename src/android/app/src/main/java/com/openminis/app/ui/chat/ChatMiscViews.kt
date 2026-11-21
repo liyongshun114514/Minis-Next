@@ -266,8 +266,8 @@ import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 
 // ─── Bordered Markdown Table (iOS style: bordered cells with grid lines) ─────
 

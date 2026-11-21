@@ -1,6 +1,11 @@
 package com.openminis.app.ui.settings
 
 import com.openminis.app.ui.components.minisJellyPress
+import com.openminis.app.ui.components.MinisMenu
+import com.openminis.app.ui.components.minisMenuAnchor
+import com.openminis.app.ui.components.rememberMinisMenuAnchor
+import androidx.compose.ui.geometry.Offset
+import top.yukonga.miuix.kmp.glass.GlassPopupItem
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -12,8 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.openminis.app.ui.components.miuix.DropdownMenu
-import com.openminis.app.ui.components.miuix.DropdownMenuItem
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
@@ -33,10 +36,10 @@ import com.openminis.app.provider.thinking.ThinkingResolveContext
 import com.openminis.app.provider.thinking.ThinkingRuleResolver
 import com.openminis.app.provider.thinking.ThinkingWireFormat
 import org.json.JSONObject
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import androidx.compose.ui.semantics.error
@@ -51,9 +54,8 @@ data class ThinkingRuleEditorRequest(
 )
 
 /**
- * [T-android-thinking-rules-phase2 §3] Full-screen-ish dialog to add/edit a custom rule.
- * A Dialog (own window) — deliberately NOT a sheet hosted by a section, which is the
- * navigation trap iOS hit (the sheet dismissed the whole settings stack).
+ * Glass dialog for a custom rule, hosted above the page and its backdrop recording.
+ * Dismissal closes only the editor, with save/cancel dispatched after its native exit.
  *
  * User-selectable wire formats are a deliberate SUBSET (the Chat-Completions family):
  * Gemini/Anthropic formats are model-generation dependent and would only build broken
@@ -80,6 +82,10 @@ fun ThinkingRuleEditorDialog(
         mutableStateOf((seed.wireFormat as? ThinkingWireFormat.CustomPath)?.values?.get(ThinkingLevel.HIGH) ?: "")
     }
     var formatMenuOpen by remember { mutableStateOf(false) }
+    val formatAnchor = rememberMinisMenuAnchor()
+    var formatTap by remember { mutableStateOf<Offset?>(null) }
+    var editorVisible by remember { mutableStateOf(true) }
+    var savedRule by remember { mutableStateOf<ThinkingRule?>(null) }
 
     fun buildWireFormat(): ThinkingWireFormat = when (choice) {
         FormatChoice.OMIT -> ThinkingWireFormat.OmitEverything
@@ -136,14 +142,18 @@ fun ThinkingRuleEditorDialog(
         pathError == null && valueError == null && offValueError == null
 
     WindowDialog(
-        show = true,
-        onDismissRequest = onDismiss,
+        show = editorVisible,
+        onDismissRequest = { editorVisible = false },
+        onDismissFinished = {
+            val result = savedRule
+            if (result != null) onSave(result) else onDismiss()
+        },
         title = stringResource(
                         if (request.isNew) R.string.thinking_rules_new_rule else R.string.thinking_rules_edit_rule,
                     ),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                             // Name
                             TextField(
                                 value = label,
@@ -188,16 +198,24 @@ fun ThinkingRuleEditorDialog(
                                 color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                             )
                             Column {
-                                TextButton(
-                                    modifier = Modifier.minisJellyPress(),
-                                    onClick = { formatMenuOpen = true },
+                                top.yukonga.miuix.kmp.basic.TextButton(
+                                    modifier = Modifier.minisMenuAnchor(formatAnchor).minisJellyPress(),
+                                    onClick = {
+                                        formatTap = formatAnchor.clickPosition()
+                                        formatMenuOpen = true
+                                    },
                                     text = stringResource(choice.titleRes),
                                     colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                                 )
-                                DropdownMenu(expanded = formatMenuOpen, onDismissRequest = { formatMenuOpen = false }) {
+                                MinisMenu(
+                                    expanded = formatMenuOpen,
+                                    onDismissRequest = { formatMenuOpen = false },
+                                    tapPositionInWindow = formatTap,
+                                ) {
                                     FormatChoice.entries.forEach { c ->
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(c.titleRes)) },
+                                        GlassPopupItem(
+                                            text = stringResource(c.titleRes),
+                                            selected = choice == c,
                                             onClick = { choice = c; formatMenuOpen = false },
                                         )
                                     }
@@ -321,7 +339,7 @@ fun ThinkingRuleEditorDialog(
                 dismissButton = {
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = onDismiss,
+                        onClick = { editorVisible = false },
                         text = stringResource(R.string.common_cancel),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
                     )
@@ -329,7 +347,12 @@ fun ThinkingRuleEditorDialog(
                 confirmButton = {
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { if (isValid) onSave(buildRule()) },
+                        onClick = {
+                            if (isValid) {
+                                savedRule = buildRule()
+                                editorVisible = false
+                            }
+                        },
                         enabled = isValid,
                         text = stringResource(R.string.common_save),
                         colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),

@@ -40,7 +40,7 @@ fun rememberDatePickerState(initialSelectedDateMillis: Long?): DatePickerState =
 @Composable
 fun DatePickerDialog(onDismissRequest: () -> Unit, confirmButton: @Composable () -> Unit,
     dismissButton: @Composable () -> Unit, content: @Composable () -> Unit) =
-    top.yukonga.miuix.kmp.window.WindowDialog(show = true, onDismissRequest = onDismissRequest) {
+    com.openminis.app.ui.components.MinisDialog(show = true, onDismissRequest = onDismissRequest) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             content()
             confirmButton()

@@ -21,15 +21,19 @@ internal val LocalMinisPageBackdrop = staticCompositionLocalOf<Backdrop?> { null
 @Stable
 internal class MinisSceneBackdrop(val backdrop: LayerBackdrop) {
     private var consumers by mutableIntStateOf(0)
+    private var modalConsumers by mutableIntStateOf(0)
     val recording: Boolean get() = consumers > 0
+    val backgroundBlurred: Boolean get() = modalConsumers > 0
 
-    fun acquire(): () -> Unit {
+    fun acquire(blurBackground: Boolean = false): () -> Unit {
         consumers++
+        if (blurBackground) modalConsumers++
         var released = false
         return {
             if (!released) {
                 released = true
                 consumers--
+                if (blurBackground) modalConsumers--
             }
         }
     }

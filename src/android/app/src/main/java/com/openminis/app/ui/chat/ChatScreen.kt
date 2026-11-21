@@ -308,11 +308,11 @@ import com.openminis.app.data.repository.ProviderRepository
 import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.safeLaunchPicker
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.ui.unit.DpSize
 import com.openminis.app.ui.components.MinisBottomSheet
 
@@ -1019,6 +1019,9 @@ fun ChatScreen(
     // (opened by tapping the navbar thinking badge) is presented. Mirrors iOS
     // AIChatView.showThinkingLevelSheet.
     var showThinkingLevelSheet by remember { mutableStateOf(false) }
+    val thinkingLevelAnchor = com.openminis.app.ui.components.rememberMinisMenuAnchor()
+    var thinkingLevelTap by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+    var openThinkingAfterAttach by remember { mutableStateOf(false) }
     var showAttachMenu by remember { mutableStateOf(false) }
     var showComposerPermission by remember { mutableStateOf(false) }
     var showChatMenu by remember { mutableStateOf(false) }
@@ -7181,6 +7184,13 @@ fun ChatScreen(
                             MinisMenu(
                                 expanded = showAttachMenu,
                                 onDismissRequest = { showAttachMenu = false },
+                                onDismissFinished = {
+                                    if (openThinkingAfterAttach) {
+                                        openThinkingAfterAttach = false
+                                        thinkingLevelTap = thinkingLevelAnchor.clickPosition()
+                                        showThinkingLevelSheet = true
+                                    }
+                                },
                                 glassAnchor = attachAnchor,
                                 anchorContent = {
                                     Icon(Icons.Default.Add, contentDescription = null,
@@ -7248,9 +7258,8 @@ fun ChatScreen(
                                     onPick = { cmd ->
                                         showAttachMenu = false
                                         if (cmd.id == "thinking") {
-                                            // The slider lives in the sheet; do
-                                            // not toggle thinking blindly.
-                                            showThinkingLevelSheet = true
+                                            // Let the parent menu finish closing before the slider opens.
+                                            openThinkingAfterAttach = true
                                         } else {
                                             // Same dispatcher as the native "/"
                                             // picker. Prime the VM's
@@ -7303,7 +7312,11 @@ fun ChatScreen(
                             availableLevels = viewModel.availableThinkingLevels,
                             reasoningSupported = viewModel.currentModelSupportsReasoning,
                             onModelClick = { showModelPicker = true },
-                            onLevelClick = { showThinkingLevelSheet = true },
+                            onLevelClick = {
+                                thinkingLevelTap = thinkingLevelAnchor.clickPosition()
+                                showThinkingLevelSheet = true
+                            },
+                            levelAnchor = thinkingLevelAnchor,
                             modelInteractionSource = modelPickerInteraction,
                             compact = true,
                             showLevel = true,
@@ -8262,26 +8275,18 @@ fun ChatScreen(
         )
     }
 
-    // [T-android-thinking-badge-navbar] Thinking-level sheet opened by tapping
-    // the navbar thinking badge. Mirrors iOS ThinkingLevelSheetView: an Off row
-    // plus every level the current model supports, each selectable.
-    if (showThinkingLevelSheet) {
-        val currentThinkingLevel by viewModel.thinkingLevel.collectAsState()
-        ThinkingLevelSheet(
-            currentLevel = currentThinkingLevel,
-            availableLevels = viewModel.availableThinkingLevels,
-            onSelect = { level ->
-                // The slider sheet stays open while the user compares levels;
-                // its OK button dismisses. Persistence/clamping still lives in
-                // ChatViewModel.setThinkingLevel.
-                viewModel.setThinkingLevel(level)
-            },
-            onDismiss = { showThinkingLevelSheet = false },
-            // Sample the recorded chat page: the shared scene would read the
-            // sheet's own surface back into its blur.
-            backdrop = chatTopBackdrop,
-        )
-    }
+    // Retain the horizontal popup through its native jelly exit animation.
+    // The slider's release-only selection and ViewModel clamping are unchanged.
+    val currentThinkingLevel by viewModel.thinkingLevel.collectAsState()
+    ThinkingLevelSheet(
+        show = showThinkingLevelSheet,
+        currentLevel = currentThinkingLevel,
+        availableLevels = viewModel.availableThinkingLevels,
+        onSelect = { level -> viewModel.setThinkingLevel(level) },
+        onDismiss = { showThinkingLevelSheet = false },
+        tapPositionInWindow = thinkingLevelTap,
+        backdrop = chatTopBackdrop,
+    )
 
     ComposerPermissionDialog(
         show = showComposerPermission,
@@ -8626,67 +8631,53 @@ private fun ThinkingLevelBadge(
     }
 }
 
-/**
- * [T-android-thinking-badge-navbar] Bottom-sheet thinking-level selector opened
- * from [ThinkingLevelBadge]. Hosts the particle effort slider with one stop per
- * level the current model really supports, preceded by Off; each stop is
- * labelled with its English mode name (off / low / medium / high / xhigh / max /
- * ultra). Releasing the slider calls [onSelect] without dismissing, so several
- * levels can be compared; the explicit OK button closes the sheet and the sheet
- * can still be dismissed by swipe/back/outside tap.
- */
+/** Horizontal, touch-anchored glass popup; the particle slider retains its original behavior. */
 @Composable
-private fun ThinkingLevelSheet(
+internal fun ThinkingLevelSheet(
+    show: Boolean,
     currentLevel: com.openminis.app.data.model.ThinkingLevel,
     availableLevels: List<com.openminis.app.data.model.ThinkingLevel>,
     onSelect: (com.openminis.app.data.model.ThinkingLevel) -> Unit,
     onDismiss: () -> Unit,
+    tapPositionInWindow: androidx.compose.ui.geometry.Offset?,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
-    // Off is always offered (turns thinking off); availableLevels already
-    // excludes Off, so prepend it. De-dup defensively in case a caller ever
-    // includes it.
     val rows = remember(availableLevels) {
         listOf(com.openminis.app.data.model.ThinkingLevel.OFF) +
             availableLevels.filter { it != com.openminis.app.data.model.ThinkingLevel.OFF }
     }
-    MinisBottomSheet(
-        show = true,
-        deferDismissRequest = true,
-        insideMargin = DpSize.Zero,
+    MinisMenu(
+        expanded = show,
         onDismissRequest = onDismiss,
+        minWidth = 320.dp,
+        maxPanelWidth = 420.dp,
+        tapPositionInWindow = tapPositionInWindow,
+        preferAbove = true,
         backdrop = backdrop,
     ) {
-        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-            Text(
-                text = stringResource(R.string.thinking_level_sheet_title),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ChatColors.primaryText,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-            HorizontalDivider(color = ChatColors.toolBorder, thickness = 0.5.dp)
-            // [T-native-composer-slider] The upstream Composer UI replaced
-            // the discrete row list with its particle effort slider. Native
-            // Compose now hosts the same slider, with the SAME rows list
-            // (OFF + levels the model supports) and the SAME onSelect /
-            // setThinkingLevel path, so the persisted value and all clamping
-            // stay in ChatViewModel.
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.thinking_level_sheet_title),
+                    style = MiuixTheme.textStyles.body2,
+                    color = ChatColors.primaryText,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close),
+                        modifier = Modifier.size(18.dp))
+                }
+            }
             ComposerEffortSlider(
                 levels = rows,
                 current = currentLevel,
-                enabled = rows.size > 1,
+                enabled = rows.size > 1 && com.openminis.app.ui.components.LocalMinisMenuInteractive.current,
                 onSelect = onSelect,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
             )
-            // No gesture hint: the slider is direct manipulation (press, drag,
-            // release) and the English mode names under its dots name every
-            // stop. The old "Drag to choose · release to apply" line only
-            // repeated that and stole a row from the sheet. Keep copy solely
-            // for the genuinely non-interactive case.
             if (rows.size <= 1) {
                 Text(
                     text = "This model does not support reasoning levels",
@@ -8695,16 +8686,6 @@ private fun ThinkingLevelSheet(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
                 )
             }
-            // Selecting a slider position no longer dismisses the sheet, so
-            // the user can compare levels; this explicit action closes it.
-            TextButton(
-                onClick = dismissSheet,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                text = stringResource(android.R.string.ok),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
         }
     }
 }

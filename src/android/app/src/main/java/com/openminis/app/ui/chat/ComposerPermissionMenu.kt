@@ -29,10 +29,10 @@ import com.openminis.app.offload.OffloadPermissionManager
 import com.openminis.app.offload.RootAccess
 import com.openminis.app.offload.RootGrantPolicy
 import com.openminis.app.offload.RootManager
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.Arrangement
 
 /** A live projection of the same permission used by native Root and chroot. */

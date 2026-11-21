@@ -57,8 +57,8 @@ import com.openminis.app.ui.components.SwipeRowActions
 import com.openminis.app.ui.components.safeLaunchPicker
 import com.openminis.app.logging.AppLogger
 import com.openminis.app.R
-import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 
 @Composable

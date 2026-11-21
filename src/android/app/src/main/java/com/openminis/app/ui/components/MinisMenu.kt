@@ -79,6 +79,8 @@ fun MinisMenu(
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset.Zero,
     minWidth: Dp = 180.dp,
+    maxPanelWidth: Dp = 280.dp,
+    backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     alignEnd: Boolean = false,
     onDismissFinished: (() -> Unit)? = null,
     glassAnchor: GlassPopupAnchor? = null,
@@ -104,7 +106,7 @@ fun MinisMenu(
         }
     }
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
-    val pageBackdrop = if (sameWindow) LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current else null
+    val pageBackdrop = if (sameWindow) backdrop ?: LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current else null
     val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow && pageBackdrop == null }
     DisposableEffect(scene) {
         val release = scene?.acquire()
@@ -129,7 +131,7 @@ fun MinisMenu(
         )
     }
     val maxWidth = with(density) {
-        (safeBounds.width.toDp() - MinisMenuPosition.HORIZONTAL_MARGIN * 2).coerceIn(0.dp, 280.dp)
+        (safeBounds.width.toDp() - MinisMenuPosition.HORIZONTAL_MARGIN * 2).coerceIn(0.dp, maxPanelWidth)
     }
     val maxHeight = with(density) {
         (safeBounds.height.toDp() - MinisMenuPosition.VERTICAL_MARGIN * 2).coerceIn(0.dp, GlassPopupDefaults.MaxHeight)
@@ -180,7 +182,11 @@ fun MinisMenu(
                 DisposableEffect(Unit) {
                     onDispose { finishDismiss() }
                 }
-                CompositionLocalProvider(LocalMinisMenuInteractive provides expanded) {
+                CompositionLocalProvider(
+                    LocalMinisMenuInteractive provides expanded,
+                    LocalMinisDialogSurface provides false,
+                    LocalMinisDialogActionRole provides null,
+                ) {
                     Column(
                         Modifier.onSizeChanged { panelSize = it }
                             .then(modifier).focusGroup()

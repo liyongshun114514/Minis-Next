@@ -195,8 +195,10 @@ def main() -> int:
        "chips do not read the live reasoning capability")
     ok("onModelClick = { showModelPicker = true }" in chat[call_at:call_at + 900],
        "model chip does not open the native model picker")
-    ok("onLevelClick = { showThinkingLevelSheet = true }" in chat[call_at:call_at + 900],
-       "level chip does not open the native thinking sheet")
+    level_click = chat[call_at:call_at + 1200].split("onLevelClick = {", 1)[-1].split("},", 1)[0]
+    ok("showThinkingLevelSheet = true" in level_click and
+       "thinkingLevelTap = thinkingLevelAnchor.clickPosition()" in level_click,
+       "level chip does not open the thinking popup from its actual click")
     ok("modelInteractionSource = modelPickerInteraction" in chat[call_at:call_at + 900],
        "model chip lost the native model-picker interaction source")
     # Nothing else on that row: no group label, no speed tier, no quota dot.
@@ -327,7 +329,7 @@ def main() -> int:
        and "if (showComposerPermission)" not in chat,
        "composer permission dialog must remain composed through exit")
     slider_code = strip_kotlin(extras[extras.index("internal fun ComposerEffortSlider("):])
-    slider_sheet = chat[chat.index("private fun ThinkingLevelSheet("):]
+    slider_sheet = chat[chat.index("internal fun ThinkingLevelSheet("):]
     ok(re.search(r'text\s*=\s*"Drag to choose', slider_sheet) is None
        and 'text = if (rows.size > 1)' not in slider_sheet,
        "redundant drag/release hint still rendered")

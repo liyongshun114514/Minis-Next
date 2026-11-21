@@ -26,7 +26,7 @@ import com.openminis.app.ui.components.MinisPageScaffold as Scaffold
 import com.openminis.app.ui.settings.MinisSmallTopAppBar as SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import com.openminis.app.ui.components.minisPageScrollPadding
@@ -51,7 +51,7 @@ import com.openminis.app.R
 import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.ui.components.SectionTextField
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Switch
 
@@ -218,27 +218,30 @@ fun MountDetailScreen(
         show = showUnmountConfirm,
         onDismissRequest = { showUnmountConfirm = false },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { showUnmountConfirm = false },
-                text = stringResource(R.string.cancel),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
-            TextButton(
-                onClick = {
-                showUnmountConfirm = false
-                scope.launch {
-                    store.remove(entry.id)
-                    onBack()
-                }
+        com.openminis.app.ui.components.MinisDialogActions(
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showUnmountConfirm = false },
+                    text = stringResource(R.string.cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             },
-                text = stringResource(R.string.mount_unmount_confirm),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-            )
-        }
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                    showUnmountConfirm = false
+                    scope.launch {
+                        store.remove(entry.id)
+                        onBack()
+                    }
+                },
+                    text = stringResource(R.string.mount_unmount_confirm),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                )
+            },
+        )
     }
 }
 

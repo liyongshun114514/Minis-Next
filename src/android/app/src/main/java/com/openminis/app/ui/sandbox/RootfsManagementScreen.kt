@@ -60,11 +60,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.openminis.app.ui.components.SettingsRowDivider
 import com.openminis.app.ui.components.SettingsSection
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.window.WindowDialog
+import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import com.openminis.app.ui.components.MinisTopAppBar as TopAppBar
 import top.yukonga.miuix.kmp.basic.BasicComponent
 

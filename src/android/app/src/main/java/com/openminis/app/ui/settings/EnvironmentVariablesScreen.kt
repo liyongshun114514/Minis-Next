@@ -30,7 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import com.openminis.app.ui.components.MinisDialog
 import top.yukonga.miuix.kmp.glass.GlassDialogButton
 import top.yukonga.miuix.kmp.glass.GlassDialogButtonRole
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import com.openminis.app.ui.components.MinisDialog as OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.data.repository.EnvVarRepository
 import com.openminis.app.deeplink.DeepLinkCoordinator
-import top.yukonga.miuix.kmp.basic.TextButton
+import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 
@@ -276,24 +276,27 @@ fun EnvironmentVariablesScreen(
         show = deleteEntryId != null,
         onDismissRequest = { deleteEntryId = null },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { deleteEntryId = null },
-                text = stringResource(R.string.common_cancel),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
-            )
-            TextButton(
-                onClick = {
-                deleteEntryId?.let { envVarRepository.delete(it) }
-                deleteEntryId = null
+        com.openminis.app.ui.components.MinisDialogActions(
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { deleteEntryId = null },
+                    text = stringResource(R.string.common_cancel),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.primary),
+                )
             },
-                text = stringResource(R.string.common_delete),
-                colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
-            )
-        }
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                    deleteEntryId?.let { envVarRepository.delete(it) }
+                    deleteEntryId = null
+                },
+                    text = stringResource(R.string.common_delete),
+                    colors = ButtonDefaults.textButtonColors(color = Color.Transparent, disabledColor = Color.Transparent, textColor = MiuixTheme.colorScheme.error),
+                )
+            },
+        )
     }
 }
 

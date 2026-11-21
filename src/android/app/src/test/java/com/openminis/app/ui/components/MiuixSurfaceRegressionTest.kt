@@ -95,16 +95,15 @@ class MiuixSurfaceRegressionTest {
                     onDismissFinished = { finished++ }) {
                     Column(Modifier.fillMaxWidth().testTag("inset-dialog-body")) {
                         Text("Variable draft")
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            top.yukonga.miuix.kmp.glass.GlassDialogButton(
-                                modifier = Modifier.weight(1f), onClick = { show = false },
-                            ) { Text("Cancel draft") }
-                            top.yukonga.miuix.kmp.glass.GlassDialogButton(
-                                modifier = Modifier.weight(1f), enabled = false,
-                                role = top.yukonga.miuix.kmp.glass.GlassDialogButtonRole.Primary,
-                                onClick = { confirmed++ },
-                            ) { Text("Save draft") }
-                        }
+                        MinisDialogActions(
+                            dismissButton = {
+                                MinisTextButton("Cancel draft", onClick = { show = false }, modifier = Modifier.fillMaxWidth())
+                            },
+                            confirmButton = {
+                                MinisTextButton("Save draft", onClick = { confirmed++ },
+                                    modifier = Modifier.fillMaxWidth(), enabled = false)
+                            },
+                        )
                     }
                 }
             }
@@ -120,7 +119,11 @@ class MiuixSurfaceRegressionTest {
             assertEquals(left.center.y, right.center.y, 1f)
             assertTrue(left.right < right.left)
             assertTrue(cancel.captureToImage().width > 0)
-            compose.runOnIdle { assertTrue(scene?.recording == true); assertEquals(0, confirmed) }
+            compose.runOnIdle {
+                assertTrue(scene?.recording == true)
+                assertTrue("modal blurs the whole page", scene?.backgroundBlurred == true)
+                assertEquals(0, confirmed)
+            }
             compose.mainClock.autoAdvance = false
             cancel.performClick()
             compose.mainClock.advanceTimeBy(32)
@@ -129,7 +132,112 @@ class MiuixSurfaceRegressionTest {
             compose.mainClock.autoAdvance = true
             compose.waitForIdle()
             compose.onNodeWithTag("inset-dialog-body").assertDoesNotExist()
-            compose.runOnIdle { assertEquals(cycle + 1, finished); assertFalse(scene?.recording == true) }
+            compose.runOnIdle {
+                assertEquals(cycle + 1, finished)
+                assertFalse(scene?.recording == true)
+                assertFalse("modal background clears after exit", scene?.backgroundBlurred == true)
+            }
+        }
+    }
+
+    @Test fun menuAnchorUsesTheActualTapAndFallsBackToCentreForKeyboard() {
+        var anchor: MinisMenuAnchor? = null
+        var lastClick: androidx.compose.ui.geometry.Offset? = null
+        compose.setContent {
+            MinisTheme {
+                val target = rememberMinisMenuAnchor()
+                SideEffect { anchor = target }
+                TextButton(
+                    text = "Choose format", onClick = { lastClick = target.clickPosition() },
+                    modifier = Modifier.width(240.dp).height(64.dp).minisMenuAnchor(target).testTag("format-anchor"),
+                )
+            }
+        }
+        val button = compose.onNodeWithTag("format-anchor")
+        button.performTouchInput { click(androidx.compose.ui.geometry.Offset(13f, 17f)) }
+        compose.runOnIdle {
+            val coordinates = requireNotNull(anchor?.coordinates)
+            val expected = coordinates.localToWindow(androidx.compose.ui.geometry.Offset(13f, 17f))
+            assertEquals(expected.x, requireNotNull(lastClick).x, 1f)
+            assertEquals(expected.y, requireNotNull(lastClick).y, 1f)
+        }
+        button.performClick()
+        compose.runOnIdle {
+            val coordinates = requireNotNull(anchor?.coordinates)
+            val expected = coordinates.localToWindow(androidx.compose.ui.geometry.Offset(
+                coordinates.size.width / 2f, coordinates.size.height / 2f,
+            ))
+            assertEquals(expected.x, requireNotNull(lastClick).x, 1f)
+            assertEquals(expected.y, requireNotNull(lastClick).y, 1f)
+        }
+    }
+
+    @Test fun horizontalThinkingPopupCanCloseAndReopenWithoutChangingTheLevel() {
+        var shown by mutableStateOf(false)
+        var commits = 0
+        var tap: androidx.compose.ui.geometry.Offset? = null
+        compose.setContent {
+            MinisTheme {
+                val anchor = rememberMinisMenuAnchor()
+                Box(Modifier.fillMaxSize()) {
+                    TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).minisMenuAnchor(anchor))
+                    com.openminis.app.ui.chat.ThinkingLevelSheet(
+                        show = shown, currentLevel = ThinkingLevel.OFF, availableLevels = emptyList(),
+                        onSelect = { commits++ }, onDismiss = { shown = false }, tapPositionInWindow = tap,
+                    )
+                }
+            }
+        }
+        repeat(2) {
+            compose.onNodeWithText("Open effort").performClick()
+            compose.onNodeWithContentDescription("Thinking effort: Off").assertIsDisplayed()
+            val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))
+            close.assertIsDisplayed().performClick()
+            compose.onNodeWithContentDescription("Thinking effort: Off").assertDoesNotExist()
+            compose.runOnIdle { assertEquals(0, commits) }
+        }
+    }
+
+    @Test fun ruleEditorUsesAnAnchoredFormatMenuAndSavesOnlyAfterExit() {
+        var shown by mutableStateOf(false)
+        var saved: com.openminis.app.provider.thinking.ThinkingRule? = null
+        val request = com.openminis.app.ui.settings.ThinkingRuleEditorRequest(
+            existingId = null, isNew = true,
+            seed = com.openminis.app.provider.thinking.ThinkingRule(
+                kind = com.openminis.app.provider.thinking.ThinkingRule.Kind.CUSTOM,
+                scope = com.openminis.app.provider.thinking.ThinkingRule.Scope.AllModels,
+                wireFormat = com.openminis.app.provider.thinking.ThinkingWireFormat.ReasoningEffort(null),
+                label = "",
+            ),
+        )
+        compose.setContent {
+            MinisTheme {
+                TextButton("Open rule", onClick = { shown = true })
+                if (shown) com.openminis.app.ui.settings.ThinkingRuleEditorDialog(
+                    request = request, onDismiss = { shown = false }, onSave = { saved = it; shown = false },
+                )
+            }
+        }
+        compose.onNodeWithText("Open rule").performClick()
+        val save = compose.onNodeWithText(compose.activity.getString(com.openminis.app.R.string.common_save))
+        save.assertIsNotEnabled()
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("Test rule")
+        val format = compose.activity.getString(com.openminis.app.R.string.thinking_fmt_effort_title)
+        val nested = compose.activity.getString(com.openminis.app.R.string.thinking_fmt_effort_nested_title)
+        compose.onNodeWithText(format).performTouchInput { click(topLeft + androidx.compose.ui.geometry.Offset(8f, 8f)) }
+        compose.onNodeWithText(nested).assertIsDisplayed().performClick()
+        save.assertIsEnabled()
+        compose.mainClock.autoAdvance = false
+        save.performClick()
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNode(hasSetTextAction() and hasText("Test rule")).assertExists()
+        compose.runOnIdle { assertNull(saved) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals("Test rule", saved?.label)
+            assertTrue(saved?.wireFormat is com.openminis.app.provider.thinking.ThinkingWireFormat.ReasoningEffortNested)
         }
     }
 
@@ -428,6 +536,49 @@ class MiuixSurfaceRegressionTest {
             compose.onRoot().captureToImage()
             compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.settings_back)).performClick()
             compose.runOnIdle { assertNull(selected) }
+        }
+    }
+
+    @Test fun phoneHomeAndChatSlideBothWaysWithoutDroppingTheDepartingChat() {
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.navigation.ChatSplitScaffold(
+                    initialSessionId = null,
+                    listPane = { _, _, open ->
+                        Box(Modifier.fillMaxSize().background(MiuixTheme.colorScheme.surface).testTag("slide-home")) {
+                            TextButton("Open slide chat", onClick = { open("slide-session") })
+                        }
+                    },
+                    detailPane = { id, back, _, _, _, _ ->
+                        Column(Modifier.fillMaxSize().background(MiuixTheme.colorScheme.surface).testTag("slide-chat")) {
+                            Text("Session $id")
+                            TextButton("Back to slide home", onClick = back)
+                        }
+                    },
+                    onOpenSharedDraft = {},
+                )
+            }
+        }
+        repeat(2) {
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithText("Open slide chat").performClick()
+            compose.mainClock.advanceTimeBy(80)
+            val entering = compose.onNodeWithTag("slide-chat").fetchSemanticsNode().boundsInRoot
+            assertTrue("chat slides in from the right", entering.left > 0f)
+            compose.mainClock.autoAdvance = true
+            compose.waitForIdle()
+            val settled = compose.onNodeWithTag("slide-chat").fetchSemanticsNode().boundsInRoot
+            assertEquals(0f, settled.left, 1f)
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithText("Back to slide home").performClick()
+            compose.mainClock.advanceTimeBy(80)
+            compose.onNodeWithText("Session slide-session").assertExists()
+            val leaving = compose.onNodeWithTag("slide-chat").fetchSemanticsNode().boundsInRoot
+            assertTrue("departing chat slides right with its content", leaving.left > settled.left)
+            compose.mainClock.autoAdvance = true
+            compose.waitForIdle()
+            compose.onNodeWithTag("slide-chat").assertDoesNotExist()
+            compose.onNodeWithText("Open slide chat").assertIsDisplayed()
         }
     }
 

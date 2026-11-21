@@ -2,6 +2,8 @@ package com.openminis.app.ui.chat
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.openminis.app.ui.components.minisJellyPress
+import com.openminis.app.ui.components.MinisMenuAnchor
+import com.openminis.app.ui.components.minisMenuAnchor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -192,6 +194,7 @@ internal fun ComposerModelThinkingBar(
     // alone; the composer passes true so the level chip travels with the name
     // instead of being pinned to the mic slot.
     showLevel: Boolean = true,
+    levelAnchor: MinisMenuAnchor? = null,
 ) {
     val context = LocalContext.current
     // OFF is always offered (it switches thinking off); availableLevels never
@@ -292,6 +295,7 @@ internal fun ComposerModelThinkingBar(
             Box(
                 modifier = Modifier
                     .heightIn(min = 32.dp)
+                    .then(levelAnchor?.let { Modifier.minisMenuAnchor(it, levelEnabled) } ?: Modifier)
                     .minisJellyPress(levelEnabled)
                     .then(if (compact) Modifier.widthIn(min = 0.dp) else Modifier.widthIn(min = 64.dp))
                     .alpha(if (levelEnabled) 1f else 0.45f)

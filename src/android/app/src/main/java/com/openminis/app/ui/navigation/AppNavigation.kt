@@ -1,9 +1,6 @@
 package com.openminis.app.ui.navigation
 
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -80,18 +77,14 @@ import com.openminis.app.ui.terminal.TerminalScreen
 import com.openminis.app.ui.onboarding.OnboardingModelSelectionScreen
 import kotlinx.coroutines.flow.first
 
-// T342: Material 3 motion easing curves. Compose-Material3 (1.3.x) ships
-// `MotionScheme` only in 1.4-alpha; mirror the spec values directly so we
-// don't take a dependency-bump tax just for two CubicBezierEasing instances.
-// Source: m3.material.io/styles/motion/easing-and-duration/tokens-specs
-private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
-
 internal fun usesSettingsSlide(from: String?, to: String?): Boolean {
     fun settingsPage(route: String?): Boolean = route != null &&
         route != Routes.SESSION_LIST && !route.startsWith("chat/") &&
         !route.startsWith("terminal") && !route.startsWith("agent_transcript/") &&
         route != Routes.FILE_PREVIEW && !route.startsWith("chat_files/")
-    return settingsPage(from) || settingsPage(to)
+    val homeChatPair = (from == Routes.SESSION_LIST && to?.startsWith("chat/") == true) ||
+        (to == Routes.SESSION_LIST && from?.startsWith("chat/") == true)
+    return settingsPage(from) || settingsPage(to) || homeChatPair
 }
 
 object Routes {
@@ -596,22 +589,22 @@ fun AppNavigation(
         // Chat's list/detail animation remains owned by ChatSplitScaffold.
         enterTransition = {
             if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
-                slideInHorizontally(tween(260, easing = EmphasizedDecelerate)) { it }
+                PageSlideMotion.pushEnter()
             } else fadeIn(tween(160))
         },
         exitTransition = {
             if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
-                slideOutHorizontally(tween(260, easing = EmphasizedDecelerate)) { -it / 4 }
+                PageSlideMotion.pushExit()
             } else fadeOut(tween(120))
         },
         popEnterTransition = {
             if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
-                slideInHorizontally(tween(260, easing = EmphasizedDecelerate)) { -it / 4 }
+                PageSlideMotion.popEnter()
             } else fadeIn(tween(160))
         },
         popExitTransition = {
             if (usesSettingsSlide(initialState.destination.route, targetState.destination.route)) {
-                slideOutHorizontally(tween(260, easing = EmphasizedDecelerate)) { it }
+                PageSlideMotion.popExit()
             } else fadeOut(tween(120))
         },
     ) {
