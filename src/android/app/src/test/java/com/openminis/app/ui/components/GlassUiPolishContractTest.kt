@@ -222,6 +222,14 @@ class GlassUiPolishContractTest {
         assertFalse("multiline input must not lift the panel above the editor", chat.contains("composerTopInWindow"))
         assertTrue(chat.contains("val thinkingPopupGapPx = with(LocalDensity.current) { 4.dp.toPx() }"))
         assertTrue(chat.contains("thinkingLevelTap = thinkingLevelAnchor.clickPosition()"))
+        assertTrue("keyboard dismissal must update the active touch point", chat.contains("thinkingLevelAnchor.trackedClickPosition() ?: thinkingLevelTap"))
+        assertTrue(popup.contains("expandFromTap = true"))
+        val menu = ProductionSources.read("ui/components/MinisMenu.kt")
+        val point = menu.substringAfter("if (expandFromTap && actualTap != null)").substringBefore("else if (glassAnchor != null)")
+        assertTrue("native transform starts at a separate real point anchor", point.contains("anchor = pointAnchor"))
+        assertTrue(point.contains("val localPoint = actualTap - hostOrigin"))
+        assertTrue(point.contains("GlassTransformPopup("))
+        assertFalse("never clamp the animation origin to the panel's settled edge", point.contains("coerceAtMost(safeBounds.bottom)"))
         val editor = ProductionSources.read("ui/settings/ThinkingRuleEditor.kt")
         assertTrue(editor.contains("formatTap = formatAnchor.clickPosition()"))
         assertTrue(editor.contains("tapPositionInWindow = formatTap"))
@@ -267,6 +275,35 @@ class GlassUiPolishContractTest {
             assertTrue(name, panes.contains("PageSlideMotion.$name()"))
         }
         assertTrue(panes.contains("currentSessionId ?: if (!twoPane) lastDetailSessionId else null"))
+    }
+
+    @Test fun `chat presentation removes soul identity and uses eta answer and thinking tones`() {
+        for (path in listOf("ChatScreen.kt", "ChatAssistantMessageUI.kt", "ChatIndicators.kt", "ComposerPlaceholderUi.kt")) {
+            val source = ProductionSources.read("ui/chat/$path")
+            assertFalse("chat must not subscribe to SOUL identity: $path", source.contains("SoulStore"))
+            assertFalse("chat must not render a SOUL avatar: $path", source.contains("SoulAvatarGlyph("))
+        }
+        val display = ProductionSources.read("ui/chat/AssistantPresentation.kt")
+        assertTrue(display.contains("LocalAssistantMarkdownTone provides AssistantMarkdownTone.Answer"))
+        assertTrue(display.contains("start = 4.dp, end = 4.dp"))
+        val markdown = ProductionSources.read("ui/chat/StreamingMarkdownText.kt")
+        assertTrue(markdown.contains("AssistantMarkdownTone.Answer -> 25.sp"))
+        assertTrue(markdown.contains("AssistantMarkdownTone.Thinking -> 21.sp"))
+        assertTrue(markdown.contains("13.5.sp"))
+        assertTrue(markdown.contains("quoteBackground = ink.copy"))
+        val thinking = ProductionSources.read("ui/chat/ChatAssistantMessageUI.kt").substringAfter("internal fun ThinkingBlock(")
+        assertTrue(thinking.contains("squircleSurface(color = MiuixTheme.colorScheme.surface"))
+        assertTrue(thinking.contains("MiuixTheme.colorScheme.outline.copy(alpha = 0.5f)"))
+        assertFalse(thinking.contains("thinkingBlue"))
+        assertTrue(thinking.contains("LocalAssistantMarkdownTone provides AssistantMarkdownTone.Thinking"))
+        assertTrue(thinking.contains("StreamingMarkdownText(content = displayContent"))
+        assertTrue(thinking.contains("84.sp * LocalMarkdownFontScale.current"))
+        assertTrue(thinking.contains("ThinkingFullDialog("))
+        assertTrue(thinking.contains("val thinkingWindowSize = 8000"))
+        assertTrue(thinking.contains("val thinkingHardCap = 100_000"))
+        val source = ProductionSources.read("ui/chat/ChatScreen.kt")
+        assertTrue(source.contains("firstFragment = item.blockIndex == 0"))
+        assertTrue(source.contains("lastFragment = item.isLastBlockOfMessage"))
     }
 
     @Test fun `provider format choices use native contour tabs`() {

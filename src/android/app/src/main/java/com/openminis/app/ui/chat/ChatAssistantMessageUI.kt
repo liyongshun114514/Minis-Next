@@ -270,51 +270,16 @@ import com.openminis.app.ui.components.DecorativeSpinner
 import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.testTag
+import top.yukonga.miuix.kmp.squircle.squircleSurface
+import top.yukonga.miuix.kmp.squircle.squircleBorder
 
 @Composable
 internal fun AssistantHeader() {
-    // [T-soul-md] Identity header = icon + SOUL.md-driven `name`.
-    //
-    // [T-android-soul-custom-icon] The icon is now the user-settable
-    // `SoulMetadata.icon` (emoji or transparent PNG), falling back to the
-    // canonical sparkle gradient when unset — so a user who never touches it
-    // sees exactly the previous rendering.
-    //
-    // Deliberately the SAME composable the settings card uses. On iOS these
-    // two surfaces were written separately and the chat one silently failed
-    // to pick up image icons; sharing the renderer makes that class of
-    // divergence impossible rather than merely unlikely.
-    val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
-    val displayName = soulMeta.name.ifBlank { com.openminis.app.agent.SoulMetadata.DEFAULT.name }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            // [T-android-user-assistant-spacing-16] top=10 so the
-            // User→Assistant boundary reads ~16dp: user-bubble bottom(4) +
-            // LazyColumn spacedBy(2) + this top(10) = 16. The header→body gap
-            // inside the turn is unaffected (that's this row's bottom=2).
-            .padding(top = 10.dp, bottom = 2.dp),
-    ) {
-        val sparkleGradient = Brush.linearGradient(
-            colors = listOf(SparkleColor1, SparkleColor2),
-        )
-        // 18.dp, matching the previous Icon exactly: the row height feeds a
-        // measured-height estimate in the message list, so the icon stays
-        // square and same-sized whichever branch renders.
-        com.openminis.app.ui.components.SoulAvatarGlyph(
-            icon = soulMeta.icon,
-            sizeDp = 18.dp,
-            emojiSp = 15.sp,
-            sparkleTint = sparkleGradient,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = displayName,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MiuixTheme.colorScheme.onSurface,
-        )
-    }
+    // Retain the stable turn-boundary row/key, but never display SOUL identity in chat.
+    // Eta responses start directly with content, separated from the user's bubble.
+    Spacer(Modifier.height(10.dp))
 }
 
 /**
@@ -511,12 +476,13 @@ internal fun AssistantMessageView(
                             isStreaming = streaming,
                             stableKey = "legacy-text:${message.id}:${block.id}",
                         ) {
-                            StreamingMarkdownText(
-                                content = block.content,
-                                // Only the trailing text block is "still streaming"; earlier
-                                // text blocks (before a tool call) are frozen.
-                                isStreaming = streaming,
-                            )
+                            AssistantAnswer {
+                                StreamingMarkdownText(
+                                    content = block.content,
+                                    // Earlier text blocks before tools remain frozen.
+                                    isStreaming = streaming,
+                                )
+                            }
                         }
                     }
                 }
@@ -540,10 +506,12 @@ internal fun AssistantMessageView(
                 isStreaming = message.isStreaming,
                 stableKey = "legacy-fallback:${message.id}",
             ) {
-                StreamingMarkdownText(
-                    content = message.content,
-                    isStreaming = message.isStreaming,
-                )
+                AssistantAnswer {
+                    StreamingMarkdownText(
+                        content = message.content,
+                        isStreaming = message.isStreaming,
+                    )
+                }
             }
         }
 
@@ -585,6 +553,8 @@ internal fun BoundsTrackedBlock(
     messageId: String,
     slotKey: String,
     markdown: String,
+    firstFragment: Boolean = true,
+    lastFragment: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val registry = LocalMessageBoundsRegistry.current
@@ -593,7 +563,7 @@ internal fun BoundsTrackedBlock(
             registry?.put(messageId, slotKey, coords.boundsInWindow(), markdown)
         },
     ) {
-        content()
+        AssistantAnswer(firstFragment = firstFragment, lastFragment = lastFragment, content = content)
     }
     androidx.compose.runtime.DisposableEffect(messageId, slotKey) {
         onDispose { registry?.remove(messageId, slotKey) }
@@ -1029,7 +999,7 @@ internal fun ToolCallPill(
 // [T-android-split-chat] BouncingDots / StreamingDotsText / TypingIndicator
 // moved verbatim to ChatIndicators.kt (same package, now `internal`).
 
-// ─── Thinking Block (iOS: collapsible "Deep Thinking" section, blue tint) ────
+// ─── Eta-style neutral reasoning card, with bounded streaming content ────
 
 /**
  * [T-android-thinking-collapse-latch] Should a thinking block collapse itself
@@ -1096,12 +1066,12 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
         // One-shot auto-collapse when streaming for this block ends.
         if (shouldAutoCollapseThinking(isStreaming, userIntent)) expanded = false
     }
-    val thinkingBlue = Color(0xFF007AFF)
+    val dark = ChatColors.isDark
+    val thinkingInk = MiuixTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.60f else 0.56f)
+    val activeInk = if (isStreaming) MiuixTheme.colorScheme.onSurface else thinkingInk
+    val pulseTick = if (isStreaming && !animationsDisabled(context)) rememberDecorativeTick() else null
     val charCount = block.content.length
-    val charLabel = when {
-        charCount >= 1000 -> "${charCount / 1000}K"
-        else -> "$charCount"
-    }
+    val elapsedSeconds = (block.durationMs / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     // [T-thinking-render-perf-android] Compose `Text` measures/lays out the
     // ENTIRE string even when only ~300dp is visible, so a 200k-char thinking
     // block froze the UI (and a per-token recomposition re-measured all 200k
@@ -1123,10 +1093,10 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(thinkingBlue.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
-            .border(0.5.dp, thinkingBlue.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp)),
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .squircleSurface(color = MiuixTheme.colorScheme.surface, cornerRadius = 12.dp)
+            .squircleBorder(width = 0.5.dp, color = MiuixTheme.colorScheme.outline.copy(alpha = 0.5f), cornerRadius = 12.dp)
+            .testTag("assistant-thinking:${block.id}"),
     ) {
         Box {
             DropdownMenu(expanded = showThinkingMenu, onDismissRequest = { showThinkingMenu = false }) {
@@ -1174,41 +1144,42 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                 }
                 .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
-            if (isStreaming && block.toolStatus != ToolBlockStatus.SUCCESS) {
-                // iOS: ProgressView().controlSize(.mini) while streaming
-                // [T-android-decorative-anim-perf] See DecorativeAnimation.kt.
-                DecorativeSpinner(
-                    color = thinkingBlue,
-                    modifier = Modifier.size(13.dp),
-                    strokeWidth = 1.5.dp,
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Psychology,
-                    contentDescription = null,
-                    tint = thinkingBlue,
-                    modifier = Modifier.size(14.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-            }
-            Text(
-                text = stringResource(R.string.chat_thinking_block_title),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = thinkingBlue,
+            Icon(
+                imageVector = Icons.Default.Lightbulb,
+                contentDescription = null,
+                tint = if (isStreaming) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                modifier = Modifier.size(15.dp).graphicsLayer {
+                    alpha = pulseTick?.let {
+                        0.55f + 0.45f * com.openminis.app.ui.components.decorativePingPong(decorativePhase(it.value, 1400))
+                    } ?: 1f
+                },
             )
-            Spacer(modifier = Modifier.weight(1f))
-            if (charCount > 0) {
-                Text(
-                    text = charLabel,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace,
-                    color = thinkingBlue.copy(alpha = 0.6f),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = when {
+                    isStreaming -> stringResource(R.string.chat_thinking_active)
+                    elapsedSeconds > 0 -> stringResource(R.string.chat_thinking_finished_seconds, elapsedSeconds)
+                    else -> stringResource(R.string.chat_thinking_finished)
+                },
+                style = MiuixTheme.textStyles.body2.copy(fontSize = 13.5.sp),
+                color = activeInk,
+                modifier = Modifier.weight(1f)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        pulseTick?.let { tick ->
+                            val x = (decorativePhase(tick.value, 1800) * 2f - 0.5f) * size.width
+                            val band = size.width * 0.4f
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(Color.Black.copy(alpha = 0.55f), Color.Black, Color.Black.copy(alpha = 0.55f)),
+                                    start = Offset(x - band, 0f), end = Offset(x + band, size.height),
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                    },
+            )
             if (overHardCap) {
                 // [T-thinking-render-perf-android] No expand/collapse chevron —
                 // the content is too large for the inline Compose scroller.
@@ -1217,13 +1188,13 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     text = stringResource(R.string.thinking_view_full),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = thinkingBlue,
+                    color = MiuixTheme.colorScheme.primary,
                 )
             } else {
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = thinkingBlue.copy(alpha = 0.5f),
+                    tint = thinkingInk,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -1235,7 +1206,18 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
         // so a user reading earlier reasoning isn't yanked back to the tail by
         // the next token.
         AnimatedVisibility(visible = expanded && !overHardCap) {
+            Column {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                thickness = 0.5.dp,
+                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.45f),
+            )
             val scrollState = rememberScrollState()
+            // Keep the four-line height through native collapse; never flash a full-height frame.
+            val automaticTail = userIntent == null
+            val viewportHeight = if (automaticTail) {
+                with(LocalDensity.current) { (84.sp * LocalMarkdownFontScale.current).toDp() }
+            } else 300.dp
             // [T-thinking-render-perf-android] Render only the tail window so
             // Compose lays out at most `thinkingWindowSize` chars. `remember`
             // keyed on the length recomputes the substring on each token, but
@@ -1307,9 +1289,21 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
             }
             Column(
                 modifier = Modifier
-                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 12.dp)
-                    .heightIn(max = 300.dp)
-                    .verticalScroll(scrollState),
+                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
+                    .heightIn(max = viewportHeight)
+                    .clipToBounds()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        if (automaticTail && scrollState.maxValue > 0) {
+                            drawRect(
+                                brush = Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color.Black),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                    }
+                    .verticalScroll(scrollState)
+                    .testTag("assistant-thinking-content:${block.id}"),
             ) {
                 if (isTruncated) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1335,7 +1329,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                                 text = stringResource(R.string.thinking_show_full),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = thinkingBlue,
+                                color = MiuixTheme.colorScheme.primary,
                                 modifier = Modifier
                                     .clickable { showFullContent = true }
                                     .padding(vertical = 4.dp),
@@ -1343,12 +1337,10 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                         }
                     }
                 }
-                Text(
-                    text = displayContent,
-                    fontSize = 13.sp,
-                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                    lineHeight = 19.sp,
-                )
+                CompositionLocalProvider(LocalAssistantMarkdownTone provides AssistantMarkdownTone.Thinking) {
+                    StreamingMarkdownText(content = displayContent, isStreaming = isStreaming)
+                }
+            }
             }
         }
 

@@ -67,7 +67,7 @@ import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    val thinkingBlue = Color(0xFF007AFF)
+    val thinkingInk = MiuixTheme.colorScheme.onSurface
     val chunks by produceState<List<ThinkingChunking.Chunk>?>(null, content) {
         value = withContext(Dispatchers.Default) { ThinkingChunking.chunks(content) }
     }
@@ -104,7 +104,7 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                             text = stringResource(R.string.thinking_full_title),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = thinkingBlue,
+                            color = thinkingInk,
                         )
                         Text(
                             text = stringResource(
@@ -156,9 +156,9 @@ fun ThinkingFullDialog(content: String, onDismiss: () -> Unit) {
                             items(count = minOf(revealed, list.size), key = { it }) { i ->
                                 Text(
                                     text = ThinkingChunking.chunkText(content, list, i).removeSuffix("\n"),
-                                    fontSize = 13.sp,
-                                    lineHeight = 19.sp,
-                                    color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                    fontSize = 13.5.sp,
+                                    lineHeight = 21.sp,
+                                    color = thinkingInk.copy(alpha = if (com.openminis.app.ui.theme.ChatColors.isDark) 0.60f else 0.56f),
                                 )
                             }
                             if (ThinkingChunking.hasMore(revealed, list.size)) {

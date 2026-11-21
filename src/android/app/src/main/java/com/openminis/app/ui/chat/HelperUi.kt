@@ -1559,7 +1559,9 @@ internal fun HelperTranscript(
                 // transcript: a scheduled task can fire into a child session.
                 is FlatChatItem.ScheduledTaskCardItem -> ScheduledTaskCard(marker = item.marker)
                 is FlatChatItem.AssistantHeader -> AssistantHeader()
-                is FlatChatItem.AssistantText -> StreamingMarkdownText(content = item.block.content, isStreaming = item.isStreaming)
+                is FlatChatItem.AssistantText -> AssistantAnswer {
+                    StreamingMarkdownText(content = item.block.content, isStreaming = item.isStreaming)
+                }
                 // [T-414-usage-tap-band] The band row scope is also what gives
                 // the text its message id here: this transcript passes no shard
                 // id, so before #414 a blank tap never revealed the capsule on
@@ -1569,7 +1571,9 @@ internal fun HelperTranscript(
                     inFinalTextBlock = item.inFinalTextBlock,
                     isLastRow = item.isLastBlockOfMessage,
                 ) {
-                    StreamingMarkdownText(content = item.rawText, isStreaming = item.isStreaming)
+                    AssistantAnswer(firstFragment = item.blockIndex == 0, lastFragment = item.isLastBlockOfMessage) {
+                        StreamingMarkdownText(content = item.rawText, isStreaming = item.isStreaming)
+                    }
                 }
                 // [T-android-thinking-auto-collapse] Same stream signal as the
                 // main chat (ChatScreen.kt) and the legacy renderer: a thinking
@@ -1617,7 +1621,7 @@ internal fun HelperTranscript(
                     }
                 }
                 is FlatChatItem.AssistantLegacyContent -> UsageTapBandRowScope(messageId = item.messageId, inFinalTextBlock = true, isLastRow = true) {
-                    StreamingMarkdownText(content = item.content, isStreaming = item.isStreaming)
+                    AssistantAnswer { StreamingMarkdownText(content = item.content, isStreaming = item.isStreaming) }
                 }
             }
         }

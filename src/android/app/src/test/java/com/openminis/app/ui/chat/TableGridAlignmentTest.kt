@@ -58,11 +58,13 @@ class TableGridAlignmentTest {
     }
 
     @Test
-    fun `cells use the body font size, which follows the in-app font scale`() {
-        assertTrue(table.contains("val cellFontSize = BaseFontSize"))
+    fun `cells and inline math share the font scale including eta response tones`() {
+        assertTrue(table.contains("val cellFontSize = when (LocalAssistantMarkdownTone.current)"))
+        assertTrue(table.contains("AssistantMarkdownTone.Answer -> 14.sp * LocalMarkdownFontScale.current"))
+        assertTrue(table.contains("AssistantMarkdownTone.Thinking -> 13.sp * LocalMarkdownFontScale.current"))
+        assertTrue("file previews retain their original body size", table.contains("null -> BaseFontSize"))
         assertTrue(table.contains("fontSize = cellFontSize"))
         assertTrue("inline math must match the cell text", table.contains("rememberKatexInlineContent(cellFontSize"))
-        assertFalse("a fixed size ignores LocalMarkdownFontScale", table.contains("14.sp"))
     }
 
     private companion object {

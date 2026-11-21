@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.size
+import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
+import top.yukonga.miuix.kmp.glass.glassPopupAnchor
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
@@ -43,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.PopupLayout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -89,6 +94,8 @@ fun MinisMenu(
     preferAbove: Boolean = false,
     tapPositionInWindow: Offset? = null,
     bottomBoundaryInWindow: Float? = null,
+    /** Animate from the real point; placement is independently clamped above the controls. */
+    expandFromTap: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
@@ -151,9 +158,10 @@ fun MinisMenu(
             parentBounds = IntRect(p.x.toInt(), p.y.toInt(), p.x.toInt() + parent.size.width, p.y.toInt() + parent.size.height)
         }
     })
-    val touchBounds = tapPositionInWindow?.takeIf {
+    val actualTap = tapPositionInWindow?.takeIf {
         it != Offset.Unspecified && it.x.isFinite() && it.y.isFinite()
-    }?.let { tap ->
+    }
+    val touchBounds = actualTap?.let { tap ->
         val x = tap.x.roundToInt()
         val y = tap.y.roundToInt().let { if (bottomBoundaryInWindow != null) it.coerceAtMost(safeBounds.bottom) else it }
         IntRect(x, y, x, y)
@@ -180,7 +188,8 @@ fun MinisMenu(
             }
         }
         val requestDismiss = { if (currentExpanded) currentDismiss() }
-        Box(Modifier.fillMaxSize()) {
+        var hostOrigin by remember { mutableStateOf(Offset.Zero) }
+        Box(Modifier.fillMaxSize().onGloballyPositioned { hostOrigin = it.positionInWindow() }) {
             val rows: @Composable ColumnScope.() -> Unit = {
                 // Native content is removed only after its exit. Always read the latest state.
                 DisposableEffect(Unit) {
@@ -205,7 +214,34 @@ fun MinisMenu(
                     )
                 }
             }
-            if (glassAnchor != null) {
+            if (expandFromTap && actualTap != null) {
+                val pointAnchor = rememberGlassPopupAnchor()
+                var pointReady by remember { mutableStateOf(false) }
+                val localPoint = actualTap - hostOrigin
+                // A one-dp anchor is centred on the finger: boundsInWindow discards
+                // empty rectangles, so a zero-size marker would incorrectly become (0, 0).
+                val halfPointPx = with(density) { 0.5.dp.toPx() }
+                Box(
+                    Modifier.absoluteOffset {
+                        IntOffset((localPoint.x - halfPointPx).roundToInt(), (localPoint.y - halfPointPx).roundToInt())
+                    }.size(1.dp).glassPopupAnchor(pointAnchor, cornerRadius = 0.5.dp, floating = true)
+                        .testTag("minis-menu-tap-origin")
+                        .onGloballyPositioned { pointReady = true },
+                )
+                CompositionLocalProvider(LocalLayoutDirection provides if (alignAtRight) LayoutDirection.Ltr else LayoutDirection.Rtl) {
+                    GlassTransformPopup(
+                        show = show && pointReady, onDismissRequest = requestDismiss,
+                        anchor = pointAnchor, anchorContent = {}, simplified = true,
+                        backdrop = menuBackdrop, sizing = sizing, visuals = visuals,
+                        modifier = if (bottomBoundaryInWindow != null) {
+                            Modifier.heightIn(max = with(density) { safeBounds.bottom.toDp() })
+                        } else Modifier,
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides direction) { rows() }
+                    }
+                }
+            } else if (glassAnchor != null) {
                 GlassTransformPopup(
                     show = show, onDismissRequest = requestDismiss, anchor = glassAnchor,
                     backdrop = menuBackdrop, anchorContent = anchorContent, sizing = sizing, visuals = visuals,

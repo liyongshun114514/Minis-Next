@@ -204,13 +204,7 @@ internal fun TypingIndicator(
     // [T-android-decorative-anim-perf] Shared 30 fps tick instead of a private
     // 90 fps infinite transition; the layer-lambda read below was already right.
     val tick = rememberDecorativeTick()
-    // Live Soul name → "<custom name> is thinking…" when the user renamed
-    // the assistant in Soul settings. SoulStore.cachedMetadata is a StateFlow
-    // that's updated on save (SoulSettingsScreen) and at app start
-    // (MinisApp.onCreate via refreshCache); collectAsState makes Compose
-    // recompose the indicator immediately when it changes.
-    val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
-    val soulName = soulMeta.name.trim().ifEmpty { "Minis Next" }
+    // Conversation status is generic; SOUL remains an instruction/settings concern.
 
     Row(
         modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
@@ -222,7 +216,7 @@ internal fun TypingIndicator(
             }
         }
         Text(
-            text = stringResource(R.string.chat_typing_indicator, soulName),
+            text = stringResource(R.string.chat_thinking_active),
             fontSize = 15.sp,
             color = ChatColors.tertiaryText,
         )

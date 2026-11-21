@@ -143,13 +143,14 @@ class MiuixSurfaceRegressionTest {
     @Test fun menuAnchorUsesTheActualTapAndFallsBackToCentreForKeyboard() {
         var anchor: MinisMenuAnchor? = null
         var lastClick: androidx.compose.ui.geometry.Offset? = null
+        var movedDown by mutableStateOf(0.dp)
         compose.setContent {
             MinisTheme {
                 val target = rememberMinisMenuAnchor()
                 SideEffect { anchor = target }
                 TextButton(
                     text = "Choose format", onClick = { lastClick = target.clickPosition() },
-                    modifier = Modifier.width(240.dp).height(64.dp).minisMenuAnchor(target).testTag("format-anchor"),
+                    modifier = Modifier.offset(y = movedDown).width(240.dp).height(64.dp).minisMenuAnchor(target).testTag("format-anchor"),
                 )
             }
         }
@@ -160,6 +161,15 @@ class MiuixSurfaceRegressionTest {
             val expected = coordinates.localToWindow(androidx.compose.ui.geometry.Offset(13f, 17f))
             assertEquals(expected.x, requireNotNull(lastClick).x, 1f)
             assertEquals(expected.y, requireNotNull(lastClick).y, 1f)
+        }
+        compose.runOnIdle { movedDown = 100.dp }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val coordinates = requireNotNull(anchor?.coordinates)
+            val expected = coordinates.localToWindow(androidx.compose.ui.geometry.Offset(13f, 17f))
+            val followed = requireNotNull(anchor?.trackedClickPosition())
+            assertEquals("original local touch X follows the control", expected.x, followed.x, 1f)
+            assertEquals("original local touch Y follows the control", expected.y, followed.y, 1f)
         }
         button.performClick()
         compose.runOnIdle {
@@ -191,20 +201,28 @@ class MiuixSurfaceRegressionTest {
                             .onGloballyPositioned { actionsTop = it.positionInWindow().y },
                             horizontalArrangement = Arrangement.End) {
                             TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
-                                modifier = Modifier.height(52.dp).minisMenuAnchor(anchor))
+                                modifier = Modifier.height(52.dp).minisMenuAnchor(anchor).testTag("effort-trigger"))
                         }
                     }
                     com.openminis.app.ui.chat.ThinkingLevelSheet(
                         show = shown, currentLevel = ThinkingLevel.OFF, availableLevels = emptyList(),
-                        onSelect = { commits++ }, onDismiss = { shown = false }, tapPositionInWindow = tap,
+                        onSelect = { commits++ }, onDismiss = { shown = false },
+                        tapPositionInWindow = anchor.trackedClickPosition() ?: tap,
                         bottomBoundaryInWindow = actionsTop?.minus(gapPx),
                     )
                 }
             }
         }
         repeat(2) { cycle ->
-            compose.runOnIdle { keyboardLift = if (cycle == 0) 0.dp else 64.dp }
-            compose.onNodeWithText("Open effort").performClick()
+            compose.runOnIdle { keyboardLift = 96.dp }
+            val trigger = compose.onNodeWithTag("effort-trigger")
+            val touch = if (cycle == 0) androidx.compose.ui.geometry.Offset(13f, 17f)
+                else androidx.compose.ui.geometry.Offset(37f, 23f)
+            val triggerBounds = trigger.fetchSemanticsNode().boundsInRoot
+            trigger.performTouchInput { click(touch) }
+            val marker = compose.onNodeWithTag("minis-menu-tap-origin").fetchSemanticsNode().boundsInRoot
+            assertEquals("native transform starts at actual touch X", triggerBounds.left + touch.x, marker.center.x, 2f)
+            assertEquals("native transform starts at actual touch Y", triggerBounds.top + touch.y, marker.center.y, 2f)
             val slider = compose.onNodeWithContentDescription("Thinking effort: Off").assertIsDisplayed()
             val bounds = slider.fetchSemanticsNode().boundsInRoot
             val window = compose.onNodeWithTag("effort-test-window").fetchSemanticsNode().boundsInRoot
@@ -221,12 +239,63 @@ class MiuixSurfaceRegressionTest {
             compose.runOnIdle { editorHeight = 280.dp }
             val after = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
             assertEquals("growing the draft must not lift the panel", panel.bottom, after.bottom, 1f)
+            compose.runOnIdle { keyboardLift = 0.dp }
+            val lowered = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
+            val loweredActions = compose.onNodeWithTag("effort-actions").fetchSemanticsNode().boundsInRoot
+            assertTrue("keyboard dismissal lowers the open menu", lowered.bottom > after.bottom + 40f)
+            assertEquals("menu follows the controls by exactly their displacement",
+                loweredActions.top - actions.top, lowered.bottom - panel.bottom, 2f)
+            assertEquals("menu retains its control-row clearance",
+                actions.top - panel.bottom, loweredActions.top - lowered.bottom, 2f)
             slider.assertHeightIsEqualTo(52.dp)
             slider.performTouchInput { click() }
             val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))
             close.assertIsDisplayed().performClick()
             compose.onNodeWithContentDescription("Thinking effort: Off").assertDoesNotExist()
             compose.runOnIdle { assertEquals(0, commits) }
+        }
+    }
+
+    @Test fun etaReplyHasNoIdentityHeadingAndThinkingUsesNeutralMarkdown() {
+        // Exercise reduced motion here so the decorative pulse cannot keep Robolectric busy.
+        val resolver = compose.activity.contentResolver
+        val scaleKey = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
+        val originalScale = android.provider.Settings.Global.getFloat(resolver, scaleKey, 1f)
+        android.provider.Settings.Global.putFloat(resolver, scaleKey, 0f)
+        try {
+        var live by mutableStateOf(true)
+        val reasoning = AssistantBlock(id = "eta-reasoning", kind = "thinking",
+            content = "**Reasoning detail**\n\nA short explanation.", durationMs = 2500)
+        compose.setContent {
+            MinisTheme {
+                Column(Modifier.fillMaxWidth()) {
+                    com.openminis.app.ui.chat.AssistantHeader()
+                    com.openminis.app.ui.chat.AssistantAnswer {
+                        com.openminis.app.ui.chat.MarkdownBlock("Answer body", isStreaming = false)
+                    }
+                    com.openminis.app.ui.chat.ThinkingBlock(reasoning, isStreaming = live)
+                }
+            }
+        }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Answer body").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Minis Next").assertDoesNotExist()
+        compose.onNodeWithTag("assistant-thinking:eta-reasoning").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertIsDisplayed()
+        val results = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        compose.onNodeWithText("Answer body").performSemanticsAction(
+            androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult,
+        ) { assertTrue(it(results)) }
+        assertEquals(16f, results.single().layoutInput.style.fontSize.value, 0.01f)
+        assertEquals(25f, results.single().layoutInput.style.lineHeight.value, 0.01f)
+        compose.runOnIdle { live = false }
+        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertDoesNotExist()
+        val title = compose.activity.getString(com.openminis.app.R.string.chat_thinking_finished_seconds, 2)
+        compose.onNodeWithText(title).assertIsDisplayed().performClick()
+        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertIsDisplayed()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Reasoning detail").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Reasoning detail").assertIsDisplayed()
+        } finally {
+            android.provider.Settings.Global.putFloat(resolver, scaleKey, originalScale)
         }
     }
 

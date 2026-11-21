@@ -56,38 +56,23 @@ internal fun animationsDisabled(context: Context): Boolean =
         1f,
     ) == 0f
 
-/**
- * [T-android-composer-placeholder-rotation] Resolve pool entry [index] to its
- * display string.
- *
- * Index 0 is the default "Message <soul> (@ to mention files)"; 1..N are the
- * feature hints. Resolving by index at RENDER time (rather than caching the
- * resolved string when the rotation happens) is deliberate: a soul rename or
- * an in-app locale switch then re-resolves to the correctly-translated current
- * hint instead of leaving a stale string on screen. iOS records the same
- * requirement in `refreshPlaceholderText`.
- *
- * The soul name is interpolated INTO each localized hint via `%1$s`, never
- * concatenated onto it, so every hint stays one translatable entry rather than
- * one per soul name.
- */
+/** Resolve the rotating hint at render time, without displaying SOUL identity. */
 @Composable
-internal fun composerPlaceholderText(index: Int, soulName: String): String {
+internal fun composerPlaceholderText(index: Int): String {
     val hints = listOf(
-        R.string.chat_input_placeholder_hint_1,
+        R.string.chat_input_hint_files,
         R.string.chat_input_placeholder_hint_2,
         R.string.chat_input_placeholder_hint_3,
         R.string.chat_input_placeholder_hint_4,
-        // Takes no `%1$s` — this hint points at the global Return Key setting
-        // rather than the soul. `stringResource` ignores the surplus argument.
+        // The Return Key hint remains part of the same rotation pool.
         R.string.chat_input_placeholder_hint_5,
     )
     // Defensive clamp: a saved index from a build with a larger pool must not
     // crash after the pool shrinks (rememberSaveable survives app upgrades).
     val safe = index.coerceIn(0, hints.size)
     return if (safe == ComposerPlaceholderRotation.DEFAULT_INDEX) {
-        stringResource(R.string.chat_input_placeholder, soulName)
+        stringResource(R.string.chat_input_message)
     } else {
-        stringResource(hints[safe - 1], soulName)
+        stringResource(hints[safe - 1])
     }
 }

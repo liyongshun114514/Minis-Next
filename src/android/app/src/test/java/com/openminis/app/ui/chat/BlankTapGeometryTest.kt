@@ -139,7 +139,8 @@ class BlankTapGeometryTest {
 
     @Test fun `paragraphs and headings span the width, so taps beside short ones reach the rule`() {
         val src = ProductionSources.read("ui/chat/StreamingMarkdownText.kt")
-        assertTrue(src.contains("modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),"))
+        assertTrue(src.contains("modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)"))
+        assertTrue("chat paragraph rhythm must not narrow the hit area", src.contains("Modifier.padding(bottom = 7.dp)"))
         assertTrue(src.contains("modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),"))
     }
 }

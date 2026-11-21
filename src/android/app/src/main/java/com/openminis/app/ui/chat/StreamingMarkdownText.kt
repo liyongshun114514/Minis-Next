@@ -199,12 +199,39 @@ private data class MdColors(
     val divider: Color,
     val tableBorder: Color,
     val tableHeaderBg: Color,
+    val strong: Color = Color.Unspecified,
+    val quoteBackground: Color = Color.Transparent,
+    val quoteBar: Color = Color(0xFFFF9500),
+    val codeLabel: Color = Color.White.copy(alpha = 0.5f),
 )
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
 private fun currentMdColors(): MdColors {
     val c = com.openminis.app.ui.theme.LocalChatPalette.current
+    val tone = LocalAssistantMarkdownTone.current
+    if (tone != null) {
+        val colors = MiuixTheme.colorScheme
+        val dark = c.isDark
+        val answer = tone == AssistantMarkdownTone.Answer
+        val ink = colors.onSurface.copy(alpha = 1f)
+        return MdColors(
+            text = ink.copy(alpha = if (answer) { if (dark) 0.88f else 0.86f } else { if (dark) 0.60f else 0.56f }),
+            strong = ink.copy(alpha = if (answer) { if (dark) 0.96f else 0.95f } else { if (dark) 0.78f else 0.74f }),
+            codeText = ink.copy(alpha = if (dark) 0.93f else 0.90f),
+            codeBg = colors.surfaceContainer,
+            inlineCodeText = ink.copy(alpha = if (dark) 0.93f else 0.90f),
+            inlineCodeBg = ink.copy(alpha = if (dark) 0.11f else 0.06f),
+            link = colors.primary,
+            blockquote = ink.copy(alpha = if (answer) { if (dark) 0.80f else 0.76f } else { if (dark) 0.56f else 0.52f }),
+            divider = ink.copy(alpha = if (dark) 0.09f else 0.065f),
+            tableBorder = ink.copy(alpha = if (dark) 0.11f else 0.075f),
+            tableHeaderBg = ink.copy(alpha = if (dark) 0.065f else 0.038f),
+            quoteBackground = ink.copy(alpha = if (dark) 0.055f else 0.034f),
+            quoteBar = ink.copy(alpha = if (dark) 0.24f else 0.18f),
+            codeLabel = ink.copy(alpha = if (dark) 0.56f else 0.52f),
+        )
+    }
     return MdColors(
         text = c.primaryText,
         codeText = c.codeBlockText,
@@ -218,8 +245,6 @@ private fun currentMdColors(): MdColors {
         tableHeaderBg = c.secondaryBg,
     )
 }
-
-private val MdCodeLangColor = Color.White.copy(alpha = 0.5f)
 
 val LocalMarkdownFontScale = compositionLocalOf { 1f }
 
@@ -274,10 +299,14 @@ private val BaseFontSizeDefault = 16.sp
 private val BaseLineHeightDefault = 24.sp
 
 private val BaseFontSize: TextUnit
-    @Composable get() = BaseFontSizeDefault * LocalMarkdownFontScale.current
+    @Composable get() = (if (LocalAssistantMarkdownTone.current == AssistantMarkdownTone.Thinking) 13.5.sp else BaseFontSizeDefault) * LocalMarkdownFontScale.current
 
 private val BaseLineHeight: TextUnit
-    @Composable get() = BaseLineHeightDefault * LocalMarkdownFontScale.current
+    @Composable get() = when (LocalAssistantMarkdownTone.current) {
+        AssistantMarkdownTone.Answer -> 25.sp
+        AssistantMarkdownTone.Thinking -> 21.sp
+        null -> BaseLineHeightDefault
+    } * LocalMarkdownFontScale.current
 
 private val InlineCodeCornerRadius = 6.dp
 
@@ -663,13 +692,14 @@ private fun MdText(
         // right; it just never accounted for leading it could not see.
         //
         // Trim(FirstLineTop + LastLineBottom) removes only the OUTER half-leadings.
-        // Inter-line spacing inside a paragraph is untouched, so body text reads
-        // exactly as before — this is not a density change.
+        // File/tool views retain that trimming. Assistant tones opt into Eta's
+        // untrimmed editorial leading; their container owns the paragraph spacing.
         style = MiuixTheme.textStyles.main.merge(
             TextStyle(
+                letterSpacing = if (LocalAssistantMarkdownTone.current == AssistantMarkdownTone.Answer) 0.1.sp else 0.sp,
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
-                    trim = LineHeightStyle.Trim.Both,
+                    trim = if (LocalAssistantMarkdownTone.current != null) LineHeightStyle.Trim.None else LineHeightStyle.Trim.Both,
                 ),
             ),
         ),
@@ -2575,7 +2605,8 @@ private fun RenderBlock(block: MdBlock) {
                 // BlankTapGeometry's clearance decides a tap there (it used to
                 // hit nothing - or the usage row's stretched touch target). The
                 // text still lays out from the start edge; only the box widens.
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                    .then(if (LocalAssistantMarkdownTone.current != null) Modifier.padding(bottom = 7.dp) else Modifier),
                 inlineContent = rememberKatexInlineContent(
                     BaseFontSize,
                     if (liveIncremental) MarkdownParseCaches.mathLatexIncremental(block.raw)
@@ -2585,7 +2616,15 @@ private fun RenderBlock(block: MdBlock) {
         }
 
         is MdBlock.Heading -> {
-            val (size, weight) = when (block.level) {
+            val tone = LocalAssistantMarkdownTone.current
+            val (size, weight) = if (tone != null) {
+                (if (tone == AssistantMarkdownTone.Thinking) 14.sp else when (block.level) {
+                    1 -> 20.sp
+                    2 -> 18.sp
+                    3 -> 16.5.sp
+                    else -> 16.sp
+                }) * LocalMarkdownFontScale.current to FontWeight.Bold
+            } else when (block.level) {
                 1 -> (BaseFontSize * 1.5f) to FontWeight.Bold
                 2 -> (BaseFontSize * 1.3f) to FontWeight.Bold
                 3 -> (BaseFontSize * 1.15f) to FontWeight.SemiBold
@@ -2597,8 +2636,14 @@ private fun RenderBlock(block: MdBlock) {
                 text = MarkdownParseCaches.inline(block.text, colors),
                 fontSize = size,
                 fontWeight = weight,
-                lineHeight = size * 1.3f,
-                color = colors.text,
+                lineHeight = if (tone != null) {
+                    (if (tone == AssistantMarkdownTone.Thinking) 21.sp else when (block.level) {
+                        1 -> 28.sp
+                        2 -> 26.sp
+                        else -> 24.sp
+                    }) * LocalMarkdownFontScale.current
+                } else size * 1.3f,
+                color = if (tone != null) colors.strong else colors.text,
                 // Full width, as for a paragraph (blank-tap clearance).
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
                 inlineContent = rememberKatexInlineContent(size, MarkdownParseCaches.mathLatex(block.text)),
@@ -2641,7 +2686,7 @@ private fun RenderBlock(block: MdBlock) {
                     Text(
                         text = block.language.ifEmpty { "code" },
                         fontSize = 11.sp,
-                        color = MdCodeLangColor,
+                        color = colors.codeLabel,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
@@ -2651,7 +2696,9 @@ private fun RenderBlock(block: MdBlock) {
                         } else {
                             stringResource(R.string.copy_code_block)
                         },
-                        tint = if (copied) Color(0xFF34C759) else Color.White.copy(alpha = 0.4f),
+                        tint = if (copied) {
+                            if (LocalAssistantMarkdownTone.current != null) MiuixTheme.colorScheme.primary else Color(0xFF34C759)
+                        } else colors.codeLabel,
                         modifier = Modifier
                             .size(16.dp)
                             .clickable {
@@ -2684,10 +2731,18 @@ private fun RenderBlock(block: MdBlock) {
                     ) {
                         Text(
                             text = block.code,
-                            fontSize = BaseFontSize * 0.85f,
+                            fontSize = when (LocalAssistantMarkdownTone.current) {
+                                AssistantMarkdownTone.Answer -> 13.sp * LocalMarkdownFontScale.current
+                                AssistantMarkdownTone.Thinking -> 12.sp * LocalMarkdownFontScale.current
+                                null -> BaseFontSize * 0.85f
+                            },
                             fontFamily = FontFamily.Monospace,
                             color = colors.codeText,
-                            lineHeight = BaseLineHeight * 0.9f,
+                            lineHeight = when (LocalAssistantMarkdownTone.current) {
+                                AssistantMarkdownTone.Answer -> 20.sp * LocalMarkdownFontScale.current
+                                AssistantMarkdownTone.Thinking -> 18.sp * LocalMarkdownFontScale.current
+                                null -> BaseLineHeight * 0.9f
+                            },
                         )
                     }
                 }
@@ -2700,11 +2755,12 @@ private fun RenderBlock(block: MdBlock) {
             // refuses intrinsic measurement on those. Draw the orange rule
             // directly behind a single Column so layout never queries
             // intrinsics.
-            val barColor = Color(0xFFFF9500)
+            val barColor = colors.quoteBar
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
+                    .background(colors.quoteBackground, RoundedCornerShape(8.dp))
                     .drawBehind {
                         drawRect(
                             color = barColor,
@@ -3748,7 +3804,11 @@ private fun RenderTable(block: MdBlock.Table) {
         // table text 87.5% of the reply around it and left it behind whenever
         // the user enlarged chat text; iOS already sets cells in
         // theme.baseFontSize (SelectableMarkdownView computeLayout).
-        val cellFontSize = BaseFontSize
+        val cellFontSize = when (LocalAssistantMarkdownTone.current) {
+            AssistantMarkdownTone.Answer -> 14.sp * LocalMarkdownFontScale.current
+            AssistantMarkdownTone.Thinking -> 13.sp * LocalMarkdownFontScale.current
+            null -> BaseFontSize
+        }
         // [T-android-table-column-width-plan] Widest word each column should
         // not split (iOS TableAttachment: longestUnbreakableRun measured with
         // the cell font, + padding + 4). Measured here because the Layout's
@@ -4489,7 +4549,7 @@ private fun parseInline(text: String, colors: MdColors): AnnotatedString {
                 text.startsWith("***", i) -> {
                     val end = text.indexOf("***", i + 3)
                     if (end != -1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
+                        withStyle(SpanStyle(color = colors.strong, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
                             appendRecursive(text.substring(i + 3, end), colors)
                         }
                         i = end + 3
@@ -4499,7 +4559,7 @@ private fun parseInline(text: String, colors: MdColors): AnnotatedString {
                 text.startsWith("**", i) -> {
                     val end = text.indexOf("**", i + 2)
                     if (end != -1) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(color = colors.strong, fontWeight = FontWeight.Bold)) {
                             appendRecursive(text.substring(i + 2, end), colors)
                         }
                         i = end + 2
@@ -4514,8 +4574,8 @@ private fun parseInline(text: String, colors: MdColors): AnnotatedString {
                     if (end != -1) {
                         val style = when (width) {
                             1 -> SpanStyle(fontStyle = FontStyle.Italic)
-                            2 -> SpanStyle(fontWeight = FontWeight.Bold)
-                            else -> SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
+                            2 -> SpanStyle(color = colors.strong, fontWeight = FontWeight.Bold)
+                            else -> SpanStyle(color = colors.strong, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
                         }
                         withStyle(style) { appendRecursive(text.substring(i + width, end), colors) }
                         i = end + width

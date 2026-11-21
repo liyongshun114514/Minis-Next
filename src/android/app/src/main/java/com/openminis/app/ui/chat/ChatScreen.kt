@@ -3001,25 +3001,13 @@ fun ChatScreen(
                                 // the longest title.
                                 .padding(horizontal = 32.dp, vertical = 2.dp),
                         ) {
-                            // Nav title: current session title when one
-                            // exists and the toggle is on, else fall back to
-                            // the Soul name (matches the input placeholder
-                            // "Message <SoulName>"), then to app_name
-                            // ("Minis") as the terminal fallback.
-                            // Tap opens the same SessionEditSheet used from
-                            // the session list — drafts return null from
-                            // loadSessionEntity so the sheet stays closed.
-                            // SoulStore.cachedMetadata is the same source the
-                            // input placeholder uses (see ~line 3581), so
-                            // soul renames in Soul Settings reflect here live.
-                            val topBarSoul by com.openminis.app.agent.SoulStore
-                                .cachedMetadata.collectAsState()
+                            // Chat identity is its conversation title, never SOUL metadata.
+                            // Renaming still opens the existing SessionEditSheet.
                             val displayTitle = when {
                                 showChatTitlePill
                                     && sessionTitle.isNotBlank()
                                     && sessionTitle != "New Chat" -> sessionTitle
-                                topBarSoul.name.isNotBlank() -> topBarSoul.name
-                                else -> stringResource(R.string.app_name)
+                                else -> stringResource(R.string.new_chat)
                             }
                             // [T-native-composer-title] The ported Composer UI
                             // gives the session title TWO centred lines (the
@@ -4814,6 +4802,8 @@ fun ChatScreen(
                                 messageId = item.messageId,
                                 slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}",
                                 markdown = item.messageMarkdown,
+                                firstFragment = item.blockIndex == 0,
+                                lastFragment = item.isLastBlockOfMessage,
                             ) {
                                 // [T-414-usage-tap-band] Rows of the reply's final
                                 // text block carry the capsule's tap band.
@@ -7079,22 +7069,8 @@ fun ChatScreen(
                                 Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp)) {
                                     innerTextField()
                                     if (inputText.isEmpty()) {
-                                        // [T-android-placeholder-single-line, port iOS 19e1d61f]
-                                                                                // Single-line composer placeholder. The
-                                                                                // parenthetical "(@ to mention files)"
-                                                                                // is folded into the same line as
-                                                                                // "Message <SoulName>" at the same font
-                                                                                // size and color — iOS collapsed the
-                                                                                // two-line variant (#421/#425/#426) into
-                                                                                // a single hint because users read the
-                                                                                // smaller hint row as a separate UI
-                                                                                // element rather than placeholder text.
-                                                                                // SoulStore.cachedMetadata stays the
-                                                                                // source for the Soul-customized name
-                                                                                // so renames in Soul Settings reflect
-                                                                                // here live.
-                                                                                val soulName by com.openminis.app.agent.SoulStore
-                                                                                    .cachedMetadata.collectAsState()
+                                        // Generic chat hints do not expose the SOUL name.
+                                        // Rotation, usage pages and reduced motion stay unchanged.
                                                                                 // [T-android-composer-placeholder-rotation]
                                                                                 // Crossfade between hints. Reduce-motion
                                                                                 // (animator scale 0) skips the fade and
@@ -7137,10 +7113,7 @@ fun ChatScreen(
                                                                                         )
                                                                                     } else {
                                                                                         Text(
-                                                                                            composerPlaceholderText(
-                                                                                                ComposerPlaceholderPool.textIndex(key),
-                                                                                                soulName.name,
-                                                                                            ),
+                                                                                            composerPlaceholderText(ComposerPlaceholderPool.textIndex(key)),
                                                                                             color = MiuixTheme.colorScheme.onSurface
                                                                                                 .copy(alpha = 0.25f),
                                                                                             fontSize = 16.5.sp * chatInputFontScale,
@@ -8290,7 +8263,7 @@ fun ChatScreen(
         availableLevels = viewModel.availableThinkingLevels,
         onSelect = { level -> viewModel.setThinkingLevel(level) },
         onDismiss = { showThinkingLevelSheet = false },
-        tapPositionInWindow = thinkingLevelTap,
+        tapPositionInWindow = thinkingLevelAnchor.trackedClickPosition() ?: thinkingLevelTap,
         bottomBoundaryInWindow = composerActionsTopInWindow?.minus(thinkingPopupGapPx),
         backdrop = chatTopBackdrop,
     )
@@ -8665,6 +8638,7 @@ internal fun ThinkingLevelSheet(
         bottomBoundaryInWindow = bottomBoundaryInWindow,
         tapPositionInWindow = tapPositionInWindow,
         preferAbove = true,
+        expandFromTap = true,
         backdrop = backdrop,
     ) {
         // Native glass popups probe intrinsic sizes. Bound both axes before the
