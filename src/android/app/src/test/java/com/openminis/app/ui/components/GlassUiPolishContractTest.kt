@@ -346,5 +346,12 @@ class GlassUiPolishContractTest {
         val bar = ProductionSources.read("ui/settings/SettingsGlassTopBar.kt")
         assertTrue(bar.contains("Arrangement.spacedBy(8.dp)"))
         assertFalse("multiple actions must not stack in one Box", bar.contains("Box(contentAlignment = Alignment.CenterEnd) { actions?.invoke() }"))
+        val toolPill = ProductionSources.read("ui/chat/ChatAssistantMessageUI.kt")
+        assertTrue("tool calls use the user message surface", toolPill.contains(".background(ChatColors.userBubble)"))
+        assertFalse("tool calls do not use the old capsule surface", toolPill.contains(".background(ChatColors.toolCapsuleBg)"))
+        val mcp = ProductionSources.read("ui/settings/MCPIntegrationsScreen.kt")
+        assertTrue("MCP JSON input uses the top-aligned field", mcp.contains("topAligned = true"))
+        val statusSurface = ProductionSources.read("ui/chat/ChatStatusSurface.kt")
+        assertTrue("floating tool bars use the user message surface", statusSurface.contains("val surface = ChatColors.userBubble"))
     }
 }

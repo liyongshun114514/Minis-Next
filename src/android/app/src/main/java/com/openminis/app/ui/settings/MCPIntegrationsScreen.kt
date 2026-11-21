@@ -1257,6 +1257,7 @@ private fun MCPImportTab(
             placeholder = stringResource(R.string.mcp_import_placeholder),
             singleLine = false,
             modifier = Modifier.height(200.dp),
+            topAligned = true,
             textStyle = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
         )
         if (text.isNotBlank()) {

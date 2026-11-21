@@ -784,7 +784,7 @@ internal fun ToolCallPill(
       Box(
           modifier = Modifier.weight(1f, fill = false)
               .clip(CircleShape)
-              .background(ChatColors.toolCapsuleBg)
+              .background(ChatColors.userBubble)
               .combinedClickable(
                   interactionSource = null,
                   indication = MiuixIndication(),

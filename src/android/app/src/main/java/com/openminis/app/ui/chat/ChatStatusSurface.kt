@@ -15,7 +15,9 @@ import com.openminis.app.ui.theme.ChatColors
 /** Both status rows sample the opaque transcript, never each other or the composer. */
 @Composable
 internal fun Modifier.chatStatusBackground(backdrop: Backdrop?, shape: Shape): Modifier {
-    val surface = ChatColors.inputBg
+    // The floating tool bar uses the same surface as a user message bubble.
+    // Keep the backdrop blur and only change the composited tint.
+    val surface = ChatColors.userBubble
     if (backdrop == null) return clip(shape).background(surface)
     val blends = remember(surface) { listOf(BlendColorEntry(surface.copy(alpha = 0.72f))) }
     return textureBlur(
