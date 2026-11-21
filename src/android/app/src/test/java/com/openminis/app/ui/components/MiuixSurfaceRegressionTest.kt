@@ -340,11 +340,20 @@ class MiuixSurfaceRegressionTest {
             baseModel = com.openminis.app.data.model.LLMModel("test-model", "Test model", "openai"),
         )
         repository.addEntry(entry)
+        // Saving an entry canonicalizes its random UUID to instanceId/modelId.
+        // Bind the group to the published entry, as the real picker does.
+        val storedEntry = repository.config.value.modelEntries.single {
+            it.providerInstanceId == instance.id && it.baseModel.id == entry.baseModel.id
+        }
         val group = com.openminis.app.data.model.ModelGroup(
             id = "group-glass", name = "Glass group",
-            memberEntryIds = mutableListOf(entry.id),
+            memberEntryIds = mutableListOf(storedEntry.id),
         )
         repository.addGroup(group)
+        val storedConfig = repository.config.value
+        val storedMemberId = storedConfig.modelGroups.single { it.id == group.id }.memberEntryIds.single()
+        assertEquals(storedEntry.id, storedMemberId)
+        assertEquals("Test model", storedConfig.modelEntries.single { it.id == storedMemberId }.model.displayName)
         var selected by mutableStateOf<String?>(null)
         compose.setContent {
             MinisTheme {
