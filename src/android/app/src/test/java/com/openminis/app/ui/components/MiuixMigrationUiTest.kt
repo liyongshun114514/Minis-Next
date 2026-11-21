@@ -955,16 +955,22 @@ class MiuixMigrationUiTest {
             }
         }
         val before = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
+        compose.runOnIdle { assertFalse("closed menus must not retain scene recording", scene?.recording == true) }
         repeat(3) {
             compose.onNodeWithTag("halo-button").performTouchInput { click() }
             compose.onNodeWithText("Close menu").assertIsDisplayed()
-            compose.runOnIdle { assertFalse("page-backed menus must not record the whole navigation scene", scene?.recording == true) }
+            // Without an explicit backdrop, the popup samples the complete scene.
+            // Only the panel applies blur; the uncovered page remains unchanged.
+            compose.runOnIdle { assertTrue("open menus must lease their scene backdrop", scene?.recording == true) }
             compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Close menu").performClick()
             var samples = 0
             for (frame in 0 until 180) {
                 compose.mainClock.advanceTimeBy(16)
-                if (compose.runOnIdle { finished <= it }) continue
+                if (compose.runOnIdle { finished <= it }) {
+                    compose.runOnIdle { assertTrue("closing menu must retain its scene until exit finishes", scene?.recording == true) }
+                    continue
+                }
                 // Sample every restored frame, not only the final idle image:
                 // the reported bug is a brief dark flash AFTER shrinking back.
                 val after = compose.onNodeWithTag("halo-frame").captureToImage().toPixelMap()
