@@ -304,6 +304,7 @@ afterEvaluate {
 // Explicitly forward invocation-scoped inputs to the forked test JVM; never
 // reuse an earlier unit-test result when acceptance of a new APK is requested.
 val bundledAcceptanceApk = providers.environmentVariable("MINIS_BUNDLED_APK").orElse("")
+val downloadAcceptanceImage = providers.environmentVariable("MINIS_DOWNLOAD_IMAGE").orElse("")
 val bundledAcceptanceRequired = providers.environmentVariable("MINIS_BUNDLED_APK_REQUIRED").orElse("0")
 // Robolectric resolves Android SDK jars outside Gradle's repositories block.
 // repo1.maven.org returned HTTP 429 on CI; use Maven Central's canonical host.
@@ -314,6 +315,8 @@ val robolectricRepositoryUrl = providers.systemProperty("robolectric.dependency.
 tasks.withType<Test>().configureEach {
     systemProperty("robolectric.dependency.repo.url", robolectricRepositoryUrl.get())
     if (bundledAcceptanceRequired.get() == "1" || bundledAcceptanceApk.get().isNotBlank()) {
+        environment("MINIS_DOWNLOAD_IMAGE", downloadAcceptanceImage.get())
+        inputs.property("downloadAcceptanceImage", downloadAcceptanceImage.get())
         environment("MINIS_BUNDLED_APK", bundledAcceptanceApk.get())
         environment("MINIS_BUNDLED_APK_REQUIRED", bundledAcceptanceRequired.get())
         inputs.property("bundledAcceptanceApk", bundledAcceptanceApk.get())

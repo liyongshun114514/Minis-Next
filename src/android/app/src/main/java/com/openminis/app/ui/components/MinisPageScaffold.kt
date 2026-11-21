@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -36,6 +37,7 @@ internal fun MinisPageScaffold(
     containerColor: Color = MiuixTheme.colorScheme.surface,
     recordBodyForActions: Boolean = true,
     overlapTopBar: Boolean = false,
+    bodyOverlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
     contentWindowInsets: WindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -57,20 +59,28 @@ internal fun MinisPageScaffold(
         contentWindowInsets = contentWindowInsets,
         content = { padding ->
             // Sampling controls live in Scaffold slots, outside this opaque body recording.
-            Box(Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
-                // A sheet or menu opened from this page samples the recorded
-                // body instead of the overlay host it is drawn into.
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)) {
+                    // A sheet or menu opened from this page samples the recorded
+                    // body instead of the overlay host it is drawn into.
+                    CompositionLocalProvider(
+                        LocalMinisActionBackdrop provides null,
+                        LocalMinisPageBackdrop provides backdrop,
+                        LocalMinisPageTopInset provides if (overlapTopBar) padding.calculateTopPadding() else 0.dp,
+                    ) {
+                        val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+                        content(if (overlapTopBar) PaddingValues(
+                            start = padding.calculateStartPadding(direction),
+                            end = padding.calculateEndPadding(direction),
+                            bottom = padding.calculateBottomPadding(),
+                        ) else padding)
+                    }
+                }
                 CompositionLocalProvider(
-                    LocalMinisActionBackdrop provides null,
+                    LocalMinisActionBackdrop provides backdrop,
                     LocalMinisPageBackdrop provides backdrop,
-                    LocalMinisPageTopInset provides if (overlapTopBar) padding.calculateTopPadding() else 0.dp,
                 ) {
-                    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
-                    content(if (overlapTopBar) PaddingValues(
-                        start = padding.calculateStartPadding(direction),
-                        end = padding.calculateEndPadding(direction),
-                        bottom = padding.calculateBottomPadding(),
-                    ) else padding)
+                    Box(Modifier.fillMaxSize().padding(padding), content = bodyOverlay)
                 }
             }
         },

@@ -23,7 +23,7 @@ class ChatSearchWiringTest {
 
     @Test fun `it searches the rows before tool runs are folded`() {
         val feed = screen.indexOf("chatSearch.onRows(builtRows)")
-        val fold = screen.indexOf("flatItems = etaTimeline.project(")
+        val fold = screen.indexOf("flatItems = toolFold.fold(")
         assertTrue(feed in 1 until fold)
     }
 
@@ -33,7 +33,9 @@ class ChatSearchWiringTest {
         assertTrue(screen.contains("onSearchInChat = { text -> chatSearch.activate(text) },"))
         assertTrue(src("ChatUserMessageUI.kt").contains("onClick = { showMenu = false; onSearchInChat() },"))
         assertTrue(src("ChatAssistantMessageUI.kt").contains("onClick = { showToolMenu = false; onSearchInChat() },"))
-        assertTrue(src("MinisMarkdownTextToolbar.kt").contains("toolbar.searchSelectionInChat()"))
+        val toolbar = src("MinisMarkdownTextToolbar.kt")
+        assertTrue(toolbar.contains("onClick = toolbar::searchSelectionInChat"))
+        assertTrue(toolbar.contains("SystemSelectionMenu(state.rect, items"))
     }
 
     @Test fun `back closes the bar`() =

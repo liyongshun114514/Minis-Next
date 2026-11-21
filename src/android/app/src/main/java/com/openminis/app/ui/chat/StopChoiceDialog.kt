@@ -1,38 +1,17 @@
 package com.openminis.app.ui.chat
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
-import com.openminis.app.ui.theme.ChatColors
 
 /**
  * [T-stop-choice] "What should stop?" - shown instead of an immediate Stop
@@ -49,12 +28,7 @@ import com.openminis.app.ui.theme.ChatColors
  * Also used by New Chat's "a task is running" guard, with its own title and
  * button labels and the [body] override.
  *
- * Drawn as the iOS action sheet the same choice uses (ChatSendButton
- * `.confirmationDialog`): a card at the bottom with the centred title and
- * message over full-width, centred buttons divided by hairlines - the safe
- * choice in the accent colour, Stop All in red - and Cancel, bold, on a card
- * of its own below. The Material alert it replaces stacked three text
- * buttons at the right edge under a left-aligned body.
+ * Native Miuix glass dialog with the existing stop-scope callbacks.
  */
 @Composable
 internal fun StopChoiceDialog(
@@ -98,13 +72,22 @@ internal fun StopChoiceDialog(
         if (lines.isNotEmpty()) append("\n\n")
         append(footer)
     }
+    var shown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+    var pending by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<(() -> Unit)?>(null) }
+    fun closeThen(action: () -> Unit) {
+        if (!shown) return
+        pending = action
+        shown = false
+    }
     StopActionSheet(
+        show = shown,
         title = title,
         message = message,
-        onDismiss = onDismiss,
+        onDismiss = { closeThen(onDismiss) },
+        onDismissFinished = { pending?.invoke() },
         actions = buildList {
-            if (canStopToolOnly) add(SheetAction(toolOnlyText, destructive = false, onToolOnly))
-            add(SheetAction(stopAllText, destructive = true, onStopAll))
+            if (canStopToolOnly) add(SheetAction(toolOnlyText, destructive = false) { closeThen(onToolOnly) })
+            add(SheetAction(stopAllText, destructive = true) { closeThen(onStopAll) })
         },
     )
 }
@@ -113,114 +96,46 @@ private class SheetAction(val label: String, val destructive: Boolean, val onCli
 
 @Composable
 private fun StopActionSheet(
+    show: Boolean,
     title: String,
     message: String,
     onDismiss: () -> Unit,
+    onDismissFinished: () -> Unit,
     actions: List<SheetAction>,
 ) {
-    val dark = ChatColors.isDark
-    // iOS system colours for an action sheet: the grouped card, the tint and
-    // the destructive red, in each appearance.
-    val card = if (dark) Color(0xFF2C2C2E) else Color(0xFFF9F9F9)
-    val accent = if (dark) Color(0xFF0A84FF) else Color(0xFF007AFF)
-    val red = if (dark) Color(0xFFFF453A) else Color(0xFFFF3B30)
-    val hairline = ChatColors.separator
-    val shape = RoundedCornerShape(14.dp)
-    val noRipple = remember { MutableInteractionSource() }
-
-    Dialog(
+    com.openminis.app.ui.components.MinisDialog(
+        show = show,
+        title = title,
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        onDismissFinished = onDismissFinished,
     ) {
-        // Full-window so the sheet can sit at the bottom; a tap above it
-        // dismisses, as outside an iOS action sheet.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(interactionSource = noRipple, indication = null, onClick = onDismiss),
-            contentAlignment = Alignment.BottomCenter,
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    // Taps on the sheet itself do not dismiss it.
-                    .clickable(interactionSource = noRipple, indication = null, onClick = {}),
-            ) {
-                // [T-stop-sheet-fits] In landscape or at a large font scale the
-                // sheet can be taller than the window. Cancel is measured first
-                // (this card is weighted, not filling), and inside the card the
-                // buttons come before the title and message, which scroll in
-                // what is left - as the platform alert dialog does. Before,
-                // the bottom buttons laid out past the window edge.
-                Column(
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .fillMaxWidth()
-                        .clip(shape)
-                        .background(card),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .fillMaxWidth()
-                            .verticalScroll(androidx.compose.foundation.rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = title,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ChatColors.secondaryText,
-                            textAlign = TextAlign.Center,
+            Text(
+                message,
+                style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2,
+                modifier = Modifier.weight(1f, fill = false)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            )
+            actions.forEach { action ->
+                com.openminis.app.ui.components.MinisTextButton(
+                    text = action.label,
+                    onClick = action.onClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = if (action.destructive) {
+                        top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors(
+                            textColor = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.error,
                         )
-                        if (message.isNotEmpty()) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = message,
-                                fontSize = 13.sp,
-                                lineHeight = 17.sp,
-                                color = ChatColors.secondaryText,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                    }
-                    for (action in actions) {
-                        Box(Modifier.fillMaxWidth().height(0.5.dp).background(hairline))
-                        SheetButton(action.label, if (action.destructive) red else accent, FontWeight.Normal) {
-                            action.onClick()
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Box(modifier = Modifier.fillMaxWidth().clip(shape).background(card)) {
-                    SheetButton(stringResource(R.string.cancel), accent, FontWeight.SemiBold, onDismiss)
-                }
+                    } else top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary(),
+                )
             }
+            com.openminis.app.ui.components.MinisTextButton(
+                text = stringResource(R.string.cancel),
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-    }
-}
-
-@Composable
-private fun SheetButton(label: String, color: Color, weight: FontWeight, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            fontSize = 19.sp,
-            fontWeight = weight,
-            color = color,
-            textAlign = TextAlign.Center,
-        )
     }
 }

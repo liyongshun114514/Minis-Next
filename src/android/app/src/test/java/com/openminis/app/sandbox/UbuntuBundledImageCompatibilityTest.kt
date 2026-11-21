@@ -15,7 +15,7 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.ZipFile
 
 /**
- * End-to-end acceptance of the **bundled** Ubuntu image with the production
+ * End-to-end acceptance of the **downloaded** Ubuntu image with the production
  * [TarExtractor]: open the release APK, stream `assets/ubuntu-base-arm64.tar`
  * (or `.tar.gz`) straight from the APK into the extractor, and check the
  * resulting tree the way the terminal bootstrap needs it.
@@ -65,7 +65,7 @@ class UbuntuBundledImageCompatibilityTest {
     }
 
     @Test
-    fun bundledImageExtractsAndIsReadyForTheTerminal() {
+    fun downloadedImageExtractsAndApkContainsOnlyTheDownloadProtocol() {
         val apk = File(apkPath!!)
         assertTrue("APK not found: $apk", apk.isFile)
         assertTrue("APK looks truncated: ${apk.length()} bytes", apk.length() > 10L * 1024 * 1024)
@@ -73,40 +73,33 @@ class UbuntuBundledImageCompatibilityTest {
         val dir = Files.createTempDirectory("minis-bundled-image-").toFile()
         root = dir
 
-        var assetNameUsed = ""
-        var gzippedUsed = false
+        val imagePath = System.getenv("MINIS_DOWNLOAD_IMAGE")?.takeIf { it.isNotBlank() }
+        val image = File(imagePath ?: throw AssertionError("MINIS_DOWNLOAD_IMAGE must point to the verified CI image"))
+        assertTrue("download image missing", image.isFile)
+        assertTrue("download image truncated", image.length() >= UbuntuImagePolicy.MIN_BYTES)
         ZipFile(apk).use { zip ->
-            // Mirror RootfsManager: prefer the .tar.gz name, fall back to the
-            // plain .tar that AAPT may leave behind. The suffix alone selects
-            // the gzip wrapper — no magic sniffing, so the test cannot hide a
-            // mismatch between asset name and payload.
-            val gzName = "assets/" + SandboxDistribution.ROOTFS_ASSET
-            val tarName = "assets/" + SandboxDistribution.ROOTFS_ASSET_TAR
-            val assetName = when {
-                zip.getEntry(gzName) != null -> gzName
-                zip.getEntry(tarName) != null -> tarName
-                else -> throw AssertionError("APK has no $gzName or $tarName")
+            assertTrue("APK must not bundle gzip rootfs", zip.getEntry("assets/" + SandboxDistribution.ROOTFS_ASSET) == null)
+            assertTrue("APK must not bundle tar rootfs", zip.getEntry("assets/" + SandboxDistribution.ROOTFS_ASSET_TAR) == null)
+            val marker = zip.getEntry("assets/ubuntu-download.json")
+            assertNotNull("cloud download marker missing", marker)
+            val markerText = zip.getInputStream(marker).bufferedReader().use { it.readText() }
+            assertTrue(markerText.contains(UbuntuImagePolicy.REPOSITORY))
+        }
+        val checksum = File(image.parentFile, image.name + ".sha256")
+        val expected = UbuntuImagePolicy.checksum(checksum.readText())
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        image.inputStream().use { input ->
+            val buffer = ByteArray(65536)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
             }
-            val gzipped = assetName.endsWith(".gz")
-            assetNameUsed = assetName
-            gzippedUsed = gzipped
-            val entry = zip.getEntry(assetName)
-            // Same thresholds as scripts/verify_ubuntu_apk.py MIN_PAYLOAD_BYTES.
-            val minimum = if (gzipped) 16L * 1024 * 1024 else 32L * 1024 * 1024
-            assertTrue(
-                "rootfs payload $assetName is truncated: ${entry.size} < $minimum bytes",
-                entry.size >= minimum,
-            )
-
-            zip.getInputStream(entry).use { raw ->
-                val payload = if (gzipped) {
-                    GZIPInputStream(raw, 1 shl 16)
-                } else {
-                    BufferedInputStream(raw, 1 shl 16)
-                }
-                payload.use {
-                    TarExtractor.extract(it, dir) { message -> println("TarExtractor: $message") }
-                }
+        }
+        assertEquals(expected, digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) })
+        image.inputStream().use { raw ->
+            GZIPInputStream(raw, 1 shl 16).use { payload ->
+                TarExtractor.extract(payload, dir) { message -> println("TarExtractor: $message") }
             }
         }
 
@@ -182,7 +175,7 @@ class UbuntuBundledImageCompatibilityTest {
         // ── no archive-root or dot entries materialised as files ───────────
         assertTrue(!File(dir, "./").isFile)
         println(
-            "BUNDLED_IMAGE_OK asset=$assetNameUsed gzip=$gzippedUsed " +
+            "DOWNLOAD_IMAGE_OK image=${image.name} sha256=$expected " +
                 "manifest=${manifest.length()}B distro=ubuntu24.04 arch=arm64 " +
                 "baseSha=${UbuntuToolsetStatus.OFFICIAL_BASE_SHA256} " +
                 "bash=${File(dir, "usr/bin/bash").length()}B " +

@@ -32,7 +32,7 @@ fun DropdownMenuItem(
     trailingIcon: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
     colors: MenuItemColors = MenuDefaults.itemColors(),
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
 ) {
     val alpha = if (enabled) 1f else 0.38f
     val interactive = LocalMinisMenuInteractive.current
@@ -55,5 +55,5 @@ fun DropdownMenuItem(
 
 @Composable
 fun DropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    MinisMenu(expanded = expanded, onDismissRequest = onDismissRequest, minWidth = 200.dp, content = content)
+    MinisMenu(expanded = expanded, onDismissRequest = onDismissRequest, content = content)
 }

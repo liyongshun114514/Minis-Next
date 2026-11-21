@@ -256,129 +256,6 @@ class MiuixSurfaceRegressionTest {
         }
     }
 
-    @Test fun etaReplyHasNoIdentityHeadingAndThinkingUsesNeutralMarkdown() {
-        // Exercise reduced motion here so the decorative pulse cannot keep Robolectric busy.
-        val resolver = compose.activity.contentResolver
-        val scaleKey = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
-        val originalScale = android.provider.Settings.Global.getFloat(resolver, scaleKey, 1f)
-        android.provider.Settings.Global.putFloat(resolver, scaleKey, 0f)
-        try {
-        var live by mutableStateOf(true)
-        val reasoning = AssistantBlock(id = "eta-reasoning", kind = "thinking",
-            content = "**Reasoning detail**\n\nA short explanation.", durationMs = 2500)
-        compose.setContent {
-            MinisTheme {
-                Column(Modifier.fillMaxWidth()) {
-                    com.openminis.app.ui.chat.AssistantHeader()
-                    com.openminis.app.ui.chat.AssistantAnswer {
-                        com.openminis.app.ui.chat.MarkdownBlock("Answer body", isStreaming = false)
-                    }
-                    com.openminis.app.ui.chat.ThinkingBlock(reasoning, isStreaming = live)
-                }
-            }
-        }
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("Answer body").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Minis Next").assertDoesNotExist()
-        compose.onNodeWithTag("assistant-thinking:eta-reasoning").assertIsDisplayed()
-        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertIsDisplayed()
-        val results = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
-        compose.onNodeWithText("Answer body").performSemanticsAction(
-            androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult,
-        ) { assertTrue(it(results)) }
-        assertEquals(16f, results.single().layoutInput.style.fontSize.value, 0.01f)
-        assertEquals(25f, results.single().layoutInput.style.lineHeight.value, 0.01f)
-        compose.runOnIdle { live = false }
-        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertDoesNotExist()
-        val title = compose.activity.getString(com.openminis.app.R.string.chat_thinking_finished_seconds, 2)
-        compose.onNodeWithText(title).assertIsDisplayed().performClick()
-        compose.onNodeWithTag("assistant-thinking-content:eta-reasoning").assertIsDisplayed()
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("Reasoning detail").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Reasoning detail").assertIsDisplayed()
-        } finally {
-            android.provider.Settings.Global.putFloat(resolver, scaleKey, originalScale)
-        }
-    }
-
-    @Test fun etaProcessShowsTheThreeThinkingTwoFailedToolsTimelineAndInlineDetails() {
-        val timeline = com.openminis.app.ui.chat.EtaWorkTimeline()
-        fun thinking(id: String) = com.openminis.app.ui.chat.FlatChatItem.AssistantThinking("eta-turn",
-            AssistantBlock(id, "thinking", "Completed reasoning"), true, false)
-        fun tool(id: String, result: String) = com.openminis.app.ui.chat.FlatChatItem.AssistantToolUse("eta-turn",
-            AssistantBlock(id, "tool_use", result, ToolBlockStatus.FAILED, "Terminal $id", "shell_execute",
-                "{\"command\":\"echo test\"}"), emptyList())
-        val input = listOf(thinking("t1"), tool("linux", "Linux environment is not installed"),
-            thinking("t2"), tool("android", "Exit code 1"), thinking("t3"))
-        val message = com.openminis.app.ui.chat.ChatMessage("eta-turn", "assistant", "")
-        var opens = ""
-        compose.setContent {
-            MinisTheme {
-                val revision by timeline.changes.collectAsState()
-                val rows = remember(revision) { timeline.project(input, listOf(message)) }
-                Column(Modifier.fillMaxWidth().testTag("eta-process-host")) {
-                    rows.forEach { row -> key(row.key) {
-                        when (row) {
-                            is com.openminis.app.ui.chat.FlatChatItem.AssistantWorkGroup ->
-                                com.openminis.app.ui.chat.EtaWorkHeader(row) { timeline.toggle(row.key, row.expanded) }
-                            is com.openminis.app.ui.chat.FlatChatItem.AssistantWorkStep ->
-                                com.openminis.app.ui.chat.EtaWorkStep(row,
-                                    onToggle = { timeline.toggle(row.key, row.expanded) },
-                                    onOpenDetail = { opens = it })
-                            else -> Unit
-                        }
-                    } }
-                }
-            }
-        }
-        val header = compose.onNodeWithTag("eta-work:work:thinking:eta-turn:t1")
-        header.assertIsDisplayed()
-        compose.onNodeWithTag("eta-tool:linux").assertDoesNotExist()
-        header.performClick()
-        compose.onNodeWithText("Linux environment is not installed").assertIsDisplayed()
-        compose.onNodeWithText("Exit code 1").assertIsDisplayed()
-        compose.onNodeWithTag("assistant-thinking:t1").assertIsDisplayed()
-        compose.onNodeWithTag("assistant-thinking:t2").assertIsDisplayed()
-        compose.onNodeWithTag("assistant-thinking:t3").assertIsDisplayed()
-        compose.onNode(hasText("Terminal linux", substring = true) and hasClickAction()).performClick()
-        compose.onNodeWithText("echo test").assertIsDisplayed()
-        compose.onNodeWithText(compose.activity.getString(com.openminis.app.R.string.eta_work_full_details)).performClick()
-        compose.runOnIdle { assertEquals("linux", opens) }
-        assertTrue(compose.onNodeWithTag("eta-process-host").captureToImage().width > 0)
-        header.performClick()
-        compose.onNodeWithTag("eta-tool:linux").assertDoesNotExist()
-        header.performClick()
-        compose.onNodeWithTag("eta-tool:linux").assertIsDisplayed()
-    }
-
-    @Test fun etaAutomaticReasoningTailHasFourLinesAndManualReadingSurvivesCompletion() {
-        val resolver = compose.activity.contentResolver
-        val key = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
-        val old = android.provider.Settings.Global.getFloat(resolver, key, 1f)
-        android.provider.Settings.Global.putFloat(resolver, key, 0f)
-        try {
-            var streaming by mutableStateOf(true)
-            val block = AssistantBlock("eta-tail", "thinking", (1..20).joinToString("\n\n") { "Reasoning line $it" })
-            compose.setContent {
-                MinisTheme {
-                    Column(Modifier.fillMaxWidth()) {
-                        com.openminis.app.ui.chat.ThinkingBlock(block, isStreaming = streaming, compact = true)
-                    }
-                }
-            }
-            val body = compose.onNodeWithTag("assistant-thinking-content:eta-tail")
-            body.assertIsDisplayed()
-            val tailHeight = body.fetchSemanticsNode().boundsInRoot.height
-            val activeTitle = compose.activity.getString(com.openminis.app.R.string.chat_thinking_active)
-            compose.onNodeWithText(activeTitle).performClick()
-            val fullHeight = body.fetchSemanticsNode().boundsInRoot.height
-            assertTrue("a tap releases the four-line limit", fullHeight > tailHeight + 20f)
-            compose.runOnIdle { streaming = false }
-            body.assertExists()
-            val finished = compose.activity.getString(com.openminis.app.R.string.chat_thinking_finished)
-            compose.onNodeWithText(finished).performClick()
-            body.assertDoesNotExist()
-        } finally { android.provider.Settings.Global.putFloat(resolver, key, old) }
-    }
-
     @Test fun modelGroupRowKeepsInlineBadgesAndSmallerTypographyAtLargeFont() {
         val group = com.openminis.app.data.model.ModelGroup(id = "hierarchy", name = "Default")
         val instance = com.openminis.app.data.model.ProviderInstance(
@@ -706,6 +583,43 @@ class MiuixSurfaceRegressionTest {
             assertFalse("inline glass must not draw the layer containing itself", bodyHasSource)
             assertTrue("out-of-tree sheets retain a source", overlayHasSource)
         }
+    }
+
+    @Test fun homeOverlayHasItsOwnBackdropAndSearchRemainsEditable() {
+        var sourceInBody = true
+        var sourceInOverlay = false
+        var query by mutableStateOf("")
+        compose.setContent {
+            MinisTheme {
+                MinisPageScaffold(
+                    bodyOverlay = {
+                        val source = LocalMinisActionBackdrop.current
+                        SideEffect { sourceInOverlay = source != null }
+                        MinisGlassSearchField(
+                            value = query, onValueChange = { query = it },
+                            label = "Search conversations",
+                            leadingIcon = { Text("⌕", Modifier.testTag("search-icon")) },
+                            modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).testTag("glass-search"),
+                        )
+                    },
+                ) {
+                    val source = LocalMinisActionBackdrop.current
+                    SideEffect { sourceInBody = source != null }
+                    Text("Conversation behind the glass")
+                }
+            }
+        }
+        compose.onNodeWithText("Search conversations").performTextInput("hello")
+        compose.runOnIdle {
+            assertEquals("hello", query)
+            assertFalse("body must not consume its own capture", sourceInBody)
+            assertTrue("floating search samples the separate body", sourceInOverlay)
+        }
+        val search = compose.onNodeWithTag("glass-search").fetchSemanticsNode().boundsInRoot
+        val icon = compose.onNodeWithTag("search-icon", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val inset = with(compose.activity.resources.displayMetrics) { (icon.left - search.left) / density }
+        assertTrue("search icon has an inner left inset", inset >= 15f)
+        assertTrue(compose.onNodeWithTag("glass-search").captureToImage().width > 0)
     }
 
     @Test fun dialogActionsShareOneBottomRowAtLargeFontAndKeepDisabledState() {

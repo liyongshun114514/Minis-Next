@@ -331,6 +331,31 @@ class SourceIdentityTests(unittest.TestCase):
                     z, 'assets/ubuntu-base-arm64.tar', self.source)
 
 
+class CloudImageManifestTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix='ubuntu-cloud-manifest-')
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / 'cloud.apk'
+        self.marker = {'schema': 1, 'repository': 'liyongshun114514/Minis-Next',
+                       'release_tag_prefix': 'ubuntu-rootfs-v1-',
+                       'image_name': 'ubuntu-base-arm64.tar.gz', 'checksum': 'sha256'}
+
+    def test_cloud_marker_replaces_bundled_image(self):
+        make_apk(self.path, {'assets/ubuntu-download.json': json.dumps(self.marker)})
+        with zipfile.ZipFile(self.path) as z:
+            self.assertEqual(self.marker, verifier.validate_download_manifest(z, set(z.namelist())))
+
+    def test_cloud_marker_rejects_bundled_image_and_foreign_repository(self):
+        make_apk(self.path, {'assets/ubuntu-download.json': json.dumps(self.marker),
+                             verifier.ROOTFS_ASSETS[0]: b'old image'})
+        with zipfile.ZipFile(self.path) as z, self.assertRaises(AssertionError):
+            verifier.validate_download_manifest(z, set(z.namelist()))
+        self.marker['repository'] = 'someone/else'
+        make_apk(self.path, {'assets/ubuntu-download.json': json.dumps(self.marker)})
+        with zipfile.ZipFile(self.path) as z, self.assertRaises(AssertionError):
+            verifier.validate_download_manifest(z, set(z.namelist()))
+
+
 class VerifyFailsClosedTests(unittest.TestCase):
     """`verify()` must reject bad payloads before any signing tool is involved."""
 

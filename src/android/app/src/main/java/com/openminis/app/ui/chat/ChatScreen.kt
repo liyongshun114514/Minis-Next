@@ -2671,10 +2671,6 @@ fun ChatScreen(
             )
         }
     }
-    val etaTimeline = remember(sessionId) { EtaWorkTimeline() }
-    LaunchedEffect(etaTimeline, viewModel) {
-        viewModel.thinkingLevel.collect { etaTimeline.invalidate() }
-    }
     DisposableEffect(appearancePrefs, toolFold) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
             if (key == com.openminis.app.ui.settings.KEY_FOLD_TOOLS) {
@@ -3005,8 +3001,7 @@ fun ChatScreen(
                                 // the longest title.
                                 .padding(horizontal = 32.dp, vertical = 2.dp),
                         ) {
-                            // Chat identity is its conversation title, never SOUL metadata.
-                            // Renaming still opens the existing SessionEditSheet.
+                            // Keep conversation title/rename independent of assistant identity.
                             val displayTitle = when {
                                 showChatTitlePill
                                     && sessionTitle.isNotBlank()
@@ -3861,8 +3856,7 @@ fun ChatScreen(
                         // ends, even if its final tool-block list did not change.
                         toolFold.changes,
                         viewModel.isStreaming,
-                        etaTimeline.changes,
-                    ) { msgs, stream, _, processing, _ -> Triple(msgs, stream, processing) }
+                    ) { msgs, stream, _, processing -> Triple(msgs, stream, processing) }
                         .conflate()
                         .sample(80L)
                         .collect { (msgs, stream, processing) ->
@@ -3992,13 +3986,13 @@ fun ChatScreen(
                             // [T-in-chat-search] The rows BEFORE folding, so a
                             // match inside a folded run is found too.
                             chatSearch.onRows(builtRows)
-                            // Eta: continuous reasoning/tools become one work process;
-                            // preserve the independent markdown rows and selection keys.
-                            flatItems = etaTimeline.project(
-                                builtRows, msgs,
+                            // [T-port-fold-tools] Fold runs of consecutive tool
+                            // calls into "Ran N tools" rows. Off: the same list.
+                            flatItems = toolFold.fold(
+                                builtRows,
+                                msgs,
                                 if (stream.isEmpty()) emptyList() else streamingOverlaySubset(msgs, stream),
-                                processing = processing, autoCollapse = toolFold.enabled,
-                                thinkingEnabled = viewModel.thinkingLevel.value.isEnabled,
+                                processing = processing,
                             )
                             // [T-user-ask-resolved-expand] A fold row the user just
                             // tapped stays where it was: its position is requested
@@ -4163,13 +4157,10 @@ fun ChatScreen(
                         // scrollToPreviousUserTurn does: ignoring them landed
                         // every jump one row off whenever either was shown.
                         fun lazyIndex(): Int? {
-                            val i = flatItems.indexOfFirst { row -> row.key == key ||
-                                (row is FlatChatItem.AssistantWorkStep && (row.members.size == 1 || row.expanded) &&
-                                    row.members.any { it.key == key }) }
+                            val i = flatItems.indexOfFirst { it.key == key }
                             if (i < 0) return null
-                            val targetKey = flatItems[i].key
                             val visible = listState.layoutInfo.visibleItemsInfo
-                            visible.firstOrNull { it.key == targetKey }?.let { return it.index }
+                            visible.firstOrNull { it.key == key }?.let { return it.index }
                             val lastFlat = flatItems.size - 1
                             val lead = visible.firstNotNullOfOrNull { info ->
                                 val k = info.key as? String ?: return@firstNotNullOfOrNull null
@@ -4180,8 +4171,12 @@ fun ChatScreen(
                         }
                         var idx = lazyIndex()
                         if (idx == null) {
-                            if (etaTimeline.expandForSearch(key)) {
-                                userScrolledAway = true
+                            val row = chatSearch.rowFor(key)
+                            val mid = row?.foldMessageId()
+                            val bid = row?.foldBlockId()
+                            val run = if (mid != null && bid != null) toolFold.runKeyContaining(mid, bid) else null
+                            if (run != null) {
+                                toolFold.expand(run)
                                 idx = kotlinx.coroutines.withTimeoutOrNull(1_500) {
                                     snapshotFlow { lazyIndex() }.filterNotNull().first()
                                 }
@@ -4224,8 +4219,6 @@ fun ChatScreen(
                     is FlatChatItem.AssistantThinking -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantToolUse -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantToolGroup -> grayedMap[originalMessageId(messageId)] == true
-                    is FlatChatItem.AssistantWorkGroup -> grayedMap[originalMessageId(messageId)] == true
-                    is FlatChatItem.AssistantWorkStep -> grayedMap[originalMessageId(messageId)] == true
                     is FlatChatItem.AssistantInfo -> false  // system rows never grayed
                     is FlatChatItem.AssistantTyping -> false
                     is FlatChatItem.AssistantError -> grayedMap[originalMessageId(messageId)] == true
@@ -4247,10 +4240,9 @@ fun ChatScreen(
                 // detector lives at this stable scope. Mirrors Compose's
                 // recommended LazyColumn + selection pattern.
                 //
-                // The custom LocalTextToolbar replaces the system Copy bar
-                // with a 3-button popup (Copy / Copy Markdown / Copy Rich
-                // Text); the latter two read from the bounds registry which
-                // each AssistantMessageView updates via onGloballyPositioned.
+                // Both selection systems use Android's floating ActionMode.
+                // The adapter keeps exact selection callbacks and resolves
+                // whole-reply actions through this bounds registry.
                 val messageBounds = remember { MessageBoundsRegistry() }
                 // [T-selection-add-to-input] Toolbar's "Add to Chat Input"
                 // action funnels the selected substring back into the
@@ -4808,8 +4800,6 @@ fun ChatScreen(
                                 messageId = item.messageId,
                                 slotKey = "mdblock:${item.parentBlockId}:${item.blockIndex}",
                                 markdown = item.messageMarkdown,
-                                firstFragment = item.blockIndex == 0,
-                                lastFragment = item.isLastBlockOfMessage,
                             ) {
                                 // [T-414-usage-tap-band] Rows of the reply's final
                                 // text block carry the capsule's tap band.
@@ -4893,27 +4883,6 @@ fun ChatScreen(
                                 toggleAnchor.captureRow(item.key, flatItems)
                                 toolFold.toggle(item.runKey)
                             }
-                            is FlatChatItem.AssistantWorkGroup -> EtaWorkHeader(item) {
-                                userScrolledAway = true
-                                toggleAnchor.captureRow(item.key, flatItems)
-                                etaTimeline.toggle(item.key, item.expanded)
-                            }
-                            is FlatChatItem.AssistantWorkStep -> EtaWorkStep(
-                                item = item,
-                                onToggle = {
-                                    userScrolledAway = true
-                                    toggleAnchor.captureRow(item.key, flatItems)
-                                    etaTimeline.toggle(item.key, item.expanded)
-                                },
-                                onOpenDetail = { viewModel.openToolDetail(it) },
-                                onStop = { viewModel.stopTool(it) },
-                                onRerun = if (isStreaming) null else { row ->
-                                    safeMutate { viewModel.rerunFromToolBlock(row.messageId, row.block.id) }
-                                },
-                                onSearch = { chatSearch.activate() },
-                                searchController = chatSearch,
-                                onExpand = { userScrolledAway = true },
-                            )
                             is FlatChatItem.AssistantToolUse -> if (item.block.toolName == com.openminis.app.agent.userask.UserAskPromptText.TOOL_NAME) {
                                 // [T-port-user-ask] A question card; a call that
                                 // never became a question shows as a plain pill.
@@ -5073,7 +5042,7 @@ fun ChatScreen(
                                         enter = androidx.compose.animation.fadeIn(),
                                         exit = androidx.compose.animation.fadeOut(),
                                     ) {
-                                        UsageCapsule(usage = item.usage, completedAt = item.completedAt)
+                                        UsageCapsule(usage = item.usage)
                                     }
                                 }
                             }
@@ -7096,8 +7065,7 @@ fun ChatScreen(
                                 Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp)) {
                                     innerTextField()
                                     if (inputText.isEmpty()) {
-                                        // Generic chat hints do not expose the SOUL name.
-                                        // Rotation, usage pages and reduced motion stay unchanged.
+                                        // Resolve generic rotating hints in the current locale.
                                                                                 // [T-android-composer-placeholder-rotation]
                                                                                 // Crossfade between hints. Reduce-motion
                                                                                 // (animator scale 0) skips the fade and
@@ -7140,7 +7108,9 @@ fun ChatScreen(
                                                                                         )
                                                                                     } else {
                                                                                         Text(
-                                                                                            composerPlaceholderText(ComposerPlaceholderPool.textIndex(key)),
+                                                                                            composerPlaceholderText(
+                                                                                                ComposerPlaceholderPool.textIndex(key),
+                                                                                            ),
                                                                                             color = MiuixTheme.colorScheme.onSurface
                                                                                                 .copy(alpha = 0.25f),
                                                                                             fontSize = 16.5.sp * chatInputFontScale,

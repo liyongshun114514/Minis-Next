@@ -116,7 +116,12 @@ data class ChatTokenUsage(
     val cacheCreationTokens: Int,
     val cacheReadTokens: Int,
     val latestContextTokens: Int,
+    val streamMs: Long = 0L,
+    val firstTokenMs: Long = 0L,
 ) {
+    val outputTokensPerSecond: Double?
+        get() = if (streamMs > 0L && outputTokens > 0) outputTokens * 1000.0 / streamMs else null
+
     companion object {
         fun parse(json: String?): ChatTokenUsage? {
             if (json.isNullOrBlank()) return null
@@ -128,6 +133,8 @@ data class ChatTokenUsage(
                     cacheCreationTokens = o.optInt("cacheCreationTokens", 0),
                     cacheReadTokens = o.optInt("cacheReadTokens", 0),
                     latestContextTokens = o.optInt("latestContextTokens", 0),
+                    streamMs = o.optLong("streamMs", 0L).coerceAtLeast(0L),
+                    firstTokenMs = o.optLong("firstTokenMs", 0L).coerceAtLeast(0L),
                 )
                 // An all-zero row carries nothing worth a capsule.
                 if (u.inputTokens == 0 && u.outputTokens == 0 &&

@@ -698,6 +698,32 @@ def validate_launcher_manifest(xmltree, expected_package=None):
 verify_launcher_manifest = validate_launcher_manifest
 
 
+def validate_download_manifest(z, names):
+    """Download builds ship a protocol marker and no Linux filesystem bytes."""
+    assert not any(n in names for n in ROOTFS_ASSETS), 'cloud APK must not bundle a rootfs payload'
+    marker = 'assets/ubuntu-download.json'
+    assert marker in names, 'missing payload: Ubuntu download manifest'
+    data = json.loads(z.read(marker))
+    assert data == {
+        'schema': 1, 'repository': 'liyongshun114514/Minis-Next',
+        'release_tag_prefix': 'ubuntu-rootfs-v1-',
+        'image_name': 'ubuntu-base-arm64.tar.gz', 'checksum': 'sha256',
+    }, 'invalid Ubuntu download manifest'
+    return data
+
+
+def validate_download_image(path, require_toolset=True):
+    """Use the same archive checks for a separately distributed image."""
+    path = Path(path)
+    class Archive:
+        def open(self, name):
+            return path.open('rb')
+        def getinfo(self, name):
+            from types import SimpleNamespace
+            return SimpleNamespace(file_size=path.stat().st_size)
+    return validate_rootfs_archive(Archive(), ROOTFS_ASSETS[0], require_toolset=require_toolset)
+
+
 def verify(apk: Path, source_rootfs=None, require_toolset=None):
     """Verify a release APK end to end.
 
@@ -712,13 +738,20 @@ def verify(apk: Path, source_rootfs=None, require_toolset=None):
         names = set(z.namelist())
         missing = STATIC_REQUIRED - names
         assert not missing, f'missing payload: {missing}'
-        rootfs = rootfs_asset(names)
+        downloadable = 'assets/ubuntu-download.json' in names
+        if downloadable:
+            validate_download_manifest(z, names)
+        rootfs = 'cloud-download' if downloadable else rootfs_asset(names)
         assert 'assets/alpine-minirootfs.tar.gz' not in names, 'old Alpine payload still bundled'
         assert not any(n.startswith('lib/') and n.split('/')[1] != 'arm64-v8a' for n in names), 'unexpected ABI'
-        scan = validate_rootfs_archive(z, rootfs, require_toolset=require_toolset)
+        scan = None if downloadable else validate_rootfs_archive(z, rootfs, require_toolset=require_toolset)
         source = (Path(source_rootfs) if source_rootfs is not None else
                   Path(os.environ.get('UBUNTU_ROOTFS_SOURCE') or DEFAULT_SOURCE_ROOTFS))
-        if source.is_file():
+        if downloadable:
+            if not source.is_file():
+                raise AssertionError(f"Verified download image is missing: {source}")
+            scan = validate_download_image(source, require_toolset=require_toolset)
+        elif source.is_file():
             check_payload_matches_source(z, rootfs, source)
         elif os.environ.get('UBUNTU_ROOTFS_SOURCE'):
             raise AssertionError(f'UBUNTU_ROOTFS_SOURCE={source} does not exist')

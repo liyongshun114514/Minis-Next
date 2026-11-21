@@ -43,12 +43,6 @@ internal fun FlatChatItem.toScreenSegment(): ScreenContextBuilder.Segment = when
     is FlatChatItem.AssistantToolUse -> ScreenContextBuilder.Segment(
         key, messageId, ScreenContextBuilder.Kind.TOOL, block.toolTitle.ifBlank { block.toolName },
     )
-    is FlatChatItem.AssistantWorkStep -> ScreenContextBuilder.Segment(
-        key, messageId, ScreenContextBuilder.Kind.TOOL,
-        members.filterIsInstance<FlatChatItem.AssistantToolUse>().joinToString(" · ") {
-            it.block.toolTitle.ifBlank { it.block.toolName }
-        },
-    )
     else -> ScreenContextBuilder.Segment(key, "", null, "")
 }
 

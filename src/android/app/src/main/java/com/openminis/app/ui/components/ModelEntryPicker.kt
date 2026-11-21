@@ -168,7 +168,7 @@ fun LazyListScope.modelEntryPickerItems(
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.padding(start = 16.dp, end = 10.dp).size(18.dp),
                             tint = MiuixTheme.colorScheme.onSurfaceContainerVariant,
                         )
                     },

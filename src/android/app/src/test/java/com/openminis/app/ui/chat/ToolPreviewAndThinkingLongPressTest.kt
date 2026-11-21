@@ -39,8 +39,7 @@ class ToolPreviewAndThinkingLongPressTest {
         val fn = thinking.substringAfter("internal fun ThinkingBlock(").substringBefore("AnimatedVisibility(visible = expanded")
         assertTrue(fn.contains(".expandToggleClickable(onLongClick = { showThinkingMenu = true })"))
         assertTrue(fn.contains("putBoolean(KEY_AUTO_EXPAND_THINKING, !on)"))
-        assertTrue(fn.contains("if (isStreaming && isLast && userIntent == null && !overHardCap) userIntent = !on"))
-        assertTrue(fn.contains("val expanded = userIntent ?: (autoExpandThinking && isLast && isStreaming)"))
+        assertTrue(fn.contains("if (isStreaming && isLast && userIntent == null && !overHardCap) expanded = !on"))
     }
 
     @Test

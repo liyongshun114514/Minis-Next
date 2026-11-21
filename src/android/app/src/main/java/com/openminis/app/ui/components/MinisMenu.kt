@@ -84,8 +84,8 @@ fun MinisMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset.Zero,
-    minWidth: Dp = 180.dp,
-    maxPanelWidth: Dp = 280.dp,
+    minWidth: Dp = 164.dp,
+    maxPanelWidth: Dp = 252.dp,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     alignEnd: Boolean = false,
     onDismissFinished: (() -> Unit)? = null,
@@ -116,12 +116,12 @@ fun MinisMenu(
     }
     val sameWindow = LocalMinisOverlayWindow.current === LocalView.current.rootView
     val pageBackdrop = if (sameWindow) backdrop ?: LocalMinisPageBackdrop.current ?: LocalMinisActionBackdrop.current else null
-    val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow && pageBackdrop == null }
+    val scene = LocalMinisSceneBackdrop.current.takeIf { sameWindow && backdrop == null }
     DisposableEffect(scene) {
         val release = scene?.acquire()
         onDispose { release?.invoke() }
     }
-    val menuBackdrop = pageBackdrop ?: scene?.backdrop
+    val menuBackdrop = scene?.backdrop ?: pageBackdrop
     val locals = currentCompositionLocalContext
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
@@ -209,7 +209,7 @@ fun MinisMenu(
                                     while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
                                 }
                             }
-                            .padding(vertical = GlassPopupDefaults.ContentPaddingVertical),
+                            .padding(vertical = 4.dp),
                         content = content,
                     )
                 }

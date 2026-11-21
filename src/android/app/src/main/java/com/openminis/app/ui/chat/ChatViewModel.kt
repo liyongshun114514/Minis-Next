@@ -11738,6 +11738,8 @@ class ChatViewModel(
             // other figure in the Token Usage sheet — unlike iOS, which keeps
             // its equivalent in memory and loses it when the VM goes away.
             var turnStreamMs = 0L
+            var turnRequestStartMs: Long? = null
+            var turnFirstTokenMs = 0L
             // [T-android-maxtokens-stale-log] max_tokens is sized per request
             // from THAT request's predicted input (dynamicMaxTokens(…,
             // dispatchInputTokens) at the dispatch below), like iOS. A second,
@@ -11878,7 +11880,9 @@ class ChatViewModel(
                     // below the provider (DNS/TCP/TLS/read), which no existing
                     // log covers. `firstChunkSeen` is flipped in the collector.
                     val streamStartMs = android.os.SystemClock.elapsedRealtime()
+                    if (turnRequestStartMs == null) turnRequestStartMs = streamStartMs
                     val firstChunkSeen = java.util.concurrent.atomic.AtomicBoolean(false)
+                    var firstOutputAtMs: Long? = null
                     val diagSid = activeSessionId
                     println(
                         "[T-STALL-DIAG] stream REQUEST-OUT sid=$diagSid turn=$turn " +
@@ -11990,6 +11994,19 @@ class ChatViewModel(
                     }
                     attemptUsage = null
                     turnChunks.splitThinkingPrefix().collect { chunk ->
+                val hasOutput = when (chunk) {
+                    is LLMStreamChunk.Text -> chunk.text.isNotEmpty()
+                    is LLMStreamChunk.ThinkingDelta -> chunk.text.isNotEmpty()
+                    is LLMStreamChunk.ToolUseStart, is LLMStreamChunk.ToolInputDelta,
+                    is LLMStreamChunk.ToolCallComplete -> true
+                    else -> false
+                }
+                if (hasOutput && firstOutputAtMs == null) {
+                    firstOutputAtMs = android.os.SystemClock.elapsedRealtime()
+                    if (turnFirstTokenMs == 0L) {
+                        turnFirstTokenMs = (firstOutputAtMs!! - (turnRequestStartMs ?: streamStartMs)).coerceAtLeast(1L)
+                    }
+                }
                 // [T-STALL-DIAG] Mark first byte back from the provider and log
                 // the time-to-first-chunk once per turn.
                 if (firstChunkSeen.compareAndSet(false, true)) {
@@ -12463,7 +12480,9 @@ class ChatViewModel(
                         // then failed still contributes the seconds it really
                         // spent. elapsedRealtime is monotonic, so a clock
                         // change or a doze cannot produce a negative interval.
-                        turnStreamMs += android.os.SystemClock.elapsedRealtime() - streamStartMs
+                        firstOutputAtMs?.let { started ->
+                            turnStreamMs += (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(1L)
+                        }
                     }
                 } catch (e: Exception) {
                     if (e is CancellationException && e.cause == null) throw e  // real job cancellation
@@ -13003,7 +13022,7 @@ class ChatViewModel(
                             }
                             val leakParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
                             val leakMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
-                            persistAssistantTurn(leakParts, lastUsage, null, leakMeta, uiAssistantId = assistantId, streamMs = turnStreamMs)
+                            persistAssistantTurn(leakParts, lastUsage, null, leakMeta, uiAssistantId = assistantId, streamMs = turnStreamMs, firstTokenMs = turnFirstTokenMs)
                             withContext(Dispatchers.Main) {
                                 setInlineError(context.getString(R.string.chat_error_dsml_tool_call_leak))
                             }
@@ -13021,7 +13040,7 @@ class ChatViewModel(
                 }
                 val turnParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
                 val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
-                persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta, uiAssistantId = assistantId, streamMs = turnStreamMs)
+                persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta, uiAssistantId = assistantId, streamMs = turnStreamMs, firstTokenMs = turnFirstTokenMs)
                 // [T-error-persist-android] Empty-response hint: the model ended a
                 // turn (finish=stop/end_turn) with no visible text anywhere in the
                 // reply and no tool blocks — the user just sees a blank bubble.
@@ -13836,7 +13855,7 @@ class ChatViewModel(
             // assistant entry — compact-marker boundary resolution depends on it.
             val turnParts = buildTurnParts(allToolBlocks, turnStartBlockIndex, toolInputMap)
             val blockMeta = allToolBlocks.filter { it.kind == "tool_use" }.associateBy { it.id }
-            val assistantDbId = persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta, uiAssistantId = assistantId, streamMs = turnStreamMs)
+            val assistantDbId = persistAssistantTurn(turnParts, lastUsage, turnReasoningContent, blockMeta, uiAssistantId = assistantId, streamMs = turnStreamMs, firstTokenMs = turnFirstTokenMs)
             if (assistantDbId != null) {
                 val lastIdx = agentHistory.indexOfLast { it.role == LLMMessage.Role.ASSISTANT && it.dbMessageId == null }
                 if (lastIdx >= 0) {
@@ -16341,11 +16360,12 @@ class ChatViewModel(
         // "not measured", which is also what every row written before this
         // change reads as — hence a NEW key rather than a changed one.
         streamMs: Long = 0L,
+        firstTokenMs: Long = 0L,
     ): String? {
         if (parts.isEmpty()) return null
         val partsJson = buildAssistantPartsJson(parts, toolBlockMeta)
         val tokenJson = usage?.let {
-            """{"inputTokens":${it.inputTokens},"outputTokens":${it.outputTokens},"cacheCreationTokens":${it.cacheCreationInputTokens ?: 0},"cacheReadTokens":${it.cacheReadInputTokens ?: 0},"latestContextTokens":${it.latestContextTokens},"streamMs":$streamMs${com.openminis.app.usage.StoredUsageJson.extraFields(it)}${calibrationJsonFields()}}"""
+            """{"inputTokens":${it.inputTokens},"outputTokens":${it.outputTokens},"cacheCreationTokens":${it.cacheCreationInputTokens ?: 0},"cacheReadTokens":${it.cacheReadInputTokens ?: 0},"latestContextTokens":${it.latestContextTokens},"streamMs":$streamMs,"firstTokenMs":$firstTokenMs${com.openminis.app.usage.StoredUsageJson.extraFields(it)}${calibrationJsonFields()}}"""
         }
         val entity = chatRepository.appendMessage(
             realSessionId.ifEmpty { sessionId }, "assistant", partsJson, tokenJson,

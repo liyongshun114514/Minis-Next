@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.util.Log
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,18 +17,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
-/**
- * Observable state for rootfs installation. Mirrors the conceptual iOS
- * `downloadRootfs(progress:)` contract: discrete phases with a 0..1 fraction
- * during the long-running extract step. Neither platform actually downloads
- * the rootfs from the network today — it ships bundled as an asset — so
- * "progress" tracks asset-stream consumption (compressed bytes) instead of
- * HTTP transfer. The fraction semantics are identical from the UI's viewpoint.
- */
+/** Observable download, extraction and finalization of a verified Ubuntu image. */
 sealed class RootfsInstallState {
     object Idle : RootfsInstallState()
     object Preparing : RootfsInstallState()
-    /** progress in 0f..1f, based on compressed asset bytes consumed. */
+    data class Downloading(val progress: Float) : RootfsInstallState()
+    /** progress in 0f..1f, based on compressed archive bytes consumed. */
     data class Extracting(val progress: Float) : RootfsInstallState()
     object Finalizing : RootfsInstallState()
     object Installed : RootfsInstallState()
@@ -119,9 +115,10 @@ class RootfsManager private constructor(private val context: Context) {
             ?: if (isInstalled) RootfsInstallState.Installed else RootfsInstallState.Idle
     )
     val installState: StateFlow<RootfsInstallState> = _installState.asStateFlow()
+    private val installMutex = Mutex()
 
     /**
-     * Install the Ubuntu 24.04 rootfs from assets if not already present.
+     * Install the latest CI-verified Ubuntu 24.04 image if not already present.
      *
      * Flow: extract the whole archive into a staging directory (hardened
      * POSIX/GNU/PAX tar parser — see [extractTar]), write the distro/arch
@@ -131,15 +128,18 @@ class RootfsManager private constructor(private val context: Context) {
      * deleted. Progress is published to [installState] (Preparing →
      * Extracting(f) → Finalizing → Installed / Failed).
      */
-    suspend fun installIfNeeded() = withContext(Dispatchers.IO) {
+    suspend fun installIfNeeded() = installMutex.withLock { installDownloadedImageIfNeeded() }
+
+    private suspend fun installDownloadedImageIfNeeded(force: Boolean = false) = withContext(Dispatchers.IO) {
         requireDirectoryReady()
-        if (isInstalled) {
+        if (isInstalled && !force) {
             Log.d(TAG, "Rootfs already installed at $rootfsDir")
             _installState.value = RootfsInstallState.Installed
             return@withContext
         }
 
         val staging = File(context.filesDir, SandboxDistribution.STAGING_DIR_NAME)
+        var downloadedImage: File? = null
         try {
             _installState.value = RootfsInstallState.Preparing
             Log.i(TAG, "Installing ${SandboxDistribution.DISPLAY_NAME} rootfs...")
@@ -151,47 +151,16 @@ class RootfsManager private constructor(private val context: Context) {
                 error("Cannot create staging directory at $staging")
             }
 
-            // Extract rootfs from assets.
-            // AAPT may decompress .tar.gz → .tar automatically, so try both names.
-            val assetName = try {
-                context.assets.open(ROOTFS_ASSET).close()
-                ROOTFS_ASSET
-            } catch (_: java.io.FileNotFoundException) {
-                try {
-                    context.assets.open(ROOTFS_ASSET_TAR).close()
-                    ROOTFS_ASSET_TAR
-                } catch (_: java.io.FileNotFoundException) {
-                    throw IllegalStateException(
-                        "Rootfs asset ${SandboxDistribution.ROOTFS_ASSET} is missing from the APK. " +
-                            "Run scripts/prepare_android_ubuntu.sh before building."
-                    )
-                }
+            val image = UbuntuImageDownload.download(context) { fraction ->
+                _installState.value = RootfsInstallState.Downloading(fraction)
             }
-
-            // Asset size for progress calculation — compressed length (for .gz)
-            // or uncompressed length (for .tar). openFd() fails for 0-length
-            // assets on some devices; fall back to 0 which disables progress.
-            val assetTotal: Long = try {
-                context.assets.openFd(assetName).use { it.length }
-            } catch (_: Exception) { 0L }
-
-            // Emit an initial 0% so the UI flips from Preparing → progress bar.
+            downloadedImage = image
             _installState.value = RootfsInstallState.Extracting(0f)
-
-            context.assets.open(assetName).use { rawAsset ->
-                // Wrap the ASSET stream (not the gzip stream) so progress tracks
-                // compressed bytes consumed — monotonic and matches the size we
-                // have a total for. Throttle updates to avoid flooding the StateFlow.
-                val progressStream = ProgressInputStream(rawAsset, assetTotal) { fraction ->
+            image.inputStream().use { raw ->
+                val progressStream = ProgressInputStream(raw, image.length()) { fraction ->
                     _installState.value = RootfsInstallState.Extracting(fraction)
                 }
-                if (assetName.endsWith(".gz")) {
-                    GZIPInputStream(progressStream).use { gzipStream ->
-                        extractTar(gzipStream, staging)
-                    }
-                } else {
-                    extractTar(progressStream, staging)
-                }
+                GZIPInputStream(progressStream).use { gzipStream -> extractTar(gzipStream, staging) }
             }
 
             _installState.value = RootfsInstallState.Finalizing
@@ -208,7 +177,7 @@ class RootfsManager private constructor(private val context: Context) {
             }
 
             UbuntuToolsetStatus.problem(staging)?.let { problem ->
-                throw IOException("Bundled Ubuntu toolset is incomplete: $problem")
+                throw IOException("Downloaded Ubuntu toolset is incomplete: $problem")
             }
 
             // Markers are written only after the complete preinstalled image
@@ -281,6 +250,8 @@ class RootfsManager private constructor(private val context: Context) {
             Log.e(TAG, "Rootfs installation failed", t)
             _installState.value = RootfsInstallState.Failed(t.message ?: t.javaClass.simpleName)
             throw t
+        } finally {
+            downloadedImage?.delete()
         }
     }
 
@@ -491,8 +462,8 @@ class RootfsManager private constructor(private val context: Context) {
             }
         }
 
-        GuestTreeFiles.deleteTree(rootfsDir)
-        installIfNeeded()
+        // Download/extract first; an offline reset must leave the old guest usable.
+        installMutex.withLock { installDownloadedImageIfNeeded(force = true) }
 
         // Restore user data
         if (backupDir != null && backupDir.exists()) {
@@ -966,8 +937,6 @@ class RootfsManager private constructor(private val context: Context) {
             return sb.toString().trim()
         }
         private const val ARCH = SandboxDistribution.ARCH
-        private const val ROOTFS_ASSET = SandboxDistribution.ROOTFS_ASSET
-        private const val ROOTFS_ASSET_TAR = SandboxDistribution.ROOTFS_ASSET_TAR
         private const val PROOT_ASSET = "proot-aarch64"
         private const val DEFAULT_MOUNT_ASSET = "default_mount"
 

@@ -125,6 +125,7 @@ fun SkillsManagementScreen(
     var showImportSheet by remember { mutableStateOf(false) }
     var deleteSkillId by remember { mutableStateOf<String?>(null) }
     var showAddMenu by remember { mutableStateOf(false) }
+    var afterAddMenu by remember { mutableStateOf<(() -> Unit)?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -239,17 +240,22 @@ fun SkillsManagementScreen(
                     expanded = showAddMenu,
                     onDismissRequest = { showAddMenu = false },
                     glassAnchor = addAnchor,
+                    onDismissFinished = {
+                        val action = afterAddMenu
+                        afterAddMenu = null
+                        action?.invoke()
+                    },
                     anchorContent = { Icon(Icons.Default.Add, contentDescription = null) },
                 ) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.skill_import_modal_title)) },
                         leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null) },
-                        onClick = { showAddMenu = false; showImportSheet = true },
+                        onClick = { afterAddMenu = { showImportSheet = true }; showAddMenu = false },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.skill_minis_skills_modal)) },
                         leadingIcon = { Icon(Icons.Outlined.Language, contentDescription = null) },
-                        onClick = { showAddMenu = false; onMinisSkillsClick() },
+                        onClick = { afterAddMenu = onMinisSkillsClick; showAddMenu = false },
                     )
                 }
             }

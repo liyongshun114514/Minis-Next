@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "repository": "liyongshun114514/Minis-Next",
+  "release_tag_prefix": "ubuntu-rootfs-v1-",
+  "image_name": "ubuntu-base-arm64.tar.gz",
+  "checksum": "sha256"
+}

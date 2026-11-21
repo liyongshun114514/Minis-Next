@@ -1144,7 +1144,88 @@ fun SessionListScreen(
                 },
             )
         },
-        // No default FAB — we draw dual FABs manually at bottom
+        bodyOverlay = {
+            // Bottom area: dual FABs or selection toolbar (matching iOS fabRow / selectionToolbar)
+            if (isSelecting) {
+                // Selection toolbar at bottom (matching iOS: Export + Delete)
+                SelectionToolbar(
+                    selectedCount = selectedIds.size,
+                    onExport = { format ->
+                        // Displayed order, persisted rows only: the synthetic
+                        // draft row was never written, so it has nothing to export.
+                        val targets = persistedSessions.filter { it.id in selectedIds }
+                        if (targets.isNotEmpty() && multiExportProgress == null) {
+                            multiExportProgress = 0 to 0
+                            scope.launch {
+                                try {
+                                    val result = com.openminis.app.share.SessionExporter.exportToZip(
+                                        context, targets, chatRepository, format,
+                                    ) { done, total ->
+                                        scope.launch { multiExportProgress = done to total }
+                                    }
+                                    // iOS shows the summary only for several sessions.
+                                    if (result.sessionCount > 1) multiExportResult = result
+                                    else shareSessionExport(context, result)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (t: Throwable) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.export_progress_failed),
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                } finally {
+                                    multiExportProgress = null
+                                }
+                            }
+                        }
+                    },
+                    onMove = { viewModel.requestGroupPickerForSelection() },
+                    onDelete = { showBulkDeleteDialog = true },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            } else if (hasProviders && (sessions.isNotEmpty() || isSearchActive)) {
+                // Dual FAB row (matching iOS: New Chat left + Search right, or vice versa).
+                // Hidden while the onboarding landing is showing — Step 3 provides the CTA.
+                // T46: stay visible while search is active even when the result
+                // set is empty, so the user can edit / clear the query without
+                // having to rediscover the search FAB after a 0-hit query.
+                DualFabRow(
+                    isDark = isDark,
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    isSearching = isSearching,
+                    hasSessions = sessions.isNotEmpty() || isSearchActive,
+                    onNewChat = {
+                        scope.launch {
+                            val sessionId = viewModel.createNewSession()
+                            if (sessionId != null) onNewChatGuarded(sessionId)
+                        }
+                    },
+                    onNewChatWithGroup = { groupId ->
+                        scope.launch {
+                            val sessionId = viewModel.createNewSession(groupId = groupId)
+                            if (sessionId != null) onNewChatGuarded(sessionId)
+                        }
+                    },
+                    modelGroups = providerConfig.modelGroups,
+                    onSearchToggle = {
+                        if (isSearchActive) {
+                            viewModel.searchQuery.value = ""
+                            viewModel.isSearchActive.value = false
+                        } else {
+                            viewModel.isSearchActive.value = true
+                        }
+                    },
+                    onSearchQueryChange = { viewModel.searchQuery.value = it },
+                    onSearchDismiss = {
+                        viewModel.searchQuery.value = ""
+                        viewModel.isSearchActive.value = false
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -1527,86 +1608,7 @@ fun SessionListScreen(
                 }
             }
 
-            // Bottom area: dual FABs or selection toolbar (matching iOS fabRow / selectionToolbar)
-            if (isSelecting) {
-                // Selection toolbar at bottom (matching iOS: Export + Delete)
-                SelectionToolbar(
-                    selectedCount = selectedIds.size,
-                    onExport = { format ->
-                        // Displayed order, persisted rows only: the synthetic
-                        // draft row was never written, so it has nothing to export.
-                        val targets = persistedSessions.filter { it.id in selectedIds }
-                        if (targets.isNotEmpty() && multiExportProgress == null) {
-                            multiExportProgress = 0 to 0
-                            scope.launch {
-                                try {
-                                    val result = com.openminis.app.share.SessionExporter.exportToZip(
-                                        context, targets, chatRepository, format,
-                                    ) { done, total ->
-                                        scope.launch { multiExportProgress = done to total }
-                                    }
-                                    // iOS shows the summary only for several sessions.
-                                    if (result.sessionCount > 1) multiExportResult = result
-                                    else shareSessionExport(context, result)
-                                } catch (e: kotlinx.coroutines.CancellationException) {
-                                    throw e
-                                } catch (t: Throwable) {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        context.getString(R.string.export_progress_failed),
-                                        android.widget.Toast.LENGTH_LONG,
-                                    ).show()
-                                } finally {
-                                    multiExportProgress = null
-                                }
-                            }
-                        }
-                    },
-                    onMove = { viewModel.requestGroupPickerForSelection() },
-                    onDelete = { showBulkDeleteDialog = true },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            } else if (hasProviders && (sessions.isNotEmpty() || isSearchActive)) {
-                // Dual FAB row (matching iOS: New Chat left + Search right, or vice versa).
-                // Hidden while the onboarding landing is showing — Step 3 provides the CTA.
-                // T46: stay visible while search is active even when the result
-                // set is empty, so the user can edit / clear the query without
-                // having to rediscover the search FAB after a 0-hit query.
-                DualFabRow(
-                    isDark = isDark,
-                    isSearchActive = isSearchActive,
-                    searchQuery = searchQuery,
-                    isSearching = isSearching,
-                    hasSessions = sessions.isNotEmpty() || isSearchActive,
-                    onNewChat = {
-                        scope.launch {
-                            val sessionId = viewModel.createNewSession()
-                            if (sessionId != null) onNewChatGuarded(sessionId)
-                        }
-                    },
-                    onNewChatWithGroup = { groupId ->
-                        scope.launch {
-                            val sessionId = viewModel.createNewSession(groupId = groupId)
-                            if (sessionId != null) onNewChatGuarded(sessionId)
-                        }
-                    },
-                    modelGroups = providerConfig.modelGroups,
-                    onSearchToggle = {
-                        if (isSearchActive) {
-                            viewModel.searchQuery.value = ""
-                            viewModel.isSearchActive.value = false
-                        } else {
-                            viewModel.isSearchActive.value = true
-                        }
-                    },
-                    onSearchQueryChange = { viewModel.searchQuery.value = it },
-                    onSearchDismiss = {
-                        viewModel.searchQuery.value = ""
-                        viewModel.isSearchActive.value = false
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            }
+
         }
     }
 
@@ -2055,10 +2057,11 @@ private fun DualFabRow(
         // Middle: Inline search bar (when active)
         AnimatedVisibility(
             visible = isSearchActive,
+            modifier = Modifier.weight(1f),
             enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.85f),
             exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.85f),
         ) {
-            TextField(
+            com.openminis.app.ui.components.MinisGlassSearchField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
                 singleLine = true,
@@ -2084,11 +2087,10 @@ private fun DualFabRow(
                                     }
                                 }
                             },
-                colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surfaceContainerHigh, borderColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.8f)),
                 label = stringResource(R.string.search_chats_placeholder),
                 useLabelAsPlaceholder = true,
                 modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .padding(horizontal = 10.dp)
                                 // [T-android-search-height] Left at the component's own
                                 // height. Forcing 42dp here clipped the placeholder: a

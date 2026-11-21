@@ -143,11 +143,11 @@ class TokenUsageSheetFieldsTest {
         val region = vmSrc.substringAfter("stream ENDED-WITHOUT-CHUNK").substringBefore("} catch (e: Exception)")
         assertTrue(
             "turnStreamMs must be accumulated where the stream always unwinds",
-            region.contains("turnStreamMs += android.os.SystemClock.elapsedRealtime() - streamStartMs"),
+            region.contains("firstOutputAtMs?.let") && region.contains("turnStreamMs += (android.os.SystemClock.elapsedRealtime() - started)"),
         )
         assertTrue(
             "must use a monotonic clock — wall time can jump backwards",
-            vmSrc.contains("turnStreamMs += android.os.SystemClock.elapsedRealtime()"),
+            vmSrc.contains("turnStreamMs += (android.os.SystemClock.elapsedRealtime()"),
         )
     }
 

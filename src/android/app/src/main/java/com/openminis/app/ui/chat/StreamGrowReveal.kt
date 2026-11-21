@@ -117,8 +117,6 @@ internal fun FlatChatItem.growOwnerMessageId(): String? = when (this) {
     is FlatChatItem.AssistantThinking -> messageId
     is FlatChatItem.AssistantToolUse -> messageId
     is FlatChatItem.AssistantToolGroup -> messageId
-    is FlatChatItem.AssistantWorkGroup -> messageId
-    is FlatChatItem.AssistantWorkStep -> messageId
     is FlatChatItem.AssistantInfo -> messageId
     is FlatChatItem.AssistantTyping -> messageId
     is FlatChatItem.AssistantError -> messageId

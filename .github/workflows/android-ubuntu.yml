@@ -45,6 +45,8 @@ jobs:
           if-no-files-found: error
           retention-days: 3
   apk:
+    permissions:
+      contents: write
     needs: ubuntu-toolset
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -143,7 +145,9 @@ jobs:
           cd deps/build/ubuntu-toolset
           sha256sum -c ubuntu-base-arm64.tar.gz.sha256
           cd ../../..
-          cp deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
+          test -f src/android/app/src/main/assets/ubuntu-download.json
+          test ! -e src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
+          test ! -e src/android/app/src/main/assets/ubuntu-base-arm64.tar
           test -s src/android/app/src/main/assets/proot-aarch64
       - name: Check APK verifier compatibility
         run: |
@@ -187,7 +191,7 @@ jobs:
             -Pkotlin.compiler.execution.strategy=in-process)
           ./gradlew "${GRADLE_ARGS[@]}" \
             :app:testGithubDebugUnitTest --tests '*NativeRootPolicyTest' --tests '*RootConfirmCopyTest' \
-            --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' \
+            --tests '*UbuntuNormalCompatibilityTest' --tests '*UbuntuToolsetStatusTest' --tests '*UbuntuImageDownloadTest' --tests '*ReplySpeedTest' --tests '*SystemSelectionMenuTest' \
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
             --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' --tests '*ChrootFileToolsTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
@@ -211,10 +215,10 @@ jobs:
             --tests '*ProviderDowngrade*Test' --tests '*CustomBalancePersistenceTest' --tests '*RetiredBalanceEndpointTest' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
-            --tests '*ToolFoldPlannerTest' --tests '*EtaWorkTimelineTest' --tests '*ThinkingAutoCollapseTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
+            --tests '*ToolFoldPlannerTest' --tests '*ThinkingAutoCollapseTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ChatToolCallAccumulatorTest' --tests '*ToolPreflightTest' \
             --tests '*PartialJsonStringTest' --tests '*ToolStreamLifecycleTest' \
-            --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \
+            --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' --tests '*InlineLatexTest' --tests '*MathLineBreakerTest' --tests '*TableGridAlignmentTest' \
             --tests '*ThinkPrefixStreamParserTest' --tests '*ThinkingPrefixFlowTest' \
             --tests '*QueuedPromptInjectRaceTest' --tests '*StreamStateWiringTest' --tests '*HeadlessGpuCaptureWiringTest' \
             --tests '*StopLateWriteTest' --tests '*ScheduledPrefillWiringTest' \
@@ -254,7 +258,7 @@ jobs:
         id: verify-apk
         shell: bash
         env:
-          UBUNTU_ROOTFS_SOURCE: src/android/app/src/main/assets/ubuntu-base-arm64.tar.gz
+          UBUNTU_ROOTFS_SOURCE: deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz
         run: |
           set -euo pipefail
           python3 scripts/verify_ubuntu_apk.py src/android/app/build/outputs/apk/github
@@ -267,6 +271,7 @@ jobs:
           export MINIS_BUNDLED_APK
           MINIS_BUNDLED_APK=$(python3 -c 'from pathlib import Path; a=list(Path("app/build/outputs/apk/github").glob("**/*.apk")); assert len(a)==1, f"Expected one final APK, got {a}"; print(a[0].resolve())')
           export MINIS_BUNDLED_APK_REQUIRED=1
+          export MINIS_DOWNLOAD_IMAGE="$GITHUB_WORKSPACE/deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz"
           ./gradlew --no-daemon --max-workers=1 --no-parallel \
             "-Dorg.gradle.jvmargs=-Xmx${CI_GRADLE_HEAP_MB}m -XX:+UseG1GC -Dfile.encoding=UTF-8" \
             -Pkotlin.compiler.execution.strategy=in-process \
@@ -277,6 +282,18 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/stage_kairos_release.py
+      - name: Publish verified Ubuntu download image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="ubuntu-rootfs-v1-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "Ubuntu 24.04 arm64 image ${GITHUB_RUN_NUMBER}" \
+            --notes "Preinstalled terminal image. SHA-256, toolset manifest and production extraction verified by CI." \
+            deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz \
+            deps/build/ubuntu-toolset/ubuntu-base-arm64.tar.gz.sha256
       - name: Remove temporary private signing file
         if: always()
         shell: bash

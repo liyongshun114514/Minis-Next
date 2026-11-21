@@ -37,20 +37,19 @@ class ExpandHeaderNoRippleTest {
     fun `the thinking block header has no ripple and its toggle logic is unchanged`() {
         val ui = src("ui/chat/ChatAssistantMessageUI.kt")
         val block = ui.substringAfter("internal fun ThinkingBlock(")
-            .substringBefore("AnimatedVisibility(visible = expanded")
+            .substringBefore("AnimatedVisibility(visible = expanded && !overHardCap)")
         // [T-thinking-autoexpand-toggle-longpress] The header also takes a
         // long-press (settings menu) through the same ripple-free helper.
         assertTrue(block.contains(".expandToggleClickable(onLongClick = { showThinkingMenu = true }) {"))
         assertFalse(block.contains(".clickable"))
         assertFalse(block.contains("combinedClickable"))
         val tap = block.substringAfter(".expandToggleClickable(onLongClick = { showThinkingMenu = true }) {")
-        assertTrue(tap.contains("val nextExpanded = (userIntent == null && expanded) || !expanded"))
-        assertTrue(tap.contains("if (nextExpanded) onEtaExpand()"))
+        assertTrue(tap.contains("if (!overHardCap) userIntent = !expanded"))
         // [#467] Over the hard cap the header opens the full-thinking viewer,
         // and only once the block has stopped streaming.
         assertTrue(tap.contains(
             "if (overHardCap) {\n                        if (canOpenFull) showFullContent = true\n" +
-                "                    } else {\n                        userIntent = nextExpanded\n                    }",
+                "                    } else {\n                        expanded = !expanded\n                    }",
         ))
     }
 

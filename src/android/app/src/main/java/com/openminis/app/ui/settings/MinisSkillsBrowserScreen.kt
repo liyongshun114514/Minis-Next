@@ -75,6 +75,22 @@ fun MinisSkillsBrowserScreen(
     var hudMessage by remember { mutableStateOf("") }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     val scope = rememberCoroutineScope()
+    var rendererGeneration by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var rendererFailed by remember { mutableStateOf(false) }
+    var rendererRestarts by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, webViewRef) {
+        val webView = webViewRef
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> webView?.onResume()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> webView?.onPause()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // System back / gesture: walk WebView history first, leave the screen
     // only when the WebView has nothing left to pop. The TopAppBar back
@@ -129,81 +145,108 @@ fun MinisSkillsBrowserScreen(
             )
         },
         containerColor = MiuixTheme.colorScheme.surface,
+        // A hardware WebView is not recorded into a Compose glass RenderNode.
+        recordBodyForActions = false,
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // WebView
-            AndroidView(
-                factory = { context ->
-                    WebView(context).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"
+            if (rendererFailed) {
+                TextButton(
+                    modifier = Modifier.align(Alignment.Center),
+                    text = stringResource(R.string.chat_longpress_retry),
+                    onClick = {
+                        rendererRestarts = 0
+                        rendererFailed = false
+                        rendererGeneration++
+                    },
+                )
+            } else androidx.compose.runtime.key(rendererGeneration) {
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36"
 
-                        webViewClient = object : WebViewClient() {
-                            // [T-net-android-phase3] Settings > Network: answer the local entry's
-                            // proxy challenge (WebViewNetworkProxy); any other auth request as before.
-                            override fun onReceivedHttpAuthRequest(view: android.webkit.WebView?, handler: android.webkit.HttpAuthHandler?, host: String?, realm: String?) {
-                                if (handler != null && com.openminis.app.network.WebViewNetworkProxy.answerAuth(handler, host, realm, view?.url)) return
-                                super.onReceivedHttpAuthRequest(view, handler, host, realm)
-                            }
+                            webViewClient = object : WebViewClient() {
+                                // [T-net-android-phase3] Settings > Network: answer the local entry's
+                                // proxy challenge (WebViewNetworkProxy); any other auth request as before.
+                                override fun onReceivedHttpAuthRequest(view: android.webkit.WebView?, handler: android.webkit.HttpAuthHandler?, host: String?, realm: String?) {
+                                    if (handler != null && com.openminis.app.network.WebViewNetworkProxy.answerAuth(handler, host, realm, view?.url)) return
+                                    super.onReceivedHttpAuthRequest(view, handler, host, realm)
+                                }
 
-                            // [T-android-webview-render-process-gone] (GH#341)
-                            // AndroidView factory rebuilds on recomposition.
-                            override fun onRenderProcessGone(
-                                view: WebView?,
-                                detail: android.webkit.RenderProcessGoneDetail?,
-                            ): Boolean = com.openminis.app.ui.webview.WebViewRenderProcess
-                                .handle("MinisSkillsBrowserScreen", detail)
-
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                url?.let { currentUrl = it }
-                            }
-
-                            // GitHub SPA uses pushState — capture URL changes here too
-                            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                                url?.let { currentUrl = it }
-                            }
-
-                            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                val ctx = view?.context ?: return false
-                                val urlStr = request?.url?.toString()
-                                // T234: Google permanently disallows WebView
-                                // for sign-in / OAuth. Hand auth-domain nav
-                                // to Chrome Custom Tab.
-                                if (com.openminis.app.browser.GoogleAuthRouter.shouldRouteExternally(urlStr)) {
-                                    if (urlStr != null) {
-                                        com.openminis.app.browser.GoogleAuthRouter.openInCustomTab(ctx, urlStr)
-                                    }
+                                // [T-android-webview-render-process-gone] (GH#341)
+                                // Recreate only after renderer loss; release the old instance.
+                                override fun onRenderProcessGone(
+                                    view: WebView?,
+                                    detail: android.webkit.RenderProcessGoneDetail?,
+                                ): Boolean {
+                                    com.openminis.app.ui.webview.WebViewRenderProcess.handle("MinisSkillsBrowserScreen", detail)
+                                    // Recomposition alone does not recreate AndroidView. Changing
+                                    // its key releases this dead WebView before creating the next.
+                                    webViewRef = null
+                                    if (rendererRestarts++ == 0) rendererGeneration++
+                                    else rendererFailed = true
                                     return true
                                 }
-                                // T134: hand off intent:// / market:// /
-                                // tel: / mailto: links to the system so the
-                                // user doesn't see ERR_UNKNOWN_URL_SCHEME.
-                                // [T-android-user-initiated-scheme-dispatch]
-                                // Visible skills browser; user-tapped link.
-                                return com.openminis.app.ui.browser
-                                    .BrowserExternalSchemeHandler
-                                    .handle(
-                                        ctx,
-                                        request?.url,
-                                        com.openminis.app.ui.browser
-                                            .BrowserExternalSchemeHandler
-                                            .Origin.USER_INITIATED,
-                                    )
+
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                    url?.let { currentUrl = it }
+                                }
+
+                                // GitHub SPA uses pushState — capture URL changes here too
+                                override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                                    url?.let { currentUrl = it }
+                                }
+
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    val ctx = view?.context ?: return false
+                                    val urlStr = request?.url?.toString()
+                                    // T234: Google permanently disallows WebView
+                                    // for sign-in / OAuth. Hand auth-domain nav
+                                    // to Chrome Custom Tab.
+                                    if (com.openminis.app.browser.GoogleAuthRouter.shouldRouteExternally(urlStr)) {
+                                        if (urlStr != null) {
+                                            com.openminis.app.browser.GoogleAuthRouter.openInCustomTab(ctx, urlStr)
+                                        }
+                                        return true
+                                    }
+                                    // T134: hand off intent:// / market:// /
+                                    // tel: / mailto: links to the system so the
+                                    // user doesn't see ERR_UNKNOWN_URL_SCHEME.
+                                    // [T-android-user-initiated-scheme-dispatch]
+                                    // Visible skills browser; user-tapped link.
+                                    return com.openminis.app.ui.browser
+                                        .BrowserExternalSchemeHandler
+                                        .handle(
+                                            ctx,
+                                            request?.url,
+                                            com.openminis.app.ui.browser
+                                                .BrowserExternalSchemeHandler
+                                                .Origin.USER_INITIATED,
+                                        )
+                                }
                             }
-                        }
 
-                        webChromeClient = WebChromeClient()
+                            webChromeClient = WebChromeClient()
 
-                        loadUrl("https://github.com/OpenMinis/MinisSkills")
-                    }.also { webViewRef = it }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+                            loadUrl(currentUrl)
+                        }.also { webViewRef = it }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    onRelease = { view ->
+                        if (webViewRef === view) webViewRef = null
+                        runCatching { view.stopLoading() }
+                        view.webChromeClient = null
+                        view.removeAllViews()
+                        view.destroy()
+                    },
+                )
+            }
 
             // HUD overlay at bottom
             AnimatedVisibility(

@@ -303,231 +303,25 @@ internal class MinisMarkdownTextToolbar(
 @Composable
 internal fun MinisMarkdownTextToolbarHost(toolbar: MinisMarkdownTextToolbar) {
     val state = toolbar.state
-    if (!state.visible) return
-    val anchor = remember(state.rect) { state.rect.toIntRectRounded() }
-    val positionProvider = remember(anchor) { FloatingToolbarPositionProvider(anchor) }
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = { toolbar.hide() },
-        properties = PopupProperties(
-            focusable = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-        ),
-    ) {
-        // [T-android-text-toolbar-dark-visibility] In dark mode the bare
-        // `surface` colour is nearly the same as the chat background, so the
-        // floating menu vanished into the content behind it. Use a distinctly
-        // elevated surface (surfaceContainerHigh — a lighter grey in dark, a
-        // subtle shade in light) plus a thin outline border and a stronger
-        // shadow so the bar reads as a popped-out floating element.
-        val barColor = MiuixTheme.colorScheme.surfaceContainerHigh
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = barColor,
-
-            shadowElevation = 8.dp,
-            border = androidx.compose.foundation.BorderStroke(
-                0.5.dp,
-                MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f),
-            ),
-        ) {
-            // [T-android-copy-full-reply-scope] Make the action row
-            // horizontally scrollable, matching the MinisTextKit selection bar.
-            // Buttons never wrap (ToolbarButton is maxLines=1/softWrap=false to
-            // avoid the truncation documented there), so without a scroll the
-            // trailing actions simply fall off the screen edge and become
-            // unreachable. With Copy + Add to Input + Read Aloud + three
-            // full-message copies + two table actions this row reaches eight
-            // items, and the "Copy Full …" labels are the longest yet.
-            val toolbarScroll = rememberScrollState()
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(barColor)
-                    .height(40.dp)
-                    .horizontalScroll(toolbarScroll),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ToolbarButton(label = stringResource(R.string.selection_copy)) {
-                    state.onCopyRequested?.invoke()
-                    toolbar.hide()
-                }
-                // "Add to Chat Input" — available for any selection so it
-                // works for tool result output, user/assistant bubbles,
-                // and cross-message selections alike. Hidden when the
-                // host didn't wire an onAddToInput callback (e.g. a
-                // future screen that uses the same toolbar but has no
-                // composer to receive the text).
-                if (toolbar.canAddToInput) {
-                    ToolbarDivider()
-                    ToolbarButton(
-                        label = stringResource(R.string.selection_add_to_chat_input),
-                    ) {
-                        toolbar.addSelectionToInput()
-                        toolbar.hide()
-                    }
-                }
-                // [T-in-chat-search] The selection becomes the query.
-                if (toolbar.canSearchInChat) {
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.chat_search_in_chat)) {
-                        toolbar.searchSelectionInChat()
-                        toolbar.hide()
-                    }
-                }
-                // [T-android-selection-readaloud] Speak just the selected
-                // substring through Minis TTS (provider voice with the system
-                // engine as fallback), mirroring iOS's "Read Aloud / Read
-                // Selection" selection-menu action. Available for any
-                // selection, like Add to Chat Input.
-                if (toolbar.canReadAloud) {
-                    ToolbarDivider()
-                    ToolbarButton(
-                        label = stringResource(R.string.selection_read_aloud),
-                    ) {
-                        toolbar.readAloudSelection()
-                        toolbar.hide()
-                    }
-                }
-                // [T-android-readaloud-selection-vs-reply] "Read from Start"
-                // beside "Read Selection", mirroring iOS's pair. Flat here
-                // rather than grouped: this bar is already a flat scrolling row
-                // with no submenu machinery, and the two labels state their own
-                // scope.
-                if (toolbar.canReadFromStart) {
-                    ToolbarDivider()
-                    ToolbarButton(
-                        label = stringResource(R.string.selection_read_from_start),
-                    ) {
-                        toolbar.readFromStart()
-                        toolbar.hide()
-                    }
-                }
-                // [T-android-copy-full-reply-scope] The full-message copies
-                // only appear when the selection sits inside a single known
-                // message — otherwise it's ambiguous which message's source to
-                // copy.
-                //
-                // Every label says "Full", because this toolbar is raised BY a
-                // selection and sits inches from plain "Copy": without the
-                // word, a user who highlighted one sentence and tapped "Copy
-                // Markdown" silently got the entire message, with nothing in
-                // the UI explaining the gap. Naming the scope is the fix
-                // itself (iOS a7b3e5bef).
-                if (state.originatingMarkdown != null) {
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.selection_copy_full_markdown)) {
-                        toolbar.copyMarkdown()
-                        toolbar.hide()
-                    }
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.selection_copy_full_rich_text)) {
-                        toolbar.copyRichText()
-                        toolbar.hide()
-                    }
-                    // Plain Text copies the RENDERED text — headings, lists and
-                    // quotes as the user sees them, with no `#`/`-`/`**`/`>`
-                    // left behind. Tables and math still expand: dropping those
-                    // would lose content, not formatting (iOS 1b4353367).
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.selection_copy_full_plain_text)) {
-                        toolbar.copyPlainText()
-                        toolbar.hide()
-                    }
-                }
-                // [T-android-markdown-table-copy-actions] When the selected
-                // message contains a table, append Copy Table / Copy Table
-                // Image to THIS same row (one menu, all items) instead of the
-                // table rendering its own separate popup.
-                val tableActions = toolbar.selectionController?.selectionTableActions()
-                if (tableActions != null) {
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.markdown_table_copy_table)) {
-                        tableActions.copyTableMarkdown()
-                        toolbar.hide()
-                    }
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.markdown_table_copy_table_image)) {
-                        tableActions.copyTableImage()
-                        toolbar.hide()
-                    }
-                }
-                // [T-multi-select-share] "Share Chat…" is the last item.
-                if (toolbar.canShareChat) {
-                    ToolbarDivider()
-                    ToolbarButton(label = stringResource(R.string.chat_share_share_chat)) {
-                        toolbar.hide()
-                        toolbar.shareChat()
-                    }
-                }
-            }
+    if (!state.visible || toolbar.selectionController?.selection?.value != null) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun label(id: Int) = context.getString(id)
+    val items = buildList {
+        state.onCopyRequested?.let { copy -> add(SystemSelectionAction(label(R.string.selection_copy), onClick = copy)) }
+        if (toolbar.canAddToInput) add(SystemSelectionAction(label(R.string.selection_add_to_chat_input), onClick = toolbar::addSelectionToInput))
+        if (toolbar.canSearchInChat) add(SystemSelectionAction(label(R.string.chat_search_in_chat), onClick = toolbar::searchSelectionInChat))
+        if (toolbar.canReadAloud) add(SystemSelectionAction(label(R.string.selection_read_aloud), onClick = toolbar::readAloudSelection))
+        if (toolbar.canReadFromStart) add(SystemSelectionAction(label(R.string.selection_read_from_start), onClick = toolbar::readFromStart))
+        if (state.originatingMarkdown != null) {
+            add(SystemSelectionAction(label(R.string.selection_copy_full_markdown), onClick = toolbar::copyMarkdown))
+            add(SystemSelectionAction(label(R.string.selection_copy_full_rich_text), onClick = toolbar::copyRichText))
+            add(SystemSelectionAction(label(R.string.selection_copy_full_plain_text), onClick = toolbar::copyPlainText))
         }
-    }
-}
-
-@Composable
-private fun ToolbarButton(label: String, onClick: () -> Unit) {
-    // maxLines=1 + softWrap=false is load-bearing: the parent Row has a
-    // fixed height(40.dp), so any label that wraps to a second line
-    // shows only its first word on screen. Without this guard,
-    // "Copy Rich Text" renders as just "Copy" — visually a duplicate of
-    // the first toolbar item — and a longer "Add to input box" label collapses to "Add to".
-    // See T-android-text-toolbar-dup-copy.
-    Text(
-        text = label,
-        style = MiuixTheme.textStyles.button,
-        color = MiuixTheme.colorScheme.onSurface,
-        maxLines = 1,
-        softWrap = false,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    )
-}
-
-@Composable
-private fun ToolbarDivider() {
-    Box(
-        modifier = Modifier
-            .padding(vertical = 8.dp)
-            .width(0.5.dp)
-            .fillMaxHeight()
-            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.4f)),
-    )
-}
-
-private fun Rect.toIntRectRounded(): IntRect = IntRect(
-    left = left.toInt(),
-    top = top.toInt(),
-    right = right.toInt(),
-    bottom = bottom.toInt(),
-)
-
-/**
- * Positions the floating toolbar above the selection when there's room,
- * otherwise below it. Clamps horizontally to the window bounds.
- */
-private class FloatingToolbarPositionProvider(
-    private val anchor: IntRect,
-) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset {
-        val gap = 8
-        val centerX = anchor.left + anchor.width / 2
-        val x = (centerX - popupContentSize.width / 2)
-            .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-        val aboveY = anchor.top - popupContentSize.height - gap
-        val y = if (aboveY >= 0) {
-            aboveY
-        } else {
-            (anchor.bottom + gap)
-                .coerceAtMost((windowSize.height - popupContentSize.height).coerceAtLeast(0))
+        toolbar.selectionController?.selectionTableActions()?.let { table ->
+            add(SystemSelectionAction(label(R.string.markdown_table_copy_table), onClick = table.copyTableMarkdown))
+            add(SystemSelectionAction(label(R.string.markdown_table_copy_table_image), onClick = table.copyTableImage))
         }
-        return IntOffset(x, y)
+        if (toolbar.canShareChat) add(SystemSelectionAction(label(R.string.chat_share_share_chat), onClick = toolbar::shareChat))
     }
+    SystemSelectionMenu(state.rect, items, onDismiss = toolbar::hide)
 }

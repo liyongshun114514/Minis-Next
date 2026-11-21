@@ -115,7 +115,7 @@ internal fun ComposerPermissionDialog(onDismiss: () -> Unit, show: Boolean = tru
     }
 }
 
-/** Native Preference margins, end-side check and a secondary Card give each choice a clear level. */
+/** Native preference rows on the same glass surface, without a second filled card. */
 @Composable
 internal fun ComposerRootAccessChoices(selection: RootAccess, onSelect: (RootAccess) -> Unit) {
     val options = listOf(
@@ -123,12 +123,7 @@ internal fun ComposerRootAccessChoices(selection: RootAccess, onSelect: (RootAcc
         Triple(RootAccess.ASK_ONCE, com.openminis.app.R.string.composer_root_ask, com.openminis.app.R.string.composer_root_ask_summary),
         Triple(RootAccess.BYPASS, com.openminis.app.R.string.composer_root_allowed, com.openminis.app.R.string.composer_root_allowed_summary),
     )
-    top.yukonga.miuix.kmp.basic.Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors(
-            color = MiuixTheme.colorScheme.surface,
-        ),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         options.forEach { (access, label, summary) ->
             top.yukonga.miuix.kmp.preference.RadioButtonPreference(
                 title = androidx.compose.ui.res.stringResource(label),

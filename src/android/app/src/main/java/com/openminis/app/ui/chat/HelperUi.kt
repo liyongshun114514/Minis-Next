@@ -1542,14 +1542,9 @@ internal fun HelperTranscript(
     // [T-android-row-keys-stable] Same as the main list: rows of a message
     // seen live here stay split, so the reversed list keeps its anchor.
     val liveMessageTracker = remember(vm) { LiveMessageTracker() }
-    val etaTimeline = remember(vm) { EtaWorkTimeline() }
-    val etaChanges by etaTimeline.changes.collectAsState()
-    val processing by vm.isStreaming.collectAsState()
-    val thinkingLevel by vm.thinkingLevel.collectAsState()
-    val items = remember(messages, streaming, etaChanges, processing, thinkingLevel) {
+    val items = remember(messages, streaming) {
         val merged = if (streaming.isEmpty()) messages else mergeStreamingOverlay(messages, streaming)
-        val rows = buildFlatChatItems(merged, liveMessageIds = liveMessageTracker.update(merged, streaming.keys))
-        etaTimeline.project(rows, merged, processing = processing, thinkingEnabled = thinkingLevel.isEnabled)
+        buildFlatChatItems(merged, liveMessageIds = liveMessageTracker.update(merged, streaming.keys))
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1564,9 +1559,7 @@ internal fun HelperTranscript(
                 // transcript: a scheduled task can fire into a child session.
                 is FlatChatItem.ScheduledTaskCardItem -> ScheduledTaskCard(marker = item.marker)
                 is FlatChatItem.AssistantHeader -> AssistantHeader()
-                is FlatChatItem.AssistantText -> AssistantAnswer {
-                    StreamingMarkdownText(content = item.block.content, isStreaming = item.isStreaming)
-                }
+                is FlatChatItem.AssistantText -> StreamingMarkdownText(content = item.block.content, isStreaming = item.isStreaming)
                 // [T-414-usage-tap-band] The band row scope is also what gives
                 // the text its message id here: this transcript passes no shard
                 // id, so before #414 a blank tap never revealed the capsule on
@@ -1576,9 +1569,7 @@ internal fun HelperTranscript(
                     inFinalTextBlock = item.inFinalTextBlock,
                     isLastRow = item.isLastBlockOfMessage,
                 ) {
-                    AssistantAnswer(firstFragment = item.blockIndex == 0, lastFragment = item.isLastBlockOfMessage) {
-                        StreamingMarkdownText(content = item.rawText, isStreaming = item.isStreaming)
-                    }
+                    StreamingMarkdownText(content = item.rawText, isStreaming = item.isStreaming)
                 }
                 // [T-android-thinking-auto-collapse] Same stream signal as the
                 // main chat (ChatScreen.kt) and the legacy renderer: a thinking
@@ -1597,9 +1588,6 @@ internal fun HelperTranscript(
                 // [T-port-fold-tools] This read-only transcript is never
                 // folded (no ToolFoldController), so no group row reaches it.
                 is FlatChatItem.AssistantToolGroup -> Unit
-                is FlatChatItem.AssistantWorkGroup -> EtaWorkHeader(item) { etaTimeline.toggle(item.key, item.expanded) }
-                is FlatChatItem.AssistantWorkStep -> EtaWorkStep(item,
-                    onToggle = { etaTimeline.toggle(item.key, item.expanded) }, onOpenDetail = onOpenDetail)
                 is FlatChatItem.AssistantInfo -> FallbackInfoBlock(item.block)
                 is FlatChatItem.AssistantTyping -> TypingIndicator()
                 is FlatChatItem.AssistantError -> InlineErrorBanner(item.error)
@@ -1624,12 +1612,12 @@ internal fun HelperTranscript(
                             enter = androidx.compose.animation.fadeIn(),
                             exit = androidx.compose.animation.fadeOut(),
                         ) {
-                            UsageCapsule(item.usage, item.completedAt)
+                            UsageCapsule(item.usage)
                         }
                     }
                 }
                 is FlatChatItem.AssistantLegacyContent -> UsageTapBandRowScope(messageId = item.messageId, inFinalTextBlock = true, isLastRow = true) {
-                    AssistantAnswer { StreamingMarkdownText(content = item.content, isStreaming = item.isStreaming) }
+                    StreamingMarkdownText(content = item.content, isStreaming = item.isStreaming)
                 }
             }
         }

@@ -277,40 +277,6 @@ class GlassUiPolishContractTest {
         assertTrue(panes.contains("currentSessionId ?: if (!twoPane) lastDetailSessionId else null"))
     }
 
-    @Test fun `chat presentation removes soul identity and uses eta answer and thinking tones`() {
-        for (path in listOf("ChatScreen.kt", "ChatAssistantMessageUI.kt", "ChatIndicators.kt", "ComposerPlaceholderUi.kt")) {
-            val source = ProductionSources.read("ui/chat/$path")
-            assertFalse("chat must not subscribe to SOUL identity: $path", source.contains("SoulStore"))
-            assertFalse("chat must not render a SOUL avatar: $path", source.contains("SoulAvatarGlyph("))
-        }
-        val display = ProductionSources.read("ui/chat/AssistantPresentation.kt")
-        assertTrue(display.contains("LocalAssistantMarkdownTone provides AssistantMarkdownTone.Answer"))
-        assertTrue(display.contains("start = 4.dp, end = 4.dp"))
-        val markdown = ProductionSources.read("ui/chat/StreamingMarkdownText.kt")
-        assertTrue(markdown.contains("AssistantMarkdownTone.Answer -> 25.sp"))
-        assertTrue(markdown.contains("AssistantMarkdownTone.Thinking -> 21.sp"))
-        assertTrue(markdown.contains("13.5.sp"))
-        assertTrue(markdown.contains("quoteBackground = ink.copy"))
-        val thinking = ProductionSources.read("ui/chat/ChatAssistantMessageUI.kt").substringAfter("internal fun ThinkingBlock(")
-        assertTrue(thinking.contains("squircleSurface(color = MiuixTheme.colorScheme.surface"))
-        assertTrue(thinking.contains("MiuixTheme.colorScheme.outline.copy(alpha = 0.5f)"))
-        assertFalse(thinking.contains("thinkingBlue"))
-        assertTrue(thinking.contains("LocalAssistantMarkdownTone provides AssistantMarkdownTone.Thinking"))
-        assertTrue(thinking.contains("StreamingMarkdownText(content = displayContent"))
-        val eta = ProductionSources.read("ui/chat/EtaWorkProcessUI.kt")
-        assertTrue(eta.contains("84.sp * LocalMarkdownFontScale.current"))
-        assertTrue(eta.contains("wrapContentHeight(align = Alignment.Bottom, unbounded = true)"))
-        assertTrue(thinking.contains("EtaThinkingTailWindow("))
-        assertTrue(thinking.contains("val expanded = userIntent ?:"))
-        assertFalse(thinking.contains(".verticalScroll(scrollState)"))
-        assertTrue(thinking.contains("ThinkingFullDialog("))
-        assertTrue(thinking.contains("val thinkingWindowSize = 8000"))
-        assertTrue(thinking.contains("val thinkingHardCap = 100_000"))
-        val source = ProductionSources.read("ui/chat/ChatScreen.kt")
-        assertTrue(source.contains("firstFragment = item.blockIndex == 0"))
-        assertTrue(source.contains("lastFragment = item.isLastBlockOfMessage"))
-    }
-
     @Test fun `provider format choices use native contour tabs`() {
         val provider = ProductionSources.read("ui/settings/ProviderDetailScreen.kt")
         assertEquals(2, Regex("TabRowWithContour\\(").findAll(provider).count())

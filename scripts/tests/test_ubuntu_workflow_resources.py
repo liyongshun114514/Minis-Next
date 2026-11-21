@@ -21,9 +21,12 @@ class WorkflowResourceTests(unittest.TestCase):
 
     def test_preserves_regression_reports_and_does_not_publish(self):
         self.assertIn('cp -a app/build/test-results/testGithubDebugUnitTest app/build/test-results/kairos-regressions', self.build)
-        self.assertNotIn('gh release create', self.text)
+        self.assertIn('gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false', self.text)
+        self.assertIn('TAG="ubuntu-rootfs-v1-${GITHUB_RUN_NUMBER}"', self.text)
         self.assertNotIn('softprops/action-gh-release', self.text)
         self.assertIn('contents: read', self.text)
+        self.assertIn('contents: write', self.text)
+        self.assertNotIn('release/minis-next/*.apk', self.text.split('      - name: Publish verified Ubuntu download image', 1)[1].split('      - name: Remove temporary', 1)[0])
         self.assertIn('agent.SoulIconImportRoboTest', self.build)
         self.assertIn('zero skipped', self.build)
         self.assertIn('for k in ("skipped","failures","errors")', self.build)
@@ -54,6 +57,7 @@ class WorkflowResourceTests(unittest.TestCase):
         self.assertIn('--max-workers=1 --no-parallel', self.acceptance)
         self.assertIn('-Pkotlin.compiler.execution.strategy=in-process', self.acceptance)
         self.assertIn('MINIS_BUNDLED_APK_REQUIRED=1', self.acceptance)
+        self.assertIn('MINIS_DOWNLOAD_IMAGE=', self.acceptance)
         self.assertIn('"skipped","failures","errors"', self.acceptance)
         self.assertIn('-Xmx${CI_GRADLE_HEAP_MB}m', self.acceptance)
 
