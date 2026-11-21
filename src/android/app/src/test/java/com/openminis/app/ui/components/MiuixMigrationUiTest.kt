@@ -811,7 +811,18 @@ class MiuixMigrationUiTest {
             assertEquals(1, changes)
             enabled = false
         }
-        compose.onNodeWithText(manual).assertIsNotEnabled().performTouchInput { click() }
+        // Native BasicComponent removes its clickable when disabled, so its text
+        // stops merging with the radio indicator. Check the indicators' state,
+        // then tap the actual label to prove the row cannot change selection.
+        val radios = compose.onAllNodes(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.Role,
+            androidx.compose.ui.semantics.Role.RadioButton,
+        ))
+        radios.assertCountEquals(3)
+        radios[0].assertIsNotEnabled().assertIsNotSelected()
+        radios[1].assertIsNotEnabled().assertIsSelected()
+        radios[2].assertIsNotEnabled().assertIsNotSelected()
+        compose.onNodeWithText(manual).assert(hasClickAction().not()).performTouchInput { click() }
         compose.runOnIdle {
             assertEquals(com.openminis.app.mcp.oauth.MCPOAuthSignInLogic.AuthKind.BROWSER, selected)
             assertEquals(1, changes)
