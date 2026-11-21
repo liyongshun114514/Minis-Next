@@ -424,11 +424,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Miuix UI (Compose Multiplatform Android artifacts)
-    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta02")
+    implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.5-beta03")
     // The glass module pulls in miuix-blur. Settings gates its backdrop on API 33+.
-    implementation("top.yukonga.miuix.kmp:miuix-glass-android:0.9.5-beta02")
-    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta02")
-    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta02")
+    implementation("top.yukonga.miuix.kmp:miuix-glass-android:0.9.5-beta03")
+    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.5-beta03")
+    implementation("top.yukonga.miuix.kmp:miuix-icons-android:0.9.5-beta03")
 
     // [T-android-tablet-split] Adaptive list-detail layout for tablets/large
     // windows. Version pinned explicitly rather than left to the BOM: the
@@ -461,7 +461,7 @@ dependencies {
     // ProcessLifecycleOwner — used by XAIOAuthManager to detect Custom
     // Tab dismissal (T-xai-oauth-stop-resume port iOS d1dbdd5d).
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
-    // Upgraded to match Miuix 0.9.5-beta02's navigationevent dispatcher requirement.
+    // Upgraded to match Miuix 0.9.5-beta03's navigationevent dispatcher requirement.
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
@@ -556,7 +556,7 @@ dependencies {
     testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    // Miuix 0.9.5-beta02 resolves Compose Foundation/UI to 1.13.0-rc01 through
+    // Miuix 0.9.5-beta03 resolves Compose Foundation/UI to 1.13.0-rc01 through
     // its Compose Multiplatform 1.13.0-rc01 dependency. The test harness must
     // ride the same version, or ui-test 1.12.1 would drive a 1.13 runtime.
     testImplementation("androidx.compose.ui:ui-test-junit4:1.13.0-rc01")

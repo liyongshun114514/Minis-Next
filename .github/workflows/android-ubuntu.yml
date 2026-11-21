@@ -211,7 +211,7 @@ jobs:
             --tests '*ProviderDowngrade*Test' --tests '*CustomBalancePersistenceTest' --tests '*RetiredBalanceEndpointTest' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
-            --tests '*ToolFoldPlannerTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
+            --tests '*ToolFoldPlannerTest' --tests '*EtaWorkTimelineTest' --tests '*ThinkingAutoCollapseTest' --tests '*UpdatePolicyTest' --tests '*SoulPromptRuleUiTest' \
             --tests '*ToolCallDeltaAccumulationTest' --tests '*ChatToolCallAccumulatorTest' --tests '*ToolPreflightTest' \
             --tests '*PartialJsonStringTest' --tests '*ToolStreamLifecycleTest' \
             --tests '*MarkdownUnderscoreTest' --tests '*SafeInlineSplitOffsetTest' --tests '*InlineHtmlTagsTest' \

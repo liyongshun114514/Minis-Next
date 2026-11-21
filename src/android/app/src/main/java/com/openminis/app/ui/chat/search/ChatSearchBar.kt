@@ -68,7 +68,7 @@ internal class ResourceChatSearchTextSource(private val res: Resources) : ChatSe
                 if (count == null) res.getString(id) else res.getString(id, count)
             }
         }
-        return block.toolTitle.ifEmpty { block.toolName }
+        return com.openminis.app.ui.chat.etaToolTitle(block, res::getString)
     }
 }
 

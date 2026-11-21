@@ -39,8 +39,8 @@ class ThinkingAutoCollapseTest {
      * is nothing left to defend once streaming ends.
      */
     @Test
-    fun `a block the user expanded still folds away at stream end`() {
-        assertTrue(shouldAutoCollapseThinking(isStreaming = false, userIntent = true))
+    fun `Eta preserves a manual expansion at stream end`() {
+        assertFalse(shouldAutoCollapseThinking(isStreaming = false, userIntent = true))
     }
 
     /** The half of "never fight the user" that is real: a deliberate collapse stays collapsed. */
@@ -55,7 +55,7 @@ class ThinkingAutoCollapseTest {
      * Under the old one-bit latch the final step was skipped.
      */
     @Test
-    fun `collapse then re-expand while streaming still collapses at the end`() {
+    fun `Eta keeps the last reader choice after collapse and re-expand`() {
         var intent: Boolean? = null          // auto-expanded, untouched
         assertFalse(shouldAutoCollapseThinking(isStreaming = true, userIntent = intent))
 
@@ -65,8 +65,8 @@ class ThinkingAutoCollapseTest {
         intent = true                        // tap 2: user re-expands to read
         assertFalse(shouldAutoCollapseThinking(isStreaming = true, userIntent = intent))
 
-        // Model stops thinking — this is the step that used to be skipped.
-        assertTrue(shouldAutoCollapseThinking(isStreaming = false, userIntent = intent))
+        // Eta treats a manual expansion as a request to keep reading.
+        assertFalse(shouldAutoCollapseThinking(isStreaming = false, userIntent = intent))
     }
 
     /**

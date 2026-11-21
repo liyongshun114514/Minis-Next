@@ -336,16 +336,20 @@ class ToolFoldPlannerTest {
     @Test
     fun `the chat list folds its rows, renders and toggles the group row`() {
         val screen = ProductionSources.read("ui/chat/ChatScreen.kt")
-        assertTrue(screen.contains("flatItems = toolFold.fold("))
+        assertTrue(screen.contains("flatItems = etaTimeline.project("))
+        assertTrue(screen.contains("etaTimeline.changes,"))
+        assertTrue(screen.contains("autoCollapse = toolFold.enabled"))
         assertTrue(screen.contains("toolFold.changes,"))
         val pipeline = screen.substringAfter("kotlinx.coroutines.flow.flowOf(messages),", "")
             .substringBefore("val tickStartNs")
         assertTrue(pipeline.contains("viewModel.isStreaming,"))
         assertTrue(pipeline.contains("Triple(msgs, stream, processing)"))
-        assertTrue(screen.substringAfter("flatItems = toolFold.fold(").take(500).contains("processing = processing,"))
-        // [T-user-ask-resolved-expand] The tap also anchors the row's top first (ToggleAnchorTest).
-        val tap = screen.substringAfter("is FlatChatItem.AssistantToolGroup -> ToolGroupRow(item) {").substringBefore("\n                            }")
-        assertTrue(tap.contains("toolFold.toggle(item.runKey)"))
+        assertTrue(screen.substringAfter("flatItems = etaTimeline.project(").take(500).contains("processing = processing,"))
+        // The Eta process toggle anchors its row and releases automatic follow.
+        val tap = screen.substringAfter("is FlatChatItem.AssistantWorkGroup -> EtaWorkHeader(item) {").substringBefore("\n                            }")
+        assertTrue(tap.contains("etaTimeline.toggle(item.key, item.expanded)"))
+        assertTrue(tap.contains("toggleAnchor.captureRow(item.key, flatItems)"))
+        assertTrue(tap.contains("userScrolledAway = true"))
         assertFalse(screen.contains("toolFold.browsing"))
         assertTrue(screen.contains("com.openminis.app.ui.settings.KEY_FOLD_TOOLS, com.openminis.app.ui.settings.FOLD_TOOLS_DEFAULT,"))
         assertTrue(screen.contains("sp.getBoolean(key, com.openminis.app.ui.settings.FOLD_TOOLS_DEFAULT)"))

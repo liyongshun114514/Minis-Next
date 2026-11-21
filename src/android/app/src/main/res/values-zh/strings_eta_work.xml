@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="eta_work_thinking">思考 %1$d 次</string>
+    <string name="eta_work_tools">调用 %1$d 个工具</string>
+    <string name="eta_work_processing">正在执行第 %1$d 步</string>
+    <string name="eta_work_analyzing">正在分析</string>
+    <string name="eta_work_tool_calls">%1$s · 调用 %2$d 次</string>
+    <string name="eta_work_expand">展开工作过程</string>
+    <string name="eta_work_collapse">收起工作过程</string>
+    <string name="eta_work_full_details">完整详情</string>
+    <string name="eta_tool_terminal">终端</string>
+    <string name="eta_tool_execute">执行命令</string>
+    <string name="eta_tool_read">读取文件</string>
+    <string name="eta_tool_write">写入文件</string>
+    <string name="eta_tool_edit">编辑文件</string>
+    <string name="eta_tool_image">查看图片</string>
+    <string name="eta_tool_memory">记忆</string>
+    <string name="eta_tool_search">搜索</string>
+</resources>

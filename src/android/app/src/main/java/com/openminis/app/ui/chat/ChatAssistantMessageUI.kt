@@ -1016,56 +1016,20 @@ internal fun ToolCallPill(
  */
 internal fun shouldAutoCollapseThinking(isStreaming: Boolean, userIntent: Boolean?): Boolean {
     if (isStreaming) return false
-    // An explicit collapse is already collapsed; re-collapsing is a no-op, but
-    // returning false keeps the intent explicit. Everything else — untouched,
-    // or expanded-while-streaming — folds away at stream end.
-    return userIntent != false
+    // Eta: only the automatic mode folds at the lifecycle boundary.
+    // Both explicit choices stay in force until the reader toggles again.
+    return userIntent == null
 }
 
 @Composable
-internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: Boolean = true) {
-    // Per-block expand state, keyed by block.id so the user's manual toggle on
-    // an earlier (finished) thinking block survives recomposition while a
-    // later block is still streaming. The previous LaunchedEffect snapped
-    // every non-last block back to collapsed on each `isLast` flip, which
-    // fought the user's tap and produced a flicker that read as "tapping the
-    // earlier block shows the streaming block's content."
-    // [T-thinking-auto-expand-toggle] The initial auto-expand of a new
-    // streaming block is gated on the Appearance setting (default ON =
-    // historical behavior). When the user turned it off, a new streaming block
-    // starts collapsed; a manual header tap still expands it (recording the
-    // user's intent below, so nothing fights them). Read once at mount —
-    // mirrors iOS ThinkingBlockView,
-    // where the same UserDefaults gate sits at the one-shot auto-expand site.
+internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: Boolean = true, compact: Boolean = false) {
     val context = LocalContext.current
     val autoExpandThinking = remember { autoExpandThinkingEnabled(context) }
-    var expanded by remember(block.id) { mutableStateOf(autoExpandThinking && isLast && isStreaming) }
-    // [T-android-thinking-collapse-latch] What the user last chose, or null if
-    // they have not touched THIS block. Deliberately tri-state rather than the
-    // old `userTouched: Boolean`.
-    //
-    // The bug that flag caused: the block auto-expands while streaming, the
-    // user taps once to collapse it and again to re-open and keep reading —
-    // and `userTouched` is now latched true forever, so the stream-end
-    // auto-collapse below never fires and the block stays open for the rest of
-    // the conversation. Reported as "thinking blocks don't collapse again once
-    // you've expanded them".
-    //
-    // "Never fight the user" is still the rule; the flag simply could not tell
-    // WHICH way the user had pushed. A user who collapsed a block means "keep
-    // it shut" and auto-collapse must not reopen it (it never would) — but a
-    // user who EXPANDED it was asking to read it *while it streamed*, which is
-    // the same thing the auto-expand does, and there is nothing to defend once
-    // the stream ends. So only an explicit collapse suppresses the auto-
-    // collapse; an explicit expand lets it run.
-    var userIntent by remember(block.id) { mutableStateOf<Boolean?>(null) }
-    // [T-thinking-autoexpand-toggle-longpress] Long-press the header for an
-    // "Expand Thinking While Streaming" toggle (port of iOS b556ea8f8).
+    // Eta: null follows the lifecycle synchronously; a manual choice remains in force.
+    var userIntent by androidx.compose.runtime.saveable.rememberSaveable(block.id) { mutableStateOf<Boolean?>(null) }
+    val expanded = userIntent ?: (autoExpandThinking && isLast && isStreaming)
     var showThinkingMenu by remember { mutableStateOf(false) }
-    LaunchedEffect(block.id, isStreaming) {
-        // One-shot auto-collapse when streaming for this block ends.
-        if (shouldAutoCollapseThinking(isStreaming, userIntent)) expanded = false
-    }
+    val onEtaExpand = LocalEtaWorkExpand.current
     val dark = ChatColors.isDark
     val thinkingInk = MiuixTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.60f else 0.56f)
     val activeInk = if (isStreaming) MiuixTheme.colorScheme.onSurface else thinkingInk
@@ -1091,11 +1055,10 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
     var showFullContent by remember(block.id) { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().then(if (compact) Modifier else Modifier
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .squircleSurface(color = MiuixTheme.colorScheme.surface, cornerRadius = 12.dp)
-            .squircleBorder(width = 0.5.dp, color = MiuixTheme.colorScheme.outline.copy(alpha = 0.5f), cornerRadius = 12.dp)
+            .squircleBorder(width = 0.5.dp, color = MiuixTheme.colorScheme.outline.copy(alpha = 0.5f), cornerRadius = 12.dp))
             .testTag("assistant-thinking:${block.id}"),
     ) {
         Box {
@@ -1112,7 +1075,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                         // opened or closed by hand is left as it is, the rule
                         // the auto-expand / auto-collapse follow. Finished
                         // blocks are untouched.
-                        if (isStreaming && isLast && userIntent == null && !overHardCap) expanded = !on
+                        if (isStreaming && isLast && userIntent == null && !overHardCap) userIntent = !on
                     },
                 )
             }
@@ -1131,7 +1094,8 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     // not merely that a tap happened. `overHardCap` opens the
                     // native viewer instead of toggling, so it expresses no
                     // expand/collapse intent and must not touch this.
-                    if (!overHardCap) userIntent = !expanded
+                    val nextExpanded = (userIntent == null && expanded) || !expanded
+                    if (nextExpanded) onEtaExpand()
                     // [T-thinking-render-perf-android] Over the hard cap the
                     // inline scroller is bypassed entirely; tapping the header
                     // opens the native full-content viewer instead of toggling
@@ -1139,12 +1103,12 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     if (overHardCap) {
                         if (canOpenFull) showFullContent = true
                     } else {
-                        expanded = !expanded
+                        userIntent = nextExpanded
                     }
                 }
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .then(if (compact) Modifier.heightIn(min = EtaWorkRowHeight) else Modifier.padding(horizontal = 12.dp, vertical = 12.dp)),
         ) {
-            Icon(
+            if (!compact) Icon(
                 imageVector = Icons.Default.Lightbulb,
                 contentDescription = null,
                 tint = if (isStreaming) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -1154,7 +1118,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     } ?: 1f
                 },
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            if (!compact) Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = when {
                     isStreaming -> stringResource(R.string.chat_thinking_active)
@@ -1163,7 +1127,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                 },
                 style = MiuixTheme.textStyles.body2.copy(fontSize = 13.5.sp),
                 color = activeInk,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f, fill = !compact)
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithContent {
                         drawContent()
@@ -1191,156 +1155,42 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     color = MiuixTheme.colorScheme.primary,
                 )
             } else {
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = thinkingInk,
-                    modifier = Modifier.size(14.dp),
-                )
+                EtaExpandChevron(expanded, Modifier.padding(start = 4.dp, end = if (compact) 4.dp else 0.dp))
             }
         }
 
-        // Expanded content. Mirrors iOS ThinkingBlockView (AssistantBlockView.swift:648):
-        // an inner scroller capped at 300dp, auto-follow to the bottom while the
-        // block is streaming, manual drag at any time, and pause-on-user-scroll
-        // so a user reading earlier reasoning isn't yanked back to the tail by
-        // the next token.
-        AnimatedVisibility(visible = expanded && !overHardCap) {
+        // Eta: automatic mode is a bottom-aligned four-line viewport, not a
+        // nested scroller. A tap releases that height limit and shows the text.
+        // Keep automaticTail true through exit so collapse never flashes full height.
+        val automaticTail = userIntent == null
+        AnimatedVisibility(visible = expanded && (!overHardCap || automaticTail) && block.content.isNotBlank(),
+            enter = etaExpandEnter(), exit = etaCollapseExit()) {
             Column {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                thickness = 0.5.dp,
-                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.45f),
-            )
-            val scrollState = rememberScrollState()
-            // Keep the four-line height through native collapse; never flash a full-height frame.
-            val automaticTail = userIntent == null
-            val viewportHeight = if (automaticTail) {
-                with(LocalDensity.current) { (84.sp * LocalMarkdownFontScale.current).toDp() }
-            } else 300.dp
-            // [T-thinking-render-perf-android] Render only the tail window so
-            // Compose lays out at most `thinkingWindowSize` chars. `remember`
-            // keyed on the length recomputes the substring on each token, but
-            // the cost is O(window) not O(total). Snap the cut to the next
-            // newline (within 200 chars) so we don't start mid-line.
-            val isTruncated = charCount > thinkingWindowSize
-            val displayContent = remember(charCount) {
-                if (isTruncated) {
-                    val full = block.content
-                    val start = charCount - thinkingWindowSize
-                    val nl = full.indexOf('\n', start)
-                    if (nl in start until start + 200) full.substring(nl + 1)
-                    else full.substring(start)
-                } else {
-                    block.content
+                if (!compact) HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    thickness = 0.5.dp,
+                    color = MiuixTheme.colorScheme.outline.copy(alpha = 0.45f),
+                )
+                val isTruncated = automaticTail && charCount > thinkingWindowSize
+                val displayContent = remember(block.content, automaticTail) {
+                    if (isTruncated) {
+                        val start = charCount - thinkingWindowSize
+                        val nl = block.content.indexOf('\n', start)
+                        if (nl in start until start + 200) block.content.substring(nl + 1)
+                        else block.content.substring(start)
+                    } else block.content
                 }
-            }
-            // [T-android-thinking-inner-scroll] Pause auto-follow once the user
-            // scrolls away from the bottom; resume it when they return. iOS
-            // pulls the user back unconditionally — but that fights every
-            // touch on Compose's smaller pause-threshold scroller, so we
-            // honor the user's drag the way the outer chat list does.
-            var userScrolledAway by remember(block.id) { mutableStateOf(false) }
-            // [FIX-261025-02] A finger drag only: `isScrollInProgress` is also
-            // true during the auto-follow's own scrollTo, which could read as
-            // "the user took control" in the frame before the new bottom lands.
-            val userDragging by scrollState.interactionSource.collectIsDraggedAsState()
-            LaunchedEffect(scrollState, block.id) {
-                snapshotFlow {
-                    Triple(
-                        scrollState.value,
-                        scrollState.maxValue,
-                        userDragging,
-                    )
-                }.collect { (v, max, dragging) ->
-                    // A nonzero gap from the bottom while the user is actively
-                    // dragging counts as "they took control". We don't flip
-                    // back until the gap closes — gives them room to scroll
-                    // up briefly without ping-ponging.
-                    val gap = (max - v).coerceAtLeast(0)
-                    when {
-                        dragging && gap > 4 -> userScrolledAway = true
-                        gap <= 4 -> userScrolledAway = false
+                EtaThinkingTailWindow(
+                    enabled = automaticTail,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(start = if (compact) 0.dp else 12.dp, end = if (compact) 4.dp else 12.dp,
+                            top = if (compact) 3.dp else 8.dp, bottom = if (compact) 10.dp else 12.dp)
+                        .testTag("assistant-thinking-content:${block.id}"),
+                ) {
+                    CompositionLocalProvider(LocalAssistantMarkdownTone provides AssistantMarkdownTone.Thinking) {
+                        StreamingMarkdownText(content = displayContent, isStreaming = isStreaming)
                     }
                 }
-            }
-            // Auto-follow: whenever the laid-out content grows, scroll to the
-            // new bottom.
-            // [FIX-261025-02] This used to watch `block.content.length`, but
-            // the effect keeps the `block` it captured at launch (its keys do
-            // not change per token) and AssistantBlock is immutable, so the
-            // flow emitted once and the scroller stayed at the top once the
-            // block hit its 300dp cap (reported as "thinking does not scroll
-            // to the latest"). It also scrolled to the PREVIOUS maxValue,
-            // before the new text was laid out. `maxValue` changes after
-            // layout, so following it fixes both.
-            LaunchedEffect(scrollState, block.id, isStreaming) {
-                if (!isStreaming) return@LaunchedEffect
-                snapshotFlow { scrollState.maxValue }
-                    .collect { max ->
-                        if (userScrolledAway) return@collect
-                        // scrollTo (not animateScrollTo) — animating fights
-                        // back-to-back token ticks; iOS uses a 0.15s linear
-                        // animation, but Compose's animateScrollTo cancels
-                        // any in-flight scroll, so streaming bursts get
-                        // jankier than a direct snap.
-                        scrollState.scrollTo(max)
-                    }
-            }
-            Column(
-                modifier = Modifier
-                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
-                    .heightIn(max = viewportHeight)
-                    .clipToBounds()
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        if (automaticTail && scrollState.maxValue > 0) {
-                            drawRect(
-                                brush = Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color.Black),
-                                blendMode = BlendMode.DstIn,
-                            )
-                        }
-                    }
-                    .verticalScroll(scrollState)
-                    .testTag("assistant-thinking-content:${block.id}"),
-            ) {
-                if (isTruncated) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(
-                                R.string.thinking_truncated_hint,
-                                displayContent.length / 1000,
-                                charCount / 1000,
-                            ),
-                            fontSize = 11.sp,
-                            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                            // [T-thinking-hint-align] Vertical padding only. The iOS
-                            // original insets BOTH the hint and the thinking text by
-                            // 12pt; here the text below has no horizontal inset, so a
-                            // 12dp one on the hint alone left it indented past the
-                            // text's left edge.
-                            modifier = Modifier.padding(vertical = 4.dp).weight(1f, fill = false),
-                        )
-                        // [#467] The cut-off start is otherwise out of reach.
-                        if (canOpenFull) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.thinking_show_full),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MiuixTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .clickable { showFullContent = true }
-                                    .padding(vertical = 4.dp),
-                            )
-                        }
-                    }
-                }
-                CompositionLocalProvider(LocalAssistantMarkdownTone provides AssistantMarkdownTone.Thinking) {
-                    StreamingMarkdownText(content = displayContent, isStreaming = isStreaming)
-                }
-            }
             }
         }
 

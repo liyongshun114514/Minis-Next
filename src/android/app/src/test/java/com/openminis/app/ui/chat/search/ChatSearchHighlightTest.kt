@@ -139,8 +139,8 @@ class ChatSearchHighlightTest {
 
     @Test fun `the units of a folded run come from the rows before folding`() {
         val src = File(main, "java/com/openminis/app/ui/chat/ChatScreen.kt").readText()
-        assertTrue(src.contains("toolFold.expand(run)"))
-        assertFalse("navigation never toggles a run", src.contains("toolFold.toggle(run)"))
+        assertTrue(src.contains("etaTimeline.expandForSearch(key)"))
+        assertFalse("navigation never toggles a run", src.contains("etaTimeline.toggle(key)"))
         assertTrue(src.contains("com.openminis.app.ui.chat.search.ChatSearchRowScope(chatSearch, item.key) {"))
     }
 

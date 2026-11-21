@@ -10,8 +10,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.TextFieldDefaults
+import top.yukonga.miuix.kmp.glass.GlassTextField
+import top.yukonga.miuix.kmp.glass.GlassTextFieldDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -40,14 +40,14 @@ fun DialogTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     textStyle: TextStyle = MiuixTheme.textStyles.main,
     fieldModifier: Modifier = Modifier,
-    backgroundColor: androidx.compose.ui.graphics.Color = MiuixTheme.colorScheme.surfaceContainerHigh,
+    backgroundColor: androidx.compose.ui.graphics.Color = GlassTextFieldDefaults.textFieldColors().backgroundColor,
 ) {
-    val colors = TextFieldDefaults.textFieldColors(
+    val colors = GlassTextFieldDefaults.textFieldColors(
         backgroundColor = backgroundColor,
         labelColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
         borderColor = if (isError) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
     )
-    TextField(
+    GlassTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).then(fieldModifier),

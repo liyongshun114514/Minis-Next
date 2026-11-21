@@ -127,9 +127,9 @@ class ToggleAnchorTest {
 
     @Test fun `the chat list provides the anchor, and a fold row is captured before it toggles`() {
         assertTrue(screen.contains("CompositionLocalProvider(LocalChatToggleAnchor provides toggleAnchor) {\n                                    UserAskBlock(item.block) {"))
-        val tap = screen.substringAfter("is FlatChatItem.AssistantToolGroup -> ToolGroupRow(item) {").substringBefore("\n                            }")
-        assertTrue(tap.indexOf("toggleAnchor.captureRow(item.key, flatItems)") in 0 until tap.indexOf("toolFold.toggle(item.runKey)"))
-        val publish = screen.substringAfter("flatItems = toolFold.fold(").take(600)
+        val tap = screen.substringAfter("is FlatChatItem.AssistantWorkGroup -> EtaWorkHeader(item) {").substringBefore("\n                            }")
+        assertTrue(tap.indexOf("toggleAnchor.captureRow(item.key, flatItems)") in 0 until tap.indexOf("etaTimeline.toggle(item.key, item.expanded)"))
+        val publish = screen.substringAfter("flatItems = etaTimeline.project(").take(700)
         assertTrue("requested for the same remeasure that applies the rows", publish.contains("toggleAnchor.restoreRow(flatItems)"))
         assertTrue(anchor.contains("listState.requestScrollToItem(index, ToggleAnchorMath.restoreScrollOffset(p.offset))"))
     }

@@ -1542,9 +1542,14 @@ internal fun HelperTranscript(
     // [T-android-row-keys-stable] Same as the main list: rows of a message
     // seen live here stay split, so the reversed list keeps its anchor.
     val liveMessageTracker = remember(vm) { LiveMessageTracker() }
-    val items = remember(messages, streaming) {
+    val etaTimeline = remember(vm) { EtaWorkTimeline() }
+    val etaChanges by etaTimeline.changes.collectAsState()
+    val processing by vm.isStreaming.collectAsState()
+    val thinkingLevel by vm.thinkingLevel.collectAsState()
+    val items = remember(messages, streaming, etaChanges, processing, thinkingLevel) {
         val merged = if (streaming.isEmpty()) messages else mergeStreamingOverlay(messages, streaming)
-        buildFlatChatItems(merged, liveMessageIds = liveMessageTracker.update(merged, streaming.keys))
+        val rows = buildFlatChatItems(merged, liveMessageIds = liveMessageTracker.update(merged, streaming.keys))
+        etaTimeline.project(rows, merged, processing = processing, thinkingEnabled = thinkingLevel.isEnabled)
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1592,6 +1597,9 @@ internal fun HelperTranscript(
                 // [T-port-fold-tools] This read-only transcript is never
                 // folded (no ToolFoldController), so no group row reaches it.
                 is FlatChatItem.AssistantToolGroup -> Unit
+                is FlatChatItem.AssistantWorkGroup -> EtaWorkHeader(item) { etaTimeline.toggle(item.key, item.expanded) }
+                is FlatChatItem.AssistantWorkStep -> EtaWorkStep(item,
+                    onToggle = { etaTimeline.toggle(item.key, item.expanded) }, onOpenDetail = onOpenDetail)
                 is FlatChatItem.AssistantInfo -> FallbackInfoBlock(item.block)
                 is FlatChatItem.AssistantTyping -> TypingIndicator()
                 is FlatChatItem.AssistantError -> InlineErrorBanner(item.error)

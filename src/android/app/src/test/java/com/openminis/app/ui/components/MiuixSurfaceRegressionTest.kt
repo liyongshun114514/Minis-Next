@@ -299,6 +299,86 @@ class MiuixSurfaceRegressionTest {
         }
     }
 
+    @Test fun etaProcessShowsTheThreeThinkingTwoFailedToolsTimelineAndInlineDetails() {
+        val timeline = com.openminis.app.ui.chat.EtaWorkTimeline()
+        fun thinking(id: String) = com.openminis.app.ui.chat.FlatChatItem.AssistantThinking("eta-turn",
+            AssistantBlock(id, "thinking", "Completed reasoning"), true, false)
+        fun tool(id: String, result: String) = com.openminis.app.ui.chat.FlatChatItem.AssistantToolUse("eta-turn",
+            AssistantBlock(id, "tool_use", result, ToolBlockStatus.FAILED, "Terminal $id", "shell_execute",
+                "{\"command\":\"echo test\"}"), emptyList())
+        val input = listOf(thinking("t1"), tool("linux", "Linux environment is not installed"),
+            thinking("t2"), tool("android", "Exit code 1"), thinking("t3"))
+        val message = com.openminis.app.ui.chat.ChatMessage("eta-turn", "assistant", "")
+        var opens = ""
+        compose.setContent {
+            MinisTheme {
+                val revision by timeline.changes.collectAsState()
+                val rows = remember(revision) { timeline.project(input, listOf(message)) }
+                Column(Modifier.fillMaxWidth().testTag("eta-process-host")) {
+                    rows.forEach { row -> key(row.key) {
+                        when (row) {
+                            is com.openminis.app.ui.chat.FlatChatItem.AssistantWorkGroup ->
+                                com.openminis.app.ui.chat.EtaWorkHeader(row) { timeline.toggle(row.key, row.expanded) }
+                            is com.openminis.app.ui.chat.FlatChatItem.AssistantWorkStep ->
+                                com.openminis.app.ui.chat.EtaWorkStep(row,
+                                    onToggle = { timeline.toggle(row.key, row.expanded) },
+                                    onOpenDetail = { opens = it })
+                            else -> Unit
+                        }
+                    } }
+                }
+            }
+        }
+        val header = compose.onNodeWithTag("eta-work:work:thinking:eta-turn:t1")
+        header.assertIsDisplayed()
+        compose.onNodeWithTag("eta-tool:linux").assertDoesNotExist()
+        header.performClick()
+        compose.onNodeWithText("Linux environment is not installed").assertIsDisplayed()
+        compose.onNodeWithText("Exit code 1").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-thinking:t1").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-thinking:t2").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-thinking:t3").assertIsDisplayed()
+        compose.onNode(hasText("Terminal linux", substring = true) and hasClickAction()).performClick()
+        compose.onNodeWithText("echo test").assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(com.openminis.app.R.string.eta_work_full_details)).performClick()
+        compose.runOnIdle { assertEquals("linux", opens) }
+        assertTrue(compose.onNodeWithTag("eta-process-host").captureToImage().width > 0)
+        header.performClick()
+        compose.onNodeWithTag("eta-tool:linux").assertDoesNotExist()
+        header.performClick()
+        compose.onNodeWithTag("eta-tool:linux").assertIsDisplayed()
+    }
+
+    @Test fun etaAutomaticReasoningTailHasFourLinesAndManualReadingSurvivesCompletion() {
+        val resolver = compose.activity.contentResolver
+        val key = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
+        val old = android.provider.Settings.Global.getFloat(resolver, key, 1f)
+        android.provider.Settings.Global.putFloat(resolver, key, 0f)
+        try {
+            var streaming by mutableStateOf(true)
+            val block = AssistantBlock("eta-tail", "thinking", (1..20).joinToString("\n\n") { "Reasoning line $it" })
+            compose.setContent {
+                MinisTheme {
+                    Column(Modifier.fillMaxWidth()) {
+                        com.openminis.app.ui.chat.ThinkingBlock(block, isStreaming = streaming, compact = true)
+                    }
+                }
+            }
+            val body = compose.onNodeWithTag("assistant-thinking-content:eta-tail")
+            body.assertIsDisplayed()
+            val tailHeight = body.fetchSemanticsNode().boundsInRoot.height
+            val activeTitle = compose.activity.getString(com.openminis.app.R.string.chat_thinking_active)
+            compose.onNodeWithText(activeTitle).performClick()
+            val fullHeight = body.fetchSemanticsNode().boundsInRoot.height
+            assertTrue("a tap releases the four-line limit", fullHeight > tailHeight + 20f)
+            compose.runOnIdle { streaming = false }
+            body.assertExists()
+            val finished = compose.activity.getString(com.openminis.app.R.string.chat_thinking_finished)
+            compose.onNodeWithText(finished).performClick()
+            body.assertDoesNotExist()
+        } finally { android.provider.Settings.Global.putFloat(resolver, key, old) }
+    }
+
     @Test fun modelGroupRowKeepsInlineBadgesAndSmallerTypographyAtLargeFont() {
         val group = com.openminis.app.data.model.ModelGroup(id = "hierarchy", name = "Default")
         val instance = com.openminis.app.data.model.ProviderInstance(

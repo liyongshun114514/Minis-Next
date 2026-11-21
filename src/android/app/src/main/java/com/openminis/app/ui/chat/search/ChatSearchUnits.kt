@@ -98,6 +98,7 @@ internal object ChatSearchUnits {
                 is FlatChatItem.AssistantError -> add(row.key, ERROR, row.error)
                 is FlatChatItem.AssistantHeader, is FlatChatItem.AssistantThinking,
                 is FlatChatItem.AssistantToolGroup, is FlatChatItem.AssistantTyping,
+                is FlatChatItem.AssistantWorkGroup, is FlatChatItem.AssistantWorkStep,
                 is FlatChatItem.AssistantUsage, is FlatChatItem.ScheduledTaskCardItem -> Unit
             }
         }

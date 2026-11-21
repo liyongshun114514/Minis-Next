@@ -486,6 +486,38 @@ internal sealed class FlatChatItem {
         override val contentType = "toolgroup"
     }
 
+    /** Eta work-process summary; members remain independent lazy rows below it. */
+    data class AssistantWorkGroup(
+        val messageId: String,
+        override val key: String,
+        val summary: EtaWorkSummary,
+        val active: Boolean,
+        val runningTool: AssistantBlock?,
+        val expanded: Boolean,
+        val memberKeys: List<String>,
+    ) : FlatChatItem() {
+        override val contentType = "eta-work"
+    }
+
+    /** One timeline node, or consecutive calls of the same tool. */
+    data class AssistantWorkStep(
+        val messageId: String,
+        override val key: String,
+        val members: List<FlatChatItem>,
+        val isLast: Boolean,
+        val expanded: Boolean,
+    ) : FlatChatItem() {
+        override val contentType = "eta-step"
+        // Never walk large reasoning/tool strings during LazyColumn's skip check.
+        override fun equals(other: Any?): Boolean = this === other ||
+            (other is AssistantWorkStep && messageId == other.messageId && key == other.key &&
+                isLast == other.isLast && expanded == other.expanded && members.size == other.members.size &&
+                members.indices.all { members[it] === other.members[it] })
+        override fun hashCode(): Int = key.hashCode() * 31 + members.fold(1) { value, row ->
+            value * 31 + System.identityHashCode(row)
+        }
+    }
+
     data class AssistantInfo(
         val messageId: String,
         val block: AssistantBlock,
@@ -721,6 +753,8 @@ internal fun buildFlatChatItems(
             is FlatChatItem.AssistantThinking -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolUse -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantToolGroup -> item.copy(messageId = "${item.messageId}#$n")
+            is FlatChatItem.AssistantWorkGroup -> item.copy(messageId = "${item.messageId}#$n", key = "${item.key}#$n")
+            is FlatChatItem.AssistantWorkStep -> item.copy(messageId = "${item.messageId}#$n", key = "${item.key}#$n")
             is FlatChatItem.AssistantInfo -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantTyping -> item.copy(messageId = "${item.messageId}#$n")
             is FlatChatItem.AssistantError -> item.copy(messageId = "${item.messageId}#$n")

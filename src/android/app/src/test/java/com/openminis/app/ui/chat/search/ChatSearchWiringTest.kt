@@ -23,7 +23,7 @@ class ChatSearchWiringTest {
 
     @Test fun `it searches the rows before tool runs are folded`() {
         val feed = screen.indexOf("chatSearch.onRows(builtRows)")
-        val fold = screen.indexOf("flatItems = toolFold.fold(")
+        val fold = screen.indexOf("flatItems = etaTimeline.project(")
         assertTrue(feed in 1 until fold)
     }
 
