@@ -32,7 +32,8 @@ class GlassUiPolishContractTest {
         assertTrue(chat.contains("Box(modifier = Modifier.fillMaxSize()"))
         assertFalse(chat.contains("Box(modifier = Modifier.weight(1f).fillMaxWidth()"))
         assertTrue(chat.contains("val bottomReserve = composerHeightDp +"))
-        assertTrue(chat.contains(".onGloballyPositioned { composerHeightPx = it.size.height }"))
+        assertTrue(chat.contains("composerHeightPx = it.size.height"))
+        assertTrue(chat.contains("composerTopInWindow = it.positionInWindow().y"))
         assertTrue(chat.contains(".padding(bottom = composerHeightDp)"))
         assertTrue(chat.contains(".glassPanel("))
         assertTrue(chat.contains("material = GlassMaterials.puredThinGlass(ChatColors.isDark)"))
@@ -171,7 +172,7 @@ class GlassUiPolishContractTest {
     @Test fun `all modal forms share glass surfaces and filled actions without changing page buttons`() {
         val dialog = ProductionSources.read("ui/components/MinisDialog.kt")
         assertTrue(dialog.contains("GlassDialog("))
-        assertTrue(dialog.contains("scene?.acquire(blurBackground = true)"))
+        assertTrue(dialog.contains("scene?.acquire()"))
         assertTrue(dialog.contains("if (!sameWindow)"))
         assertTrue(dialog.contains("LocalMinisDialogSurface provides true"))
         val button = ProductionSources.read("ui/components/MinisTextButton.kt")
@@ -179,9 +180,9 @@ class GlassUiPolishContractTest {
         assertTrue(button.contains("GlassDialogButton("))
         assertTrue(button.contains("GlassDialogButtonRole.Destructive"))
         val scene = ProductionSources.read("ui/components/MinisOverlayHost.kt")
-        assertTrue(scene.contains("scene?.backgroundBlurred == true"))
-        assertTrue(scene.contains(".textureBlur("))
-        assertTrue(scene.contains("if (scene != null && !scene.recording && blurAlpha > 0f)"))
+        assertFalse("uncovered page remains sharp", scene.contains(".textureBlur("))
+        assertFalse(scene.contains("backgroundBlurred"))
+        assertTrue(dialog.contains("backdrop = scene?.backdrop ?: backdrop"))
         for (path in listOf("ui/settings/MemoryManagementScreen.kt", "ui/settings/ThinkingRuleEditor.kt",
             "ui/settings/ProviderDetailScreen.kt", "ui/settings/EnvironmentVariablesScreen.kt")) {
             val source = ProductionSources.read(path)
@@ -204,12 +205,33 @@ class GlassUiPolishContractTest {
             assertTrue("keep the original slider geometry: $dimension", popup.contains("ThinkingSliderGeometry.$dimension"))
         }
         assertTrue(popup.contains("LocalMinisMenuInteractive.current"))
+        assertTrue(popup.contains("bottomBoundaryInWindow = bottomBoundaryInWindow"))
+        assertTrue(chat.contains("composerTopInWindow = it.positionInWindow().y"))
+        assertTrue(chat.contains("bottomBoundaryInWindow = composerTopInWindow"))
         assertTrue(chat.contains("thinkingLevelTap = thinkingLevelAnchor.clickPosition()"))
         val editor = ProductionSources.read("ui/settings/ThinkingRuleEditor.kt")
         assertTrue(editor.contains("formatTap = formatAnchor.clickPosition()"))
         assertTrue(editor.contains("tapPositionInWindow = formatTap"))
         assertTrue(editor.contains("onDismissFinished = {"))
         assertTrue(editor.contains("if (result != null) onSave(result) else onDismiss()"))
+    }
+
+    @Test fun `group hierarchy and computer header bind to their production layout owners`() {
+        val groups = ProductionSources.read("ui/settings/ModelGroupsScreen.kt").substringAfter("internal fun GroupRow(")
+        assertTrue(groups.contains("verticalArrangement = Arrangement.spacedBy(6.dp)"))
+        assertTrue(groups.contains("FlowRow("))
+        assertTrue(groups.contains("FontWeight.SemiBold"))
+        assertFalse("member preview must not use faint border color", groups.contains("color = MiuixTheme.colorScheme.outline"))
+        assertTrue(groups.contains("overflow = TextOverflow.Ellipsis"))
+        val computer = ProductionSources.read("ui/chat/ChatToolDetailUI.kt").substringAfter("internal fun ToolDetailSheet(")
+        val header = computer.indexOf("startAction = {")
+        val title = computer.indexOf("text = \"Minis Computer\"")
+        val body = computer.indexOf("// ── Content Area")
+        assertTrue("custom header occupies native title slot", header >= 0 && title > header && title < body)
+        assertFalse(computer.substring(header, body).contains("vertical = 10.dp"))
+        val menu = ProductionSources.read("ui/components/MinisMenu.kt")
+        assertTrue(menu.contains("Modifier.height(with(density) { safeBounds.bottom.toDp() })"))
+        assertTrue(menu.contains("imeBottom <= systemBottom && !preferAbove"))
     }
 
     @Test fun `settings and phone home chat share both push and pop translations`() {
@@ -257,7 +279,7 @@ class GlassUiPolishContractTest {
         val manualScroll = chat.substringAfter("// A finger lift never triggers").substringBefore("// [T-android-updown-fab-asymmetry]")
         assertFalse("manual drag end must not snap the list", manualScroll.contains("tracedScrollToItem("))
         assertTrue(manualScroll.contains("userScrolledAway = listState.canScrollBackward"))
-        val editor = ProductionSources.read("ui/settings/WorkspaceInstructionsScreen.kt")
+        val editor = ProductionSources.read("ui/settings/SoulSettingsScreen.kt")
         assertTrue(editor.contains("DocumentEditorField("))
         val slider = ProductionSources.read("ui/chat/NativeComposerExtras.kt")
         assertTrue(slider.contains("Canvas(") && slider.contains("ThinkingSliderGeometry.track("))

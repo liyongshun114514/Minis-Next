@@ -22,8 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
  *   - [SoulMDParser]  – lossless-ish parse / serialize
  *   - [SoulStore]     – file I/O, default content, fallback identity,
  *                       cachedMetadata + onChanged listener
- *   - [SystemPromptBuilder] – injection-scrubbed identitySection() for the
- *                             agent system prompt
+ *   - [SystemPromptBuilder] – exclusive raw SOUL application block,
+ *                             empty-body identity fallback
  */
 
 data class SoulMetadata(
@@ -384,54 +384,8 @@ lang: "auto"
     }
 }
 
-/**
- * Composes the Layer-1 identity section of the agent system prompt.
- * Mirrors iOS `SystemPromptBuilder.identitySection()` (commit 74c0daf):
- * a fixed identity-sentence template owned by the app + an optional,
- * clearly-labeled Personality block from SOUL.md's body.
- *
- * Why template-based (not "let the user write the whole prompt"):
- *  - Users never see "You are <name>, a capable AI assistant ..." in the
- *    Personality editor — that internal scaffolding stays out of view
- *    so users can't accidentally delete or duplicate it.
- *  - The original carefully-tuned identity sentence is preserved apart
- *    from the audited OS identity string (Ubuntu 24.04 via PRoot or
- *    Chroot, aarch64). Substituting only `{name}` keeps the surrounding
- *    model expectations intact.
- *  - When the user hasn't authored a personality body, the full
- *    assembled prompt differs from the pre-SOUL prompt only in the OS
- *    identity string and `{name}`; no other behavior changes.
- */
+/** Builds the sole SOUL application block and an identity fallback for an empty body. */
 object SystemPromptBuilder {
-
-    private const val TAG = "Soul"
-
-    /**
-     * Patterns used by [scrubInjections] to drop prompt-injection lines
-     * from the personality body at prompt-build time. Exposed so write
-     * paths (minis-config `soul.body` setter) can reject the same set
-     * of patterns rather than silently scrubbing — see iOS parity:
-     * the agent should see a clear error, not a silent edit.
-     */
-    val INJECTION_PATTERNS: List<Regex> = listOf(
-        Regex("ignore.{0,30}previous.{0,30}instructions?", RegexOption.IGNORE_CASE),
-        Regex("disregard.{0,30}(previous|prior).{0,30}instructions?", RegexOption.IGNORE_CASE),
-        Regex("forget.{0,30}(previous|prior).{0,30}instructions?", RegexOption.IGNORE_CASE),
-    )
-
-    /**
-     * `true` iff [s] contains a known prompt-injection pattern. Used by
-     * write-side validation to reject the change at the configure call,
-     * which surfaces a clean error to the agent (instead of the silent
-     * line-drop that [scrubInjections] performs at prompt-build time).
-     */
-    fun containsInjectionPattern(s: String): Boolean =
-        INJECTION_PATTERNS.any { it.containsMatchIn(s) }
-
-    /** Application configuration sent via the provider's native API system channel.
-     * Channel placement does not supersede service-side policy or device permissions.
-     */
-    internal val SUPREME_PREAMBLE: String  get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.0464e2bcbbe2", "这是应用配置的系统提示词，通过模型原生系统通道发送；不覆盖模型服务端规则、安全要求或设备权限。\nThis is the application's configured system prompt, sent through the model's native system channel. It does not override service-side rules, safety requirements, or device permissions.")
 
     /**
      * The identity sentence template. `{name}` is substituted from the
@@ -442,8 +396,7 @@ object SystemPromptBuilder {
      */
     // [T-native-composer-soul-limit] OS identity string only: this build runs
     // the Ubuntu 24.04 userland (PRoot or Chroot, aarch64). The surrounding
-    // identity sentence, name substitution, personality block, injection
-    // scrubber and instruction priority are unchanged.
+    // identity sentence and name substitution remain the empty-body fallback.
     private val IDENTITY_TEMPLATE: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.1ac73412e7ab", "You are {name}, a capable AI assistant running on an Android device with a fully functional Ubuntu 24.04 Linux environment (PRoot or Chroot, aarch64). ")
 
     /**
@@ -455,73 +408,16 @@ object SystemPromptBuilder {
      */
     private val SANDBOX_FACTS: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.0f41e56348a3", "Linux environment and chroot capability: ordinary shell_execute runs inside the shared Ubuntu 24.04 rootfs using the selected PRoot or Chroot backend. The Chroot backend is a real Root chroot: its helper is started through the device's su manager and every chroot command runs as real Root (uid 0). Access follows the stored Native Root three-state permission: 不允许 (not allowed) refuses; 询问 (ask) asks for approval of that exact command — or for creating an interactive session — every time, and a refusal, cancellation or timeout executes nothing and does not change the stored preference; 完全允许 (fully allowed) is a persistent grant that only the user can select explicitly, never an automatic promotion. The app never changes that level by itself, and the device's own su manager may still show its own prompt. A dedicated android-chroot-cli is available on PATH: `android-chroot-cli status` is read-only — it reports the recorded permission level plus file/switch prerequisites without starting a helper or executing a process, and it is not proof that a helper is alive; `android-chroot-cli --help` shows exact syntax. Use `android-chroot-cli exec --command '<command>' --timeout 60` to run a command in the chroot under that same gate; it uses the shared rootfs without switching the global backend or interrupting existing sessions. A chroot approval does not authorize unrelated Android Root commands — those use android-root-cli under its own separate permission policy. Report actual failures truthfully rather than claiming a helper is already running.")
 
-    /** Header for the user-configured global prompt body. */
-    private val APPLICATION_PROMPT_HEADER: String get() = com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.914e8436e114", "Application system prompt (configured in Settings → System Prompt; sent through the provider's native system channel):")
+    /** A configured body replaces generated identity/style, just as AGENTS exclusive mode did. */
+    fun identitySection(context: Context): String = identitySection(SoulStore.load(context))
 
-    /**
-     * [T-soul-prompt-supreme] Render the application system prompt.
-     *
-     * Layout, and why it is this order:
-     *
-     *   1. [SUPREME_PREAMBLE] + the user's SOUL.md body (scrubbed). This is
-     *      the first thing in the returned string, and the caller
-     *      ([com.openminis.app.ui.chat.ChatViewModel.buildSystemPrompt]) puts
-     *      this string FIRST into the provider's native system channel, ahead
-     *      of the "You are <name>…" identity sentence and ahead of every
-     *      app-generated instruction (tool list, skills, memory, runtime
-     *      context). This placement is an API-channel choice, not a claim
-     *      to supersede service-side policy or device permissions.
-     *   2. The identity sentence (fixed template owned by the app).
-     *   3. The optional `style` block.
-     *   4. [soulEditHint] — how the user edits this, kept last so it never
-     *      separates the prompt from the block it introduces.
-     *
-     * An empty body yields exactly the identity sentence + style + hint, i.e.
-     * behaviour identical to before this reorder (step 1 is simply absent).
-     *
-     * The trailing "\n\n" is a contract with the caller, which concatenates
-     * the rest of the system message directly after this string.
-     */
-    fun identitySection(context: Context): String {
-        // The user's ordinary system prompt is sent through the provider's
-        // applicationSystemPrompt field. Keep its body OUT of the generated
-        // identity section, so global instructions are never injected twice.
-        val file = SoulStore.load(context)
-        return render(file?.copy(body = ""))
-    }
+    internal fun identitySection(file: SoulFile?): String =
+        if (!file?.body.isNullOrBlank()) "" else render(file)
 
-    /**
-     * [K-global-prompt-only] The application system prompt: the user's global
-     * SOUL.md body, and nothing else.
-     *
-     * There is no per-model / per-group alternative any more. The legacy
-     * `SOUL_PROMPT_RULES.json` and its mode value are kept on disk for
-     * compatibility, but this function does not read them: a stale CUSTOM
-     * selection cannot replace or suppress the global body.
-     */
-    fun applicationPrompt(context: Context): String? =
-        applicationPrompt(SoulStore.load(context))
+    fun applicationPrompt(context: Context): String? = applicationPrompt(SoulStore.load(context))
 
-    /**
-     * Global block for one frozen [SoulFile] snapshot. The caller passes the
-     * file it loaded at turn start, so a Settings save mid-turn cannot change
-     * the prompt under that turn (retries and model switches reuse it).
-     */
-    internal fun applicationPrompt(file: SoulFile?): String? = globalBlock(file)
-
-    /**
-     * GLOBAL block. Null when the user has not written a body — the caller
-     * then emits no application block at all. There is no application-side
-     * length gate: the body is sent as written (after the injection scrubber
-     * below, which removes lines that try to replace the system prompt).
-     */
-    private fun globalBlock(file: SoulFile?): String? {
-        val trimmed = file?.body?.trim().orEmpty()
-        if (trimmed.isEmpty()) return null
-        val body = scrubInjections(trimmed).trim()
-        if (body.isEmpty()) return null
-        return SUPREME_PREAMBLE + "\n\n" + APPLICATION_PROMPT_HEADER + "\n" + body
-    }
+    /** Frozen at turn start; fallback/retry/model switches reuse the same exact block. */
+    internal fun applicationPrompt(file: SoulFile?): String? = SoulInstructionRender.render(file?.body)
 
     /** Render settings into the application's API system message. */
     internal fun render(file: SoulFile?): String {
@@ -556,46 +452,8 @@ object SystemPromptBuilder {
             return com.openminis.app.agent.prompts.PromptOverrides.render("agent.soulstore.470ac0e409cf", "\n\nResponse style (from SOUL.md `style` — apply to every reply unless the user explicitly asks otherwise; if it prescribes a reply language, it overrides the default match-the-user's-language rule):\n{{slot0}}", mapOf("slot0" to (s).toString()))
         }
 
-        val body = file?.body
-        val trimmed = body?.trim().orEmpty()
-        if (trimmed.isEmpty()) {
-            return identityTrimmed + "\n\n" + SANDBOX_FACTS + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
-        }
-
-        // [K-global-prompt-only] No application-side length gate and no
-        // truncation: the user's global body is sent as written. The only
-        // transformation that remains is the injection scrubber, which drops
-        // lines that try to replace the system prompt (safety, not length).
-        val personality = scrubInjections(trimmed)
-
-        // [T-soul-prompt-supreme] Application prompt FIRST. See [render]'s KDoc
-        // for the ordering contract. The body also travels on its own, ahead of
-        // this whole string, via [applicationPrompt] into the provider's native
-        // system channel — its absence here (caller already placed it) is
-        // detected by the caller through [applicationPrompt], not by parsing.
-        return SUPREME_PREAMBLE +
-            "\n\n" +
-            APPLICATION_PROMPT_HEADER +
-            "\n" +
-            personality +
-            "\n\n" +
-            identityTrimmed +
-            "\n\n" +
-            SANDBOX_FACTS +
-            styleBlock(style) +
-            "\n\n" +
-            soulEditHint +
-            "\n\n"
+        // A nonblank body is exclusive. No identity, style, second wrapper or scrubber follows it.
+        return applicationPrompt(file) ?: (identityTrimmed + "\n\n" + SANDBOX_FACTS +
+            styleBlock(style) + "\n\n" + soulEditHint + "\n\n")
     }
-
-    /**
-     * Drop lines that look like an attempt to subvert the system prompt.
-     * SOUL.md is user-authored personality — instructions to the model
-     * have no business being there. Casts a wide net on purpose: matches
-     * "ignore previous instructions" and the usual variants.
-     */
-    private fun scrubInjections(s: String): String =
-        s.split("\n")
-            .filter { line -> INJECTION_PATTERNS.none { it.containsMatchIn(line) } }
-            .joinToString("\n")
 }

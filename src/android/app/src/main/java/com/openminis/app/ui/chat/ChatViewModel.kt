@@ -7541,20 +7541,7 @@ class ChatViewModel(
      * is the pre-existing behaviour. The prompt text itself is never logged.
      */
     private fun applyApplicationSystemPromptGlobal(provider: LLMProvider) {
-        val workspace = runCatching {
-            com.openminis.app.agent.workspace.WorkspaceInstructionStore
-                .mandatoryBlock(context, activeSessionId)
-        }.getOrNull()
-        val soul = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
-        // [K-agents-supreme] With exclusive mode on, the workspace block is the
-        // whole application prompt and SOUL.md is not sent.
-        val prompt = com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
-            workspaceBlock = workspace,
-            soul = soul,
-            exclusiveRequested = runCatching {
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
-            }.getOrDefault(false),
-        )
+        val prompt = runCatching { SystemPromptBuilder.applicationPrompt(context) }.getOrNull()
         runCatching { provider.applicationSystemPrompt = prompt }
     }
 
@@ -11210,34 +11197,14 @@ class ChatViewModel(
         //    empty field) instead of re-reading the file;
         //  - the body is placed exactly once, in `applicationSystemPrompt`,
         //    never concatenated into `loopSystemPrompt` (no duplicate text).
-        // A sub agent gets null: it has its own identity text and no Settings
-        // page. Read AGENTS before SOUL, matching their application priority
-        // and their order in every provider's native system channel.
-        val workspaceBlockForTurn = if (helperConfig == null) {
-            runCatching {
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore
-                    .mandatoryBlock(context, activeSessionId)
-            }.onFailure {
-                AppLogger.warning(TAG_STREAM, ("Workspace instructions could not be loaded: " + (it.javaClass.simpleName).toString()))
-            }.getOrNull()
-        } else {
-            null
-        }
+        // A sub agent gets null: it retains its own task/environment identity.
         val soulFileForTurn = if (helperConfig == null) {
             runCatching { com.openminis.app.agent.SoulStore.load(context) }.getOrNull()
         } else {
             null
         }
         val applicationPromptForTurn = if (helperConfig == null) {
-            // [K-agents-supreme] Exclusive mode sends the workspace block alone;
-            // SOUL.md stays on disk but never reaches the request.
-            com.openminis.app.agent.workspace.WorkspaceInstructionAuthority.applicationPrompt(
-                workspaceBlock = workspaceBlockForTurn,
-                soul = runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull(),
-                exclusiveRequested = runCatching {
-                    com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context)
-                }.getOrDefault(false),
-            )
+            runCatching { SystemPromptBuilder.applicationPrompt(soulFileForTurn) }.getOrNull()
         } else {
             null
         }
@@ -16509,16 +16476,9 @@ class ChatViewModel(
         // (exposed as a shell command via the native_offload handler).
         val modelUseCount = try { providerRepository.resolvedAgentLoopEntries().size } catch (_: Exception) { 0 }
 
-        // [T-soul-md] Layer 1 is rendered by SystemPromptBuilder, which
-        // owns the "You are <name>, a capable AI assistant running on an
-        // Android device ..." identity sentence (parametric on SOUL.md's
-        // `name` field) and optionally appends a clearly-labeled
-        // Personality section from SOUL.md's body. The original wording
-        // is preserved inside SystemPromptBuilder.IDENTITY_TEMPLATE so we
-        // don't regress model behavior that depended on it. When SOUL.md
-        // has no personality body, identitySection() returns the identity
-        // sentence with its original single trailing space — the full
-        // assembled prompt then matches the pre-SOUL prompt byte-for-byte.
+        // SOUL body travels only in applicationSystemPrompt. The generated
+        // name/style/environment identity is an empty-body fallback, not a
+        // second instruction source that competes with a configured SOUL.
         // [T-p1-delegate-task] A helper gets an environment description in place
         // of the SOUL identity — describe the calling context, do not assign a
         // persona (the minis-model-use identity-pollution lesson).
@@ -16535,26 +16495,13 @@ class ChatViewModel(
         // instruction that follows it. Keeping it here would put the user's
         // prompt AFTER the identity paragraph, and the Anthropic OAuth path
         // rewrites this string wholesale — either way it would be demoted.
-        // A sub agent keeps its own identity block; the top-level agent's is
-        // now identity sentence + style + edit hint only (the application
-        // prompt travels in the provider field described above).
-        // [K-agents-supreme] Exclusive workspace mode owns the prompt: the
-        // generated "You are <name>, a capable AI assistant ..." paragraph and
-        // SOUL's personality/style sheet are dropped so nothing in the system
-        // channel competes with AGENTS.md. Without an instruction file the flag
-        // is inert and this stays byte-identical to the previous build.
-        val agentsExclusive = helperConfig == null && runCatching {
-            com.openminis.app.agent.workspace.WorkspaceInstructionStore.exclusive(context) &&
-                com.openminis.app.agent.workspace.WorkspaceInstructionStore.hasInstructions(context)
-        }.getOrDefault(false)
-        val identitySection = if (agentsExclusive) {
-            ""
-        } else {
-            helperConfig?.let {
-                com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
-            }
-                ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
-        }
+        // A sub agent keeps its own identity block. A top-level identity
+        // fallback is present only while SOUL has no configured body.
+        // SOUL is the only author-owned application prompt. A configured body
+        // suppresses generated identity/style; helpers retain their isolated identity.
+        val identitySection = helperConfig?.let {
+            com.openminis.app.agent.jobs.HelperRunner.identitySection(it, browserEnabled = browserToolEnabled)
+        } ?: com.openminis.app.agent.SystemPromptBuilder.identitySection(context)
         // [T-memory-toggle-gates-injection-and-tools-android] Mirror the iOS
         // gate: when memory is disabled for this session, replace the
         // "memory_write / memory_get" tool bullets and the "Memory system:"

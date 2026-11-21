@@ -128,10 +128,10 @@ class UnifiedPromptSettingsTest {
     }
 
     @Test
-    fun `system prompt page contains only soul and workspace instructions`() {
-        assertEquals(2, Regex("SettingsRow\\(").findAll(hub).count())
+    fun `system prompt page contains only soul`() {
+        assertEquals(1, Regex("SettingsRow\\(").findAll(hub).count())
         assertTrue(hub.contains("onClick = onIdentityClick"))
-        assertTrue(hub.contains("onClick = onWorkspaceInstructionsClick"))
+        assertFalse(hub.contains("onWorkspaceInstructionsClick"))
         for (retired in listOf("PromptOverrides", "PromptCatalogScope", "TextField(", "onEditBuiltin", "overrideRevision")) {
             assertFalse("catalog UI must not return: $retired", hub.contains(retired))
         }

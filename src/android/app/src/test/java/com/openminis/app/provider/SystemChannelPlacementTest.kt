@@ -145,11 +145,12 @@ class SystemChannelPlacementTest {
             assertFalse("$name still yields to later messages",
                 src.contains("defer to the user's latest") || src.contains("may be overridden"))
         }
-        assertTrue(soul.contains("不覆盖模型服务端规则"))
+        val renderer = ProductionSources.read("agent/SoulInstructionRender.kt")
+        assertTrue(renderer.contains("highest authority in this request"))
         assertFalse(soul.contains("outranks every instruction"))
         // The editable template is resolved by a getter, not a cached value.
         // Keep the single-definition contract and require the catalog wiring.
-        assertEquals(1, Regex("val SUPREME_PREAMBLE: String\\s+get\\(\\) =").findAll(soul).count())
-        assertTrue(soul.contains("PromptOverrides.render(\"agent.soulstore.0464e2bcbbe2\""))
+        assertEquals(1, Regex("val MANDATORY_INTRO: String").findAll(renderer).count())
+        assertTrue(renderer.contains("PromptOverrides.render(\"agent.soulinstructionrender.authority\""))
     }
 }

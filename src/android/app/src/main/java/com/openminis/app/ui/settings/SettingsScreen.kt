@@ -95,15 +95,6 @@ fun SettingsScreen(
     // Agent Runtime section; default no-op for callers that haven't wired
     // the route yet.
     onSoulClick: () -> Unit = {},
-    /**
-     * [T-workspace-instructions] Settings › Workspace Instructions.
-     *
-     * [K-unified-prompt-workspace] No longer rendered as its own row — the
-     * entry moved inside the System Prompt hub, which links to the same
-     * screen. The hook is kept so existing callers (and the route wiring)
-     * keep compiling; the route itself is still registered.
-     */
-    onWorkspaceInstructionsClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
     onUsageClick: () -> Unit = {},
     /**

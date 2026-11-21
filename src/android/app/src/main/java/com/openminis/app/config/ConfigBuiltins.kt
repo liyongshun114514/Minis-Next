@@ -1361,8 +1361,8 @@ internal object ConfigBuiltins {
     private fun registerSoul(r: ConfigRegistry, context: Context) {
         // [K-global-prompt-only] No application-side length cap and no
         // schema maxLength: the global body is stored and sent as written.
-        // The writer only rejects prompt-injection patterns (safety), never
-        // a long but legitimate personality prompt.
+        // SOUL inherits the former instruction-file raw body semantics;
+        // sensitive config writes still go through the normal approval gate.
 
         // Re-read SOUL.md every call so concurrent writes from Settings
         // UI don't race with minis-config writes. Parse falls back to
@@ -1554,10 +1554,9 @@ internal object ConfigBuiltins {
             ClosureField(
                 path = "soul.body",
                 displayName = "Global system prompt",
-                description = "The global system prompt (personality / voice instructions) sent through the model's native system channel. There is no application-side length limit: the body is stored and sent as written. The writer rejects prompt-injection patterns (\"ignore previous instructions\" etc.) — keep this to genuine character / tone guidance.",
+                description = "The sole user-authored SOUL instruction body, sent verbatim first through the native system channel with the instruction-authority header. No application-side length limit or content rewriting. Changes still require user approval.",
                 // No schema maxLength: there is no application-side length
-                // limit at all. Only the injection-pattern rejection runs in
-                // the writer below.
+                // limit or content filter; the normal sensitive config approval still applies.
                 valueSchema = ConfigSchema.Str(),
                 risk = ConfigRisk.SENSITIVE,
                 revertable = true,
@@ -1568,13 +1567,6 @@ internal object ConfigBuiltins {
                 writer = { v ->
                     val raw = (v as? ConfigValue.Str)?.value
                         ?: throw ConfigError.TypeMismatch("string")
-                    if (com.openminis.app.agent.SystemPromptBuilder
-                            .containsInjectionPattern(raw)
-                    ) {
-                        throw ConfigError.InvalidValue(
-                            "Body contains a prompt-injection pattern (\"ignore/disregard/forget … previous/prior instructions\"). SOUL.md is for personality, not instructions to the model."
-                        )
-                    }
                     val cur = loadCurrent()
                     saveCurrent(cur.copy(body = raw))
                 },

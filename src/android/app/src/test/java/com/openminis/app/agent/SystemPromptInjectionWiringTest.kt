@@ -51,29 +51,19 @@ class SystemPromptInjectionWiringTest {
     }
 
     @Test
-    fun `workspace is loaded before soul and sent first in the frozen block`() {
-        val workspace = vm.indexOf("val workspaceBlockForTurn = if (helperConfig == null)")
-        val soul = vm.indexOf("val soulFileForTurn = if (helperConfig == null)")
-        val application = vm.indexOf("val applicationPromptForTurn = if (helperConfig == null)")
-        assertTrue("workspace snapshot precedes SOUL read", workspace >= 0 && workspace < soul)
-        assertTrue("SOUL read precedes assembly", soul < application)
-        val assembly = vm.substring(application,
-            vm.indexOf("applyApplicationSystemPrompt(currentProvider, applicationPromptForTurn)", application))
-        assertTrue("workspace precedes SOUL on the wire",
-            assembly.indexOf("workspaceBlockForTurn,") < assembly.indexOf("SystemPromptBuilder.applicationPrompt(soulFileForTurn)"))
-        assertTrue("the frozen path uses the same authority helper",
-            assembly.contains("WorkspaceInstructionAuthority.applicationPrompt("))
-        assertTrue("exclusive mode is read per turn, not cached at construction",
-            assembly.contains("WorkspaceInstructionStore.exclusive(context)"))
+    fun `soul is the only automatic user instruction reader`() {
+        assertFalse(vm.contains("WorkspaceInstructionStore"))
+        assertFalse(vm.contains("WorkspaceInstructionAuthority"))
+        assertFalse(vm.contains("workspaceBlockForTurn"))
         val fallback = body("private fun applyApplicationSystemPromptGlobal(provider: LLMProvider)")
-        assertTrue(fallback.indexOf(".mandatoryBlock(context, activeSessionId)") <
-            fallback.indexOf("SystemPromptBuilder.applicationPrompt(context)"))
-        // [K-agents-supreme] Both call sites assemble through one helper, so the
-        // exclusive switch cannot be honoured in one place and forgotten in the
-        // other. The raw join is gone on purpose.
-        assertTrue(fallback.contains("WorkspaceInstructionAuthority.applicationPrompt("))
-        assertTrue(fallback.contains("WorkspaceInstructionStore.exclusive(context)"))
-        assertFalse(fallback.contains("listOfNotNull(workspace, soul)"))
+        assertTrue(fallback.contains("SystemPromptBuilder.applicationPrompt(context)"))
+        assertFalse(fallback.contains("listOfNotNull("))
+        val nav = ProductionSources.read("ui/navigation/AppNavigation.kt")
+        assertFalse(nav.contains("WorkspaceInstructionsScreen("))
+        assertFalse(nav.contains("WorkspaceInstructionEditorScreen("))
+        for (type in listOf("WorkspaceInstructionStore", "WorkspaceInstructionDiscovery", "WorkspaceInstructionAuthority")) {
+            assertFalse("retired runtime implementation $type", ProductionSources.allKotlinFiles().any { it.name == "$type.kt" })
+        }
     }
 
     @Test
@@ -111,16 +101,18 @@ class SystemPromptInjectionWiringTest {
     }
 
     @Test
-    fun `the injection scrubber and the writer's rejection are both intact`() {
-        assertTrue(builtins.contains("containsInjectionPattern(raw)"))
-        assertTrue(builtins.contains("prompt-injection pattern"))
+    fun `the body uses one raw instruction renderer and sensitive writes still require approval`() {
+        assertFalse(builtins.contains("containsInjectionPattern(raw)"))
+        val writer = builtins.substringAfter("path = \"soul.body\"")
+        assertTrue(writer.contains("risk = ConfigRisk.SENSITIVE"))
+        assertTrue(writer.contains("saveCurrent(cur.copy(body = raw))"))
         val soul = ProductionSources.read("agent/SoulStore.kt")
-        assertTrue(soul.contains("fun containsInjectionPattern"))
-        assertTrue(soul.contains("private fun scrubInjections"))
-        assertTrue(soul.contains("scrubInjections(trimmed)"))
-        // Safety/priority text is unchanged and never claims to override them.
-        assertTrue(soul.contains("不覆盖模型服务端规则"))
-        assertFalse(soul.contains("outranks every instruction"))
-        assertEquals(1, Regex("val SUPREME_PREAMBLE: String\\s+get\\(\\) =").findAll(soul).count())
+        assertFalse(soul.contains("scrubInjections"))
+        assertTrue(soul.contains("SoulInstructionRender.render(file?.body)"))
+        assertTrue(soul.contains("if (!file?.body.isNullOrBlank()) \"\" else render(file)"))
+        val renderer = ProductionSources.read("agent/SoulInstructionRender.kt")
+        assertEquals(1, Regex("val MANDATORY_INTRO: String").findAll(renderer).count())
+        assertFalse(renderer.contains(".trim()"))
+        assertFalse(renderer.contains("replace("))
     }
 }

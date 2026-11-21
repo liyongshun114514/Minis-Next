@@ -24,14 +24,13 @@ object PromptCatalogScope {
 
     /**
      * Groups a main chat turn assembles independently of which tool it calls:
-     * the channel preamble and identity, the main system prompt body, workspace
+     * the channel preamble and identity, the main system prompt body, SOUL
      * instructions, privacy notice, memory block, skill disclosure, scheduled
      * task pre-execution text and MCP disclosure.
      */
     val GLOBAL_GROUPS: List<String> = listOf(
         "身份与全局",
         "主系统提示词",
-        "工作区指令",
         "隐私提示",
         "记忆",
         "技能",

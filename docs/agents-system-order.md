@@ -1,17 +1,17 @@
-# Workspace instructions and SOUL
+# SOUL: the sole application instruction source
 
-Android chat sends workspace instructions through each provider's native system channel in this application order:
+Settings → System Prompt contains one SOUL entry. AGENTS.md / CLAUDE.md discovery, project chains, scope/budget controls and their editors are removed. Legacy workspace deep links open the SOUL editor; existing user files and preferences are left on disk, not silently merged, overwritten or deleted.
 
-1. The discovered AGENTS.md / CLAUDE.md workspace chain.
-2. The global SOUL.md application prompt.
-3. Generated identity, style, tool guidance, skills, memory and runtime context.
+The SOUL Markdown body inherits the former AGENTS authority wording and native-system format:
 
-The per-turn configuration snapshot reads the workspace chain before loading SOUL.md. Retries, fallback providers and mid-turn model switches reuse the frozen application block. Workspace guidance takes precedence over the other application sections; more specific workspace files take precedence within the workspace chain. This ordering does not override service-side rules, safety requirements or device permissions.
+1. The fixed request-authority header, now identifying SOUL (including truthful failure reporting).
+2. `Instructions from: /var/minis/memory/SOUL.md`, a blank line and the exact configured body.
+3. Generated tool/skill/memory/runtime guidance in the existing provider tail.
 
-The global file is `/var/minis/memory/AGENTS.md`. Project files are discovered between the project root and working directory configured in Settings → Workspace Instructions. Saving a file applies to the next turn. The fixed priority header is outside the configurable per-chain file budget, so long-file truncation cannot remove the application ordering. Missing files produce no empty workspace block.
+A nonblank body is exclusive: no second SOUL wrapper, generated identity or legacy metadata style follows it. Name/avatar remain UI metadata. An empty body emits no authority block and retains the usual identity/environment fallback. Body content is not line-filtered, escaped, trimmed, truncated or sent as a fake user reminder. The SOUL frontmatter storage format and avatar sidecar are unchanged.
 
-Chat Completions uses the leading system message; Responses uses `instructions`; Anthropic uses the `system` array; Gemini text models use `systemInstruction`. Anthropic OAuth retains its required provider identity prefix before application content. The ordinary Anthropic API-key path does not require OAuth identity configuration. Gemini audio-only models that reject system instructions keep their existing provider restriction.
+The body is snapshotted once per turn. Retries, fallback providers and mid-turn model switches reuse that exact block; child agents retain their isolated task prompt. The memory toggle does not turn SOUL off. Settings edits apply on the next turn. Sensitive `minis-config soul.body` writes still require user approval.
 
-The compact chat composer displays `Off`, `Low`, `Medium`, `High`, `XHigh`, `Max`, `Ultra` from the same display names as the effort slider. Request values and serialization remain unchanged.
+Chat Completions uses its first system message; Responses uses leading `instructions`; Anthropic uses the `system` array; Gemini uses `systemInstruction`. Anthropic OAuth retains the provider-required identity block first, then SOUL, then runtime. Gemini audio-only restrictions remain unchanged. Request wording cannot change server enforcement or Android permission gates.
 
-Regression coverage includes real workspace rendering with UTF-8 and small budgets, per-turn source wiring, provider system-channel placement, actual request serialization for OpenAI/Anthropic API-key/Gemini, and composer static checks. OAuth serialization is exercised only when its build-time identity is configured; an unconfigured public build explicitly skips that one test. No test sends a model request.
+Regression coverage: SoulInstructionRenderTest, ApplicationSystemPromptTest, SoulBodyLimitPolicyTest, SystemPromptInjectionWiringTest, SoulSystemChannelTest and SystemChannelPlacementTest. Provider body tests construct JSON without network requests. The optional OAuth test retains its existing public-build skip when no identity is configured.

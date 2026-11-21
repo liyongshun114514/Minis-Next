@@ -215,6 +215,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
@@ -1020,7 +1021,9 @@ fun ChatScreen(
     // AIChatView.showThinkingLevelSheet.
     var showThinkingLevelSheet by remember { mutableStateOf(false) }
     val thinkingLevelAnchor = com.openminis.app.ui.components.rememberMinisMenuAnchor()
+    val thinkingPopupGapPx = with(LocalDensity.current) { 12.dp.toPx() }
     var thinkingLevelTap by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+    var composerTopInWindow by remember(sessionId) { mutableStateOf<Float?>(null) }
     var openThinkingAfterAttach by remember { mutableStateOf(false) }
     var showAttachMenu by remember { mutableStateOf(false) }
     var showComposerPermission by remember { mutableStateOf(false) }
@@ -5629,7 +5632,10 @@ fun ChatScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .onGloballyPositioned { composerHeightPx = it.size.height }
+                    .onGloballyPositioned {
+                        composerHeightPx = it.size.height
+                        composerTopInWindow = it.positionInWindow().y
+                    }
                     .fillMaxWidth()
                     // [T-android-chat-max-content-width] Same cap and centring
                     // as the message list, so the composer stays aligned with
@@ -8285,6 +8291,7 @@ fun ChatScreen(
         onSelect = { level -> viewModel.setThinkingLevel(level) },
         onDismiss = { showThinkingLevelSheet = false },
         tapPositionInWindow = thinkingLevelTap,
+        bottomBoundaryInWindow = composerTopInWindow?.minus(thinkingPopupGapPx),
         backdrop = chatTopBackdrop,
     )
 
@@ -8640,6 +8647,7 @@ internal fun ThinkingLevelSheet(
     onSelect: (com.openminis.app.data.model.ThinkingLevel) -> Unit,
     onDismiss: () -> Unit,
     tapPositionInWindow: androidx.compose.ui.geometry.Offset?,
+    bottomBoundaryInWindow: Float? = null,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
 ) {
     val rows = remember(availableLevels) {
@@ -8654,13 +8662,14 @@ internal fun ThinkingLevelSheet(
         onDismissRequest = onDismiss,
         minWidth = 320.dp,
         maxPanelWidth = panelWidth,
+        bottomBoundaryInWindow = bottomBoundaryInWindow,
         tapPositionInWindow = tapPositionInWindow,
         preferAbove = true,
         backdrop = backdrop,
     ) {
         // Native glass popups probe intrinsic sizes. Bound both axes before the
         // slider's BoxWithConstraints; real measurement still obeys the safe width.
-        Column(modifier = Modifier.width(panelWidth).padding(vertical = 4.dp)) {
+        Column(modifier = Modifier.width(panelWidth).padding(vertical = 4.dp).testTag("thinking-level-panel")) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,

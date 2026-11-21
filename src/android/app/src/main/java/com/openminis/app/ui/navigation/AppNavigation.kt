@@ -187,7 +187,7 @@ object Routes {
      *
      * [K-unified-prompt-workspace] The setting is now a hub: this route opens
      * PromptSettingsScreen, which links to [SOUL_PERSONALITY] (identity +
-     * global body), [WORKSPACE_INSTRUCTIONS] and every built-in prompt in
+     * global body) and the compatibility built-in editor in
      * [SOUL_BUILTIN_EDITOR]. The path string is unchanged so existing
      * deep links keep working.
      */
@@ -198,7 +198,7 @@ object Routes {
     const val SOUL_BUILTIN_EDITOR = "soul_builtin/{promptId}"
     fun soulBuiltinEditor(promptId: String) =
         "soul_builtin/" + android.net.Uri.encode(promptId)
-    /** [T-workspace-instructions] AGENTS.md / CLAUDE.md editor. */
+    /** Legacy workspace links now open the sole SOUL editor. */
     const val WORKSPACE_INSTRUCTIONS = "workspace_instructions"
     const val WORKSPACE_INSTRUCTION_EDIT = "workspace_instruction_edit/{path}"
     fun workspaceInstructionEdit(path: String) =
@@ -663,7 +663,6 @@ fun AppNavigation(
                 onAgentToolsClick = { navController.safeNavigate(Routes.AGENT_TOOLS) },
                 onMcpClick = { navController.safeNavigate(Routes.MCP) },
                 onSoulClick = { navController.safeNavigate(Routes.SOUL) },
-                onWorkspaceInstructionsClick = { navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS) },
                 onPermissionsClick = { navController.safeNavigate(Routes.PERMISSIONS) },
                 onUsageClick = { navController.safeNavigate(Routes.USAGE_STATS) },
                 onAutoCompactClick = { navController.safeNavigate(Routes.AUTO_COMPACT) },
@@ -1436,9 +1435,6 @@ fun AppNavigation(
             com.openminis.app.ui.settings.PromptSettingsScreen(
                 onBack = { navController.safePopBackStack() },
                 onIdentityClick = { navController.safeNavigate(Routes.SOUL_PERSONALITY) },
-                onWorkspaceInstructionsClick = {
-                    navController.safeNavigate(Routes.WORKSPACE_INSTRUCTIONS)
-                },
             )
         }
 
@@ -1461,22 +1457,15 @@ fun AppNavigation(
             )
         }
 
-        // [T-workspace-instructions] AGENTS.md / CLAUDE.md chain.
+        // Old deep links open SOUL; no AGENTS/CLAUDE content is loaded or edited.
         composable(Routes.WORKSPACE_INSTRUCTIONS) {
-            com.openminis.app.ui.settings.WorkspaceInstructionsScreen(
-                onBack = { navController.safePopBackStack() },
-                onEdit = { path -> navController.safeNavigate(Routes.workspaceInstructionEdit(path)) },
-            )
+            com.openminis.app.ui.settings.SoulSettingsScreen(onBack = { navController.safePopBackStack() })
         }
         composable(
             route = Routes.WORKSPACE_INSTRUCTION_EDIT,
             arguments = listOf(navArgument("path") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val path = backStackEntry.arguments?.getString("path") ?: return@composable
-            com.openminis.app.ui.settings.WorkspaceInstructionEditorScreen(
-                linuxPath = path,
-                onBack = { navController.safePopBackStack() },
-            )
+        ) {
+            com.openminis.app.ui.settings.SoulSettingsScreen(onBack = { navController.safePopBackStack() })
         }
 
         composable(

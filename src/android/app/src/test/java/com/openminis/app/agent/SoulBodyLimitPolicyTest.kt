@@ -37,7 +37,7 @@ class SoulBodyLimitPolicyTest {
         val block = SystemPromptBuilder.applicationPrompt(SoulFile(SoulMetadata.DEFAULT, body))
         assertNotNull(block)
         assertTrue("every character must reach the provider", block!!.contains(body))
-        assertEquals(SystemPromptBuilder.SUPREME_PREAMBLE, block.substringBefore("\n\n"))
+        assertEquals(SoulInstructionRender.MANDATORY_INTRO, block.substringBefore("\n\n"))
 
         val rendered = SystemPromptBuilder.render(SoulFile(SoulMetadata.DEFAULT, body))
         assertTrue(rendered.contains(body))
@@ -71,10 +71,10 @@ class SoulBodyLimitPolicyTest {
     }
 
     @Test
-    fun `the writer accepts a long body and only rejects injection`() {
+    fun `the writer stores the authoritative body without a content filter`() {
         assertFalse(builtins.contains("isOverLimit"))
         assertFalse(builtins.contains("OverLimitChinese"))
-        assertTrue("the injection guard must stay", builtins.contains("containsInjectionPattern(raw)"))
+        assertFalse("SOUL inherits the raw instruction path", builtins.contains("containsInjectionPattern(raw)"))
         val writer = builtins.substringAfter("path = \"soul.body\"")
         assertTrue("the body is stored verbatim", writer.contains("saveCurrent(cur.copy(body = raw))"))
         assertFalse("no length rejection text", writer.contains("Over limit:"))
@@ -85,7 +85,7 @@ class SoulBodyLimitPolicyTest {
         assertFalse(soul.contains("over the configured length limit"))
         assertFalse(soul.contains("falling back to identity-only"))
         assertFalse(soul.contains("custom prompt rule"))
-        // The only body transformation left is the injection scrubber.
-        assertTrue(soul.contains("scrubInjections(trimmed)"))
+        assertFalse(soul.contains("scrubInjections"))
+        assertTrue(soul.contains("SoulInstructionRender.render(file?.body)"))
     }
 }

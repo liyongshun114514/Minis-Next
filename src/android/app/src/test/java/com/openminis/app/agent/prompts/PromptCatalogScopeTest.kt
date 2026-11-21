@@ -41,9 +41,9 @@ class PromptCatalogScopeTest {
     )
 
     @Test
-    fun `the global group list is the documented eight`() {
+    fun `the global group list is the documented seven`() {
         assertEquals(
-            listOf("身份与全局", "主系统提示词", "工作区指令", "隐私提示", "记忆", "技能", "计划任务", "MCP"),
+            listOf("身份与全局", "主系统提示词", "隐私提示", "记忆", "技能", "计划任务", "MCP"),
             PromptCatalogScope.GLOBAL_GROUPS,
         )
     }
@@ -58,7 +58,7 @@ class PromptCatalogScopeTest {
     fun `the hub lists only the global entries`() {
         val all = rows()
         val global = all.filter { PromptCatalogScope.isGlobal(it) }
-        assertEquals(28, global.size)
+        assertEquals(26, global.size)
         assertTrue("the catalog stays complete", all.size > global.size)
         assertEquals(global.size, global.map { it.getString("id") }.toSet().size)
         assertTrue(global.all { it.getString("defaultTemplate").isNotBlank() })
@@ -93,8 +93,9 @@ class PromptCatalogScopeTest {
     @Test
     fun `the hub filters through the shared scope instead of its own list`() {
         val hub = ProductionSources.read("ui/settings/PromptSettingsScreen.kt")
-        assertTrue(hub.contains("PromptCatalogScope.globalOnly(it)"))
-        assertTrue(hub.contains("import com.openminis.app.agent.prompts.PromptCatalogScope"))
+        assertFalse(hub.contains("PromptCatalogScope.globalOnly(it)"))
+        assertTrue(hub.contains("title = \"SOUL\""))
+        assertFalse(hub.contains("settings_workspace_instructions"))
         assertFalse("a second copy of the group list would drift", hub.contains("\"主系统提示词\""))
     }
 

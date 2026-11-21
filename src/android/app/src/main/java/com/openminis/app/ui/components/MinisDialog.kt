@@ -41,7 +41,7 @@ internal fun MinisDialog(
     val dialogContent: @Composable () -> Unit = {
         CompositionLocalProvider(locals) {
             DisposableEffect(scene) {
-                val release = scene?.acquire(blurBackground = true)
+                val release = scene?.acquire()
                 onDispose { release?.invoke() }
             }
             CompositionLocalProvider(

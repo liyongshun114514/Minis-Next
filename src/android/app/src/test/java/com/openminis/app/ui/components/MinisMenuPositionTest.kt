@@ -127,6 +127,23 @@ class MinisMenuPositionTest {
     }
 
     @Test
+    fun `thinking panel stays above the composer boundary in both text directions`() {
+        val panel = IntSize(900, 280)
+        for (bottom in listOf(1600, 980)) {
+            val safe = IntRect(0, 96, 1080, bottom)
+            for (direction in LayoutDirection.entries) {
+                val anchor = MinisMenuPosition.glassAnchor(
+                    IntRect(900, bottom, 900, bottom), safe, panel,
+                    alignEnd = true, offsetX = 0, offsetY = 0, margin = m,
+                    preferAbove = true, layoutDirection = direction,
+                )
+                assertTrue("whole panel clears composer/IME", anchor.top + panel.height <= bottom - m)
+                assertTrue("panel remains under status bar", anchor.top >= safe.top + m)
+            }
+        }
+    }
+
+    @Test
     fun `glass long press anchor retains finger position and flips near bottom`() {
         val safe = IntRect(0, 96, 1080, 1920)
         val anchor = MinisMenuPosition.glassAnchor(

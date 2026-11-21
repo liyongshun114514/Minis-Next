@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
@@ -87,6 +88,7 @@ fun MinisMenu(
     anchorContent: @Composable () -> Unit = {},
     preferAbove: Boolean = false,
     tapPositionInWindow: Offset? = null,
+    bottomBoundaryInWindow: Float? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var mounted by remember { mutableStateOf(false) }
@@ -127,7 +129,9 @@ fun MinisMenu(
         IntRect(
             cutout.getLeft(this, direction), maxOf(status.getTop(this), cutout.getTop(this)),
             windowSize.width - cutout.getRight(this, direction),
-            windowSize.height - maxOf(systemBottom, imeBottom),
+            minOf(windowSize.height - maxOf(systemBottom, imeBottom),
+                bottomBoundaryInWindow?.takeIf { it.isFinite() }?.roundToInt() ?: windowSize.height)
+                .coerceAtLeast(maxOf(status.getTop(this), cutout.getTop(this))),
         )
     }
     val maxWidth = with(density) {
@@ -151,7 +155,7 @@ fun MinisMenu(
         it != Offset.Unspecified && it.x.isFinite() && it.y.isFinite()
     }?.let { tap ->
         val x = tap.x.roundToInt()
-        val y = tap.y.roundToInt()
+        val y = tap.y.roundToInt().let { if (bottomBoundaryInWindow != null) it.coerceAtMost(safeBounds.bottom) else it }
         IntRect(x, y, x, y)
     }
     val anchorBounds = touchBounds ?: parentBounds ?: return
@@ -217,7 +221,7 @@ fun MinisMenu(
                     alignAtRight -> LayoutDirection.Ltr
                     else -> LayoutDirection.Rtl
                 }
-                val anchor = if (touchBounds != null && imeBottom <= systemBottom) {
+                val anchor = if (touchBounds != null && imeBottom <= systemBottom && !preferAbove) {
                     val x = touchBounds.left.toFloat()
                     val y = touchBounds.top.toFloat().coerceIn(
                         safeBounds.top.toFloat(), safeBounds.bottom.coerceAtLeast(safeBounds.top).toFloat(),
@@ -234,6 +238,11 @@ fun MinisMenu(
                     GlassDropdownPopup(
                         show = show, onDismissRequest = requestDismiss, anchorBounds = anchor,
                         backdrop = menuBackdrop, sizing = sizing, visuals = visuals,
+                        // Constrain native placement too, not just its size probe:
+                        // the composer exclusion must hold on the first animation frame.
+                        modifier = if (bottomBoundaryInWindow != null) {
+                            Modifier.height(with(density) { safeBounds.bottom.toDp() })
+                        } else Modifier,
                         contentPadding = PaddingValues(0.dp),
                     ) {
                         CompositionLocalProvider(LocalLayoutDirection provides direction) { rows() }

@@ -696,20 +696,19 @@ class MiuixMigrationUiTest {
         other.assertIsDisplayed().assertIsSelected()
     }
 
-    @Test fun systemPromptDirectoryExposesOnlySoulAndWorkspace() {
+    @Test fun systemPromptDirectoryExposesOnlySoul() {
         var soul = 0
-        var workspace = 0
         compose.setContent {
             MinisTheme {
                 com.openminis.app.ui.settings.PromptSettingsScreen(
-                    onBack = {}, onIdentityClick = { soul++ }, onWorkspaceInstructionsClick = { workspace++ },
+                    onBack = {}, onIdentityClick = { soul++ },
                 )
             }
         }
         compose.onNodeWithText("SOUL").assertIsDisplayed().performClick()
-        compose.onNodeWithText(compose.activity.getString(R.string.settings_workspace_instructions))
-            .assertIsDisplayed().performClick()
-        compose.runOnIdle { assertEquals(1, soul); assertEquals(1, workspace) }
+        compose.onAllNodes(hasText("Workspace Instructions") or hasText("工作区指令") or hasText("AGENTS.md"))
+            .assertCountEquals(0)
+        compose.runOnIdle { assertEquals(1, soul) }
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
     }
 

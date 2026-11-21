@@ -172,6 +172,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -295,25 +296,19 @@ internal fun ToolDetailSheet(
 
     MinisBottomSheet(
         show = true,
+        modifier = Modifier.testTag("computer-sheet"),
         deferDismissRequest = true,
         insideMargin = DpSize.Zero,
         onDismissRequest = onDismiss,
         backdrop = sheetBackdrop,
         backgroundColor = colors.surface,
         dragHandleColor = Color.Transparent,
-    ) {
-        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.85f),
-        ) {
-            // The native sheet supplies one uninterrupted material behind the header,
-            // output and footer. Only individual result cards have their own fill.
+        startAction = {
+            val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp).testTag("computer-header"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MinisGlassIconButton(onClick = dismissSheet, size = 32.dp, backdrop = sheetBackdrop) {
@@ -433,6 +428,17 @@ internal fun ToolDetailSheet(
                     }
                 }
             }
+
+        },
+    ) {
+        val dismissSheet = top.yukonga.miuix.kmp.theme.LocalDismissState.current ?: onDismiss
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f),
+        ) {
+            // The native sheet supplies one uninterrupted material behind the header,
+            // output and footer. Only individual result cards have their own fill.
 
             // ── Content Area (iOS: tool-specific rendering) ──
             val outputScrollState = rememberScrollState()

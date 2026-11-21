@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
@@ -121,7 +123,6 @@ class MiuixSurfaceRegressionTest {
             assertTrue(cancel.captureToImage().width > 0)
             compose.runOnIdle {
                 assertTrue(scene?.recording == true)
-                assertTrue("modal blurs the whole page", scene?.backgroundBlurred == true)
                 assertEquals(0, confirmed)
             }
             compose.mainClock.autoAdvance = false
@@ -135,7 +136,6 @@ class MiuixSurfaceRegressionTest {
             compose.runOnIdle {
                 assertEquals(cycle + 1, finished)
                 assertFalse(scene?.recording == true)
-                assertFalse("modal background clears after exit", scene?.backgroundBlurred == true)
             }
         }
     }
@@ -176,15 +176,18 @@ class MiuixSurfaceRegressionTest {
         var shown by mutableStateOf(false)
         var commits = 0
         var tap: androidx.compose.ui.geometry.Offset? = null
+        var composerTop: Float? by mutableStateOf(null)
         compose.setContent {
             MinisTheme {
                 val anchor = rememberMinisMenuAnchor()
                 Box(Modifier.fillMaxSize().testTag("effort-test-window")) {
                     TextButton("Open effort", onClick = { tap = anchor.clickPosition(); shown = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).minisMenuAnchor(anchor))
+                        modifier = Modifier.align(Alignment.BottomEnd).height(72.dp).minisMenuAnchor(anchor)
+                            .testTag("effort-composer").onGloballyPositioned { composerTop = it.positionInWindow().y })
                     com.openminis.app.ui.chat.ThinkingLevelSheet(
                         show = shown, currentLevel = ThinkingLevel.OFF, availableLevels = emptyList(),
                         onSelect = { commits++ }, onDismiss = { shown = false }, tapPositionInWindow = tap,
+                        bottomBoundaryInWindow = composerTop,
                     )
                 }
             }
@@ -196,6 +199,9 @@ class MiuixSurfaceRegressionTest {
             val window = compose.onNodeWithTag("effort-test-window").fetchSemanticsNode().boundsInRoot
             assertTrue("effort popup remains horizontal", bounds.width > bounds.height * 3f)
             assertTrue("slider fits the window", bounds.left >= window.left && bounds.right <= window.right)
+            val panel = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
+            val composer = compose.onNodeWithTag("effort-composer").fetchSemanticsNode().boundsInRoot
+            assertTrue("whole menu clears the full composer", panel.bottom < composer.top)
             slider.assertHeightIsEqualTo(52.dp)
             slider.performTouchInput { click() }
             val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))
@@ -203,6 +209,63 @@ class MiuixSurfaceRegressionTest {
             compose.onNodeWithContentDescription("Thinking effort: Off").assertDoesNotExist()
             compose.runOnIdle { assertEquals(0, commits) }
         }
+    }
+
+    @Test fun modelGroupRowSeparatesTheNameBadgesAndReadableMembersAtLargeFont() {
+        val group = com.openminis.app.data.model.ModelGroup(id = "hierarchy", name = "Default Models for daily work")
+        val instance = com.openminis.app.data.model.ProviderInstance(
+            id = "hierarchy-provider", label = "Provider",
+            providerType = com.openminis.app.data.model.ProviderType.openAI,
+            credentialType = com.openminis.app.data.model.ProviderCredential.apiKey,
+        )
+        val entry = com.openminis.app.data.model.ModelEntry(
+            providerInstanceId = instance.id,
+            baseModel = com.openminis.app.data.model.LLMModel("model", "DeepSeek V4.1 Flash", "openai"),
+        )
+        group.memberEntryIds.add(entry.id)
+        val config = com.openminis.app.data.model.ProviderConfig(
+            instances = mutableListOf(instance), modelEntries = mutableListOf(entry),
+            defaultPrimaryGroupId = group.id,
+        )
+        var opens = 0
+        compose.setContent {
+            MinisTheme(fontScale = 1.5f) {
+                Box(Modifier.width(320.dp)) {
+                    com.openminis.app.ui.settings.GroupRow(group, config, onClick = { opens++ })
+                }
+            }
+        }
+        fun bounds(part: String) = compose.onNodeWithTag("group-$part:hierarchy", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val title = bounds("title")
+        val badges = bounds("badges")
+        val summary = bounds("summary")
+        val members = bounds("members")
+        assertTrue("title has a separate line", title.bottom < badges.top)
+        assertTrue("badges do not collide with strategy", badges.bottom < summary.top)
+        assertTrue("members have breathing room", summary.bottom < members.top)
+        compose.onNodeWithText("DeepSeek V4.1 Flash").assertIsDisplayed()
+        compose.onNodeWithText(group.name).performClick()
+        compose.runOnIdle { assertEquals(1, opens) }
+    }
+
+    @Test fun computerHeaderUsesTheNativeTitleSlotWithoutAnEmptyExtraRow() {
+        compose.setContent {
+            MinisTheme {
+                com.openminis.app.ui.chat.ToolDetailSheet(
+                    toolBlocks = listOf(AssistantBlock(
+                        id = "computer-gap", kind = "tool_use", toolName = "file_read",
+                        toolStatus = ToolBlockStatus.SUCCESS, content = "Tool output",
+                    )), initialIndex = 0, onDismiss = {},
+                )
+            }
+        }
+        val sheet = compose.onNodeWithTag("computer-sheet", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val header = compose.onNodeWithTag("computer-header", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val gapDp = with(compose.activity.resources.displayMetrics) { (header.top - sheet.top) / density }
+        assertTrue("one native handle plus its header gap", gapDp in 20f..34f)
+        compose.onNodeWithText("Minis Computer").assertIsDisplayed()
+        compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close)).assertIsDisplayed()
     }
 
     @Test fun ruleEditorUsesAnAnchoredFormatMenuAndSavesOnlyAfterExit() {

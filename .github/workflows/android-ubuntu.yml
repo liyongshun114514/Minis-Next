@@ -191,7 +191,7 @@ jobs:
             --tests '*RootfsDirectoryMigrationTest' --tests '*RootfsDirectoryMigrationIntegrationTest' \
             --tests '*SessionIsolationTest' --tests '*ChrootSharedFilesTest' --tests '*FileToolWriteFailureTest' --tests '*ChrootFileToolsTest' \
             --tests '*TarExtractorRootEntryTest' --tests '*ApplicationSystemPromptTest' \
-            --tests '*WorkspaceSystemPromptTest' --tests '*WorkspaceSystemChannelTest' \
+            --tests '*SoulInstructionRenderTest' --tests '*SoulSystemChannelTest' \
             --tests '*SoulSettingsPageContractTest' --tests '*RootGrantPolicyTest' \
             --tests '*RootLevelGateTest' --tests '*GuestAccountTest' \
             --tests '*SystemChannelPlacementTest' --tests '*SoulIcon*' --tests '*SoulAvatar*' \
@@ -205,7 +205,7 @@ jobs:
             --tests '*SubAgentDefinitionTest' --tests '*SubAgentPersistenceTest' \
             --tests '*SubAgentConcurrencyTest' --tests '*AgentJobRegistryTest' --tests '*SubAgentQueueTest' --tests '*SubAgentStatusPanelTest' \
             --tests '*ProviderQuotaTest' --tests '*QuotaRelayTest' --tests '*BillingBalanceTest' --tests '*QuotaHeadlineCurrencyTest' --tests '*Ubuntu6QuotaChannelsTest' \
-            --tests '*SystemPromptInjectionWiringTest' --tests '*SubAgentConcurrencyUiTest' \
+            --tests '*SystemPromptInjectionWiringTest' --tests '*PromptCatalogScopeTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \
             --tests '*ToolbarGapTest' --tests '*FloatingToolPagerTest' --tests '*ToolPreviewAndThinkingLongPressTest' --tests '*TaskCardMetricsTest' \
             --tests '*ProviderDowngrade*Test' --tests '*CustomBalancePersistenceTest' --tests '*RetiredBalanceEndpointTest' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \

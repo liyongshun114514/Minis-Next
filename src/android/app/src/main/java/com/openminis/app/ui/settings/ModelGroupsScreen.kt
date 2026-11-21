@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -887,8 +890,9 @@ private fun GroupModalityIcon(marker: GroupModalityMarker) {
 /** A single group row inside the Groups section card. Built as a plain
  *  Composable (not a ListItem) so it inherits the card's surface color
  *  cleanly without ListItem's container override. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun GroupRow(
+internal fun GroupRow(
     group: ModelGroup,
     config: com.openminis.app.data.model.ProviderConfig,
     onClick: () -> Unit,
@@ -926,6 +930,7 @@ private fun GroupRow(
         config.modelEntries.find { it.id == entryId }?.providerInstanceId in enabledInstanceIds
     }
     val allDisabled = totalMembers > 0 && enabledMembers == 0
+    val modalities = groupTopModalities(group, config)
 
     Row(
         modifier = Modifier
@@ -954,39 +959,36 @@ private fun GroupRow(
             }
             Spacer(modifier = Modifier.width(4.dp))
         }
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = group.name,
-                    style = MiuixTheme.textStyles.main,
-                    fontWeight = FontWeight.Medium,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                // [T-android-modelgroup-modality-icons] Mark the group's top-2
-                // most distinctive modalities (inputs + outputs) right after the
-                // title, in priority order, for at-a-glance "what is this group
-                // for". Ports iOS ModelGroupsView (7caa580a + e0a7cd5f).
-                groupTopModalities(group, config).forEach { marker ->
-                    GroupModalityIcon(marker)
-                }
-                if (isPrimary) BadgeLabel("Primary", MiuixTheme.colorScheme.primary)
-                if (isSub) BadgeLabel("Sub", MiuixTheme.colorScheme.primary)
-                if (allDisabled) {
-                    BadgeLabel(
+        Column(
+            modifier = Modifier.weight(1f).padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = group.name,
+                style = MiuixTheme.textStyles.main,
+                fontWeight = FontWeight.SemiBold,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("group-title:${group.id}"),
+            )
+            // Badges/modalities are secondary, wrapping independently instead
+            // of competing with the title for its one horizontal line.
+            if (isPrimary || isSub || allDisabled || modalities.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.testTag("group-badges:${group.id}"),
+                ) {
+                    if (isPrimary) BadgeLabel("Primary", MiuixTheme.colorScheme.primary)
+                    if (isSub) BadgeLabel("Sub", MiuixTheme.colorScheme.primary)
+                    modalities.forEach { marker -> GroupModalityIcon(marker) }
+                    if (allDisabled) BadgeLabel(
                         stringResource(R.string.model_group_no_usable_models_badge),
                         MiuixTheme.colorScheme.error,
                     )
                 }
             }
-            // [T-disabled-provider-via-group-android] Surface "M of N
-            // disabled" when any member's provider is off so the user
-            // doesn't have to drill into the detail page to learn that
-            // the group isn't fully usable. Total count stays prominent
-            // because it's still the source of truth for what's in the
-            // group; the parenthetical reports disabled count.
             val disabledCount = totalMembers - enabledMembers
             val subtitleText = if (disabledCount > 0) {
                 "$strategyLabel · $totalMembers models ($disabledCount disabled)"
@@ -995,19 +997,23 @@ private fun GroupRow(
             }
             Text(
                 text = subtitleText,
-                style = MiuixTheme.textStyles.body2,
+                style = MiuixTheme.textStyles.footnote1,
                 color = if (allDisabled) MiuixTheme.colorScheme.error
                         else MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                modifier = Modifier.testTag("group-summary:${group.id}"),
             )
             if (preview.isNotEmpty()) {
                 Text(
                     text = preview,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.outline,
-                    maxLines = 1,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag("group-members:${group.id}"),
                 )
             }
         }
+        Spacer(Modifier.width(12.dp))
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,

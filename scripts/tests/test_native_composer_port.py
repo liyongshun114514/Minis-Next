@@ -399,7 +399,7 @@ def main() -> int:
        and "SoulPromptMode" not in soul
        and "SoulPromptRule" not in soul,
        "the retired GLOBAL/CUSTOM prompt path is still reachable")
-    ok("internal fun applicationPrompt(file: SoulFile?): String? = globalBlock(file)" in soul,
+    ok("internal fun applicationPrompt(file: SoulFile?): String? = SoulInstructionRender.render(file?.body)" in soul,
        "the global application prompt entry point is missing")
     ok("over the configured length limit" not in soul
        and "falling back to identity-only" not in soul,
@@ -408,22 +408,12 @@ def main() -> int:
     # --- Soul safety boundary: prompt text must stay native --------------
     ok("Ubuntu 24.04" in soul and "PRoot or Chroot" in soul,
        "OS identity string was not updated to Ubuntu 24.04")
-    for token in (
-        "ignore.{0,30}previous.{0,30}instructions?",
-        "disregard.{0,30}(previous|prior).{0,30}instructions?",
-        "forget.{0,30}(previous|prior).{0,30}instructions?",
-    ):
-        ok(token in soul, f"native injection pattern changed/missing: {token}")
-    ok("fun containsInjectionPattern(s: String): Boolean" in soul,
-       "native injection detector signature changed")
-    ok("private fun scrubInjections(s: String): String" in soul,
-       "native injection scrubber signature changed")
-
-    # The injection machinery itself is pinned by the token checks above; the
-    # old "byte-identical to HEAD" comparison was removed because this branch
-    # now legitimately edits SoulStore (unlimited default, supreme preamble),
-    # which shifted every later offset and made the fixed-width window compare
-    # two different regions of two different files.
+    raw = text(ROOT / "src/android/app/src/main/java/com/openminis/app/agent/SoulInstructionRender.kt")
+    ok("highest authority in this request" in raw, "SOUL authority header missing")
+    ok("Instructions from: " in raw, "SOUL instruction section missing")
+    ok("verbatim, markup included" in raw, "SOUL raw-content contract missing")
+    ok("scrubInjections" not in soul, "retired SOUL line filter survived")
+    ok("containsInjectionPattern" not in soul, "retired SOUL content rejection survived")
 
     # --- Provenance / licence -------------------------------------------
     up_license = ROOT.parent.parent / "workspace/tmp/openminis-port/MinisAllInOne/LICENSE"
