@@ -230,7 +230,8 @@ class GlassUiPolishContractTest {
         assertTrue("custom header occupies native title slot", header >= 0 && title > header && title < body)
         assertFalse(computer.substring(header, body).contains("vertical = 10.dp"))
         val menu = ProductionSources.read("ui/components/MinisMenu.kt")
-        assertTrue(menu.contains("Modifier.height(with(density) { safeBounds.bottom.toDp() })"))
+        assertTrue(menu.contains("Modifier.heightIn(max = with(density) { safeBounds.bottom.toDp() })"))
+        assertFalse("do not stretch the glass panel to host height", menu.contains("Modifier.height(with(density)"))
         assertTrue(menu.contains("imeBottom <= systemBottom && !preferAbove"))
     }
 

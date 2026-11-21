@@ -202,6 +202,7 @@ class MiuixSurfaceRegressionTest {
             val panel = compose.onNodeWithTag("thinking-level-panel").fetchSemanticsNode().boundsInRoot
             val composer = compose.onNodeWithTag("effort-composer").fetchSemanticsNode().boundsInRoot
             assertTrue("whole menu clears the full composer", panel.bottom < composer.top)
+            assertTrue("panel keeps its natural horizontal size", panel.width > panel.height)
             slider.assertHeightIsEqualTo(52.dp)
             slider.performTouchInput { click() }
             val close = compose.onNodeWithContentDescription(compose.activity.getString(com.openminis.app.R.string.common_close))

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
@@ -241,7 +241,7 @@ fun MinisMenu(
                         // Constrain native placement too, not just its size probe:
                         // the composer exclusion must hold on the first animation frame.
                         modifier = if (bottomBoundaryInWindow != null) {
-                            Modifier.height(with(density) { safeBounds.bottom.toDp() })
+                            Modifier.heightIn(max = with(density) { safeBounds.bottom.toDp() })
                         } else Modifier,
                         contentPadding = PaddingValues(0.dp),
                     ) {
