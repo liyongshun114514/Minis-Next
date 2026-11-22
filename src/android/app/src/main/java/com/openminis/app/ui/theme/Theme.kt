@@ -81,8 +81,9 @@ internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
         userBubble = colors.surfaceContainerHigh,
         toolBg = colors.surfaceContainer,
         toolBorder = colors.dividerLine,
-        // Tool result pills retain the original Minis neutral grey in both themes.
-        toolCapsuleBg = base.toolCapsuleBg,
+        // The page is already light grey: iOS's near-white capsule disappears
+        // against it. Keep a distinct neutral fill on the Android page surface.
+        toolCapsuleBg = if (darkTheme) base.toolCapsuleBg else Color(0xFFE4E5EB),
         separator = colors.dividerLine,
         // Composer actions are neutral in both themes, never the blue primary palette.
         sendButton = colors.onSurface,

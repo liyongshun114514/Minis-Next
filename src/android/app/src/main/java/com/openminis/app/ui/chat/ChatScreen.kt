@@ -171,7 +171,6 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.openminis.app.ui.components.MinisGlassIconButton
 import top.yukonga.miuix.kmp.glass.glassPanel
 import top.yukonga.miuix.kmp.material.GlassDefaults
-import top.yukonga.miuix.kmp.material.GlassMaterials
 import top.yukonga.miuix.kmp.material.GlassEdgeStrokes
 import top.yukonga.miuix.kmp.material.GlassShadows
 import top.yukonga.miuix.kmp.material.GlassShape
@@ -5310,6 +5309,8 @@ fun ChatScreen(
                                         contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp,
                                         expanded = subAgentStatusExpanded,
                                         onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
+                                        // The work bar owns the continuous glass surface.
+                                        drawBackground = false,
                                     )
                                 }
                             } else null,
@@ -6231,7 +6232,7 @@ fun ChatScreen(
                             backdrop = chatTopBackdrop,
                             shape = inputShape,
                             style = GlassDefaults.style(ChatColors.isDark),
-                            material = GlassMaterials.puredThinGlass(ChatColors.isDark),
+                            material = chatComposerGlassMaterial(),
                             stroke = GlassEdgeStrokes.forTheme(
                                 isDark = ChatColors.isDark,
                                 light = GlassEdgeStrokes.SmallLight,

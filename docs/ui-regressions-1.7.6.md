@@ -1,0 +1,10 @@
+# Minis Next 1.7.6 (64): visible tool surfaces and compact web preview
+
+Base: `41c89183798f39c7725d649b6186365eb1a45af6`.
+
+- Transcript tool-call pills use neutral `#E4E5EB` in light mode. The previous `#F2F2F7` differed from the Android chat page `#F1F2F6` by only 1–2 channel values, so the capsule looked unfilled. The original dark capsule remains unchanged.
+- Floating work and sub-agent rows now share one full-width glass surface, with only one outer edge/shadow. The embedded sub-agent entry draws content only. Standalone sub-agent entries keep their own surface. Thumbnail dimensions and paging behavior are unchanged; no empty upper surface is drawn when there is no sub-agent entry.
+- Composer and status surface share `chatComposerGlassMaterial()`: the native 20dp thin-glass blur with a final 72%-alpha input-surface layer. The fallback is the same input color. This preserves a visible surface on a flat page and prevents separate rows from accumulating different materials.
+- Web preview keeps the sheet host's safe top inset, but removes the duplicate status-bar padding inside the close/title toolbar. Existing scrolling, dismiss, fullscreen handoff and external-link routing remain unchanged.
+
+Validation: 18 JVM source-contract tests and 23 Python build/identity checks passed locally. The existing cloud `MiuixSurfaceRegressionTest` includes a real-page light/dark capsule pixel check and a surface fallback pixel check. Full Android compilation and those rendering checks must be confirmed by the new GitHub Actions run. Device rendering remains a separate acceptance step, including scrolling content behind glass, light/dark themes, previews enabled/disabled, standalone sub-agent status and web preview orientation/insets.

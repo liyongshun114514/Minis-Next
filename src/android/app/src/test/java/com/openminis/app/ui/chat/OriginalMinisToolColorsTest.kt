@@ -12,7 +12,7 @@ class OriginalMinisToolColorsTest {
         assertEquals(Color(0xFFF2F2F7), LightChatPalette.toolCapsuleBg)
         assertEquals(Color(0xFF28282C), DarkChatPalette.toolCapsuleBg)
         val theme = ProductionSources.read("ui/theme/Theme.kt")
-        assertTrue(theme.contains("toolCapsuleBg = base.toolCapsuleBg"))
+        assertTrue(theme.contains("toolCapsuleBg = if (darkTheme) base.toolCapsuleBg else Color(0xFFE4E5EB)"))
         val pill = ProductionSources.read("ui/chat/ChatAssistantMessageUI.kt")
             .substringAfter("internal fun ToolCallPill(")
         assertTrue(pill.contains(".background(ChatColors.toolCapsuleBg)"))
@@ -35,19 +35,23 @@ class OriginalMinisToolColorsTest {
     @Test fun `both compact bars share composer glass without duplicate edge or shadow`() {
         val glass = ProductionSources.read("ui/chat/ChatStatusSurface.kt")
         val composer = ProductionSources.read("ui/chat/ChatScreen.kt")
-        for (token in listOf("GlassMaterials.puredThinGlass(ChatColors.isDark)",
-            "GlassDefaults.style(ChatColors.isDark)", "GlassEdgeStrokes.SmallLight",
+        for (token in listOf("GlassDefaults.style(ChatColors.isDark)", "GlassEdgeStrokes.SmallLight",
             "GlassEdgeStrokes.SmallDark", "shadow = GlassShadows.Regular", "shading = false")) {
             assertTrue(token, glass.contains(token))
             assertTrue(token, composer.contains(token))
         }
+        assertTrue(glass.contains("GlassMaterials.puredThinGlass(ChatColors.isDark)"))
+        assertTrue(glass.contains("val surface = ChatColors.inputBg"))
+        assertTrue(glass.contains("surface.copy(alpha = 0.72f)"))
+        assertTrue(composer.contains("material = chatComposerGlassMaterial()"))
         assertFalse(glass.contains("textureBlur("))
-        assertFalse(glass.contains("0.72f"))
-        for (path in listOf("ui/chat/ChatComposerWidgets.kt", "ui/chat/SubAgentStatusPanel.kt")) {
-            val source = ProductionSources.read(path)
-            assertTrue(path, source.contains(".chatStatusBackground(backdrop,"))
-            assertFalse(path, source.contains(".border(0.5.dp, ChatColors.toolBorder"))
-        }
+        val workBar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
+        val status = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
+        assertTrue(workBar.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
+        assertTrue(status.contains("drawBackground: Boolean = true"))
+        assertTrue(status.contains(".then(if (drawBackground) Modifier.chatStatusBackground(backdrop, shape) else Modifier)"))
+        assertTrue(workBar.contains("One continuous surface for both rows"))
+        assertTrue(ProductionSources.read("ui/chat/ChatScreen.kt").contains("drawBackground = false"))
     }
 
     @Test fun `tool accent colors remain original Minis colors`() {

@@ -22,6 +22,7 @@ import com.openminis.app.ui.chat.ComposerEffortSlider
 import com.openminis.app.ui.chat.AssistantBlock
 import com.openminis.app.ui.chat.ToolBlockStatus
 import com.openminis.app.ui.chat.ToolCallPill
+import com.openminis.app.ui.chat.chatStatusBackground
 import com.openminis.app.ui.settings.SettingsRow
 import com.openminis.app.ui.theme.MinisTheme
 import com.openminis.app.data.model.ThinkingLevel
@@ -448,6 +449,68 @@ class MiuixSurfaceRegressionTest {
         compose.runOnIdle { assertEquals(1, copies); assertEquals(0, detailOpens) }
         pill.performTouchInput { click() }
         compose.runOnIdle { assertEquals(1, detailOpens) }
+    }
+
+    @Test fun completedToolCapsulesRemainVisibleOnTheRealPageInBothThemes() {
+        var dark by mutableStateOf(false)
+        compose.setContent {
+            MinisTheme(darkTheme = dark) {
+                Box(Modifier.fillMaxSize().background(MiuixTheme.colorScheme.surface).testTag("capsule-page")) {
+                    ToolCallPill(block = AssistantBlock(
+                        id = "visible-tool", kind = "tool_use", toolStatus = ToolBlockStatus.SUCCESS,
+                        toolName = "file_read", toolTitle = "Read notes",
+                    ))
+                }
+            }
+        }
+        for (night in listOf(false, true)) {
+            compose.runOnIdle { dark = night }
+            val frame = compose.onNodeWithTag("capsule-page")
+            val image = frame.captureToImage().toPixelMap()
+            val root = frame.fetchSemanticsNode().boundsInRoot
+            val capsule = compose.onNode(hasText("Read notes") and hasClickAction()).fetchSemanticsNode().boundsInRoot
+            val x = (capsule.left - root.left).toInt() + 4
+            val y = (capsule.center.y - root.top).toInt()
+            val fill = image[x, y]
+            val page = image[image.width - 2, image.height - 2]
+            val difference = kotlin.math.abs(fill.red - page.red) +
+                kotlin.math.abs(fill.green - page.green) + kotlin.math.abs(fill.blue - page.blue)
+            assertTrue("tool capsule must be visible on page (dark=$night)", difference > 0.09f)
+        }
+    }
+
+    @Test fun sharedWorkSurfaceUsesOneFillAcrossBothRowsAndStandaloneFallback() {
+        var dark by mutableStateOf(false)
+        compose.setContent {
+            MinisTheme(darkTheme = dark) {
+                Column(Modifier.fillMaxWidth()) {
+                    CompositionLocalProvider(com.openminis.app.ui.chat.LocalToolPreviewEnabled provides false) {
+                        com.openminis.app.ui.chat.FloatingToolStatusBar(
+                            toolBlocks = listOf(AssistantBlock(
+                                id = "shared-fill", kind = "tool_use", toolName = "file_read",
+                                toolTitle = "Read notes", toolStatus = ToolBlockStatus.SUCCESS,
+                            )),
+                            backdrop = null,
+                            statusEntry = { Box(Modifier.fillMaxSize()) },
+                            modifier = Modifier.testTag("shared-status-fill"),
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Box(Modifier.fillMaxWidth().height(65.dp)
+                        .background(com.openminis.app.ui.theme.ChatColors.inputBg)
+                        .testTag("composer-fill"))
+                }
+            }
+        }
+        for (night in listOf(false, true)) {
+            compose.runOnIdle { dark = night }
+            val work = compose.onNodeWithTag("shared-status-fill").captureToImage().toPixelMap()
+            val composer = compose.onNodeWithTag("composer-fill").captureToImage().toPixelMap()
+            val upperLeft = work[work.width / 4, work.height / 4]
+            val lowerRight = work[work.width * 3 / 4, work.height * 3 / 4]
+            assertEquals("one fill must cover both rows", upperLeft, lowerRight)
+            assertEquals("fallback must match composer", composer[composer.width / 2, composer.height / 2], upperLeft)
+        }
     }
 
     @Test fun shortReplyUsesFullViewportAndRemainsVisibleDuringDownPull() {

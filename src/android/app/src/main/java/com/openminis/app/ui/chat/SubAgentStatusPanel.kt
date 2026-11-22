@@ -341,6 +341,8 @@ fun SubAgentStatusToggle(
     modifier: Modifier = Modifier,
     contentStartPadding: Dp = 12.dp,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
+    /** Embedded entries use the work bar's continuous parent surface. */
+    drawBackground: Boolean = true,
 ) {
     if (jobs.isEmpty()) return
 
@@ -356,9 +358,8 @@ fun SubAgentStatusToggle(
     val shape = top.yukonga.miuix.kmp.material.GlassShape(10.dp)
     Row(
         modifier = modifier.fillMaxWidth()
-            // Same thin glass as the work bar and composer, within the original height.
             .height(FloatingToolBarMetrics.BAR_HEIGHT)
-            .chatStatusBackground(backdrop, shape)
+            .then(if (drawBackground) Modifier.chatStatusBackground(backdrop, shape) else Modifier)
             .semantics(mergeDescendants = true) {
                 contentDescription = description
                 stateDescription = if (expanded) expandedState else collapsedState

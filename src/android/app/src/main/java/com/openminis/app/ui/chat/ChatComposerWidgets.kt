@@ -1109,18 +1109,26 @@ internal fun FloatingToolStatusBar(
     val topSlotHeight = if (previewEnabled || statusEntry != null) thumbnailOverhang else 0.dp
     val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp
 
+    val statusSurfaceShape = top.yukonga.miuix.kmp.material.GlassShape(10.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(barHeight + topSlotHeight),  // top slot shared by preview and count entry
+            .height(barHeight + topSlotHeight),
     ) {
-        // Layer 1: Status bar (bottom layer, fills from bottom)
+        // One continuous surface for both rows. Without a status entry, the
+        // unused area beside the raised thumbnail remains clear.
+        Box(
+            Modifier.align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(barHeight + if (statusEntry != null) topSlotHeight else 0.dp)
+                .chatStatusBackground(backdrop, statusSurfaceShape),
+        )
+        // Layer 1: Status bar content (bottom half of the shared surface).
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(barHeight)
                 .align(Alignment.BottomCenter)
-                .chatStatusBackground(backdrop, top.yukonga.miuix.kmp.material.GlassShape(10.dp))
                 .padding(start = barStartPadding, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

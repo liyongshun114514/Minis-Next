@@ -207,7 +207,10 @@ fun WebPreviewBottomSheet(
                 ?.removePrefix("www.")
                 ?: holder.currentUrl
             WebPreviewToolbar(
-                topInsetPadding = true,
+                // WindowBottomSheet already reserves the safe top inset for its
+                // drag handle. Padding this row again creates a large blank
+                // band before the close/title controls.
+                topInsetPadding = false,
                 title = displayTitle,
                 subtitle = displayHost,
                 isLoading = holder.isLoading,
@@ -297,7 +300,7 @@ internal fun WebPreviewToolbar(
     onToggleDesktop: () -> Unit,
     onPinToHome: (() -> Unit)? = null,
     onExpand: (() -> Unit)?,
-    /** Pad the row's top edge by the status-bar inset. */
+    /** Only for hosts that have not already reserved the status-bar inset. */
     topInsetPadding: Boolean = false,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
