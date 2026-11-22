@@ -48,8 +48,14 @@ class ToolbarGapTest {
         assertTrue(overlay.contains("WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)"))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains("val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
-        val statusSurface = bar.substringAfter("if (statusEntry != null)").substringBefore("// Layer 2:")
+        // The shared background is now a separate sibling before the content
+        // row. Scope this check to that surface, not the first status condition
+        // (which also occurs in its height expression).
+        val statusSurface = bar.substringAfter("val statusSurfaceShape =")
+            .substringBefore("// Layer 1: Status bar content")
         assertTrue(statusSurface.contains(".fillMaxWidth()"))
+        assertTrue(statusSurface.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
+        assertTrue(statusSurface.contains(".height(barHeight + if (statusEntry != null) topSlotHeight else 0.dp)"))
         assertFalse(statusSurface.contains(".padding(start ="))
         assertTrue(screen.contains("contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
         assertTrue(bar.indexOf("if (statusEntry != null)") < bar.indexOf("// Layer 2: Thumbnail"))
