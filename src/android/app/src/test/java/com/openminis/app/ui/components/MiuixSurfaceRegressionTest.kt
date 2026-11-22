@@ -36,6 +36,7 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.LooperMode
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -479,19 +480,20 @@ class MiuixSurfaceRegressionTest {
         }
     }
 
-    @Test fun sharedWorkSurfaceUsesOneFillAcrossBothRowsAndStandaloneFallback() {
+    @Test fun bothStatusRowsKeepComposerFillAcrossThemeAndPreviewChanges() {
         var dark by mutableStateOf(false)
+        var preview by mutableStateOf(false)
         compose.setContent {
             MinisTheme(darkTheme = dark) {
-                Column(Modifier.fillMaxWidth()) {
-                    CompositionLocalProvider(com.openminis.app.ui.chat.LocalToolPreviewEnabled provides false) {
+                Column(Modifier.fillMaxWidth().background(MiuixTheme.colorScheme.surface)) {
+                    CompositionLocalProvider(com.openminis.app.ui.chat.LocalToolPreviewEnabled provides preview) {
                         com.openminis.app.ui.chat.FloatingToolStatusBar(
                             toolBlocks = listOf(AssistantBlock(
                                 id = "shared-fill", kind = "tool_use", toolName = "file_read",
                                 toolTitle = "Read notes", toolStatus = ToolBlockStatus.SUCCESS,
                             )),
                             backdrop = null,
-                            statusEntry = { Box(Modifier.fillMaxSize()) },
+                            statusEntry = { Box(Modifier.fillMaxSize().testTag("upper-status-content")) },
                             modifier = Modifier.testTag("shared-status-fill"),
                         )
                     }
@@ -503,13 +505,59 @@ class MiuixSurfaceRegressionTest {
             }
         }
         for (night in listOf(false, true)) {
+            for (showPreview in listOf(false, true, false)) {
+                compose.runOnIdle { dark = night; preview = showPreview }
+                compose.onNodeWithTag("upper-status-content").assertIsDisplayed()
+                val frame = compose.onNodeWithTag("shared-status-fill")
+                val work = frame.captureToImage().toPixelMap()
+                val bounds = frame.fetchSemanticsNode().boundsInRoot
+                val upper = compose.onNodeWithTag("upper-status-content").fetchSemanticsNode().boundsInRoot
+                val title = compose.onNodeWithText("Read notes").fetchSemanticsNode().boundsInRoot
+                assertTrue("both rows stay separate after a preview toggle", upper.bottom < title.top)
+                val composer = compose.onNodeWithTag("composer-fill").captureToImage().toPixelMap()
+                // Right-hand clear area avoids thumbnail, text and pager controls.
+                val upperFill = work[work.width * 3 / 4, work.height / 4]
+                val lowerFill = work[work.width * 3 / 4, work.height * 3 / 4]
+                assertEquals("both row fills must match", upperFill, lowerFill)
+                assertEquals("fallback must match composer", composer[composer.width / 2, composer.height / 2], upperFill)
+                val gapY = ((upper.bottom - bounds.top) + 1).toInt()
+                assertNotEquals("row gap remains the page color", upperFill, work[work.width * 3 / 4, gapY])
+            }
+        }
+    }
+
+    @Test fun twoStatusRowsMatchComposerOverARealRecordedBackdrop() {
+        var dark by mutableStateOf(false)
+        compose.setContent {
+            MinisTheme(darkTheme = dark) {
+                val backdrop = top.yukonga.miuix.kmp.blur.rememberLayerBackdrop()
+                Box(Modifier.fillMaxSize().testTag("glass-scene")) {
+                    Box(Modifier.fillMaxSize().layerBackdrop(backdrop)
+                        .background(Color(0xFF456789)))
+                    Column(Modifier.padding(24.dp)) {
+                        for (name in listOf("agent-glass", "work-glass", "input-glass")) {
+                            Box(Modifier.fillMaxWidth().height(if (name == "input-glass") 64.dp else 32.5.dp)
+                                .chatStatusBackground(backdrop, top.yukonga.miuix.kmp.material.GlassShape(10.dp))
+                                .testTag(name))
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        }
+        for (night in listOf(false, true)) {
             compose.runOnIdle { dark = night }
-            val work = compose.onNodeWithTag("shared-status-fill").captureToImage().toPixelMap()
-            val composer = compose.onNodeWithTag("composer-fill").captureToImage().toPixelMap()
-            val upperLeft = work[work.width / 4, work.height / 4]
-            val lowerRight = work[work.width * 3 / 4, work.height * 3 / 4]
-            assertEquals("one fill must cover both rows", upperLeft, lowerRight)
-            assertEquals("fallback must match composer", composer[composer.width / 2, composer.height / 2], upperLeft)
+            val pixels = listOf("agent-glass", "work-glass", "input-glass").map { tag ->
+                val image = compose.onNodeWithTag(tag).captureToImage().toPixelMap()
+                image[image.width / 2, image.height / 2]
+            }
+            for (color in pixels.take(2)) {
+                assertEquals(pixels.last().red, color.red, 0.01f)
+                assertEquals(pixels.last().green, color.green, 0.01f)
+                assertEquals(pixels.last().blue, color.blue, 0.01f)
+            }
+            val scene = compose.onNodeWithTag("glass-scene").captureToImage().toPixelMap()
+            assertEquals("outside rounded panels must retain scene color", Color(0xFF456789), scene[2, scene.height / 2])
         }
     }
 

@@ -23,15 +23,15 @@ class ToolbarGapTest {
         assertEquals("the difference is exactly the thumbnail overhang", 32.5.dp, reserve(true) - reserve(false))
     }
 
-    @Test fun `count entry uses existing top right space without increasing preview height`() {
+    @Test fun `count entry has its own upper row separated from work row`() {
         assertEquals(32.5.dp, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
         assertEquals(FloatingToolBarMetrics.THUMBNAIL_HEIGHT / 2, FloatingToolBarMetrics.BAR_HEIGHT)
         assertEquals(FloatingToolBarMetrics.BAR_HEIGHT, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
         assertEquals(100.dp, FloatingToolBarMetrics.STATUS_ENTRY_START)
         assertEquals(0.dp, FloatingToolBarMetrics.THUMBNAIL_INSET)
-        assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(true, true))
-        assertEquals(FloatingToolBarMetrics.visibleTop(true), FloatingToolBarMetrics.visibleTopWithStatus(true, true))
-        assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, true))
+        assertEquals(75.dp, FloatingToolBarMetrics.visibleTopWithStatus(true, true))
+        assertEquals(4.dp, FloatingToolBarMetrics.STATUS_ROW_GAP)
+        assertEquals(75.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, true))
         assertEquals(38.5.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, false))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains(".height(barHeight + topSlotHeight)"))
@@ -52,10 +52,20 @@ class ToolbarGapTest {
         // row. Scope this check to that surface, not the first status condition
         // (which also occurs in its height expression).
         val statusSurface = bar.substringAfter("val statusSurfaceShape =")
-            .substringBefore("// Layer 1: Status bar content")
+            .substringBefore("// Layer 1: Work row content")
         assertTrue(statusSurface.contains(".fillMaxWidth()"))
         assertTrue(statusSurface.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
-        assertTrue(statusSurface.contains(".height(barHeight + if (statusEntry != null) topSlotHeight else 0.dp)"))
+        assertTrue(statusSurface.contains(".height(barHeight)"))
+        val statusRow = bar.substringAfter("        if (statusEntry != null) {").substringBefore("// Layer 2:")
+        assertTrue(statusRow.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
+        assertTrue(statusRow.contains(".height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)"))
+        val host = screen.substringAfter("if (lastToolBlocks.isNotEmpty() || hasSubAgentStatus)").substringBefore("// Same WindowBottomSheet")
+        assertFalse("wrapper must not crop glass shadows into a rectangle", host.contains("clipToBounds()"))
+        assertTrue(screen.contains("val lastToolBlocks = remember(messages, streamingById)"))
+        assertFalse(screen.contains("}.collect { lastToolBlocks = it }"))
+        assertTrue(screen.contains("BoxWithConstraints(modifier = Modifier.fillMaxSize())"))
+        assertTrue(screen.contains("(maxHeight - padding.calculateTopPadding() - composerHeightDp)"))
+        assertFalse("first frame must not constrain both rows to zero", screen.contains("var workAreaHeightPx"))
         assertFalse(statusSurface.contains(".padding(start ="))
         assertTrue(screen.contains("contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
         assertTrue(bar.indexOf("if (statusEntry != null)") < bar.indexOf("// Layer 2: Thumbnail"))

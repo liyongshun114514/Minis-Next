@@ -1025,8 +1025,11 @@ internal object FloatingToolBarMetrics {
     fun visibleTop(previewEnabled: Boolean) =
         WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
 
+    val STATUS_ROW_GAP = 4.dp
+
     fun visibleTopWithStatus(previewEnabled: Boolean, hasStatus: Boolean) =
-        visibleTop(previewEnabled) + if (hasStatus && !previewEnabled) STATUS_ENTRY_HEIGHT else 0.dp
+        if (hasStatus) WRAPPER_BOTTOM_PADDING + BAR_HEIGHT + STATUS_ENTRY_HEIGHT + STATUS_ROW_GAP
+        else visibleTop(previewEnabled)
 }
 
 @Composable
@@ -1041,8 +1044,7 @@ internal fun FloatingToolStatusBar(
     // dueling local-remember sheets, no LaunchedEffect(lastIndex) page
     // jumps when a new tool starts mid-view).
     onOpenDetail: (String) -> Unit = {},
-    // Compact status entry occupies the unused top-right area, NOT a full
-    // extra row above both the thumbnail and work bar.
+    // Distinct upper sub-agent row; the work row remains below it.
     statusEntry: (@Composable () -> Unit)? = null,
     selectionScope: Any? = null,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
@@ -1106,7 +1108,11 @@ internal fun FloatingToolStatusBar(
     val barHeight = FloatingToolBarMetrics.BAR_HEIGHT
     val thumbnailOverhang = thumbnailHeight - barHeight  // 32.5dp above bar
     val thumbnailInset = FloatingToolBarMetrics.THUMBNAIL_INSET
-    val topSlotHeight = if (previewEnabled || statusEntry != null) thumbnailOverhang else 0.dp
+    val topSlotHeight = when {
+        statusEntry != null -> FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT + FloatingToolBarMetrics.STATUS_ROW_GAP
+        previewEnabled -> thumbnailOverhang
+        else -> 0.dp
+    }
     val barStartPadding = if (previewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp
 
     val statusSurfaceShape = top.yukonga.miuix.kmp.material.GlassShape(10.dp)
@@ -1115,15 +1121,15 @@ internal fun FloatingToolStatusBar(
             .fillMaxWidth()
             .height(barHeight + topSlotHeight),
     ) {
-        // One continuous surface for both rows. Without a status entry, the
-        // unused area beside the raised thumbnail remains clear.
+        // Two separate rows use the exact same composer glass modifier.
+        // Never tint the rectangular space around or between these surfaces.
         Box(
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(barHeight + if (statusEntry != null) topSlotHeight else 0.dp)
+                .height(barHeight)
                 .chatStatusBackground(backdrop, statusSurfaceShape),
         )
-        // Layer 1: Status bar content (bottom half of the shared surface).
+        // Layer 1: Work row content above its own glass surface.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1276,7 +1282,8 @@ internal fun FloatingToolStatusBar(
             Box(
                 modifier = Modifier.align(Alignment.TopEnd)
                     .fillMaxWidth()
-                    .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT),
+                    .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
+                    .chatStatusBackground(backdrop, statusSurfaceShape),
                 contentAlignment = Alignment.CenterStart,
             ) { statusEntry() }
         }

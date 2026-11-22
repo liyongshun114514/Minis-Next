@@ -37,7 +37,7 @@ internal fun chatComposerGlassMaterial(): GlassMaterial {
     }
 }
 
-/** Draw one continuous glass surface behind the work/status rows. */
+/** Same glass renderer for the input, upper sub-agent row and lower work row. */
 @Composable
 internal fun Modifier.chatStatusBackground(backdrop: Backdrop?, shape: GlassShape): Modifier {
     return glassPanel(

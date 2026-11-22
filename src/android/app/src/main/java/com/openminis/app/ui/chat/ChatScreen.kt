@@ -169,10 +169,6 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.openminis.app.ui.components.MinisGlassIconButton
-import top.yukonga.miuix.kmp.glass.glassPanel
-import top.yukonga.miuix.kmp.material.GlassDefaults
-import top.yukonga.miuix.kmp.material.GlassEdgeStrokes
-import top.yukonga.miuix.kmp.material.GlassShadows
 import top.yukonga.miuix.kmp.material.GlassShape
 import top.yukonga.miuix.kmp.glass.rememberGlassPopupAnchor
 import top.yukonga.miuix.kmp.glass.glassPopupAnchor
@@ -205,7 +201,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -3569,9 +3564,9 @@ fun ChatScreen(
 
             // This is the actual visible area above the composer, after IME
             // and Scaffold insets; status UI must never exceed these bounds.
-            var workAreaHeightPx by remember(sessionId) { mutableStateOf(0) }
-            Box(modifier = Modifier.fillMaxSize()
-                .onGloballyPositioned { workAreaHeightPx = it.size.height }) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                // Constraints are available during measurement. An async size
+                // callback starts at zero on entry and can collapse both bars.
                 var toolBarHeightPx by remember { mutableStateOf(0) }
                 var subAgentStatusExpanded by remember(sessionId) { mutableStateOf(false) }
                 // [T-p2-agent-callback] Synthetic delegate block behind a tapped
@@ -3584,9 +3579,8 @@ fun ChatScreen(
                 val statusJobs = remember(sessionId, registryJobs) {
                     subAgentStatusJobs(sessionId, registryJobs.values)
                 }
-                val workAreaHeightDp = with(density) {
-                    (workAreaHeightPx.toDp() - padding.calculateTopPadding() - composerHeightDp).coerceAtLeast(0.dp)
-                }
+                val workAreaHeightDp =
+                    (maxHeight - padding.calculateTopPadding() - composerHeightDp).coerceAtLeast(0.dp)
                 // T166 / T170 / T173: bottomReserve must clear the visible
                 // top of the floating tool-status overlay. Layout primitives
                 // come from FloatingToolStatusBar:
@@ -5242,15 +5236,12 @@ fun ChatScreen(
                 // mid-turn is missing from lastToolBlocks → ToolDetailSheet
                 // never opens (and its sentinel LaunchedEffect immediately
                 // closes the detail state because the id "doesn't exist").
-                var lastToolBlocks by remember { mutableStateOf<List<AssistantBlock>>(emptyList()) }
-                LaunchedEffect(messages) {
-                    kotlinx.coroutines.flow.combine(
-                        kotlinx.coroutines.flow.flowOf(messages),
-                        viewModel.streamingById,
-                    ) { msgs, stream ->
-                        val merged = if (stream.isEmpty()) msgs else mergeStreamingOverlay(msgs, stream)
-                        floatingToolBarBlocks(merged)
-                    }.collect { lastToolBlocks = it }
+                // Use the same snapshot as hasFloatingTools and bottomReserve:
+                // a restarted collector could display stale/empty content for a frame.
+                val lastToolBlocks = remember(messages, streamingById) {
+                    val merged = if (streamingById.isEmpty()) messages
+                        else mergeStreamingOverlay(messages, streamingById)
+                    floatingToolBarBlocks(merged)
                 }
                 val allToolBlocks = lastToolBlocks
                 // [T-p2-agent-series] The agent block is just another entry of
@@ -5282,7 +5273,8 @@ fun ChatScreen(
                             .fillMaxWidth()
                             .padding(bottom = composerHeightDp)
                             .heightIn(max = workAreaHeightDp)
-                            .then(Modifier.clipToBounds())
+                            // Each rounded glass row owns its clip. A rectangular
+                            // wrapper clip cuts the blur/shadow at the side insets.
                             .onGloballyPositioned { toolBarHeightPx = it.size.height }
                             .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
                             .padding(horizontal = ComposerSurfaceGeometry.SIDE_INSET_DP.dp)
@@ -5309,7 +5301,7 @@ fun ChatScreen(
                                         contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp,
                                         expanded = subAgentStatusExpanded,
                                         onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
-                                        // The work bar owns the continuous glass surface.
+                                        // The upper row owns its glass; this child draws content only.
                                         drawBackground = false,
                                     )
                                 }
@@ -6228,20 +6220,7 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .glassPanel(
-                            backdrop = chatTopBackdrop,
-                            shape = inputShape,
-                            style = GlassDefaults.style(ChatColors.isDark),
-                            material = chatComposerGlassMaterial(),
-                            stroke = GlassEdgeStrokes.forTheme(
-                                isDark = ChatColors.isDark,
-                                light = GlassEdgeStrokes.SmallLight,
-                                dark = GlassEdgeStrokes.SmallDark,
-                            ),
-                            shadow = GlassShadows.Regular,
-                            shading = false,
-                            fallback = Modifier.clip(inputShape).background(ChatColors.inputBg),
-                        )
+                        .chatStatusBackground(chatTopBackdrop, inputShape)
                         // [T-android-context-usage-hint] Ambient inner glow
                         // along the card's inside edge once the context window
                         // is under pressure. Applied to the composer CARD (not

@@ -38,19 +38,20 @@ class OriginalMinisToolColorsTest {
         for (token in listOf("GlassDefaults.style(ChatColors.isDark)", "GlassEdgeStrokes.SmallLight",
             "GlassEdgeStrokes.SmallDark", "shadow = GlassShadows.Regular", "shading = false")) {
             assertTrue(token, glass.contains(token))
-            assertTrue(token, composer.contains(token))
+            assertTrue(composer.contains(".chatStatusBackground(chatTopBackdrop, inputShape)"))
         }
         assertTrue(glass.contains("GlassMaterials.puredThinGlass(ChatColors.isDark)"))
         assertTrue(glass.contains("val surface = ChatColors.inputBg"))
         assertTrue(glass.contains("surface.copy(alpha = 0.72f)"))
-        assertTrue(composer.contains("material = chatComposerGlassMaterial()"))
+        assertTrue(glass.contains("material = chatComposerGlassMaterial()"))
         assertFalse(glass.contains("textureBlur("))
         val workBar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         val status = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
         assertTrue(workBar.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
         assertTrue(status.contains("drawBackground: Boolean = true"))
         assertTrue(status.contains(".then(if (drawBackground) Modifier.chatStatusBackground(backdrop, shape) else Modifier)"))
-        assertTrue(workBar.contains("One continuous surface for both rows"))
+        assertTrue(workBar.contains("Two separate rows use the exact same composer glass modifier"))
+        assertEquals(2, Regex("\\.chatStatusBackground\\(backdrop, statusSurfaceShape\\)").findAll(workBar).count())
         assertTrue(ProductionSources.read("ui/chat/ChatScreen.kt").contains("drawBackground = false"))
     }
 
