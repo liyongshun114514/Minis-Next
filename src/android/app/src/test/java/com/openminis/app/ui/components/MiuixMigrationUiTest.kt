@@ -995,19 +995,55 @@ class MiuixMigrationUiTest {
         compose.runOnIdle { assertEquals(3, finished) }
     }
 
-    @Test fun permissionChoicesUseNativeRowsAndRemainDraftUntilSaved() {
+    @Test fun permissionChoicesUseRoundedPressAndRemainDraftUntilSaved() {
         var selection by mutableStateOf(com.openminis.app.offload.RootAccess.ASK_ONCE)
         var choices = 0
         compose.setContent {
-            MinisTheme {
-                com.openminis.app.ui.chat.ComposerRootAccessChoices(selection) { selection = it; choices++ }
+            MinisTheme(darkTheme = false) {
+                Box(Modifier.fillMaxWidth().background(Color.White).testTag("root-permission-options")) {
+                    com.openminis.app.ui.chat.ComposerRootAccessChoices(selection) { selection = it; choices++ }
+                }
             }
         }
         val denied = compose.activity.getString(R.string.composer_root_denied)
+        val ask = compose.activity.getString(R.string.composer_root_ask)
         val allowed = compose.activity.getString(R.string.composer_root_allowed)
-        compose.onNode(hasText(denied) and hasClickAction()).assertIsDisplayed().performClick()
+        val frame = compose.onNodeWithTag("root-permission-options")
+        for (label in listOf(denied, ask, allowed)) {
+            val row = compose.onNode(hasText(label) and hasClickAction()).assertIsDisplayed()
+            val bounds = row.fetchSemanticsNode().boundsInRoot
+            val frameBounds = frame.fetchSemanticsNode().boundsInRoot
+            val before = frame.captureToImage().toPixelMap()
+            compose.mainClock.autoAdvance = false
+            row.performTouchInput { down(center); advanceEventTime(700) }
+            compose.mainClock.advanceTimeBy(700)
+            assertEquals("press keeps the permission row in place", bounds, row.fetchSemanticsNode().boundsInRoot)
+            val pressed = frame.captureToImage().toPixelMap()
+            val left = (bounds.left - frameBounds.left).toInt() + 2
+            val right = (bounds.right - frameBounds.left).toInt() - 3
+            val top = (bounds.top - frameBounds.top).toInt() + 2
+            val bottom = (bounds.bottom - frameBounds.top).toInt() - 3
+            val middle = (bounds.center.y - frameBounds.top).toInt()
+            fun difference(x: Int, y: Int): Float {
+                val a = before[x, y]; val b = pressed[x, y]
+                return kotlin.math.abs(a.red - b.red) + kotlin.math.abs(a.green - b.green) + kotlin.math.abs(a.blue - b.blue)
+            }
+            for (x in listOf(left, right)) {
+                assertTrue("$label press reaches the side centre", difference(x, middle) > 0.03f)
+                assertTrue("$label upper corner remains clear", difference(x, top) < 0.015f)
+                assertTrue("$label lower corner remains clear", difference(x, bottom) < 0.015f)
+            }
+            row.performTouchInput { cancel() }
+            compose.mainClock.autoAdvance = true
+            compose.waitForIdle()
+            compose.runOnIdle {
+                assertEquals(com.openminis.app.offload.RootAccess.ASK_ONCE, selection)
+                assertEquals("cancelled press must not select a permission", 0, choices)
+            }
+        }
+        compose.onNode(hasText(denied) and hasClickAction()).performClick()
         compose.runOnIdle { assertEquals(com.openminis.app.offload.RootAccess.NOT_ALLOWED, selection) }
-        compose.onNode(hasText(allowed) and hasClickAction()).assertIsDisplayed().performClick()
+        compose.onNode(hasText(allowed) and hasClickAction()).performClick()
         compose.runOnIdle { assertEquals(com.openminis.app.offload.RootAccess.BYPASS, selection); assertEquals(2, choices) }
     }
 

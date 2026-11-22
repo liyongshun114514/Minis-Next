@@ -13,7 +13,7 @@ A='{http://schemas.android.com/apk/res/android}'
 class KairosIdentityTest(unittest.TestCase):
     def test_independent_install_identity_and_reset_version(self):
         s=(APP/'build.gradle.kts').read_text()
-        self.assertIn('applicationId = "com.openminis.app.next.miuix"',s)
+        self.assertIn('applicationId = "com.openminis.app.next"',s)
         self.assertRegex(s,r'versionCode\s*=\s*62\b')
         self.assertIn('versionName = "1.7.4"',s)
         self.assertNotRegex(s,r'versionName\s*=\s*"[^"]*ubuntu')
@@ -25,7 +25,7 @@ class KairosIdentityTest(unittest.TestCase):
         manifest=E.parse(APP/'src/main/AndroidManifest.xml').getroot()
         self.assertEqual('@string/fork_app_name',manifest.find('application').get(A+'label'))
         for intent in E.parse(RES/'xml/shortcuts.xml').getroot().iter('intent'):
-            self.assertEqual('com.openminis.app.next.miuix',intent.get(A+'targetPackage'))
+            self.assertEqual('com.openminis.app.next',intent.get(A+'targetPackage'))
             self.assertEqual('com.openminis.app.MainActivity',intent.get(A+'targetClass'))
     def test_original_upstream_icons_are_byte_identical(self):
         manifest=json.loads((ROOT/'branding/kairos/upstream-icons.json').read_text())
@@ -56,7 +56,7 @@ class KairosIdentityTest(unittest.TestCase):
         self.assertIn('python3 scripts/stage_kairos_release.py',workflow)
     def test_verifier_and_asset_protocol_belong_to_kairos(self):
         verifier=(ROOT/'scripts/verify_ubuntu_apk.py').read_text()
-        self.assertIn("package = 'com.openminis.app.next.miuix'",verifier)
+        self.assertIn("package = 'com.openminis.app.next'",verifier)
         policy=(APP/'src/main/java/com/openminis/app/data/UpdatePolicy.kt').read_text()
         self.assertIn('^MinisNext-',policy)
         self.assertIn('it.name.startsWith("MinisNext-")',policy)

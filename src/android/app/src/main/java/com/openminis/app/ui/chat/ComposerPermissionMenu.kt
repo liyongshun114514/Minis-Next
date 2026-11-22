@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Security
 import com.openminis.app.ui.components.miuix.DropdownMenuItem
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.openminis.app.offload.OffloadPermissionManager
@@ -31,6 +33,7 @@ import com.openminis.app.offload.RootGrantPolicy
 import com.openminis.app.offload.RootManager
 import com.openminis.app.ui.components.MinisTextButton as TextButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import androidx.compose.ui.graphics.Color
 import com.openminis.app.ui.components.MinisDialog as WindowDialog
 import androidx.compose.foundation.layout.Arrangement
@@ -126,6 +129,7 @@ internal fun ComposerRootAccessChoices(selection: RootAccess, onSelect: (RootAcc
     Column(modifier = Modifier.fillMaxWidth()) {
         options.forEach { (access, label, summary) ->
             top.yukonga.miuix.kmp.preference.RadioButtonPreference(
+                modifier = Modifier.clip(RoundedCornerShape(GlassPopupDefaults.ItemPressRadius)),
                 title = androidx.compose.ui.res.stringResource(label),
                 summary = androidx.compose.ui.res.stringResource(summary),
                 selected = selection == access,

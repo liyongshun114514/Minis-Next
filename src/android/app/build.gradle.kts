@@ -39,7 +39,7 @@ android {
 
     defaultConfig {
         // Separate installation/data directory from the upstream APK and its signing key.
-        applicationId = "com.openminis.app.next.miuix"
+        applicationId = "com.openminis.app.next"
         minSdk = 26
         targetSdk = 35
         // Android update ordering stays monotonic even as the public name restarts.
