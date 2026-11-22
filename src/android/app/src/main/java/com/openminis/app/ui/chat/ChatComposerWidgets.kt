@@ -181,6 +181,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.positionInWindow
@@ -587,7 +588,8 @@ private fun ToolPreviewThumbnail(
     val subAgentGlow = helperAccent()
     Box(
         modifier = Modifier
-            .size(width = 100.dp, height = 65.dp)
+            .size(width = FloatingToolBarMetrics.THUMBNAIL_WIDTH, height = FloatingToolBarMetrics.THUMBNAIL_HEIGHT)
+            .testTag("floating-tool-thumbnail")
             .minisJellyPress(onLongClick != null)
             .shadow(elevation = 10.dp, shape = thumbnailShape, ambientColor = Color.Black.copy(alpha = 0.15f), spotColor = Color.Black.copy(alpha = 0.25f))
             .clip(thumbnailShape)
@@ -1025,10 +1027,8 @@ internal object FloatingToolBarMetrics {
     fun visibleTop(previewEnabled: Boolean) =
         WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
 
-    val STATUS_ROW_GAP = 4.dp
-
     fun visibleTopWithStatus(previewEnabled: Boolean, hasStatus: Boolean) =
-        if (hasStatus) WRAPPER_BOTTOM_PADDING + BAR_HEIGHT + STATUS_ENTRY_HEIGHT + STATUS_ROW_GAP
+        if (hasStatus) WRAPPER_BOTTOM_PADDING + BAR_HEIGHT + STATUS_ENTRY_HEIGHT
         else visibleTop(previewEnabled)
 }
 
@@ -1044,7 +1044,7 @@ internal fun FloatingToolStatusBar(
     // dueling local-remember sheets, no LaunchedEffect(lastIndex) page
     // jumps when a new tool starts mid-view).
     onOpenDetail: (String) -> Unit = {},
-    // Distinct upper sub-agent row; the work row remains below it.
+    // Upper sub-agent content and lower work content share one glass panel.
     statusEntry: (@Composable () -> Unit)? = null,
     selectionScope: Any? = null,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
@@ -1109,7 +1109,7 @@ internal fun FloatingToolStatusBar(
     val thumbnailOverhang = thumbnailHeight - barHeight  // 32.5dp above bar
     val thumbnailInset = FloatingToolBarMetrics.THUMBNAIL_INSET
     val topSlotHeight = when {
-        statusEntry != null -> FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT + FloatingToolBarMetrics.STATUS_ROW_GAP
+        statusEntry != null -> FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT
         previewEnabled -> thumbnailOverhang
         else -> 0.dp
     }
@@ -1121,15 +1121,15 @@ internal fun FloatingToolStatusBar(
             .fillMaxWidth()
             .height(barHeight + topSlotHeight),
     ) {
-        // Two separate rows use the exact same composer glass modifier.
-        // Never tint the rectangular space around or between these surfaces.
+        // One panel for both content rows, using the input's glass renderer.
+        // With no sub-agent, only the work row needs a glass body.
         Box(
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(barHeight)
+                .height(if (statusEntry != null) barHeight + topSlotHeight else barHeight)
                 .chatStatusBackground(backdrop, statusSurfaceShape),
         )
-        // Layer 1: Work row content above its own glass surface.
+        // Layer 1: Work row content inside the shared glass panel.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1282,8 +1282,7 @@ internal fun FloatingToolStatusBar(
             Box(
                 modifier = Modifier.align(Alignment.TopEnd)
                     .fillMaxWidth()
-                    .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
-                    .chatStatusBackground(backdrop, statusSurfaceShape),
+                    .height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT),
                 contentAlignment = Alignment.CenterStart,
             ) { statusEntry() }
         }
@@ -1292,7 +1291,7 @@ internal fun FloatingToolStatusBar(
         if (previewEnabled) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(Alignment.BottomStart)
                     .padding(start = thumbnailInset),
             ) {
                 // [T-android-browser-preview-thumb] Resolve the previous

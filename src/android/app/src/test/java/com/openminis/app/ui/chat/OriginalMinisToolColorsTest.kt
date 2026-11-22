@@ -50,8 +50,8 @@ class OriginalMinisToolColorsTest {
         assertTrue(workBar.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
         assertTrue(status.contains("drawBackground: Boolean = true"))
         assertTrue(status.contains(".then(if (drawBackground) Modifier.chatStatusBackground(backdrop, shape) else Modifier)"))
-        assertTrue(workBar.contains("Two separate rows use the exact same composer glass modifier"))
-        assertEquals(2, Regex("\\.chatStatusBackground\\(backdrop, statusSurfaceShape\\)").findAll(workBar).count())
+        assertTrue(workBar.contains("One panel for both content rows, using the input's glass renderer"))
+        assertEquals(1, Regex("\\.chatStatusBackground\\(backdrop, statusSurfaceShape\\)").findAll(workBar).count())
         assertTrue(ProductionSources.read("ui/chat/ChatScreen.kt").contains("drawBackground = false"))
     }
 

@@ -23,15 +23,16 @@ class ToolbarGapTest {
         assertEquals("the difference is exactly the thumbnail overhang", 32.5.dp, reserve(true) - reserve(false))
     }
 
-    @Test fun `count entry has its own upper row separated from work row`() {
+    @Test fun `count entry shares the panel height with work row and thumbnail`() {
         assertEquals(32.5.dp, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
         assertEquals(FloatingToolBarMetrics.THUMBNAIL_HEIGHT / 2, FloatingToolBarMetrics.BAR_HEIGHT)
         assertEquals(FloatingToolBarMetrics.BAR_HEIGHT, FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
         assertEquals(100.dp, FloatingToolBarMetrics.STATUS_ENTRY_START)
         assertEquals(0.dp, FloatingToolBarMetrics.THUMBNAIL_INSET)
-        assertEquals(75.dp, FloatingToolBarMetrics.visibleTopWithStatus(true, true))
-        assertEquals(4.dp, FloatingToolBarMetrics.STATUS_ROW_GAP)
-        assertEquals(75.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, true))
+        assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(true, true))
+        assertEquals(FloatingToolBarMetrics.THUMBNAIL_HEIGHT,
+            FloatingToolBarMetrics.BAR_HEIGHT + FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)
+        assertEquals(71.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, true))
         assertEquals(38.5.dp, FloatingToolBarMetrics.visibleTopWithStatus(false, false))
         val bar = ProductionSources.read("ui/chat/ChatComposerWidgets.kt")
         assertTrue(bar.contains(".height(barHeight + topSlotHeight)"))
@@ -55,9 +56,10 @@ class ToolbarGapTest {
             .substringBefore("// Layer 1: Work row content")
         assertTrue(statusSurface.contains(".fillMaxWidth()"))
         assertTrue(statusSurface.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
-        assertTrue(statusSurface.contains(".height(barHeight)"))
+        assertTrue(statusSurface.contains(".height(if (statusEntry != null) barHeight + topSlotHeight else barHeight)"))
+        assertFalse("no gap may extend the panel below the preview", bar.contains("STATUS_ROW_GAP"))
         val statusRow = bar.substringAfter("        if (statusEntry != null) {").substringBefore("// Layer 2:")
-        assertTrue(statusRow.contains(".chatStatusBackground(backdrop, statusSurfaceShape)"))
+        assertFalse("content row must not stack another glass surface", statusRow.contains(".chatStatusBackground("))
         assertTrue(statusRow.contains(".height(FloatingToolBarMetrics.STATUS_ENTRY_HEIGHT)"))
         val host = screen.substringAfter("if (lastToolBlocks.isNotEmpty() || hasSubAgentStatus)").substringBefore("// Same WindowBottomSheet")
         assertFalse("wrapper must not crop glass shadows into a rectangle", host.contains("clipToBounds()"))
@@ -69,6 +71,9 @@ class ToolbarGapTest {
         assertFalse(statusSurface.contains(".padding(start ="))
         assertTrue(screen.contains("contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp"))
         assertTrue(bar.indexOf("if (statusEntry != null)") < bar.indexOf("// Layer 2: Thumbnail"))
+        val thumbnail = bar.substringAfter("// Layer 2: Thumbnail")
+        assertTrue("preview bottom must match the panel bottom", thumbnail.contains(".align(Alignment.BottomStart)"))
+        assertFalse(thumbnail.contains(".align(Alignment.TopStart)"))
     }
 
     @Test fun `the list and the bar read one geometry and one preview flag`() {

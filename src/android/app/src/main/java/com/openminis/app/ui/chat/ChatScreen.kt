@@ -5301,7 +5301,7 @@ fun ChatScreen(
                                         contentStartPadding = if (toolPreviewEnabled) FloatingToolBarMetrics.WORK_CONTENT_START else 12.dp,
                                         expanded = subAgentStatusExpanded,
                                         onToggle = { subAgentStatusExpanded = !subAgentStatusExpanded },
-                                        // The upper row owns its glass; this child draws content only.
+                                        // The shared panel owns its glass; both rows draw content only.
                                         drawBackground = false,
                                     )
                                 }
