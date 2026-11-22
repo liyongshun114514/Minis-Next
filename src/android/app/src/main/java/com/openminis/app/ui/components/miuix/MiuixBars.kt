@@ -1,14 +1,16 @@
 package com.openminis.app.ui.components.miuix
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import com.openminis.app.ui.components.LocalMinisMenuInteractive
 import com.openminis.app.ui.components.MinisMenu
-import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -22,7 +24,7 @@ object MenuDefaults {
     ) = MenuItemColors(textColor, leadingIconColor, trailingIconColor)
 }
 
-/** Miuix surface + native press indication; arbitrary labels/icons preserve app menu semantics. */
+/** Native press indication, inset and rounded like GlassPopupItem, with arbitrary labels/icons. */
 @Composable
 fun DropdownMenuItem(
     text: @Composable () -> Unit,
@@ -37,11 +39,21 @@ fun DropdownMenuItem(
     val alpha = if (enabled) 1f else 0.38f
     val interactive = LocalMinisMenuInteractive.current
     val currentInteractive by rememberUpdatedState(interactive)
+    val direction = LocalLayoutDirection.current
+    val pressInset = GlassPopupDefaults.ItemPressInset
     top.yukonga.miuix.kmp.basic.BasicComponent(
-        modifier = modifier,
+        modifier = modifier
+            .padding(horizontal = pressInset)
+            .clip(RoundedCornerShape(GlassPopupDefaults.ItemPressRadius)),
         onClick = { if (currentInteractive) onClick() },
         enabled = enabled && interactive,
-        insideMargin = contentPadding,
+        // Move the press plane inward while keeping existing icon/text alignment.
+        insideMargin = PaddingValues(
+            start = (contentPadding.calculateStartPadding(direction) - pressInset).coerceAtLeast(0.dp),
+            top = contentPadding.calculateTopPadding(),
+            end = (contentPadding.calculateEndPadding(direction) - pressInset).coerceAtLeast(0.dp),
+            bottom = contentPadding.calculateBottomPadding(),
+        ),
         startAction = leadingIcon?.let { icon -> {
             CompositionLocalProvider(LocalContentColor provides colors.leadingIconColor.copy(alpha = alpha)) { icon() }
         } },

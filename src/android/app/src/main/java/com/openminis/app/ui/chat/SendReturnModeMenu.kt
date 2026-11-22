@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardReturn
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.StopCircle
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
@@ -337,9 +339,11 @@ private fun ReturnModeRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 44.dp)
+            .padding(horizontal = GlassPopupDefaults.ItemPressInset)
+            .clip(RoundedCornerShape(GlassPopupDefaults.ItemPressRadius))
             .selectable(selected = selected, enabled = interactive, role = Role.RadioButton,
                 onClick = { if (interactive) onClick() })
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp - GlassPopupDefaults.ItemPressInset),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
