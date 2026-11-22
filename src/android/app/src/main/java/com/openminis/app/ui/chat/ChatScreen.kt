@@ -2825,7 +2825,26 @@ fun ChatScreen(
                             com.openminis.app.ui.browser.BrowserExternalSchemeHandler
                                 .Origin.USER_INITIATED,
                         )
-                is ChatLinkAction.Web -> previewUrl = action.url
+                is ChatLinkAction.Web ->
+                    // [T-skills-link-blank-webview] A sandbox URL reaching
+                    // this branch means no host file was found (cold start
+                    // before any PRoot mount, deleted file, …). Loading
+                    // `minis://…` or `/var/minis/…` in the preview WebView
+                    // renders a blank page and looks like a crash, so surface
+                    // the read failure instead and don't open it.
+                    if (ChatLinkResolver.isSandboxUrl(action.url)) {
+                        com.openminis.app.logging.AppLogger.warning(
+                            "ChatScreen",
+                            "sandbox link unresolved: ${action.url.take(200)}",
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            R.string.filepreview_file_read_error,
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    } else {
+                        previewUrl = action.url
+                    }
             }
         }
     }

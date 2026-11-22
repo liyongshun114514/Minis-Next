@@ -353,16 +353,12 @@ fun SubAgentStatusToggle(
     // Resolved out here: the semantics lambda is not composable.
     val description = stringResource(R.string.subagent_status_toggle_description, active, total)
 
-    val shape = RoundedCornerShape(10.dp)
+    val shape = top.yukonga.miuix.kmp.material.GlassShape(10.dp)
     Row(
         modifier = modifier.fillMaxWidth()
-            // A compact version of the work bar: same surface, border and
-            // corners, equal to the work bar and half of the 65dp preview.
+            // Same thin glass as the work bar and composer, within the original height.
             .height(FloatingToolBarMetrics.BAR_HEIGHT)
-            .shadow(8.dp, shape, ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
-            .clip(shape)
             .chatStatusBackground(backdrop, shape)
-            .border(0.5.dp, ChatColors.toolBorder, shape)
             .semantics(mergeDescendants = true) {
                 contentDescription = description
                 stateDescription = if (expanded) expandedState else collapsedState

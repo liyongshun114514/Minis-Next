@@ -30,6 +30,14 @@ sealed class ChatLinkAction {
 
 object ChatLinkResolver {
 
+    /**
+     * [T-skills-link-blank-webview] The `/var/minis/...` subdirectories whose
+     * host location is global (never per-session): they live in
+     * `filesDir/minis-global/<subdir>` no matter which chat is open or which
+     * shell backend happens to be running.
+     */
+    private val GLOBAL_SANDBOX_SUBDIRS = setOf("memory", "skills", "shared", "mcp-servers")
+
     fun resolve(rawUrl: String, sessionId: String? = null, context: Context? = null): ChatLinkAction {
         val trimmed = rawUrl.trim()
         if (trimmed.isEmpty()) return ChatLinkAction.Web(rawUrl)
@@ -65,6 +73,10 @@ object ChatLinkResolver {
                 ?.let { return ChatLinkAction.SandboxFolder(it) }
         }
 
+        // An unresolved Minis resource is not an external application scheme.
+        // Keep it on the guarded Web fallback so callers show a file error.
+        if (scheme == "minis") return ChatLinkAction.Web(trimmed)
+
         // T136: intent://, mailto:, tel:, geo:, market: etc. need a system
         // dispatch — the in-app preview WebView's `loadUrl(...)` doesn't
         // trip `shouldOverrideUrlLoading` for the initial URL, so without
@@ -89,12 +101,21 @@ object ChatLinkResolver {
         sessionId: String?,
         context: Context?,
     ): String? {
-        fun isDir(linuxPath: String): Boolean =
-            (if (sessionId != null && context != null) {
+        fun isDir(linuxPath: String): Boolean {
+            val subdir = linuxPath.removePrefix("/var/minis/").substringBefore('/')
+            if (context != null && linuxPath.startsWith("/var/minis/") &&
+                subdir in GLOBAL_SANDBOX_SUBDIRS
+            ) return globalHostFile(linuxPath, context)?.isDirectory == true
+            val mounted = if (sessionId != null && context != null) {
                 PRootKernel.resolveSessionHostPath(sessionId, linuxPath, context)
             } else {
                 PRootKernel.resolveHostPath(linuxPath)
-            })?.isDirectory == true
+            }
+            if (mounted != null && mounted.isDirectory) return true
+            // [T-skills-link-blank-webview] global dirs resolve without the
+            // mount table, same as [resolveSandboxFile].
+            return globalHostFile(linuxPath, context)?.isDirectory == true
+        }
         val candidates = when (scheme) {
             "minis" -> minisPathCandidates(raw.removePrefix("minis://").substringBefore('?'))
                 .map { if (it.startsWith("/")) it else "/var/minis/$it" }
@@ -119,12 +140,32 @@ object ChatLinkResolver {
         sessionId: String?,
         context: Context?,
     ): File? {
-        fun lookup(linuxPath: String): File? =
+        // [T-skills-link-blank-webview] The PRoot bind-mount table is empty on
+        // a cold start under the CHROOT backend (no PRoot shell has booted),
+        // so `/var/minis/skills/...` used to resolve to a path inside the
+        // rootfs that never exists. The link then fell through to
+        // [ChatLinkAction.Web] and the preview WebView showed a blank page.
+        // Global subdirs have a fixed host location, so try that directly and
+        // keep the mount table as a fallback rather than the only source.
+        fun viaMountTable(linuxPath: String): File? =
             if (sessionId != null && context != null) {
                 PRootKernel.resolveSessionHostPath(sessionId, linuxPath, context)
             } else {
                 PRootKernel.resolveHostPath(linuxPath)
             }
+
+        fun lookup(linuxPath: String): File? {
+            val subdir = linuxPath.removePrefix("/var/minis/").substringBefore('/')
+            if (context != null && linuxPath.startsWith("/var/minis/") &&
+                subdir in GLOBAL_SANDBOX_SUBDIRS
+            ) {
+                // This fixed app-owned location is authoritative even if a stale
+                // mount entry points at an existing, empty rootfs placeholder.
+                return globalHostFile(linuxPath, context)
+            }
+            return viaMountTable(linuxPath)
+        }
+
         return when (scheme) {
             "minis" -> {
                 // Keep '#' — attachment filenames legitimately contain it.
@@ -152,14 +193,102 @@ object ChatLinkResolver {
             }
             "file" -> {
                 val path = raw.removePrefix("file://").substringBefore('?')
-                if (path.isEmpty()) null else File(java.net.URLDecoder.decode(path, "UTF-8"))
+                if (path.isEmpty()) {
+                    null
+                } else {
+                    // [T-skills-link-blank-webview] Decode with the same
+                    // %XX-only rules as `minis://` — URLDecoder implements
+                    // form semantics, so a `a+b` directory became `a b` and
+                    // resolved to nothing. A `file:///var/minis/...` URL names
+                    // the guest's view of a bind mount, not a host path, so
+                    // route it through [lookup].
+                    fun hostFile(decoded: String): File? =
+                        if (decoded.startsWith("/var/minis/")) lookup(decoded) else File(decoded)
+                    val candidates = minisPathCandidates(path)
+                    candidates.asSequence()
+                        .mapNotNull { hostFile(it) }
+                        .firstOrNull { it.exists() }
+                        ?: candidates.firstOrNull()?.let { hostFile(it) }
+                }
             }
             null -> {
-                if (raw.startsWith("/")) lookup(raw) else null
+                if (!raw.startsWith("/")) null else {
+                    val candidates = minisPathCandidates(raw)
+                    candidates.asSequence().mapNotNull { lookup(it) }
+                        .firstOrNull { it.exists() } ?: lookup(candidates.first())
+                }
             }
             else -> null
         }
     }
+
+    /**
+     * [T-skills-link-blank-webview] Host file for a global (session-independent)
+     * `/var/minis/<subdir>/...` path, resolved straight from
+     * `filesDir/minis-global/<subdir>`.
+     *
+     * Deliberately independent of [PRootKernel.bindMounts]: on a cold start
+     * with the CHROOT backend nothing has booted PRoot, the table can be
+     * empty, and the old answer was a rootfs path that does not exist — which
+     * is exactly how a skills link ended up in a WebView and rendered blank.
+     *
+     * Returns null for per-session subdirs (attachments/offloads/workspace/
+     * browser): those must come from the owning session, and falling back to
+     * "some other session" is the cross-chat leak this must not introduce.
+     * `..` / `.` segments and any path that escapes the base directory
+     * (symlinks included) are rejected rather than guessed at.
+     */
+    internal fun globalHostFile(linuxPath: String, context: Context?): File? {
+        if (context == null) return null
+        val prefix = "/var/minis/"
+        if (!linuxPath.startsWith(prefix)) return null
+        val rest = linuxPath.removePrefix(prefix)
+        if (rest.isEmpty() || rest.contains('\u0000')) return null
+        val subdir = rest.substringBefore('/')
+        if (subdir !in GLOBAL_SANDBOX_SUBDIRS) return null
+        val tail = rest.substring(subdir.length).removePrefix("/")
+        if (tail.split('/').any { it == ".." || it == "." }) return null
+        val base = File(context.filesDir, "minis-global/$subdir")
+        if (tail.isEmpty()) return base
+        return runCatching {
+            val root = base.canonicalFile
+            val target = File(base, tail).canonicalFile
+            if (target.path.startsWith(root.path + File.separator)) target else null
+        }.getOrNull()
+    }
+
+    /**
+     * [T-skills-link-blank-webview] True when [rawUrl] names a sandbox
+     * resource (an unknown `minis://` link, a `file://` URL into
+     * `/var/minis`, or a bare `/var/minis|/root` Linux path) rather than
+     * something a WebView can load.
+     *
+     * Pure: no disk I/O, no resolution, no mount-table access. It is meant
+     * for the `ChatLinkAction.Web` branch, which by construction means
+     * [resolve] found no existing file — handing such a URL to the preview
+     * WebView is what produced the blank screen, so the caller should show
+     * an error instead of navigating.
+     */
+    fun isSandboxUrl(rawUrl: String): Boolean {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return false
+        val uri = runCatching { trimmed.toUri() }.getOrNull()
+        return when (uri?.scheme?.lowercase()) {
+            // Known minis:// actions already returned DeepLink from [resolve],
+            // so an Unknown parse here is a sandbox path (minis://skills/...).
+            "minis" -> DeepLinkHandler.parse(uri) == DeepLinkAction.Unknown
+            "file" -> {
+                val path = trimmed.removePrefix("file://").substringBefore('?')
+                minisPathCandidates(path).any { isSandboxLinuxPath(it) }
+            }
+            null -> isSandboxLinuxPath(trimmed)
+            else -> false
+        }
+    }
+
+    private fun isSandboxLinuxPath(path: String): Boolean =
+        path == "/var/minis" || path.startsWith("/var/minis/") ||
+            path == "/root" || path.startsWith("/root/")
 
     /**
      * [T-android-minis-url-double-encoding] Decode candidates for the path part

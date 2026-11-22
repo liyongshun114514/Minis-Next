@@ -81,7 +81,8 @@ internal fun chatPalette(colors: Colors, darkTheme: Boolean): ChatPalette {
         userBubble = colors.surfaceContainerHigh,
         toolBg = colors.surfaceContainer,
         toolBorder = colors.dividerLine,
-        toolCapsuleBg = colors.secondaryContainer,
+        // Tool result pills retain the original Minis neutral grey in both themes.
+        toolCapsuleBg = base.toolCapsuleBg,
         separator = colors.dividerLine,
         // Composer actions are neutral in both themes, never the blue primary palette.
         sendButton = colors.onSurface,

@@ -591,13 +591,8 @@ private fun ToolPreviewThumbnail(
             .minisJellyPress(onLongClick != null)
             .shadow(elevation = 10.dp, shape = thumbnailShape, ambientColor = Color.Black.copy(alpha = 0.15f), spotColor = Color.Black.copy(alpha = 0.25f))
             .clip(thumbnailShape)
-            .background(
-                when (block.toolName) {
-                    "file_read", "file_write" -> ChatColors.secondaryBg
-                    "file_edit" -> Color(0xFF1A1A1E)
-                    else -> Color(0xFF1A1A1E)
-                }
-            )
+            // Original Minis preview surface, including file/text tools.
+            .background(Color(0xFF1F1F24))
             .border(0.5.dp, ChatColors.thumbnailBorder, thumbnailShape)
             .drawWithContent {
                 drawContent()
@@ -783,7 +778,7 @@ private fun ToolPreviewThumbnail(
                         lineHeight = 8.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        color = ChatColors.secondaryText,
+                        color = Color.White.copy(alpha = 0.45f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1125,9 +1120,7 @@ internal fun FloatingToolStatusBar(
                 .fillMaxWidth()
                 .height(barHeight)
                 .align(Alignment.BottomCenter)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(10.dp), ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
-                .chatStatusBackground(backdrop, RoundedCornerShape(10.dp))
-                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp))
+                .chatStatusBackground(backdrop, top.yukonga.miuix.kmp.material.GlassShape(10.dp))
                 .padding(start = barStartPadding, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

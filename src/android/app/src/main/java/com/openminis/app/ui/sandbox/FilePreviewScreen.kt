@@ -152,9 +152,17 @@ fun FilePreviewScreen(
                         com.openminis.app.ui.browser.BrowserExternalSchemeHandler.Origin.USER_INITIATED,
                     )
                 is com.openminis.app.ui.chat.ChatLinkAction.Web ->
-                    if (action.url.startsWith("minis:") || action.url.startsWith("/")) {
-                        // A sandbox link whose file does not exist.
+                    // [T-skills-link-blank-webview] Same rule as the chat:
+                    // a sandbox URL that resolved to nothing must not be
+                    // loaded in a WebView (blank page). Tell the user the
+                    // file could not be read instead.
+                    if (com.openminis.app.ui.chat.ChatLinkResolver.isSandboxUrl(action.url)) {
                         AppLogger.warning("FilePreview", "md link target missing: ${action.url.take(200)}")
+                        Toast.makeText(
+                            context,
+                            R.string.filepreview_file_read_error,
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     } else {
                         webUrl = action.url
                     }

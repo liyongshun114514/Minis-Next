@@ -463,9 +463,9 @@ class SubAgentStatusPanelTest {
     fun `compact subagent entry uses the work bar surface within existing height`() {
         val src = ProductionSources.read("ui/chat/SubAgentStatusPanel.kt")
             .substringAfter("fun SubAgentStatusToggle(").substringBefore("fun SubAgentStatusPanel(")
-        assertTrue(src.contains("RoundedCornerShape(10.dp)"))
+        assertTrue(src.contains("GlassShape(10.dp)"))
         assertTrue(src.contains(".chatStatusBackground(backdrop, shape)"))
-        assertTrue(src.contains(".border(0.5.dp, ChatColors.toolBorder, shape)"))
+        assertFalse("native glass owns the edge stroke", src.contains(".border(0.5.dp, ChatColors.toolBorder, shape)"))
         assertTrue(src.contains(".height(FloatingToolBarMetrics.BAR_HEIGHT)"))
         assertTrue(src.contains("Icons.Filled.Groups"))
         assertTrue(src.contains("Icons.Filled.KeyboardArrowUp"))

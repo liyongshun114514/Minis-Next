@@ -212,6 +212,7 @@ jobs:
             --tests '*SystemPromptInjectionWiringTest' --tests '*PromptCatalogScopeTest' --tests '*SubAgentConcurrencyUiTest' \
             --tests '*Kairos*' --tests '*ComposerSurfaceGeometryTest' \
             --tests '*ToolbarGapTest' --tests '*FloatingToolPagerTest' --tests '*ToolPreviewAndThinkingLongPressTest' --tests '*TaskCardMetricsTest' \
+            --tests '*OriginalMinisToolColorsTest' --tests '*SkillLinkPreviewTest' --tests '*MinisPathCandidatesTest' \
             --tests '*ProviderDowngrade*Test' --tests '*CustomBalancePersistenceTest' --tests '*RetiredBalanceEndpointTest' --tests '*ModelListReconcileTest' --tests '*ProviderDetailHiddenModelsTest' \
             --tests '*ModelListRefreshTest' --tests '*EmptyKeyRefreshTest' --tests '*CodexModelsApiTest' \
             --tests '*XAIDynamicCatalogTest' --tests '*ThinkingConfigTokenTest' \
