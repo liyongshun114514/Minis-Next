@@ -53,6 +53,7 @@ jobs:
     env:
       ANDROID_NDK_VERSION: 28.2.13676358
       GRADLE_OPTS: -Dorg.gradle.daemon=false
+      ROBOLECTRIC_SDK_DIR: ${{ github.workspace }}/.robolectric-sdks
       NEXT_STORE_PASSWORD: ${{ secrets.NEXT_STORE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
@@ -168,6 +169,21 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p test_removed_native_ui.py -v
           python3 -m unittest discover -s scripts/tests -p test_prompt_catalog.py -v
           python3 scripts/check-prompt-catalog.py
+          python3 -m unittest discover -s scripts/tests -p test_prepare_robolectric_sdks.py -v
+      - name: Restore Robolectric SDK cache
+        id: robolectric-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.ROBOLECTRIC_SDK_DIR }}
+          key: robolectric-sdks-${{ runner.os }}-${{ hashFiles('scripts/robolectric-sdks.json') }}
+      - name: Prepare verified offline Robolectric SDKs
+        run: python3 scripts/prepare_robolectric_sdks.py --directory "$ROBOLECTRIC_SDK_DIR"
+      - name: Save verified Robolectric SDK cache
+        if: steps.robolectric-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.ROBOLECTRIC_SDK_DIR }}
+          key: ${{ steps.robolectric-cache.outputs.cache-primary-key }}
       - name: Build APK
         id: build-apk
         working-directory: src/android

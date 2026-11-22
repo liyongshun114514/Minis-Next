@@ -312,8 +312,16 @@ val bundledAcceptanceRequired = providers.environmentVariable("MINIS_BUNDLED_APK
 // while retaining explicit local/offline repository overrides.
 val robolectricRepositoryUrl = providers.systemProperty("robolectric.dependency.repo.url")
     .orElse("https://repo.maven.apache.org/maven2")
+// CI prefetches checksum-pinned SDK jars with mirror fallback and caching.
+// Offline applies only to Robolectric, not to Gradle dependency resolution.
+val robolectricSdkDirectory = providers.systemProperty("robolectric.dependency.dir")
+    .orElse(providers.environmentVariable("ROBOLECTRIC_SDK_DIR"))
 tasks.withType<Test>().configureEach {
     systemProperty("robolectric.dependency.repo.url", robolectricRepositoryUrl.get())
+    robolectricSdkDirectory.orNull?.takeIf { it.isNotBlank() }?.let { sdkDirectory ->
+        systemProperty("robolectric.offline", "true")
+        systemProperty("robolectric.dependency.dir", sdkDirectory)
+    }
     if (bundledAcceptanceRequired.get() == "1" || bundledAcceptanceApk.get().isNotBlank()) {
         environment("MINIS_DOWNLOAD_IMAGE", downloadAcceptanceImage.get())
         inputs.property("downloadAcceptanceImage", downloadAcceptanceImage.get())
